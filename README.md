@@ -33,3 +33,11 @@ Model predictive control is a group of algorithms developed as of the 1970s, spe
 Some simulation results.
 
 ![MPBC2](figs/MPBC.png)
+
+## How to use the model
+
+### data
+The dataset used for the study
+
+### src
+The python code and notebooks too generate the results
