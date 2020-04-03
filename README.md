@@ -28,6 +28,8 @@ To pinpoint the social interaction parameter in the absence of government respon
 ### Model-based predictive control (MBPC): short intro for the layman
 Model predictive control is a group of algorithms developed as of the 1970s, specifically for discrete control in the process industry (discrete because computers are digital and, hence, discrete). The elegance of the technique is that it is simple and intuitive. The principle is shown in the figure below.
 
-![MPBC](figs/MPBC2.png)
+![MPBC1](figs/MPBC2.png)
 
-![MPBC](figs/MPBC.png)
+Some simulation results.
+
+![MPBC2](figs/MPBC.png)
