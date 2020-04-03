@@ -12,10 +12,12 @@ We use an extension of the SEIR model as demonstrated in the figure below. This 
 ### Model calibration
 To pinpoint the social interaction parameter in the absence of government response and general public awareness.
 
-**Belgium**
+#### Belgium
+
 ![belgium](figs/belgium.png)
 
-**China**
+#### China
+
 ![china](figs/china.png)
 
 ### Control
