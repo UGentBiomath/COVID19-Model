@@ -22,7 +22,7 @@ To pinpoint the social interaction parameter in the absence of government respon
 
 ### Control
 
-**On-off policies**
+#### On-off policies
 ![on-off](figs/on-off.png)
 
 ### Model-based predictive control (MBPC): short intro for the layman
