@@ -20,7 +20,7 @@ As of now (18/04/2020), the SEIRSAgeModel (deterministic model implementation wi
 
 <img src="figs/SEIRSAgeModel.jpg"
      alt="class"
-     height="600" width="700"     
+     width="700"     
      style="float: left; margin-right: 500px;" /> 
 
 ## How to use the model
@@ -33,9 +33,9 @@ A Jupyter Notebooks containing all scientific details and a tutorial is availabl
 
 Future work will include a modification of the model dynamics according to the flowchart below. We believe these allow to simulate even more realisticly. Available data from Belgian hospitals will be used.
 
-<img src="figs/flowchart3_1.jpg" alt="drawing" width="400"/>
+<img src="figs/flowchart3_1.jpg" alt="drawing" width="800"/>
 
-<img src="figs/flowchart3_2.jpg" alt="drawing" width="400"/>
+<img src="figs/flowchart3_2.jpg" alt="drawing" width="600"/>
 
 ### Stochastic model
 Implementing the class-based functions available in the SEIRSAgeModel for Monte-Carlo sampling, calibration and model predictive control in the stochastic model framework. Investigate if the Ryan McGee implementation of the stochastic model can be modified to include age-structuring.
