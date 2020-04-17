@@ -1,4 +1,4 @@
-*demo available (src/SEIRSAgeModel_demo.ipynb)*
+*demo available [(src/SEIRSAgeModel_demo.ipynb](src/SEIRSAgeModel_demo.ipynb)*
 
 # BIOMATH COVID19-Model
 
