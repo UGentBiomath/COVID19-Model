@@ -1,14 +1,14 @@
 *demo available (src/SEIRSAgeModel_demo.ipynb)*
 
-# Biomath COVID19-Model
+# BIOMATH COVID19-Model
 
 *Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
 
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University.
 
-Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases. UOur code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). A white paper and souce code of our previous work can be found on the Biomath website. 
+Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases. Our code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). A white paper and souce code of our previous work can be found on the [BIOMATH website](https://biomath.ugent.be/covid-19-outbreak-modelling-and-control). 
 
-https://biomath.ugent.be/covid-19-outbreak-modelling-and-control
+
 
 ## Model highlights
 
@@ -40,7 +40,7 @@ Future work will include a modification of the model dynamics according to the f
 <img src="figs/flowchart3_2.jpg" alt="drawing" width="600"/>
 
 ### Stochastic model
-Implementing the class-based functions available in the SEIRSAgeModel for Monte-Carlo sampling, calibration and model predictive control in the stochastic model framework. Investigate if the Ryan McGee implementation of the stochastic model can be modified to include age-structuring.
+Implementing the class-based functions available in the SEIRSAgeModel for Monte-Carlo sampling, calibration and model predictive control in the stochastic model framework. Investigate if the Ryan McGee-implementation of the stochastic model can be modified to include age-structuring.
 
 ### Scenario-specific functions
  We will implement a function which uses the past policies to quickly recreate the Belgian ICU and hospitalisation curves up-to-date. This function will be used to quickly propose MPC optimal policies and to perform scenario analysis about the future.
