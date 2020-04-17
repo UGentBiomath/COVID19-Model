@@ -1,10 +1,12 @@
+*demo available (src/SEIRSAgeModel_demo.ipynb)*
+
 # Biomath COVID19-Model
 
 *Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
 
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
 
-Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases. Using the concept of 'classes' in Python 3, the code was integrated with our previous work and allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). A white paper and souce code of our previous work can be found on the Biomath website. 
+Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases. UOur code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). A white paper and souce code of our previous work can be found on the Biomath website. 
 
 https://biomath.ugent.be/covid-19-outbreak-modelling-and-control
 
