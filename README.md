@@ -1,43 +1,46 @@
-# COVID19-Model
-SEIR model with scenario analysis and model-based predictive control to simulate the effect policies
+*demo available (src/SEIRSAgeModel_demo.ipynb)*
 
-This is the code for the [article, Covid-19: from model prediction to model predictive control,](https://www.linkedin.com/pulse/covid-19-from-model-prediction-predictive-control-ingmar-nopens/?trackingId=4P5ydm8bSOmyUBkRFNRWxw%3D%3D) published on LinkedIn by our group
+# Biomath COVID19-Model
 
+*Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
 
-## Highlight of the model
+Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
 
-### SEIR
-We use an extension of the SEIR model as demonstrated in the figure below. This model splits the population into different categories, i.e. susceptible, exposed, infected and removed. The latter 2 categories are further broken down in super mild, mild, heavy and critical for the infected part of the population, whereas the removed population indicates the immune and dead fraction. A super mild infection refers to the category of asymptotic people who are infected but are unaware of their own infection.
-![extendedSEIR](figs/extended_SEIR.jpeg)
-### Model calibration
-To pinpoint the social interaction parameter in the absence of government response and general public awareness.
+Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases. UOur code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). A white paper and souce code of our previous work can be found on the Biomath website. 
 
-#### Belgium
+https://biomath.ugent.be/covid-19-outbreak-modelling-and-control
 
-![belgium](figs/belgium.png)
+## Model highlights
 
-#### China
+### Model dynamics
+We use an extended version of the SEIR model to model the disease at a higher resolution. This classic SEIR model splits the population into different categories, i.e. susceptible, exposed, infected and removed. We break down the latter two categories in super mild (asymptotic), mild, heavy and critical for the infected part of the population, whereas the removed population indicates the immune and dead fraction. Parameters values are (for now) based on Chinese covid-19 literature but we are seeking to closer collaborate with Belgian hospitals as more data becomes available. The dynamics are modeled using two frameworks: 1) deterministic and 2) stochastic. The deterministic model can fluently run age-structured (metapopulation) simulations naturally by changing the initial conditions.  The stochastic model class is under construction but will be updated soon.
 
-![china](figs/china.png)
+<img src="figs/flowchart2.jpg" alt="drawing" width="400"/>
 
-### Control
+### Additional capabilities
+As of now (18/04/2020), the SEIRSAgeModel (deterministic model implementation with possiblity of age-structuring) contains 7 functions which can be grouped in two parts: 1) functions to run and visualise simulations and 2) functions to perform parameter estimations and visualse the results. 3) functions to optimize future policies using model predictive control (MPC).  Also, scenario specific functions will be added over the course of next week. 
 
-#### On-off policies
-![on-off](figs/on-off.png)
-
-### Model-based predictive control (MBPC): short intro for the layman
-Model predictive control is a group of algorithms developed as of the 1970s, specifically for discrete control in the process industry (discrete because computers are digital and, hence, discrete). The elegance of the technique is that it is simple and intuitive. The principle is shown in the figure below.
-
-![MPBC1](figs/MPBC2.png)
-
-Some simulation results.
-
-![MPBC2](figs/MPBC.png)
+<img src="figs/SEIRSAgeModel.jpg"
+     alt="class"
+     width="700"     
+     style="float: left; margin-right: 500px;" /> 
 
 ## How to use the model
 
-### data
-The dataset used for the study
+A Jupyter Notebooks containing all scientific details and a tutorial is available in the /src folder.
 
-### src
-The python code and notebooks too generate the results
+## Future work
+
+### Model dynamics
+
+Future work will include a modification of the model dynamics according to the flowchart below. We believe these allow to simulate even more realisticly. Available data from Belgian hospitals will be used.
+
+<img src="figs/flowchart3_1.jpg" alt="drawing" width="800"/>
+
+<img src="figs/flowchart3_2.jpg" alt="drawing" width="600"/>
+
+### Stochastic model
+Implementing the class-based functions available in the SEIRSAgeModel for Monte-Carlo sampling, calibration and model predictive control in the stochastic model framework. Investigate if the Ryan McGee implementation of the stochastic model can be modified to include age-structuring.
+
+### Scenario-specific functions
+ We will implement a function which uses the past policies to quickly recreate the Belgian ICU and hospitalisation curves up-to-date. This function will be used to quickly propose MPC optimal policies and to perform scenario analysis about the future.
