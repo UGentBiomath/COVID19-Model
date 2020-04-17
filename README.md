@@ -1,7 +1,6 @@
-*demo available [(src/SEIRSAgeModel_demo.ipynb](src/SEIRSAgeModel_demo.ipynb)*
+*demo available [src/SEIRSAgeModel_demo.ipynb](src/SEIRSAgeModel_demo.ipynb)*
 
 # BIOMATH COVID19-Model
-
 *Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
 
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University.
