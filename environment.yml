@@ -8,6 +8,7 @@ dependencies:
   - notebook
   - matplotlib>3
   - numpy
+  - scipy
   - networkx
   - pandas
   - ipywidgets
