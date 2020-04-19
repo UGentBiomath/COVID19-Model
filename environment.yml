@@ -10,5 +10,4 @@ dependencies:
   - numpy
   - networkx
   - pandas
-  - datetime
   - ipywidgets
