@@ -298,6 +298,11 @@ class SEIRSAgeModel():
                     or not isinstance(checkpoints[param], (list, numpy.ndarray)) 
                     or len(checkpoints[param])!=numCheckpoints):
                     checkpoints[param] = [getattr(self, param)]*numCheckpoints
+            # Before using checkpoints, save variables to be changed by method
+            beforeChk=[]
+            for key in checkpoints.keys():
+                if key is not 't':
+                    beforeChk.append(getattr(self,key))
 
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # Run the simulation loop:
@@ -333,7 +338,7 @@ class SEIRSAgeModel():
                 #print("[Checkpoint: Updating parameters]")
                 for param in paramNames:
                     setattr(self, param, checkpoints[param][checkpointIdx])
-
+          
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                 #print("t = %.2f" % self.t)
@@ -356,6 +361,12 @@ class SEIRSAgeModel():
 
             if(self.t < self.tmax):
                 self.run_epoch(runtime=self.tmax-self.t, dt=dt)
+                # Reset all parameter values that were changed back to their original value
+                i = 0
+                for key in checkpoints.keys():
+                    if key is not 't':
+                        setattr(self,key,beforeChk[i])
+                        i = i+1          
 
         return self
 
@@ -368,7 +379,7 @@ class SEIRSAgeModel():
             if self.n_samples is 1:
                 self.n_samples = 100
             # sample a total of n_samples from distribution of 
-            sigmavect = self.sampleFromDistribution('corona_incubatie.csv',self.n_samples)
+            sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.E = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
@@ -812,12 +823,6 @@ class SEIRSAgeModel():
         plt.show()   
         plt.figure()
         plt.show()
-
-    # def plotCountryPrediction(T,data,pastPolicies,futurePolicies,startDate=None):
-    #     chk = self.mergeCheckpoints([pastPolicies,futurePolicies])
-    #     self.sim(T,checkpoints=chk)
-    #     plt.figure()
-    #     plt.show()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1568,6 +1573,11 @@ class SEIRSNetworkModel():
         # Pre-process checkpoint values:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if(checkpoints):
+            # Before using checkpoints, save variables to be changed by method
+            beforeChk=[]
+            for key in checkpoints.keys():
+                if key is not 't':
+                    beforeChk.append(getattr(self,key))
             numCheckpoints = len(checkpoints['t'])
             paramNames = ['G', 'beta', 'sigma', 'zeta', 'p',
                           'Q', 'q', 'theta_S', 'theta_E', 'theta_SM', 'theta_M', 'theta_R',
@@ -1611,6 +1621,12 @@ class SEIRSNetworkModel():
                     # Update the next checkpoint time:
                     checkpointIdx  = numpy.searchsorted(checkpoints['t'], self.t) # Finds 1st index in list greater than given val
                     if(checkpointIdx >= numCheckpoints):
+                        # Reset all parameter values that were changed back to their original value
+                        i = 0
+                        for key in checkpoints.keys():
+                            if key is not 't':
+                                setattr(self,key,beforeChk[i])
+                                i = i+1
                         # We are out of checkpoints, stop checking them:
                         checkpoints = None 
                     else:
@@ -1720,7 +1736,7 @@ class SEIRSNetworkModel():
             if self.n_samples is 1:
                 self.n_samples = 100
             # sample a total of n_samples from distribution of 
-            sigmavect = self.sampleFromDistribution('corona_incubatie.csv',self.n_samples)
+            sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         # age-structuring extension will be included at a later time
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1759,7 +1775,7 @@ class SEIRSNetworkModel():
         # simulation loop
         i=0
         for self.sigma in sigmavect:
-            # reset self to initial conditioin
+            # reset self to initial condition
             self.reset()
             # perform simulation
             self.run(int(T),checkpoints)
@@ -1808,8 +1824,8 @@ class SEIRSNetworkModel():
 
     def plotPopulationStatus(self,filename=None):
         plt.figure()
-        plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
+        #plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
+        #plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
         plt.plot(self.tseries,numpy.mean(self.sumE,axis=1),color="orange")
         plt.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color="orange",alpha=0.2)
         I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
@@ -1817,7 +1833,7 @@ class SEIRSNetworkModel():
         plt.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color="red",alpha=0.2)
         plt.plot(self.tseries,numpy.mean(self.sumR,axis=1),color="green")
         plt.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color="green",alpha=0.2)
-        plt.legend(('susceptible','exposed','total infected','immune'))
+        plt.legend(('exposed','total infected','immune'))
         plt.xlabel('days')
         plt.ylabel('number of patients')
         if filename is not None:
