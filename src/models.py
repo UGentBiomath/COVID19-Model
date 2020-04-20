@@ -1869,6 +1869,156 @@ class SEIRSNetworkModel():
             plt.savefig(filename,dpi=600,bbox_inches='tight')
         plt.show()
 
+    def LSQ(self,thetas,data,parNames,positions,weights):
+        # ------------------
+        # Prepare simulation
+        # ------------------    
+        # reset all numX
+        self.reset()
+        # assign estimates to correct variable
+        extraTime = int(thetas[0])
+        i = 0
+        for param in parNames:
+            setattr(self,param,thetas[i+1])
+            i = i + 1
+            if param is 'h':
+                m_acc = self.m/(1-self.sm)
+                h_acc = self.h/(1-self.sm)
+                self.c = (1-self.sm)*(1-m_acc-h_acc)
+        # Compute length of data
+        n = len(data)
+        # Compute simulation time --> build in some redundancy here, datasizes don't have to be equal to eachother.
+        T = data[0].size+extraTime-1
+        # Set initial condition
+        # ...
+
+        # ------------------
+        # Perform simulation
+        # ------------------
+        self.sim(T)
+        # tuple the results, this is necessary to use the positions index
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # ---------------
+        # extract results
+        # ---------------
+        ymodel=[]
+        SSE = 0
+        for i in range(n):
+            som = 0
+            for j in positions[i]:
+                som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
+            ymodel.append(som[extraTime:,0].reshape(som[extraTime:,0].size,1))
+            # calculate quadratic error
+            SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
+        return(SSE)
+
+    def fit(self,data,parNames,positions,bounds,weights,checkpoints=None,setvar=False,disp=True,polish=True,maxiter=30,popsize=10):
+        # -------------------------------
+        # Run a series of checks on input
+        # -------------------------------
+        # Check if data, parNames and positions are lists
+        if type(data) is not list or type(parNames) is not list or type(positions) is not list:
+            raise Exception('Datatype of arguments data, parNames and positions must be lists. Lists are made by wrapping whatever datatype in square brackets [].')
+        # Check that length of positions is equal to the length of data
+        if len(data) is not len(positions):
+            raise Exception('The number of positions must match the number of dataseries given to function fit.')
+        # Check that length of parNames is equal to length of bounds
+        if (len(parNames)+1) is not len(bounds):
+            raise Exception('The number of bounds must match the number of parameter names given to function fit.')
+        # Check that all parNames are actual model parameters
+        possibleNames = ['G', 'beta', 'sigma', 'zeta', 'p',
+                          'Q', 'q', 'theta_S', 'theta_E', 'theta_SM', 'theta_M', 'theta_R',
+                          'phi_S','phi_E','phi_SM','phi_R','psi_FP','psi_PP',
+                          'sm','m','h','c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU']
+        i = 0
+        for param in parNames:
+            # For params that don't have given checkpoint values (or bad value given), 
+            # set their checkpoint values to the value they have now for all checkpoints.
+            if param not in possibleNames:
+                raise Exception('The parametername provided by user in position {} of argument parNames is not an actual model parameter. Please check its spelling.'.format(i))
+            else:
+                if param is 'G':
+                    raise Exception('Cannot fit parameter G because this is a network object')
+            i = i + 1
+        
+        # ---------------------
+        # Run genetic algorithm
+        # ---------------------
+        optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
+        theta_hat = optim_out.x
+        print(theta_hat)
+
+        # ---------------------------------------------------
+        # If setattr is True: assign estimated thetas to self
+        # ---------------------------------------------------
+        if setvar is True:
+            self.extraTime = int(theta_hat[0])
+            i = 0
+            for param in parNames:
+                setattr(self,param,theta_hat[i+1])
+                i  = i + 1
+                if param is 'h':
+                    m_acc = self.m/(1-self.sm)
+                    h_acc = self.h/(1-self.sm)
+                    self.c = (1-self.sm)*(1-m_acc-h_acc)
+                    c_acc = self.c/(1-self.sm)
+                    print(m_acc,h_acc,c_acc)
+        return self,theta_hat
+
+    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+        # ------------------
+        # Prepare simulation
+        # ------------------  
+        # reset all numX
+        self.reset()
+        # Compute number of dataseries
+        n = len(data)
+        # Compute simulation time
+        T = data[0].size+self.extraTime-1
+
+        # ------------------
+        # Perform simulation
+        # ------------------
+        self.sim(T)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # -----------
+        # Plot result
+        # -----------
+        # Create shifted index vector using self.extraTime
+        timeObj = index[0]
+        timestampStr = timeObj.strftime("%Y-%m-%d")
+        index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
+        # Plot figure        
+        plt.figure()
+        plt.figure(figsize=(7,5),dpi=100)
+        # Plot data
+        for i in range(n):
+            plt.scatter(index,data[i],color="black",marker=dataMkr[i])
+        # Plot model prediction
+        for i in range(n):
+            ymodel = 0
+            for j in positions[i]:
+                ymodel = ymodel + out[j]
+            plt.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            plt.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+        # Attributes
+        plt.xlim(pd.to_datetime(index_acc[self.extraTime-3]),pd.to_datetime(index_acc[-1]))
+        if legendText is not None:
+            plt.legend(legendText,loc='upper left')
+        if titleText is not None:
+            plt.title(titleText,{'fontsize':18})
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+        plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+        plt.setp(plt.gca().xaxis.get_majorticklabels(),
+            'rotation', 90)
+        plt.ylabel('number of patients')
+        # Save figure if needed
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
