@@ -15,11 +15,12 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import datetime
+from scipy import interpolate as inter
 
 class SEIRSAgeModel():
     """
-    A class to simulate the Deterministic SEIRS Model
-    ===================================================
+    A class to simulate the Deterministic extended SEIRS Model with optionl age-structuring
+    =======================================================================================
     Params: 
     """
 
@@ -87,7 +88,6 @@ class SEIRSAgeModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Counts of inidividuals with each state:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
         # per age category:
         self.N          = self.initN.astype(int)
         self.numE       = self.initE.astype(int)
@@ -298,6 +298,11 @@ class SEIRSAgeModel():
                     or not isinstance(checkpoints[param], (list, numpy.ndarray)) 
                     or len(checkpoints[param])!=numCheckpoints):
                     checkpoints[param] = [getattr(self, param)]*numCheckpoints
+            # Before using checkpoints, save variables to be changed by method
+            beforeChk=[]
+            for key in checkpoints.keys():
+                if key is not 't':
+                    beforeChk.append(getattr(self,key))
 
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         # Run the simulation loop:
@@ -333,7 +338,7 @@ class SEIRSAgeModel():
                 #print("[Checkpoint: Updating parameters]")
                 for param in paramNames:
                     setattr(self, param, checkpoints[param][checkpointIdx])
-
+          
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                 #print("t = %.2f" % self.t)
@@ -356,6 +361,12 @@ class SEIRSAgeModel():
 
             if(self.t < self.tmax):
                 self.run_epoch(runtime=self.tmax-self.t, dt=dt)
+                # Reset all parameter values that were changed back to their original value
+                i = 0
+                for key in checkpoints.keys():
+                    if key is not 't':
+                        setattr(self,key,beforeChk[i])
+                        i = i+1          
 
         return self
 
@@ -368,7 +379,7 @@ class SEIRSAgeModel():
             if self.n_samples is 1:
                 self.n_samples = 100
             # sample a total of n_samples from distribution of 
-            sigmavect = self.sampleFromDistribution('corona_incubatie.csv',self.n_samples)
+            sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.E = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
@@ -813,83 +824,32 @@ class SEIRSAgeModel():
         plt.figure()
         plt.show()
 
-    def plotCountryPrediction(T,data,pastPolicies,futurePolicies,startDate=None):
-        chk = self.mergeCheckpoints([pastPolicies,futurePolicies])
-        self.sim(T,checkpoints=chk)
-        plt.figure()
-        plt.show()
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 class SEIRSNetworkModel():
     """
     A class to simulate the SEIRS Stochastic Network Model
-    ===================================================
+    =====================================================
     Params: G       Network adjacency matrix (numpy array) or Networkx graph object.
-            beta    Rate of transmission (exposure) 
-            sigma   Rate of infection (upon exposure) 
-            gamma   Rate of recovery (upon infection) 
-            zeta      Rate of re-susceptibility (upon recovery)  
-            p       Probability of interaction outside adjacent nodes
-            
-            Q       Quarantine adjacency matrix (numpy array) or Networkx graph object.
-            theta_E Rate of baseline testing for exposed individuals
-            theta_I Rate of baseline testing for infectious individuals
-            phi_E   Rate of contact tracing testing for exposed individuals
-            phi_I   Rate of contact tracing testing for infectious individuals
-            psi_E   Probability of positive test results for exposed individuals
-            psi_I   Probability of positive test results for exposed individuals
-            q       Probability of quarantined individuals interaction outside adjacent nodes
-            
-            initE   Init number of exposed individuals       
-            initI   Init number of infectious individuals      
-            initD_E Init number of detected infectious individuals
-            initD_I Init number of detected infectious individuals   
-            initR   Init number of recovered individuals     
-            initF   Init number of infection-related fatalities
-                    (all remaining nodes initialized susceptible)   
+    EXTEND LIST
     """
-    def __init__(self, G, beta, sigma, zeta=0, p=0,sm=0, m=0, h=0, c=0, dsm=0, dm=0, dhospital=0, dh=0, dcf=0, dcr=0,mc0=0,ICU=0,theta_S=0, theta_E=0, theta_SM=0, theta_M=0, theta_R=0,
+    def __init__(self, G, beta, sigma, initN,zeta=0, p=0,sm=0, m=0, h=0, c=0, dsm=0, dm=0, dhospital=0, dh=0, dcf=0, dcr=0,mc0=0,ICU=0,theta_S=0, theta_E=0, theta_SM=0, theta_M=0, theta_R=0,
                     phi_S=0, phi_E=0, phi_SM=0, phi_R=0,psi_FP=0, psi_PP=0,dq=0,initE=10, initSM=0, initM=0, initH=0, initC=0, initHH = 0, initCH = 0, initR=0, initF=0,
-                    initSQ=0, initEQ=0, initSMQ=0, initMQ=0, initRQ=0,node_groups=None):
+                    initSQ=0, initEQ=0, initSMQ=0, initMQ=0, initRQ=0,monteCarlo=False,n_samples=1,node_groups=None):
 
-    # (1)
-    # TIJS: modify function with new states
-    # split I in SM, M, H, C, HH, CH
-    # R = immune
-    # F = dead
-    # new parameters: sm, m, h, c, dsm, dm, dhospital, dh, dcf, dcr, mh
-    # removed parameters: gamma
-
-    # (2)
-    # TIJS: modify function with new states for quarantine
-    # add 5 quarantine states: SQ, EQ, SMQ, MQ, RQ
-    # remove two states: numD_I and numD_E
-    # add 5 parameters for testing: thetaS, thetaE, thetaSM, thetaM, thetaI
-    # add 5 parameters for backtracking: phiS, phiE, phiSM, phiM, phiI
-    # add 2 parameters for testing efficiency: psiFP, psiPP
-    # add 1 parameter for quarantine time if no symptoms develop, dq
-    # removed theta_E, theta_I, phi_E, phi_I, psi_E, psi_I
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #~~~~~~~~~~~~~~~~~~~~~~~~
         # Setup Adjacency matrix:
+        #~~~~~~~~~~~~~~~~~~~~~~~~
         self.update_G(G)
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Setup Quarantine Adjacency matrix:
-        #if(Q is None):
-        #   Q = G # If no Q graph is provided, use G in its place
-        #self.update_Q(Q)
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Model Parameters:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initiate Model Parameters:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.beta   = numpy.array(beta).reshape((self.numNodes, 1))  if isinstance(beta, (list, numpy.ndarray)) else numpy.full(fill_value=beta, shape=(self.numNodes,1))
         self.sigma  = numpy.array(sigma).reshape((self.numNodes, 1)) if isinstance(sigma, (list, numpy.ndarray)) else numpy.full(fill_value=sigma, shape=(self.numNodes,1))
         self.zeta     = numpy.array(zeta).reshape((self.numNodes, 1))    if isinstance(zeta, (list, numpy.ndarray)) else numpy.full(fill_value=zeta, shape=(self.numNodes,1))
         self.p      = numpy.array(p).reshape((self.numNodes, 1))     if isinstance(p, (list, numpy.ndarray)) else numpy.full(fill_value=p, shape=(self.numNodes,1))        
-        # added by Tijs (1)
         self.sm  = numpy.array(sm).reshape((self.numNodes, 1)) if isinstance(sm, (list, numpy.ndarray)) else numpy.full(fill_value=sm, shape=(self.numNodes,1))
         self.m  = numpy.array(m).reshape((self.numNodes, 1)) if isinstance(m, (list, numpy.ndarray)) else numpy.full(fill_value=m, shape=(self.numNodes,1))
         self.h  = numpy.array(h).reshape((self.numNodes, 1)) if isinstance(h, (list, numpy.ndarray)) else numpy.full(fill_value=h, shape=(self.numNodes,1))
@@ -902,25 +862,26 @@ class SEIRSNetworkModel():
         self.dcr  = numpy.array(dcr).reshape((self.numNodes, 1)) if isinstance(dcr, (list, numpy.ndarray)) else numpy.full(fill_value=dcr, shape=(self.numNodes,1))
         self.mc0  = numpy.array(mc0).reshape((self.numNodes, 1)) if isinstance(mc0, (list, numpy.ndarray)) else numpy.full(fill_value=mc0, shape=(self.numNodes,1))
         self.ICU  = numpy.array(ICU).reshape((self.numNodes, 1)) if isinstance(ICU, (list, numpy.ndarray)) else numpy.full(fill_value=ICU, shape=(self.numNodes,1))
-        # added by Tijs (2)
         self.theta_S  = numpy.array(theta_S).reshape((self.numNodes, 1)) if isinstance(theta_S, (list, numpy.ndarray)) else numpy.full(fill_value=theta_S, shape=(self.numNodes,1))
         self.theta_E  = numpy.array(theta_E).reshape((self.numNodes, 1)) if isinstance(theta_E, (list, numpy.ndarray)) else numpy.full(fill_value=theta_E, shape=(self.numNodes,1))
         self.theta_SM  = numpy.array(theta_SM).reshape((self.numNodes, 1)) if isinstance(theta_SM, (list, numpy.ndarray)) else numpy.full(fill_value=theta_SM, shape=(self.numNodes,1))
         self.theta_M  = numpy.array(theta_M).reshape((self.numNodes, 1)) if isinstance(theta_M, (list, numpy.ndarray)) else numpy.full(fill_value=theta_M, shape=(self.numNodes,1))
         self.theta_R  = numpy.array(theta_R).reshape((self.numNodes, 1)) if isinstance(theta_R, (list, numpy.ndarray)) else numpy.full(fill_value=theta_R, shape=(self.numNodes,1))
-
         self.phi_S  = numpy.array(phi_S).reshape((self.numNodes, 1)) if isinstance(phi_S, (list, numpy.ndarray)) else numpy.full(fill_value=phi_S, shape=(self.numNodes,1))
         self.phi_E  = numpy.array(phi_E).reshape((self.numNodes, 1)) if isinstance(phi_E, (list, numpy.ndarray)) else numpy.full(fill_value=phi_E, shape=(self.numNodes,1))
         self.phi_SM  = numpy.array(phi_SM).reshape((self.numNodes, 1)) if isinstance(phi_SM, (list, numpy.ndarray)) else numpy.full(fill_value=phi_SM, shape=(self.numNodes,1))
         self.phi_R  = numpy.array(phi_R).reshape((self.numNodes, 1)) if isinstance(phi_R, (list, numpy.ndarray)) else numpy.full(fill_value=phi_R, shape=(self.numNodes,1))
-
         self.psi_FP  = numpy.array(psi_FP).reshape((self.numNodes, 1)) if isinstance(psi_FP, (list, numpy.ndarray)) else numpy.full(fill_value=psi_FP, shape=(self.numNodes,1))
         self.psi_PP  = numpy.array(psi_PP).reshape((self.numNodes, 1)) if isinstance(psi_PP, (list, numpy.ndarray)) else numpy.full(fill_value=psi_PP, shape=(self.numNodes,1))        
-
         self.dq  = numpy.array(dq).reshape((self.numNodes, 1)) if isinstance(dq, (list, numpy.ndarray)) else numpy.full(fill_value=dq, shape=(self.numNodes,1))        
 
-        # Testing-related parameters:
-        #self.q        = numpy.array(q).reshape((self.numNodes, 1))        if isinstance(q, (list, numpy.ndarray)) else numpy.full(fill_value=q, shape=(self.numNodes,1))
+        # monte-carlo sampling is an attribute of the model
+        self.monteCarlo = monteCarlo
+        self.n_samples = n_samples
+        # node-groups should also ben an attribute of the model
+        self.node_groups = node_groups
+        # initN is used to extrapolate results to given population
+        self.initN = initN
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Each node can undergo up to 4 transitions (sans vitality/re-susceptibility returns to S state),
@@ -932,14 +893,12 @@ class SEIRSNetworkModel():
         self.numF   = numpy.zeros(5*self.numNodes)
         self.numS   = numpy.zeros(5*self.numNodes)
         self.N      = numpy.zeros(5*self.numNodes)
-        # added by Tijs (1)
         self.numSM   = numpy.zeros(5*self.numNodes)
         self.numM   = numpy.zeros(5*self.numNodes)
         self.numH   = numpy.zeros(5*self.numNodes)
         self.numHH   = numpy.zeros(5*self.numNodes)
         self.numC   = numpy.zeros(5*self.numNodes)
         self.numCH   = numpy.zeros(5*self.numNodes)
-        # added by Tijs (2)
         self.numSQ   = numpy.zeros(5*self.numNodes)
         self.numEQ   = numpy.zeros(5*self.numNodes)
         self.numSMQ   = numpy.zeros(5*self.numNodes)
@@ -954,18 +913,35 @@ class SEIRSNetworkModel():
         self.tidx   = 0
         self.tseries[0] = 0
         
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # initial condition must be an attribute of class: WAS NOT ADDED ORIGINALLY
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.initE = initE
+        self.initSM = initSM
+        self.initM = initM
+        self.initH = initH
+        self.initC = initC
+        self.initHH = initHH
+        self.initCH = initCH
+        self.initR = initR
+        self.initF = initF
+        self.initSQ = initSQ
+        self.initEQ = initEQ
+        self.initSMQ = initSMQ
+        self.initMQ = initMQ
+        self.initRQ = initRQ
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Counts of inidividuals with each state:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
         self.numE[0] = int(initE)
-        # added by Tijs (1)
         self.numSM[0] = int(initSM)
         self.numM[0] = int(initM)
         self.numH[0] = int(initH)
         self.numHH[0] = int(initHH)
         self.numC[0] = int(initC)
         self.numCH[0] = int(initCH)
-        # added by Tijs (2)
         self.numSQ[0] = int(initSQ)
         self.numEQ[0] = int(initEQ)
         self.numSMQ[0] = int(initSMQ)
@@ -973,14 +949,12 @@ class SEIRSNetworkModel():
         self.numRQ[0] = int(initRQ)
         self.numR[0] = int(initR)
         self.numF[0] = int(initF)
-        # modified by Tijs
         self.numS[0] = self.numNodes - self.numE[0] - self.numSM[0] - self.numM[0] - self.numH[0] - self.numHH[0] - self.numC[0] - self.numCH[0] - self.numSQ[0] - self.numEQ[0] - self.numSMQ[0] - self.numMQ[0]- self.numRQ[0]- self.numR[0] - self.numF[0]
         self.N[0]    = self.numS[0] + self.numE[0] + self.numSM[0] + self.numM[0] + self.numH[0] + self.numHH[0] + self.numC[0] + self.numCH[0]  + self.numSQ[0] + self.numEQ[0] + self.numSMQ[0] + self.numMQ[0] + self.numRQ[0] + self.numR[0]
         
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Node states:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # modification to indices made here!
         self.S      = 1
         self.E      = 2
         self.SM      = 3
@@ -1031,9 +1005,162 @@ class SEIRSNetworkModel():
                             }
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Initialize scenario flags:
+        # Initialize node subgroup data series:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        #self.update_scenario_flags()
+        self.nodeGroupData = None
+        if(node_groups):
+            self.nodeGroupData = {}
+            for groupName, nodeList in node_groups.items():
+                self.nodeGroupData[groupName] = {'nodes':   numpy.array(nodeList),
+                                                 'mask':    numpy.isin(range(self.numNodes), nodeList).reshape((self.numNodes,1))}
+                self.nodeGroupData[groupName]['numS']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numE']       = numpy.zeros(5*self.numNodes)
+                # added by Tijs (1)
+                self.nodeGroupData[groupName]['numSM']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numM']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numH']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numHH']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numC']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numCH']       = numpy.zeros(5*self.numNodes)
+
+                self.nodeGroupData[groupName]['numSQ']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numEQ']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numSMQ']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numMQ']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numRQ']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numR']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['numF']       = numpy.zeros(5*self.numNodes)
+                self.nodeGroupData[groupName]['N']          = numpy.zeros(5*self.numNodes)
+
+                self.nodeGroupData[groupName]['numS'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.S)
+                self.nodeGroupData[groupName]['numE'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.E)
+
+                self.nodeGroupData[groupName]['numSM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SM)
+                self.nodeGroupData[groupName]['numM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.M)
+                self.nodeGroupData[groupName]['numH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.H)
+                self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)   
+                self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)  
+                self.nodeGroupData[groupName]['numCH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.CH)
+
+                self.nodeGroupData[groupName]['numSQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SQ)
+                self.nodeGroupData[groupName]['numEQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.EQ)
+                self.nodeGroupData[groupName]['numSMQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SMQ)
+                self.nodeGroupData[groupName]['numMQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.MQ)
+                self.nodeGroupData[groupName]['numRQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.RQ)
+                self.nodeGroupData[groupName]['numR'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.R)
+                self.nodeGroupData[groupName]['numF'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.F)
+
+                self.nodeGroupData[groupName]['N'][0]       = self.nodeGroupData[groupName]['numS'][0] + self.nodeGroupData[groupName]['numE'][0] + self.nodeGroupData[groupName]['numSM'][0]
+                + self.nodeGroupData[groupName]['numM'][0] + self.nodeGroupData[groupName]['numH'][0] + self.nodeGroupData[groupName]['numHH'][0] + self.nodeGroupData[groupName]['numC'][0]
+                + self.nodeGroupData[groupName]['numCH'][0]  + self.nodeGroupData[groupName]['numSQ'][0] + self.nodeGroupData[groupName]['numEQ'][0] + self.nodeGroupData[groupName]['numSMQ'][0]
+                + self.nodeGroupData[groupName]['numMQ'][0] +  self.nodeGroupData[groupName]['numRQ'][0] + self.nodeGroupData[groupName]['numR'][0]
+
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    def reset(self):
+        node_groups = self.node_groups
+        # A function which re-initialises the network with the initial conditions
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Each node can undergo up to 4 transitions (sans vitality/re-susceptibility returns to S state),
+        # so there are ~numNodes*4 events/timesteps expected; initialize numNodes*5 timestep slots to start 
+        # (will be expanded during run if needed)
+        self.tseries = numpy.zeros(5*self.numNodes)
+        self.numE   = numpy.zeros(5*self.numNodes)
+        self.numR   = numpy.zeros(5*self.numNodes)
+        self.numF   = numpy.zeros(5*self.numNodes)
+        self.numS   = numpy.zeros(5*self.numNodes)
+        self.N      = numpy.zeros(5*self.numNodes)
+        self.numSM   = numpy.zeros(5*self.numNodes)
+        self.numM   = numpy.zeros(5*self.numNodes)
+        self.numH   = numpy.zeros(5*self.numNodes)
+        self.numHH   = numpy.zeros(5*self.numNodes)
+        self.numC   = numpy.zeros(5*self.numNodes)
+        self.numCH   = numpy.zeros(5*self.numNodes)
+        self.numSQ   = numpy.zeros(5*self.numNodes)
+        self.numEQ   = numpy.zeros(5*self.numNodes)
+        self.numSMQ   = numpy.zeros(5*self.numNodes)
+        self.numMQ   = numpy.zeros(5*self.numNodes)
+        self.numRQ   = numpy.zeros(5*self.numNodes)
+
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize Timekeeping:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.t      = 0
+        self.tmax   = 0 # will be set when run() is called
+        self.tidx   = 0
+        self.tseries[0] = 0
+        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Initialize Counts of inidividuals with each state:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.numE[0] = int(self.initE)
+        self.numSM[0] = int(self.initSM)
+        self.numM[0] = int(self.initM)
+        self.numH[0] = int(self.initH)
+        self.numHH[0] = int(self.initHH)
+        self.numC[0] = int(self.initC)
+        self.numCH[0] = int(self.initCH)
+        self.numSQ[0] = int(self.initSQ)
+        self.numEQ[0] = int(self.initEQ)
+        self.numSMQ[0] = int(self.initSMQ)
+        self.numMQ[0] = int(self.initMQ)
+        self.numRQ[0] = int(self.initRQ)
+        self.numR[0] = int(self.initR)
+        self.numF[0] = int(self.initF)
+        self.numS[0] = self.numNodes - self.numE[0] - self.numSM[0] - self.numM[0] - self.numH[0] - self.numHH[0] - self.numC[0] - self.numCH[0] - self.numSQ[0] - self.numEQ[0] - self.numSMQ[0] - self.numMQ[0]- self.numRQ[0]- self.numR[0] - self.numF[0]
+        self.N[0]    = self.numS[0] + self.numE[0] + self.numSM[0] + self.numM[0] + self.numH[0] + self.numHH[0] + self.numC[0] + self.numCH[0]  + self.numSQ[0] + self.numEQ[0] + self.numSMQ[0] + self.numMQ[0] + self.numRQ[0] + self.numR[0]
+        
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Node states:
+        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        self.S      = 1
+        self.E      = 2
+        self.SM      = 3
+        self.M      = 4
+        self.H      = 5
+        self.HH      = 6
+        self.C      = 7
+        self.CH      = 8
+        self.SQ     = 9
+        self.EQ     = 10
+        self.SMQ     = 11
+        self.MQ     = 12
+        self.RQ     = 13
+        self.R      = 14
+        self.F      = 15
+
+        self.X = numpy.array([self.S]*int(self.numS[0]) + [self.E]*int(self.numE[0]) + [self.SM]*int(self.numSM[0]) + [self.M]*int(self.numM[0]) + [self.H]*int(self.numH[0]) + [self.HH]*int(self.numHH[0]) + [self.C]*int(self.numC[0]) + [self.CH]*int(self.numCH[0]) + [self.SQ]*int(self.numSQ[0]) + [self.EQ]*int(self.numEQ[0]) + [self.SMQ]*int(self.numSMQ[0]) + [self.MQ]*int(self.numMQ[0]) + [self.RQ]*int(self.numRQ[0]) + [self.R]*int(self.numR[0]) + [self.F]*int(self.numF[0])).reshape((self.numNodes,1))
+        numpy.random.shuffle(self.X)
+
+        self.transitions =  { 
+                                'StoE': {'currentState':self.S, 'newState':self.E},
+                                'EtoSM': {'currentState':self.E, 'newState':self.SM},
+                                'EtoM': {'currentState':self.E, 'newState':self.M},
+                                'EtoH': {'currentState':self.E, 'newState':self.H},
+                                'EtoC': {'currentState':self.E, 'newState':self.C},
+                                'HtoHH': {'currentState':self.H, 'newState':self.HH},
+                                'CtoCH': {'currentState':self.C, 'newState':self.CH},
+                                'SMtoR': {'currentState':self.SM, 'newState':self.R},
+                                'MtoR': {'currentState':self.M, 'newState':self.R},
+                                'HHtoR': {'currentState':self.HH, 'newState':self.R},
+                                'CHtoR': {'currentState':self.CH, 'newState':self.R},
+                                'CHtoF': {'currentState':self.CH, 'newState':self.F},
+                                'StoSQ': {'currentState':self.S, 'newState':self.SQ},
+                                'EtoEQ': {'currentState':self.E, 'newState':self.EQ},
+                                'SMtoSMQ': {'currentState':self.SM, 'newState':self.SMQ},
+                                'MtoMQ': {'currentState':self.M, 'newState':self.MQ},
+                                'RtoRQ': {'currentState':self.R, 'newState':self.RQ},
+                                'SQtoS': {'currentState':self.SQ, 'newState':self.S},
+                                'EQtoSMQ': {'currentState':self.EQ, 'newState':self.SMQ},
+                                'EQtoMQ': {'currentState':self.EQ, 'newState':self.MQ},
+                                'EQtoH': {'currentState':self.EQ, 'newState':self.H},
+                                'EQtoC': {'currentState':self.EQ, 'newState':self.C},
+                                'SMQtoR': {'currentState':self.SMQ, 'newState':self.R},
+                                'MQtoR': {'currentState':self.MQ, 'newState':self.R},
+                                'RQtoR': {'currentState':self.RQ, 'newState':self.R},
+                                'RtoS': {'currentState':self.R, 'newState':self.S},
+                                '_toS': {'currentState':True, 'newState':self.S},
+                            }
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize node subgroup data series:
@@ -1053,7 +1180,7 @@ class SEIRSNetworkModel():
                 self.nodeGroupData[groupName]['numHH']       = numpy.zeros(5*self.numNodes)
                 self.nodeGroupData[groupName]['numC']       = numpy.zeros(5*self.numNodes)
                 self.nodeGroupData[groupName]['numCH']       = numpy.zeros(5*self.numNodes)
-                # added by Tijs (2)
+
                 self.nodeGroupData[groupName]['numSQ']       = numpy.zeros(5*self.numNodes)
                 self.nodeGroupData[groupName]['numEQ']       = numpy.zeros(5*self.numNodes)
                 self.nodeGroupData[groupName]['numSMQ']       = numpy.zeros(5*self.numNodes)
@@ -1065,14 +1192,14 @@ class SEIRSNetworkModel():
 
                 self.nodeGroupData[groupName]['numS'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.S)
                 self.nodeGroupData[groupName]['numE'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.E)
-                # added by Tijs (1)
+
                 self.nodeGroupData[groupName]['numSM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SM)
                 self.nodeGroupData[groupName]['numM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.M)
                 self.nodeGroupData[groupName]['numH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.H)
                 self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)   
                 self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)  
                 self.nodeGroupData[groupName]['numCH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.CH)
-                # added by Tijs (2)
+
                 self.nodeGroupData[groupName]['numSQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SQ)
                 self.nodeGroupData[groupName]['numEQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.EQ)
                 self.nodeGroupData[groupName]['numSMQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SMQ)
@@ -1080,13 +1207,11 @@ class SEIRSNetworkModel():
                 self.nodeGroupData[groupName]['numRQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.RQ)
                 self.nodeGroupData[groupName]['numR'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.R)
                 self.nodeGroupData[groupName]['numF'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.F)
-                # modified by Tijs
+
                 self.nodeGroupData[groupName]['N'][0]       = self.nodeGroupData[groupName]['numS'][0] + self.nodeGroupData[groupName]['numE'][0] + self.nodeGroupData[groupName]['numSM'][0]
                 + self.nodeGroupData[groupName]['numM'][0] + self.nodeGroupData[groupName]['numH'][0] + self.nodeGroupData[groupName]['numHH'][0] + self.nodeGroupData[groupName]['numC'][0]
                 + self.nodeGroupData[groupName]['numCH'][0]  + self.nodeGroupData[groupName]['numSQ'][0] + self.nodeGroupData[groupName]['numEQ'][0] + self.nodeGroupData[groupName]['numSMQ'][0]
                 + self.nodeGroupData[groupName]['numMQ'][0] +  self.nodeGroupData[groupName]['numRQ'][0] + self.nodeGroupData[groupName]['numR'][0]
-
-         
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1111,36 +1236,6 @@ class SEIRSNetworkModel():
         self.degree     = numpy.asarray(self.node_degrees(self.A)).astype(float)
 
         return
-
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    # def update_Q(self, new_Q):
-    #     self.Q = new_Q
-    #     # Quarantine Adjacency matrix:
-    #     if type(new_Q)==numpy.ndarray:
-    #         self.A_Q = scipy.sparse.csr_matrix(new_Q)
-    #     elif type(new_Q)==networkx.classes.graph.Graph:
-    #         self.A_Q = networkx.adj_matrix(new_Q) # adj_matrix gives scipy.sparse csr_matrix
-    #     else:
-    #         raise BaseException("Input an adjacency matrix or networkx object only.")
-
-    #     self.numNodes_Q   = int(self.A_Q.shape[1])
-    #     self.degree_Q     = numpy.asarray(self.node_degrees(self.A_Q)).astype(float)
-
-    #     assert(self.numNodes == self.numNodes_Q), "The normal and quarantine adjacency graphs must be of the same size."
-
-    #     return
-
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-    #def update_scenario_flags(self):
-    #    self.testing_scenario   = ( (numpy.any(self.psi_I) and (numpy.any(self.theta_R) or numpy.any(self.phi_I)))  
-    #                                 or (numpy.any(self.psi_E) and (numpy.any(self.theta_E) or numpy.any(self.phi_E))) )
-    #    self.tracing_scenario   = ( (numpy.any(self.psi_E) and numpy.any(self.phi_E)) 
-    #                                 or (numpy.any(self.psi_I) and numpy.any(self.phi_I)) )
-    #    elf.vitality_scenario  = (numpy.any(self.mu_0) and numpy.any(self.nu))
-    #    self.resusceptibility_scenario  = (numpy.any(self.zeta))
-
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1195,13 +1290,6 @@ class SEIRSNetworkModel():
         if(numpy.any(self.numCH[self.tidx]) 
             and numpy.any(self.beta!=0)):
             numContacts_CH = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.CH) )
-
-        # moet hier nog gemodified worden
-        # numContacts_D = numpy.zeros(shape=(self.numNodes,1))
-        # if(self.tracing_scenario 
-        #     and (numpy.any(self.numD_E[self.tidx]) or numpy.any(self.numD_I[self.tidx]))):
-        #     numContacts_D = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.D_E)
-        #                                     + scipy.sparse.csr_matrix.dot(self.A, self.X==self.D_I) )
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1310,20 +1398,17 @@ class SEIRSNetworkModel():
             for groupName in self.nodeGroupData:
                 self.nodeGroupData[groupName]['numS']     = numpy.pad(self.nodeGroupData[groupName]['numS'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numE']     = numpy.pad(self.nodeGroupData[groupName]['numE'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
-                # added by Tijs (1)
                 self.nodeGroupData[groupName]['numSM']     = numpy.pad(self.nodeGroupData[groupName]['numSM'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numM']     = numpy.pad(self.nodeGroupData[groupName]['numM'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numH']     = numpy.pad(self.nodeGroupData[groupName]['numH'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numC']     = numpy.pad(self.nodeGroupData[groupName]['numC'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numHH']     = numpy.pad(self.nodeGroupData[groupName]['numHH'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numCH']     = numpy.pad(self.nodeGroupData[groupName]['numCH'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
-                # added by Tijs (2)
                 self.nodeGroupData[groupName]['numSQ']     = numpy.pad(self.nodeGroupData[groupName]['numSQ'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numEQ']     = numpy.pad(self.nodeGroupData[groupName]['numEQ'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numSMQ']     = numpy.pad(self.nodeGroupData[groupName]['numSMQ'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numMQ']     = numpy.pad(self.nodeGroupData[groupName]['numMQ'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numRQ']     = numpy.pad(self.nodeGroupData[groupName]['numRQ'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
-
                 self.nodeGroupData[groupName]['numR']     = numpy.pad(self.nodeGroupData[groupName]['numR'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['numF']     = numpy.pad(self.nodeGroupData[groupName]['numF'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
                 self.nodeGroupData[groupName]['N']        = numpy.pad(self.nodeGroupData[groupName]['N'], [(0, 5*self.numNodes)], mode='constant', constant_values=0)
@@ -1336,20 +1421,17 @@ class SEIRSNetworkModel():
         self.tseries = numpy.array(self.tseries, dtype=float)[:self.tidx+1]
         self.numS = numpy.array(self.numS, dtype=float)[:self.tidx+1]
         self.numE = numpy.array(self.numE, dtype=float)[:self.tidx+1]
-        # added by Tijs (1)
         self.numSM = numpy.array(self.numSM, dtype=float)[:self.tidx+1]
         self.numM = numpy.array(self.numM, dtype=float)[:self.tidx+1]
         self.numH = numpy.array(self.numH, dtype=float)[:self.tidx+1]
         self.numC = numpy.array(self.numCH, dtype=float)[:self.tidx+1]
         self.numHH = numpy.array(self.numHH, dtype=float)[:self.tidx+1]
         self.numCH = numpy.array(self.numCH, dtype=float)[:self.tidx+1]
-        # added by Tijs (2)
         self.numSQ = numpy.array(self.numSQ, dtype=float)[:self.tidx+1]
         self.numEQ = numpy.array(self.numEQ, dtype=float)[:self.tidx+1]
         self.numSMQ = numpy.array(self.numSMQ, dtype=float)[:self.tidx+1]
         self.numMQ = numpy.array(self.numMQ, dtype=float)[:self.tidx+1]
         self.numRQ = numpy.array(self.numRQ, dtype=float)[:self.tidx+1]
-
         self.numR = numpy.array(self.numR, dtype=float)[:self.tidx+1]
         self.numF = numpy.array(self.numF, dtype=float)[:self.tidx+1]
         self.N = numpy.array(self.N, dtype=float)[:self.tidx+1]
@@ -1358,20 +1440,17 @@ class SEIRSNetworkModel():
             for groupName in self.nodeGroupData:
                 self.nodeGroupData[groupName]['numS']    = numpy.array(self.nodeGroupData[groupName]['numS'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numE']    = numpy.array(self.nodeGroupData[groupName]['numE'], dtype=float)[:self.tidx+1]
-                # added by Tijs (1)
                 self.nodeGroupData[groupName]['numSM']    = numpy.array(self.nodeGroupData[groupName]['numSM'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numM']    = numpy.array(self.nodeGroupData[groupName]['numM'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numH']    = numpy.array(self.nodeGroupData[groupName]['numH'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numC']    = numpy.array(self.nodeGroupData[groupName]['numC'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numHH']    = numpy.array(self.nodeGroupData[groupName]['numHH'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numCH']    = numpy.array(self.nodeGroupData[groupName]['numCH'], dtype=float)[:self.tidx+1]
-                # added by Tijs (2)
                 self.nodeGroupData[groupName]['numSQ']    = numpy.array(self.nodeGroupData[groupName]['numSQ'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numEQ']    = numpy.array(self.nodeGroupData[groupName]['numEQ'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numSMQ']    = numpy.array(self.nodeGroupData[groupName]['numSMQ'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numMQ']    = numpy.array(self.nodeGroupData[groupName]['numMQ'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numRQ']    = numpy.array(self.nodeGroupData[groupName]['numRQ'], dtype=float)[:self.tidx+1]
-
                 self.nodeGroupData[groupName]['numR']    = numpy.array(self.nodeGroupData[groupName]['numR'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numF']    = numpy.array(self.nodeGroupData[groupName]['numF'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['N']       = numpy.array(self.nodeGroupData[groupName]['N'], dtype=float)[:self.tidx+1]
@@ -1434,20 +1513,17 @@ class SEIRSNetworkModel():
         self.tseries[self.tidx]  = self.t
         self.numS[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.S), a_min=0, a_max=self.numNodes)
         self.numE[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.E), a_min=0, a_max=self.numNodes)
-        # added by Tijs (1)
         self.numSM[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.SM), a_min=0, a_max=self.numNodes)
         self.numM[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.M), a_min=0, a_max=self.numNodes)
         self.numH[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.H), a_min=0, a_max=self.numNodes)
         self.numC[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.C), a_min=0, a_max=self.numNodes)
         self.numHH[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.HH), a_min=0, a_max=self.numNodes)
         self.numCH[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.CH), a_min=0, a_max=self.numNodes)
-        # added by Tijs (2)
         self.numSQ[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.SQ), a_min=0, a_max=self.numNodes)
         self.numEQ[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.EQ), a_min=0, a_max=self.numNodes)
         self.numSMQ[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.SMQ), a_min=0, a_max=self.numNodes)
         self.numMQ[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.MQ), a_min=0, a_max=self.numNodes)
         self.numRQ[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.RQ), a_min=0, a_max=self.numNodes)
-
         self.numR[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.R), a_min=0, a_max=self.numNodes)
         self.numF[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.F), a_min=0, a_max=self.numNodes)
         self.N[self.tidx]        = numpy.clip((self.numS[self.tidx] + self.numE[self.tidx] + self.numSM[self.tidx] + self.numM[self.tidx] + self.numH[self.tidx] + self.numC[self.tidx] + self.numHH[self.tidx] + self.numCH[self.tidx] + self.numSQ[self.tidx] + self.numEQ[self.tidx] + self.numSMQ[self.tidx] + self.numMQ[self.tidx] + self.numRQ[self.tidx] + self.numR[self.tidx]), a_min=0, a_max=self.numNodes)
@@ -1456,20 +1532,17 @@ class SEIRSNetworkModel():
             for groupName in self.nodeGroupData:
                 self.nodeGroupData[groupName]['numS'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.S)
                 self.nodeGroupData[groupName]['numE'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.E)
-                # added by Tijs (1)
                 self.nodeGroupData[groupName]['numSM'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SM)
                 self.nodeGroupData[groupName]['numM'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.M)
                 self.nodeGroupData[groupName]['numH'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.H)
                 self.nodeGroupData[groupName]['numC'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)
                 self.nodeGroupData[groupName]['numHH'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)
                 self.nodeGroupData[groupName]['numCH'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.CH)
-                # added by Tijs (2)
                 self.nodeGroupData[groupName]['numSQ'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SQ)
                 self.nodeGroupData[groupName]['numEQ'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.EQ)
                 self.nodeGroupData[groupName]['numSMQ'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SMQ)
                 self.nodeGroupData[groupName]['numMQ'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.MQ)
                 self.nodeGroupData[groupName]['numRQ'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.RQ)
-
                 self.nodeGroupData[groupName]['numR'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.R)
                 self.nodeGroupData[groupName]['numF'][self.tidx]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.F)
                 self.nodeGroupData[groupName]['N'][self.tidx]       = numpy.clip((self.nodeGroupData[groupName]['numS'][0] + self.nodeGroupData[groupName]['numE'][0] + self.nodeGroupData[groupName]['numSM'][0] + self.nodeGroupData[groupName]['numM'][0] + self.nodeGroupData[groupName]['numH'][0] + self.nodeGroupData[groupName]['numC'][0] + self.nodeGroupData[groupName]['numHH'][0] + self.nodeGroupData[groupName]['numCH'][0] + self.nodeGroupData[groupName]['numSQ'][0] + self.nodeGroupData[groupName]['numEQ'][0] + self.nodeGroupData[groupName]['numSMQ'][0] + self.nodeGroupData[groupName]['numMQ'][0] + self.nodeGroupData[groupName]['numRQ'][0] + self.nodeGroupData[groupName]['numR'][0]), a_min=0, a_max=self.numNodes)
@@ -1487,8 +1560,6 @@ class SEIRSNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         return True
-
-
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1502,6 +1573,11 @@ class SEIRSNetworkModel():
         # Pre-process checkpoint values:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         if(checkpoints):
+            # Before using checkpoints, save variables to be changed by method
+            beforeChk=[]
+            for key in checkpoints.keys():
+                if key is not 't':
+                    beforeChk.append(getattr(self,key))
             numCheckpoints = len(checkpoints['t'])
             paramNames = ['G', 'beta', 'sigma', 'zeta', 'p',
                           'Q', 'q', 'theta_S', 'theta_E', 'theta_SM', 'theta_M', 'theta_R',
@@ -1545,6 +1621,12 @@ class SEIRSNetworkModel():
                     # Update the next checkpoint time:
                     checkpointIdx  = numpy.searchsorted(checkpoints['t'], self.t) # Finds 1st index in list greater than given val
                     if(checkpointIdx >= numCheckpoints):
+                        # Reset all parameter values that were changed back to their original value
+                        i = 0
+                        for key in checkpoints.keys():
+                            if key is not 't':
+                                setattr(self,key,beforeChk[i])
+                                i = i+1
                         # We are out of checkpoints, stop checking them:
                         checkpoints = None 
                     else:
@@ -1559,27 +1641,384 @@ class SEIRSNetworkModel():
                     if(verbose):
                         print("\t S   = " + str(self.numS[self.tidx]))
                         print("\t E   = " + str(self.numE[self.tidx]))
-                        # added by tijs (1)
                         print("\t SM   = " + str(self.numSM[self.tidx]))
                         print("\t M   = " + str(self.numM[self.tidx]))
                         print("\t H   = " + str(self.numH[self.tidx]))
                         print("\t C   = " + str(self.numC[self.tidx]))
                         print("\t HH   = " + str(self.numHH[self.tidx]))
                         print("\t CH   = " + str(self.numCH[self.tidx]))
-                        # added by tijs (2)
                         print("\t SQ   = " + str(self.numSQ[self.tidx]))
                         print("\t EQ   = " + str(self.numEQ[self.tidx]))
                         print("\t SMQ   = " + str(self.numSMQ[self.tidx]))
                         print("\t MQ   = " + str(self.numMQ[self.tidx]))
                         print("\t RQ   = " + str(self.numRQ[self.tidx]))
-
                         print("\t R   = " + str(self.numR[self.tidx]))
                         print("\t F   = " + str(self.numF[self.tidx]))
                     print_reset = False
                 elif(not print_reset and (int(self.t) % 10 != 0)):
                     print_reset = True
-
         return self
+
+    def format_numX(self,T):
+        # output of stochastic model is not returned in daily intervals,
+        # to use the same attribute functions as the deterministic model
+        # the results must be interpolated
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        r = self.initN/self.numNodes #ratio of number of nodes vs. total population, used to make an extrapolation
+        x = self.tseries
+        t = numpy.linspace(0,T,T+1)
+        # sometimes simulator stops before reaching time T because change was too small
+        # if this is the case append one timestep
+        if x[-1] < T:
+            x=numpy.append(x,T+1)
+            self.numS=numpy.append(self.numS,self.numS[-1])
+            self.numE=numpy.append(self.numE,self.numE[-1])
+            self.numSM=numpy.append(self.numSM,self.numSM[-1])
+            self.numM=numpy.append(self.numM,self.numM[-1])
+            self.numH=numpy.append(self.numH,self.numH[-1])
+            self.numC=numpy.append(self.numC,self.numC[-1])
+            self.numHH=numpy.append(self.numHH,self.numHH[-1])
+            self.numCH=numpy.append(self.numCH,self.numCH[-1])
+            self.numR=numpy.append(self.numR,self.numR[-1])
+            self.numF=numpy.append(self.numF,self.numF[-1])
+            self.numSQ=numpy.append(self.numSQ,self.numSQ[-1])
+            self.numEQ=numpy.append(self.numEQ,self.numEQ[-1])
+            self.numSMQ=numpy.append(self.numSMQ,self.numSMQ[-1])
+            self.numMQ=numpy.append(self.numMQ,self.numMQ[-1])
+            self.numRQ=numpy.append(self.numRQ,self.numRQ[-1])
+        # Use interpolate function to match self.numS with timevector t
+        inte = inter.interp1d(x,self.numS)
+        self.numS = inte(t)*r
+        inte = inter.interp1d(x,self.numE)
+        self.numE = inte(t)*r
+        inte = inter.interp1d(x,self.numSM)
+        self.numSM = inte(t)*r
+        inte = inter.interp1d(x,self.numM)
+        self.numM = inte(t)*r
+        inte = inter.interp1d(x,self.numH)
+        self.numH = inte(t)*r
+        inte = inter.interp1d(x,self.numC)
+        self.numC = inte(t)*r
+        inte = inter.interp1d(x,self.numHH)
+        self.numHH = inte(t)*r
+        inte = inter.interp1d(x,self.numCH)
+        self.numCH = inte(t)*r
+        inte = inter.interp1d(x,self.numR)
+        self.numR = inte(t)*r
+        inte = inter.interp1d(x,self.numF)
+        self.numF = inte(t)*r
+        inte = inter.interp1d(x,self.numSQ)
+        self.numSQ = inte(t)*r
+        inte = inter.interp1d(x,self.numEQ)
+        self.numEQ = inte(t)*r
+        inte = inter.interp1d(x,self.numSMQ)
+        self.numSMQ = inte(t)*r
+        inte = inter.interp1d(x,self.numMQ)
+        self.numMQ = inte(t)*r
+        inte = inter.interp1d(x,self.numRQ)
+        self.numRQ = inte(t)*r
+        # replace self.tseries with a np.linspace(0,T,T+1)
+        self.tseries=t
+        return self
+
+    def sampleFromDistribution(self,filename,k):
+        df = pd.read_csv(filename)
+        x = df.iloc[:,0]
+        y = df.iloc[:,1]
+        return(numpy.asarray(choices(x, y, k = k)))
+
+    def sim(self, T, dt=1, checkpoints=None, verbose=False):
+        tN = int(T) + 1
+        if self.monteCarlo==False:
+            sigmavect = numpy.array([self.sigma])
+            self.n_samples = 1
+        else:
+            if self.n_samples is 1:
+                self.n_samples = 100
+            # sample a total of n_samples from distribution of 
+            sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
+        # pre-allocate a 3D matrix for the raw results
+        # age-structuring extension will be included at a later time
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.E = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.SM = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.M = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.H = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.C = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.HH = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.CH = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.R = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.F = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.SQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.EQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.SMQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.MQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # self.RQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+
+        # pre-allocate a 2D matrix for the results summed over all age bins
+        self.sumS = numpy.zeros([tN,self.n_samples])
+        self.sumE = numpy.zeros([tN,self.n_samples])
+        self.sumSM = numpy.zeros([tN,self.n_samples])
+        self.sumM = numpy.zeros([tN,self.n_samples])
+        self.sumH = numpy.zeros([tN,self.n_samples])
+        self.sumC = numpy.zeros([tN,self.n_samples])
+        self.sumHH = numpy.zeros([tN,self.n_samples])
+        self.sumCH = numpy.zeros([tN,self.n_samples])
+        self.sumR = numpy.zeros([tN,self.n_samples])
+        self.sumF = numpy.zeros([tN,self.n_samples])
+        self.sumSQ = numpy.zeros([tN,self.n_samples])
+        self.sumEQ = numpy.zeros([tN,self.n_samples])
+        self.sumSMQ = numpy.zeros([tN,self.n_samples])
+        self.sumMQ = numpy.zeros([tN,self.n_samples])
+        self.sumRQ = numpy.zeros([tN,self.n_samples])
+        # simulation loop
+        i=0
+        for self.sigma in sigmavect:
+            # reset self to initial condition
+            self.reset()
+            # perform simulation
+            self.run(int(T),checkpoints)
+            # format all vectors numX
+            self.format_numX(int(T))
+            # append raw results to 3D matrix
+            # age structuring will be included at later time
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # self.S[:,:,i] = self.numS
+            # self.E[:,:,i] = self.numE
+            # self.SM[:,:,i] = self.numSM 
+            # self.M[:,:,i] = self.numM
+            # self.H[:,:,i] = self.numH
+            # self.C[:,:,i] = self.numC 
+            # self.HH[:,:,i] = self.numHH
+            # self.CH[:,:,i] = self.numCH
+            # self.R[:,:,i] = self.numR
+            # self.F[:,:,i] = self.numF
+            # self.SQ[:,:,i] = self.numSQ 
+            # self.EQ[:,:,i] = self.numEQ
+            # self.SMQ[:,:,i] = self.numSMQ
+            # self.MQ[:,:,i] = self.numMQ
+            # self.RQ[:,:,i] = self.numRQ
+
+            # in deterministic model raw results are converted to sums of all age categories
+            # here no age categories have been implemented yet, so no sum over age categories is performed
+            # still we retain the name 'sumX' for the output vector
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            self.sumS[:,i] = self.numS
+            self.sumE[:,i] = self.numE
+            self.sumSM[:,i] = self.numSM
+            self.sumM[:,i] = self.numM
+            self.sumH[:,i] = self.numH
+            self.sumC[:,i] = self.numC
+            self.sumHH[:,i] = self.numHH
+            self.sumCH[:,i] = self.numCH
+            self.sumR[:,i] = self.numR
+            self.sumF[:,i] = self.numF
+            self.sumSQ[:,i] = self.numSQ
+            self.sumEQ[:,i] = self.numEQ
+            self.sumSMQ[:,i] = self.numSMQ
+            self.sumMQ[:,i] = self.numMQ
+            self.sumRQ[:,i] = self.numRQ
+            i = i + 1
+        return self
+
+    def plotPopulationStatus(self,filename=None):
+        plt.figure()
+        #plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
+        #plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
+        plt.plot(self.tseries,numpy.mean(self.sumE,axis=1),color="orange")
+        plt.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color="orange",alpha=0.2)
+        I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
+        plt.plot(self.tseries,numpy.mean(I,axis=1),color="red")
+        plt.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color="red",alpha=0.2)
+        plt.plot(self.tseries,numpy.mean(self.sumR,axis=1),color="green")
+        plt.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color="green",alpha=0.2)
+        plt.legend(('exposed','total infected','immune'))
+        plt.xlabel('days')
+        plt.ylabel('number of patients')
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
+
+    def plotInfected(self,asymptotic=False,mild=False,filename=None):
+        # extend with plotting data and using dates (extra argument startDate)
+        plt.figure()
+        if asymptotic is not False:
+            plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
+            plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
+        if mild is not False:
+            plt.plot(self.tseries,numpy.mean(self.sumM,axis=1),color="green")
+            plt.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color="green",alpha=0.2)
+        plt.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color="orange")
+        plt.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color="orange",alpha=0.2)  
+        plt.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color="red")
+        plt.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color="red",alpha=0.2)    
+        plt.plot(self.tseries,numpy.mean(self.sumF,axis=1),color="black")
+        plt.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color="black",alpha=0.2)  
+        if mild is not False and asymptotic is not False:
+            plt.legend(('asymptotic','mild','heavy','critical','dead'))
+        elif mild is not False and asymptotic is False:
+            plt.legend(('mild','heavy','critical','dead'))
+        elif mild is False and asymptotic is not False:
+            plt.legend(('asymptotic','heavy','critical','dead'))
+        elif mild is False and asymptotic is False:
+            plt.legend(('heavy','critical','dead'))
+        plt.xlabel('days')
+        plt.ylabel('number of patients')
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
+
+    def LSQ(self,thetas,data,parNames,positions,weights):
+        # ------------------
+        # Prepare simulation
+        # ------------------    
+        # reset all numX
+        self.reset()
+        # assign estimates to correct variable
+        extraTime = int(thetas[0])
+        i = 0
+        for param in parNames:
+            setattr(self,param,thetas[i+1])
+            i = i + 1
+            if param is 'h':
+                m_acc = self.m/(1-self.sm)
+                h_acc = self.h/(1-self.sm)
+                self.c = (1-self.sm)*(1-m_acc-h_acc)
+        # Compute length of data
+        n = len(data)
+        # Compute simulation time --> build in some redundancy here, datasizes don't have to be equal to eachother.
+        T = data[0].size+extraTime-1
+        # Set initial condition
+        # ...
+
+        # ------------------
+        # Perform simulation
+        # ------------------
+        self.sim(T)
+        # tuple the results, this is necessary to use the positions index
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # ---------------
+        # extract results
+        # ---------------
+        ymodel=[]
+        SSE = 0
+        for i in range(n):
+            som = 0
+            for j in positions[i]:
+                som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
+            ymodel.append(som[extraTime:,0].reshape(som[extraTime:,0].size,1))
+            # calculate quadratic error
+            SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
+        return(SSE)
+
+    def fit(self,data,parNames,positions,bounds,weights,checkpoints=None,setvar=False,disp=True,polish=True,maxiter=30,popsize=10):
+        # -------------------------------
+        # Run a series of checks on input
+        # -------------------------------
+        # Check if data, parNames and positions are lists
+        if type(data) is not list or type(parNames) is not list or type(positions) is not list:
+            raise Exception('Datatype of arguments data, parNames and positions must be lists. Lists are made by wrapping whatever datatype in square brackets [].')
+        # Check that length of positions is equal to the length of data
+        if len(data) is not len(positions):
+            raise Exception('The number of positions must match the number of dataseries given to function fit.')
+        # Check that length of parNames is equal to length of bounds
+        if (len(parNames)+1) is not len(bounds):
+            raise Exception('The number of bounds must match the number of parameter names given to function fit.')
+        # Check that all parNames are actual model parameters
+        possibleNames = ['G', 'beta', 'sigma', 'zeta', 'p',
+                          'Q', 'q', 'theta_S', 'theta_E', 'theta_SM', 'theta_M', 'theta_R',
+                          'phi_S','phi_E','phi_SM','phi_R','psi_FP','psi_PP',
+                          'sm','m','h','c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU']
+        i = 0
+        for param in parNames:
+            # For params that don't have given checkpoint values (or bad value given), 
+            # set their checkpoint values to the value they have now for all checkpoints.
+            if param not in possibleNames:
+                raise Exception('The parametername provided by user in position {} of argument parNames is not an actual model parameter. Please check its spelling.'.format(i))
+            else:
+                if param is 'G':
+                    raise Exception('Cannot fit parameter G because this is a network object')
+            i = i + 1
+        
+        # ---------------------
+        # Run genetic algorithm
+        # ---------------------
+        optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
+        theta_hat = optim_out.x
+        print(theta_hat)
+
+        # ---------------------------------------------------
+        # If setattr is True: assign estimated thetas to self
+        # ---------------------------------------------------
+        if setvar is True:
+            self.extraTime = int(theta_hat[0])
+            i = 0
+            for param in parNames:
+                setattr(self,param,theta_hat[i+1])
+                i  = i + 1
+                if param is 'h':
+                    m_acc = self.m/(1-self.sm)
+                    h_acc = self.h/(1-self.sm)
+                    self.c = (1-self.sm)*(1-m_acc-h_acc)
+                    c_acc = self.c/(1-self.sm)
+                    print(m_acc,h_acc,c_acc)
+        return self,theta_hat
+
+    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+        # ------------------
+        # Prepare simulation
+        # ------------------  
+        # reset all numX
+        self.reset()
+        # Compute number of dataseries
+        n = len(data)
+        # Compute simulation time
+        T = data[0].size+self.extraTime-1
+
+        # ------------------
+        # Perform simulation
+        # ------------------
+        self.sim(T)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # -----------
+        # Plot result
+        # -----------
+        # Create shifted index vector using self.extraTime
+        timeObj = index[0]
+        timestampStr = timeObj.strftime("%Y-%m-%d")
+        index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
+        # Plot figure        
+        plt.figure()
+        plt.figure(figsize=(7,5),dpi=100)
+        # Plot data
+        for i in range(n):
+            plt.scatter(index,data[i],color="black",marker=dataMkr[i])
+        # Plot model prediction
+        for i in range(n):
+            ymodel = 0
+            for j in positions[i]:
+                ymodel = ymodel + out[j]
+            plt.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            plt.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+        # Attributes
+        plt.xlim(pd.to_datetime(index_acc[self.extraTime-3]),pd.to_datetime(index_acc[-1]))
+        if legendText is not None:
+            plt.legend(legendText,loc='upper left')
+        if titleText is not None:
+            plt.title(titleText,{'fontsize':18})
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+        plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+        plt.setp(plt.gca().xaxis.get_majorticklabels(),
+            'rotation', 90)
+        plt.ylabel('number of patients')
+        # Save figure if needed
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
