@@ -24,7 +24,7 @@ https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en
 
 Results shown below were obtained by executing *sim_stochastic.py* on a single core of the *victini* cluster (Intel Xeon Gold 6140 @ 2.3 GHz).
 
-<img src="figs/calculation_time.bmp" alt="drawing" width="300"/>
+<img src="../figs/calculation_time.png" alt="drawing" width="300"/>
 
 ## Usefull commands
 
