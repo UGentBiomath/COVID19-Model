@@ -1,0 +1,14 @@
+name: COVID_MODEL
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - ipython
+  - jupyter
+  - notebook
+  - matplotlib>3
+  - numpy
+  - scipy
+  - networkx
+  - pandas
+  - ipywidgets
