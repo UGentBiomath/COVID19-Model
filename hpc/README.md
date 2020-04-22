@@ -25,8 +25,8 @@ install *matplotlib*, *seaborn* and *networkx*
 
 ```bash
 pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
+pip install --install-option="--prefix=${VSC_DATA}/python_lib" seaborn
+pip install --install-option="--prefix=${VSC_DATA}/python_lib" networkx
 ```
 
 [Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
