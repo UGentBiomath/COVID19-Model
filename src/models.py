@@ -824,6 +824,41 @@ class SEIRSAgeModel():
         plt.figure()
         plt.show()
 
+        
+    def obtainData(self):
+        """
+        Function to update the available data on hospitalisation cases (including ICU).
+        The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
+        Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
+        
+        Output:
+        * initial – initial date of records: string 'YYYY-MM-DD'
+        * hospital - total number of hospitalised patients : array
+        * ICUvect - total number of hospitalised patients in ICU: array 
+        
+        Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
+        """
+        # Data source
+        url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
+        
+        # Extract hospitalisation data from source
+        df = pd.read_excel(url, sheet_name="HOSP")
+        
+        # Date of initial records
+        initial = df.astype(str)['DATE'][0]
+        
+        # Resample data from all regions and sum all values for each date
+        hospital = df.loc[:,['DATE','TOTAL_IN']]
+        hospital = hospital.resample('D', on='DATE').sum()
+        hospital = np.array([hospital.loc[:,'TOTAL_IN'].tolist()]) # export as array
+        
+        ICUvect = df.loc[:,['DATE','TOTAL_IN_ICU']]
+        ICUvect = ICUvect.resample('D', on='DATE').sum()
+        ICUvect = np.array([ICUvect.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+        
+        return [initial, hospital, ICUvect]
+        
+        
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
