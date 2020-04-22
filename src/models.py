@@ -850,6 +850,7 @@ class SEIRSAgeModel():
         plt.figure()
         plt.show()
 
+
     def obtainData(self):
         """
         Function to update the available data on hospitalisation cases (including ICU).
@@ -866,6 +867,7 @@ class SEIRSAgeModel():
         """
         # Data source
         url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
+        
         # Extract hospitalisation data from source
         df = pd.read_excel(url, sheet_name="HOSP")
         # Date of initial records
@@ -1118,7 +1120,6 @@ class SEIRSAgeModel():
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
         plt.show()
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
