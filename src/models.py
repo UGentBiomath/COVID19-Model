@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import datetime
 from scipy import interpolate as inter
+import copy
 
 class SEIRSAgeModel():
     """
@@ -675,9 +676,9 @@ class SEIRSAgeModel():
         # from length of theta list and number of parameters, length of horizon can be calculated
         N = int(len(thetas)/len(parNames)) 
         # Time
-        t = numpy.zeros([N-1])
+        t = []
         for i in range(N-1):
-            t[i] = policy_period*(i+1) 
+            t.append(policy_period*(i+1))
         checkpoints = {'t': t}
         # Initialise empty list for every control handle
         for i in range(len(parNames)):
@@ -697,6 +698,28 @@ class SEIRSAgeModel():
                     else:
                         checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
         return(checkpoints)
+        
+    def constructHorizonRealTimeMPC(self,thetas,parNames,policy_period):
+        # from length of theta list and number of parameters, length of horizon can be calculated
+        N = int(len(thetas)/len(parNames)) 
+        # Time
+        t = []
+        for i in range(N):
+            t.append(policy_period*i)
+        checkpoints = {'t': t}
+        # Initialise empty list for every control handle
+        for i in range(len(parNames)):
+            checkpoints.update({parNames[i] : []})
+        # Append to list
+        for i in range(len(parNames)):
+            if parNames[i] is 'Nc':
+                # There is a bug here, parNames[i] is 'Nc' but somehow the if doesn't end up here
+                for j in range(0,N):
+                    checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
+            else:
+                for j in range(0,N):
+                    checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
+        return(checkpoints)
 
     def calcMPCsse(self,thetas,parNames,setpoints,positions,weights,policy_period,P):
         # ------------------------------------------------------
@@ -714,12 +737,13 @@ class SEIRSAgeModel():
             for k in range(P-N):
                 thetas_lst.append(thetas[i*N + j])
         chk = self.constructHorizon(thetas_lst,parNames,policy_period)
+        
         # ------------------
         # Perform simulation
         # ------------------
 
         # Set correct simtime
-        T = chk['t'].size*policy_period
+        T = chk['t'][-1] + policy_period
         # run simulation
         self.reset()
         self.sim(T,checkpoints=chk)
@@ -737,8 +761,10 @@ class SEIRSAgeModel():
                 som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
             ymodel.append(som.reshape(som.size,1))
             # calculate error
-            error = error + weights[i]*(ymodel[i]-setpoints[i])
-        return(sum(error**2))
+        #print(ymodel)
+        for i in range(len(ymodel)):
+            error = error + weights[i]*(ymodel[i]-setpoints[i])**2
+        return(sum(error))
 
     def optimizePolicy(self,parNames,bounds,setpoints,positions,weights,policy_period=7,N=6,P=12,disp=True,polish=True,maxiter=100,popsize=20):
         # -------------------------------
@@ -788,10 +814,10 @@ class SEIRSAgeModel():
         # Construct checkpoints dictionary using the optimalPolicy list
         # Mind that constructHorizon also sets self.Parameters to the first optimal value of every control handle
         # This is done because the first checkpoint cannot be at time 0.
-        checkpoints=self.constructHorizon(self.optimalPolicy.tolist(),parNames,policy_period)
+        checkpoints=self.constructHorizon(self.optimalPolicy,parNames,policy_period)
         # First run the simulation
         self.reset()
-        self.sim(T=checkpoints['t'].size*checkpoints['t'][0],checkpoints=checkpoints)
+        self.sim(T=len(checkpoints['t'])*checkpoints['t'][0],checkpoints=checkpoints)
 
         # Then perform plot
         plt.figure()
@@ -823,6 +849,276 @@ class SEIRSAgeModel():
         plt.show()   
         plt.figure()
         plt.show()
+
+    def obtainData(self):
+        """
+        Function to update the available data on hospitalisation cases (including ICU).
+        The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
+        Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
+        
+        Output:
+        * initial – initial date of records: string 'YYYY-MM-DD'
+        * data – list with total number of patients as [hospital, ICUvect]:
+            * hospital - total number of hospitalised patients : array
+            * ICUvect - total number of hospitalised patients in ICU: array 
+        
+        Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
+        """
+        # Data source
+        url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
+        # Extract hospitalisation data from source
+        df = pd.read_excel(url, sheet_name="HOSP")
+        # Date of initial records
+        initial = df.astype(str)['DATE'][0]
+        # Resample data from all regions and sum all values for each date
+        data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
+        data = data.resample('D', on='DATE').sum()
+        hospital = numpy.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
+        ICUvect = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+        # List of time datapoints
+        index = pd.date_range(initial, freq='D', periods=ICUvect.size)
+        #data.index # equivalently from dataframe index
+        # List of daily numbers of ICU and hospitaliside patients
+        data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
+        return [index, data]
+        
+    def mergeDict(self,T,dict1, dict2):
+        # length of dict1 is needed later on
+        orig_len = len(dict1['t'])
+        merged = {}
+        # add latest simulation time to dict2
+        end = T
+        #end = dict1['t'][-1]
+        for i in range(len(dict2['t'])):
+            dict2['t'][i] = dict2['t'][i]+end
+        # merge dictionaries by updating          
+        temp = {**dict2, **dict1}
+        # loop over all key-value pairs
+        for key,value in temp.items():
+            if key in dict1 and key in dict2:
+                for i in range(len(dict2[key])):
+                    value.append(dict2[key][i])
+                merged[key] = value
+            elif key in dict1 and not key in dict2:
+                if key is not 'Nc':
+                    for i in range(len(dict2['t'])):
+                        dict1[key].append(getattr(self,key))
+                    merged[key] = dict1[key]
+                else:
+                    for i in range(len(dict2['t'])):
+                        dict1[key].append(getattr(self,key))
+                    merged[key] = dict1[key]
+            elif key in dict2 and not key in dict1:
+                if key is not 'Nc':
+                    for i in range(orig_len):
+                        dict2[key].insert(0,getattr(self,key))
+                    merged[key] = dict2[key]
+                else:
+                    for i in range(orig_len):
+                        dict2[key].insert(0,getattr(self,key))
+                    merged[key] = dict2[key]
+        return(merged)
+
+    def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,T_extra=14,dataMkr=['o','v','s','*','^'],
+                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+
+        # Initialize a vector of dates starting on the user provided startDate and of length data
+        # Calculate length of data to obtain an initial simulation time
+        t_data = pd.date_range(startDate, freq='D', periods=data[0].size)
+        T = len(t_data) + self.extraTime - 1 + int(T_extra) # number of datapoints
+
+        # make a deepcopy --> if you modify a python dictionary in a function it will be modified globally
+        dict1_orig = copy.deepcopy(pastPolicy)
+        dict2_orig = copy.deepcopy(futurePolicy)
+
+        # add estimated extraTime to past policy vector
+        for i in range(len(dict1_orig['t'])):
+            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime - 1
+
+        # Create a merged dictionary accounting for estimated 'extraTime'
+        if futurePolicy is not None:
+            chk = self.mergeDict((T-int(T_extra)-1),dict1_orig,dict2_orig)
+            T = chk['t'][-1]+int(T_extra)
+        else:
+            chk = pastPolicy
+        # ------------------
+        # Prepare simulation
+        # ------------------  
+        # reset all numX
+        self.reset()
+        
+        # ------------------
+        # Perform simulation
+        # ------------------
+        self.sim(T,checkpoints=chk)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # -----------
+        # Plot result
+        # -----------
+        # Create shifted index vector using self.extraTime
+        t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
+        # Plot figure        
+        plt.figure()
+        plt.figure(figsize=(7,5),dpi=100)
+        # Plot data
+        for i in range(len(data)):
+            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+        # Plot model prediction
+        for i in range(len(data)):
+            ymodel = 0
+            for j in positions[i]:
+                ymodel = ymodel + out[j]
+            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+        # Attributes
+        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
+        if legendText is not None:
+            plt.legend(legendText,loc='upper left')
+        if titleText is not None:
+            plt.title(titleText,{'fontsize':18})
+            # 'pretty' ticks on x-axis depend on length simulation
+            if len(t_acc) > 62 and len(t_acc) < 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
+            elif len(t_acc) >= 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+            elif len(t_acc) < 62:
+                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+        plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+        plt.setp(plt.gca().xaxis.get_majorticklabels(),
+            'rotation', 90)
+        plt.ylabel('number of patients')
+        # Save figure if needed
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
+        return None
+
+    def realTimeMPC(self,startDate,data,positions,pastPolicy,parNames,bounds,setpoints,weights,
+                        policy_period=7,N=6,P=12,disp=True,polish=True,maxiter=100,popsize=20,
+                        dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+
+        # -------------------------------------------------------
+        # Step 1: Run simulation untill the end of the dataseries
+        # -------------------------------------------------------
+        # Initialize a vector of dates starting on the user provided startDate and of length data
+        t_data = pd.date_range(startDate, freq='D', periods=data[0].size)            
+        # Calculate length of data to obtain an initial simulation time
+        T = len(t_data) + self.extraTime - 1 # number of datapoints    
+        # make a deepcopy of pastPolicy
+        dict1_orig = copy.deepcopy(pastPolicy)
+        # add estimated extraTime to past policy vector
+        for i in range(len(dict1_orig['t'])):
+            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime - 1
+        # reset all numX
+        self.reset()
+        # run simulation
+        self.sim(T,checkpoints=dict1_orig)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+
+        # ----------------------------------------------------------------------
+        # Step 2: Pass population pools to MPC optimiser, save initial condition 
+        # ----------------------------------------------------------------------
+        # Assign self.initX to local variable initX
+        initE = self.initE
+        initSM = self.initSM
+        initM = self.initM
+        initH = self.initH
+        initC = self.initC
+        initHH = self.initHH
+        initCH = self.initCH
+        initR = self.initR
+        initF = self.initF
+        initSQ = self.initSQ
+        initEQ = self.initEQ
+        initSMQ = self.initSMQ
+        initMQ = self.initMQ
+        initRQ = self.initRQ
+        self.passInitial()
+
+        # ---------------------------
+        # Step 3: Optimize controller
+        # ---------------------------
+        self.optimizePolicy(parNames,bounds,setpoints,positions,weights,policy_period,N,P,disp,polish,maxiter,popsize)
+        # Write a different constructHorizon function because this does not work very well
+        dict2_orig=self.constructHorizonRealTimeMPC(self.optimalPolicy,parNames,policy_period)
+
+        # ---------------------------
+        # Step 4: Merge dictionaries
+        # ---------------------------       
+        chk = self.mergeDict((T-1),dict1_orig,dict2_orig)
+
+        # -------------------------------
+        # Step 5: Reset initial condition
+        # -------------------------------     
+        # Assign local variable initX back to self.initX
+        self.initE = initE
+        self.initSM = initSM
+        self.initM = initM
+        self.initH = initH
+        self.initC = initC
+        self.initHH = initHH
+        self.initCH = initCH
+        self.initR = initR
+        self.initF = initF
+        self.initSQ = initSQ
+        self.initEQ = initEQ
+        self.initSMQ = initSMQ
+        self.initMQ = initMQ
+        self.initRQ = initRQ
+
+        # ----------------------
+        # Step 6: Simulate model
+        # ----------------------  
+        self.reset()
+        T = chk['t'][-1]+int(policy_period)
+        self.sim(T,checkpoints=chk)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+
+        # -------------------
+        # Step 7: Plot result
+        # -------------------
+        # Create shifted index vector using self.extraTime
+        t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
+        # Plot figure        
+        plt.figure()
+        plt.figure(figsize=(7,5),dpi=100)
+        # Plot data
+        for i in range(len(data)):
+            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+        # Plot model prediction
+        for i in range(len(data)):
+            ymodel = 0
+            for j in positions[i]:
+                ymodel = ymodel + out[j]
+            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+        # Attributes
+        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
+        if legendText is not None:
+            plt.legend(legendText,loc='upper left')
+        if titleText is not None:
+            plt.title(titleText,{'fontsize':18})
+            # 'pretty' ticks on x-axis depend on length simulation
+            if len(t_acc) > 62 and len(t_acc) < 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
+            elif len(t_acc) >= 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+            elif len(t_acc) < 62:
+                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+        plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+        plt.setp(plt.gca().xaxis.get_majorticklabels(),
+            'rotation', 90)
+        plt.ylabel('number of patients')
+        # Save figure if needed
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2019,6 +2315,114 @@ class SEIRSNetworkModel():
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
         plt.show()
+
+    def mergeDict(self,T,dict1, dict2):
+        # length of dict1 is needed later on
+        orig_len = len(dict1['t'])
+        merged = {}
+        # add latest simulation time to dict2
+        end = T
+        #end = dict1['t'][-1]
+        for i in range(len(dict2['t'])):
+            dict2['t'][i] = dict2['t'][i]+end
+        # merge dictionaries by updating          
+        temp = {**dict2, **dict1}
+        # loop over all key-value pairs
+        for key,value in temp.items():
+            if key in dict1 and key in dict2:
+                for i in range(len(dict2[key])):
+                    value.append(dict2[key][i])
+                merged[key] = value
+            elif key in dict1 and not key in dict2:
+                for i in range(len(dict2['t'])):
+                    dict1[key].append(getattr(self,key))
+                merged[key] = dict1[key]
+            elif key in dict2 and not key in dict1:
+                for i in range(orig_len):
+                    dict2[key].insert(0,getattr(self,key))
+                merged[key] = dict2[key]
+        return merged
+
+    def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,T_extra=14,dataMkr=['o','v','s','*','^'],
+                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+        # This function will by default plot the user provided country data + model prediction starting on the first day of the dates vectors
+        # To match the current data with the model prediction, a checkpoints dictionary pastPolicy must be given to the function.
+        # If none of the additional arguments are provided, the model will simply plot the the prediction up until the end date provided by the user.
+        # Optionally, one out of two things can be done. 1) Provide an additional checkpoints dictionary, this can be used to perform scenario analysis.
+        # 2) Run an MPC optimisation starting on the end date provided by the user.
+        # The correct working of this function requires a model that was calibrated to the data.
+
+        # Initialize a vector of dates starting on the user provided startDate and of length data
+        # Calculate length of data to obtain an initial simulation time
+        t_data = pd.date_range(startDate, freq='D', periods=data[0].size)
+        T = len(t_data) + self.extraTime - 1 + int(T_extra) # number of datapoints
+
+        # add estimated extraTime to past policy vector
+        for i in range(len(pastPolicy['t'])):
+            pastPolicy['t'][i] = pastPolicy['t'][i] + self.extraTime - 1
+        chk = pastPolicy
+
+        # Create a merged dictionary accounting for estimated 'extraTime'
+        if futurePolicy is not None:
+            chk = self.mergeDict((T-int(T_extra)-1),pastPolicy,futurePolicy)
+            T = chk['t'][-1]+int(T_extra)
+
+        # ------------------
+        # Prepare simulation
+        # ------------------  
+        # reset all numX
+        self.reset()
+
+        # ------------------
+        # Perform simulation
+        # ------------------
+        print(chk)
+        self.sim(T,checkpoints=chk)
+        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        
+        # -----------
+        # Plot result
+        # -----------
+        # Create shifted index vector using self.extraTime
+        t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
+        # Plot figure        
+        plt.figure()
+        plt.figure(figsize=(7,5),dpi=100)
+        # Plot data
+        for i in range(len(data)):
+            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+        # Plot model prediction
+        for i in range(len(data)):
+            ymodel = 0
+            for j in positions[i]:
+                ymodel = ymodel + out[j]
+            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+        # Attributes
+        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
+        if legendText is not None:
+            plt.legend(legendText,loc='upper left')
+        if titleText is not None:
+            plt.title(titleText,{'fontsize':18})
+            # 'pretty' ticks on x-axis depend on length simulation
+            if len(t_acc) > 62 and len(t_acc) < 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
+            elif len(t_acc) >= 186:
+                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
+            elif len(t_acc) < 62:
+                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+        plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+        plt.setp(plt.gca().xaxis.get_majorticklabels(),
+            'rotation', 90)
+        plt.ylabel('number of patients')
+        # Save figure if needed
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        plt.show()
+
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
