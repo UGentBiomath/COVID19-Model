@@ -35,6 +35,8 @@ pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
 
 Results shown below were obtained by executing *sim_stochastic.py* on a single core of the *victini* cluster (Intel Xeon Gold 6140 @ 2.3 GHz).
 
+<img src="../figs/calculation_time.png" alt="drawing" width="500"/>
+
 ## Usefull commands
 
 Copy from HPC to Linux PC:
