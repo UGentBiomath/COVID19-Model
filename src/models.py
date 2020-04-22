@@ -833,8 +833,9 @@ class SEIRSAgeModel():
         
         Output:
         * initial – initial date of records: string 'YYYY-MM-DD'
-        * hospital - total number of hospitalised patients : array
-        * ICUvect - total number of hospitalised patients in ICU: array 
+        * data – list with total number of patients as [hospital, ICUvect]:
+            * hospital - total number of hospitalised patients : array
+            * ICUvect - total number of hospitalised patients in ICU: array 
         
         Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
         """
@@ -848,15 +849,19 @@ class SEIRSAgeModel():
         initial = df.astype(str)['DATE'][0]
         
         # Resample data from all regions and sum all values for each date
-        hospital = df.loc[:,['DATE','TOTAL_IN']]
-        hospital = hospital.resample('D', on='DATE').sum()
-        hospital = np.array([hospital.loc[:,'TOTAL_IN'].tolist()]) # export as array
+        data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
+        data = data.resample('D', on='DATE').sum()
+        hospital = np.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
+        ICUvect = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
         
-        ICUvect = df.loc[:,['DATE','TOTAL_IN_ICU']]
-        ICUvect = ICUvect.resample('D', on='DATE').sum()
-        ICUvect = np.array([ICUvect.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+        # List of time datapoints
+        index = pd.date_range(initial, freq='D', periods=ICUvect.size)
+        #data.index # equivalently from dataframe index
         
-        return [initial, hospital, ICUvect]
+        # List of daily numbers of ICU and hospitaliside patients
+        data = [np.transpose(ICUvect),np.transpose(hospital)]
+        
+        return [index, data]
         
         
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
