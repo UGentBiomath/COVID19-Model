@@ -2176,7 +2176,7 @@ class SEIRSNetworkModel():
 
     def plotInfected(self,asymptotic=False,mild=False,filename=None):
         # extend with plotting data and using dates (extra argument startDate)
-        fig, ax = plt.subplots()        
+        plt.figure()
         if asymptotic is not False:
             plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
             plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
