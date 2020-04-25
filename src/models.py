@@ -1,5 +1,5 @@
 # Original implementation by Ryan S. Mcgee can be found using the following link: https://github.com/ryansmcgee/seirsplus
-# Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
+# Copyright (c) 2020 by T.W. Alleman, D. Van Hauwermeiren, BIOMATH, Ghent University. All Rights Reserved.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -17,6 +17,29 @@ import matplotlib.dates as mdates
 import datetime
 from scipy import interpolate as inter
 import copy
+
+# set color schemes
+#From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
+orange = "#E69F00"
+light_blue = "#56B4E9"
+green = "#009E73"
+yellow = "#F0E442"
+blue = "#0072B2"
+red = "#D55E00"
+pink = "#CC79A7"
+black = "#000000"
+Okabe_Ito = (orange, light_blue, green, yellow, blue, red, pink, black)
+plt.rcParams["axes.prop_cycle"] = matplotlib.cycler('color', Okabe_Ito)
+
+# increase font sizes
+# the code below is not wrong, but kinda annoying if you continuously import
+# this model in a notebook using the load_ext magic
+#multiplier = 1.5
+#keys = ("font.size", )
+#for key in keys:
+#    plt.rcParams[key] *= multiplier
+plt.rcParams["font.size"] = 15
+plt.rcParams["lines.linewidth"] = 3
 
 class SEIRSAgeModel():
     """
@@ -479,35 +502,49 @@ class SEIRSAgeModel():
             plt.savefig(filename,dpi=600,bbox_inches='tight')
         plt.show()
 
-    def plotInfected(self,asymptotic=False,mild=False,filename=None):
+    def plotInfected(self,asymptotic=False,mild=False,filename=None,getfig=False):
         # extend with plotting data and using dates (extra argument startDate)
-        plt.figure()
+        fig, ax = plt.subplots()
         if asymptotic is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
+            ax.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color=blue)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color=blue,alpha=0.2)
         if mild is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumM,axis=1),color="green")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color="green",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color="orange")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color="orange",alpha=0.2)  
-        plt.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color="red",alpha=0.2)    
-        plt.plot(self.tseries,numpy.mean(self.sumF,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color="black",alpha=0.2)  
+            ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)  
+        ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
         if mild is not False and asymptotic is not False:
-            plt.legend(('asymptotic','mild','heavy','critical','dead'))
+            legend_labels = ('asymptotic','mild','heavy','critical','dead')
         elif mild is not False and asymptotic is False:
-            plt.legend(('mild','heavy','critical','dead'))
+            legend_labels = ('mild','heavy','critical','dead')
         elif mild is False and asymptotic is not False:
-            plt.legend(('asymptotic','heavy','critical','dead'))
+            legend_labels = ('asymptotic','heavy','critical','dead')
         elif mild is False and asymptotic is False:
-            plt.legend(('heavy','critical','dead'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
+            legend_labels = ('heavy','critical','dead')
+        ax.legend(legend_labels, loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def LSQ(self,thetas,data,parNames,positions,weights):
         # ------------------
@@ -2139,7 +2176,7 @@ class SEIRSNetworkModel():
 
     def plotInfected(self,asymptotic=False,mild=False,filename=None):
         # extend with plotting data and using dates (extra argument startDate)
-        plt.figure()
+        fig, ax = plt.subplots()        
         if asymptotic is not False:
             plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
             plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
