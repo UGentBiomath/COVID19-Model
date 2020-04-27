@@ -484,23 +484,38 @@ class SEIRSAgeModel():
         y = df.iloc[:,1]
         return(numpy.asarray(choices(x, y, k = k)))
 
-    def plotPopulationStatus(self,filename=None):
-        plt.figure()
-        plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumE,axis=1),color="orange")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color="orange",alpha=0.2)
+    def plotPopulationStatus(self,filename=None,getfig=False):
+        # extend with plotting data and using dates (extra argument startDate)
+        fig, ax = plt.subplots()
+        ax.plot(self.tseries,numpy.mean(self.sumS,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color=black,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumE,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color=orange,alpha=0.2)
         I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
-        plt.plot(self.tseries,numpy.mean(I,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color="red",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumR,axis=1),color="green")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color="green",alpha=0.2)
-        plt.legend(('susceptible','exposed','total infected','immune'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
+        ax.plot(self.tseries,numpy.mean(I,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color=red,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumR,axis=1),color=green)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color=green,alpha=0.2)
+        ax.legend(('susceptible','exposed','total infected','immune'), loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def plotInfected(self,asymptotic=False,mild=False,filename=None,getfig=False):
         # extend with plotting data and using dates (extra argument startDate)
