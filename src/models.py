@@ -653,7 +653,7 @@ class SEIRSAgeModel():
                     print(m_acc,h_acc,c_acc)
         return self,theta_hat
 
-    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
         # ------------------  
@@ -678,34 +678,51 @@ class SEIRSAgeModel():
         timestampStr = timeObj.strftime("%Y-%m-%d")
         index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(n):
-            plt.scatter(index,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(index,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(n):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(index_acc[self.extraTime-3]),pd.to_datetime(index_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
+            ax.set_title(titleText,{'fontsize':18})
         plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( index_acc[self.extraTime-3], pd.to_datetime(index_acc[-1]))
+        #ax.set_xticks(pd.date_range(index_acc[self.extraTime-3]), pd.to_datetime(index_acc[-1]), periods=4)
+        #for tick in ax.get_xticklabels():
+        #    tick.set_rotation(0)
+        #    tick.set_horizontalalignment('center')
+        #ax.minorticks_off()
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def passInitial(self):
         self.initE = numpy.reshape(numpy.mean(self.E[:,-1,:],axis=1),[self.Nc.shape[0],1])
