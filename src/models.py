@@ -484,23 +484,38 @@ class SEIRSAgeModel():
         y = df.iloc[:,1]
         return(numpy.asarray(choices(x, y, k = k)))
 
-    def plotPopulationStatus(self,filename=None):
-        plt.figure()
-        plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumE,axis=1),color="orange")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color="orange",alpha=0.2)
+    def plotPopulationStatus(self,filename=None,getfig=False):
+        # extend with plotting data and using dates (extra argument startDate)
+        fig, ax = plt.subplots()
+        ax.plot(self.tseries,numpy.mean(self.sumS,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color=black,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumE,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color=orange,alpha=0.2)
         I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
-        plt.plot(self.tseries,numpy.mean(I,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color="red",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumR,axis=1),color="green")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color="green",alpha=0.2)
-        plt.legend(('susceptible','exposed','total infected','immune'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
+        ax.plot(self.tseries,numpy.mean(I,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color=red,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumR,axis=1),color=green)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color=green,alpha=0.2)
+        ax.legend(('susceptible','exposed','total infected','immune'), loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def plotInfected(self,asymptotic=False,mild=False,filename=None,getfig=False):
         # extend with plotting data and using dates (extra argument startDate)
@@ -638,7 +653,7 @@ class SEIRSAgeModel():
                     print(m_acc,h_acc,c_acc)
         return self,theta_hat
 
-    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
         # ------------------  
@@ -663,34 +678,46 @@ class SEIRSAgeModel():
         timestampStr = timeObj.strftime("%Y-%m-%d")
         index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(n):
-            plt.scatter(index,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(index,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(n):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(index_acc[self.extraTime-3]),pd.to_datetime(index_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
+            ax.set_title(titleText,{'fontsize':18})
         plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( index_acc[self.extraTime-3], pd.to_datetime(index_acc[-1]))
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def passInitial(self):
         self.initE = numpy.reshape(numpy.mean(self.E[:,-1,:],axis=1),[self.Nc.shape[0],1])
@@ -847,7 +874,7 @@ class SEIRSAgeModel():
         self.optimalPolicy = theta_hat
         return(theta_hat)
 
-    def plotOptimalPolicy(self,parNames,setpoints,policy_period,asymptotic=False,mild=False,filename=None):
+    def plotOptimalPolicy(self,parNames,setpoints,policy_period,asymptotic=False,mild=False,filename=None,getfig=False):
         # Construct checkpoints dictionary using the optimalPolicy list
         # Mind that constructHorizon also sets self.Parameters to the first optimal value of every control handle
         # This is done because the first checkpoint cannot be at time 0.
@@ -857,36 +884,47 @@ class SEIRSAgeModel():
         self.sim(T=len(checkpoints['t'])*checkpoints['t'][0],checkpoints=checkpoints)
 
         # Then perform plot
-        plt.figure()
+        fig, ax = plt.subplots()
         if asymptotic is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
+            ax.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color=blue)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color=blue,alpha=0.2)
         if mild is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumM,axis=1),color="green")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color="green",alpha=0.2)
-        
-        plt.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color="red",alpha=0.2)   
-        plt.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color="red",alpha=0.2)    
-        plt.plot(self.tseries,numpy.mean(self.sumF,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color="black",alpha=0.2)  
+            ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)   
+        ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
         if mild is not False and asymptotic is not False:
-            plt.legend(('asymptotic','mild','heavy','critical','dead'))
+            legend_labels = ('asymptotic','mild','heavy','critical','dead')
         elif mild is not False and asymptotic is False:
-            plt.legend(('mild','heavy','critical','dead'))
+            legend_labels = ('mild','heavy','critical','dead')
         elif mild is False and asymptotic is not False:
-            plt.legend(('asymptotic','heavy','critical','dead'))
+            legend_labels = ('asymptotic','heavy','critical','dead')
         elif mild is False and asymptotic is False:
-            plt.legend(('heavy','critical','dead'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
+            legend_labels = ('heavy','critical','dead')
+        ax.legend(legend_labels, loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()   
-        plt.figure()
-        plt.show()
-
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def obtainData(self):
         """
@@ -959,7 +997,7 @@ class SEIRSAgeModel():
         return(merged)
 
     def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,T_extra=14,dataMkr=['o','v','s','*','^'],
-                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
 
         # Initialize a vector of dates starting on the user provided startDate and of length data
         # Calculate length of data to obtain an initial simulation time
@@ -998,46 +1036,50 @@ class SEIRSAgeModel():
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
-            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(t_data,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(len(data)):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
-            # 'pretty' ticks on x-axis depend on length simulation
-            if len(t_acc) > 62 and len(t_acc) < 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
-            elif len(t_acc) >= 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-            elif len(t_acc) < 62:
-                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+            ax.set_title(titleText,{'fontsize':18})
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( t_acc[self.extraTime-3], pd.to_datetime(t_acc[-1]))
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
-        return None
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def realTimeMPC(self,startDate,data,positions,pastPolicy,parNames,bounds,setpoints,weights,
                         policy_period=7,N=6,P=12,disp=True,polish=True,maxiter=100,popsize=20,
-                        dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+                        dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
 
         # -------------------------------------------------------
         # Step 1: Run simulation untill the end of the dataseries
@@ -1122,41 +1164,46 @@ class SEIRSAgeModel():
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
-            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(t_data,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(len(data)):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
-            # 'pretty' ticks on x-axis depend on length simulation
-            if len(t_acc) > 62 and len(t_acc) < 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
-            elif len(t_acc) >= 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-            elif len(t_acc) < 62:
-                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+            ax.set_title(titleText,{'fontsize':18})
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( t_acc[self.extraTime-3], pd.to_datetime(t_acc[-1]))
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -2156,52 +2203,82 @@ class SEIRSNetworkModel():
             i = i + 1
         return self
 
-    def plotPopulationStatus(self,filename=None):
-        plt.figure()
-        #plt.plot(self.tseries,numpy.mean(self.sumS,axis=1),color="black")
-        #plt.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color="black",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumE,axis=1),color="orange")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color="orange",alpha=0.2)
-        I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
-        plt.plot(self.tseries,numpy.mean(I,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color="red",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumR,axis=1),color="green")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color="green",alpha=0.2)
-        plt.legend(('exposed','total infected','immune'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
-        if filename is not None:
-            plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
-
-    def plotInfected(self,asymptotic=False,mild=False,filename=None):
+    def plotPopulationStatus(self,filename=None,getfig=False):
         # extend with plotting data and using dates (extra argument startDate)
-        plt.figure()
-        if asymptotic is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color="blue")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color="blue",alpha=0.2)
-        if mild is not False:
-            plt.plot(self.tseries,numpy.mean(self.sumM,axis=1),color="green")
-            plt.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color="green",alpha=0.2)
-        plt.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color="orange")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color="orange",alpha=0.2)  
-        plt.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color="red")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color="red",alpha=0.2)    
-        plt.plot(self.tseries,numpy.mean(self.sumF,axis=1),color="black")
-        plt.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color="black",alpha=0.2)  
-        if mild is not False and asymptotic is not False:
-            plt.legend(('asymptotic','mild','heavy','critical','dead'))
-        elif mild is not False and asymptotic is False:
-            plt.legend(('mild','heavy','critical','dead'))
-        elif mild is False and asymptotic is not False:
-            plt.legend(('asymptotic','heavy','critical','dead'))
-        elif mild is False and asymptotic is False:
-            plt.legend(('heavy','critical','dead'))
-        plt.xlabel('days')
-        plt.ylabel('number of patients')
+        fig, ax = plt.subplots()
+        ax.plot(self.tseries,numpy.mean(self.sumS,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color=black,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumE,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color=orange,alpha=0.2)
+        I = self.sumSM + self.sumM + self.sumH + self.sumC + self.sumHH + self.sumCH
+        ax.plot(self.tseries,numpy.mean(I,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color=red,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumR,axis=1),color=green)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color=green,alpha=0.2)
+        ax.legend(('susceptible','exposed','total infected','immune'), loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
+
+    def plotInfected(self,asymptotic=False,mild=False,filename=None,getfig=False):
+        # extend with plotting data and using dates (extra argument startDate)
+        fig, ax = plt.subplots()
+        if asymptotic is not False:
+            ax.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color=blue)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color=blue,alpha=0.2)
+        if mild is not False:
+            ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)  
+        ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
+        if mild is not False and asymptotic is not False:
+            legend_labels = ('asymptotic','mild','heavy','critical','dead')
+        elif mild is not False and asymptotic is False:
+            legend_labels = ('mild','heavy','critical','dead')
+        elif mild is False and asymptotic is not False:
+            legend_labels = ('asymptotic','heavy','critical','dead')
+        elif mild is False and asymptotic is False:
+            legend_labels = ('heavy','critical','dead')
+        ax.legend(legend_labels, loc="upper left", bbox_to_anchor=(1,1))
+        ax.set_xlabel('days')
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight')
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def LSQ(self,thetas,data,parNames,positions,weights):
         # ------------------
@@ -2300,7 +2377,7 @@ class SEIRSNetworkModel():
                     print(m_acc,h_acc,c_acc)
         return self,theta_hat
 
-    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
         # ------------------  
@@ -2317,7 +2394,7 @@ class SEIRSNetworkModel():
         self.sim(T)
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
         
-        # -----------
+         # -----------
         # Plot result
         # -----------
         # Create shifted index vector using self.extraTime
@@ -2325,34 +2402,51 @@ class SEIRSNetworkModel():
         timestampStr = timeObj.strftime("%Y-%m-%d")
         index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(n):
-            plt.scatter(index,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(index,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(n):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(index_acc[self.extraTime-3]),pd.to_datetime(index_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
+            ax.set_title(titleText,{'fontsize':18})
         plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( index_acc[self.extraTime-3], pd.to_datetime(index_acc[-1]))
+        #ax.set_xticks(pd.date_range(index_acc[self.extraTime-3]), pd.to_datetime(index_acc[-1]), periods=4)
+        #for tick in ax.get_xticklabels():
+        #    tick.set_rotation(0)
+        #    tick.set_horizontalalignment('center')
+        #ax.minorticks_off()
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
     def mergeDict(self,T,dict1, dict2):
         # length of dict1 is needed later on
@@ -2424,41 +2518,46 @@ class SEIRSNetworkModel():
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
         # Plot figure        
-        plt.figure()
-        plt.figure(figsize=(7,5),dpi=100)
+        fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
-            plt.scatter(t_data,data[i],color="black",marker=dataMkr[i])
+            ax.scatter(t_data,data[i],color="black",marker=dataMkr[i])
         # Plot model prediction
         for i in range(len(data)):
             ymodel = 0
             for j in positions[i]:
                 ymodel = ymodel + out[j]
-            plt.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            plt.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
+            ax.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
+            ax.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
                  numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
         # Attributes
-        plt.xlim(pd.to_datetime(t_acc[self.extraTime-5]),pd.to_datetime(t_acc[-1]))
         if legendText is not None:
-            plt.legend(legendText,loc='upper left')
+            ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
         if titleText is not None:
-            plt.title(titleText,{'fontsize':18})
-            # 'pretty' ticks on x-axis depend on length simulation
-            if len(t_acc) > 62 and len(t_acc) < 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-                plt.gca().xaxis.set_minor_locator(mdates.DayLocator())
-            elif len(t_acc) >= 186:
-                plt.gca().xaxis.set_major_locator(mdates.MonthLocator())
-            elif len(t_acc) < 62:
-                plt.gca().xaxis.set_major_locator(mdates.DayLocator())
+            ax.set_title(titleText,{'fontsize':18})
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator())
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        plt.ylabel('number of patients')
-        # Save figure if needed
+        ax.set_xlim( t_acc[self.extraTime-3], pd.to_datetime(t_acc[-1]))
+        ax.set_ylabel('number of patients')
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+        # enable the grid
+        plt.grid(True)
+        # To specify the number of ticks on both or any single axes
+        ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if filename is not None:
             plt.savefig(filename,dpi=600,bbox_inches='tight')
-        plt.show()
+        if getfig:
+            return fig, ax
+        else:
+            plt.show()
 
 
 
