@@ -17,6 +17,8 @@ import matplotlib.dates as mdates
 import datetime
 from scipy import interpolate as inter
 import copy
+import pso
+import multiprocessing
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -603,6 +605,7 @@ class SEIRSAgeModel():
             ymodel.append(som[extraTime:,0].reshape(som[extraTime:,0].size,1))
             # calculate quadratic error
             SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
+        SSE = SSE[0]
         return(SSE)
 
     def fit(self,data,parNames,positions,bounds,weights,checkpoints=None,setvar=False,disp=True,polish=True,maxiter=30,popsize=10):
@@ -632,10 +635,12 @@ class SEIRSAgeModel():
         # ---------------------
         # Run genetic algorithm
         # ---------------------
-        optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
-        theta_hat = optim_out.x
+        #optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
+        #theta_hat = optim_out.x
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
+                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
+        theta_hat = p_hat
         print(theta_hat)
-
         # ---------------------------------------------------
         # If setattr is True: assign estimated thetas to self
         # ---------------------------------------------------
@@ -2322,6 +2327,7 @@ class SEIRSNetworkModel():
             ymodel.append(som[extraTime:,0].reshape(som[extraTime:,0].size,1))
             # calculate quadratic error
             SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
+        SSE = SSE[0]
         return(SSE)
 
     def fit(self,data,parNames,positions,bounds,weights,checkpoints=None,setvar=False,disp=True,polish=True,maxiter=30,popsize=10):
@@ -2356,8 +2362,12 @@ class SEIRSNetworkModel():
         # ---------------------
         # Run genetic algorithm
         # ---------------------
-        optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
-        theta_hat = optim_out.x
+        #optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
+        #theta_hat = optim_out.x
+        print(multiprocessing.cpu_count())
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
+                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
+        theta_hat = p_hat
         print(theta_hat)
 
         # ---------------------------------------------------
@@ -2476,7 +2486,7 @@ class SEIRSNetworkModel():
         return merged
 
     def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,T_extra=14,dataMkr=['o','v','s','*','^'],
-                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None):
+                                modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # This function will by default plot the user provided country data + model prediction starting on the first day of the dates vectors
         # To match the current data with the model prediction, a checkpoints dictionary pastPolicy must be given to the function.
         # If none of the additional arguments are provided, the model will simply plot the the prediction up until the end date provided by the user.
