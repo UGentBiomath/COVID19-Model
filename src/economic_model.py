@@ -211,10 +211,27 @@ class EconomicModel():
             
         return(Results)
         
-#    def ComputeEconomicAddedValue(self, model):
+    def ComputeValueAdded(self, StatusMatrix):
+        # Returns an approximation of the value added to the economy by workers.
+        # Hypothesis: 
+        #   - Every worker produces in average the same amount of value added per day
+        #   - No penalty is made for working from home instead of being physically on work place. 
+        # Inputs to the function:
+        #   SELF: The economic model object with data from Belgium Value Added per economical sector
+        #   STATUSMATRIX: The matrix of occupation produced by ASSIGNOCCUPATION()
+        # Output:
+        #   The added value to the economy per day (in euros), according to the StatusMatrix.
     
+        VA = self.Inputs['Value Added per Employe']
+        TotalVA = 0
+        
+        for i in range(0,len(StatusMatrix[:,1])):
+            if StatusMatrix[i,0] > 0:
+                if StatusMatrix[i,1] < 4:
+                    idx = StatusMatrix[i,0]
+                    TotalVA = TotalVA + VA[idx]
     
-    
+        return(TotalVA / 365)
     
     
     
