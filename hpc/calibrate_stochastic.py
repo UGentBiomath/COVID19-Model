@@ -20,11 +20,11 @@ import timeit
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-import models, pso
+import models
 
 # Construct the network G
 # ~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 1200
+numNodes = 120000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=7)
 # Baseline normal interactions:
 G_norm     = models.custom_exponential_graph(baseGraph, scale=200)
@@ -32,7 +32,7 @@ models.plot_degree_distn(G_norm, max_degree=40)
 
 # Construct the network G under social distancing
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 1200
+numNodes = 120000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=2)
 # Baseline normal interactions:
 G_dist     = models.custom_exponential_graph(baseGraph, scale=20000)
@@ -76,7 +76,7 @@ model = models.SEIRSNetworkModel(
                                  phi_R   = 0,
                                  # initial condition
                                  initN = 11.43e6, #results are extrapolated to entire population
-                                 initE = 10,
+                                 initE = 100,
                                  initSM = 0, 
                                  initM = 0,
                                  initH = 0,
