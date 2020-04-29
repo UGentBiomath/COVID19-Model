@@ -870,9 +870,12 @@ class SEIRSAgeModel():
         # ---------------------
         # Run genetic algorithm
         # ---------------------
-        optim_out = scipy.optimize.differential_evolution(self.calcMPCsse, scipy_bounds, args=(parNames,setpoints,positions,weights,policy_period,P),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
-        theta_hat = optim_out.x
-
+        #optim_out = scipy.optimize.differential_evolution(self.calcMPCsse, scipy_bounds, args=(parNames,setpoints,positions,weights,policy_period,P),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
+        #theta_hat = optim_out.x
+        print(multiprocessing.cpu_count())
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
+                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
+        theta_hat = p_hat
         # ---------------------------------------------
         # Assign optimal policy to SEIRSAgeModel object
         # ---------------------------------------------
@@ -1222,7 +1225,7 @@ class SEIRSNetworkModel():
     """
     def __init__(self, G, beta, sigma, initN,zeta=0, p=0,sm=0, m=0, h=0, c=0, dsm=0, dm=0, dhospital=0, dh=0, dcf=0, dcr=0,mc0=0,ICU=0,theta_S=0, theta_E=0, theta_SM=0, theta_M=0, theta_R=0,
                     phi_S=0, phi_E=0, phi_SM=0, phi_R=0,psi_FP=0, psi_PP=0,dq=0,initE=10, initSM=0, initM=0, initH=0, initC=0, initHH = 0, initCH = 0, initR=0, initF=0,
-                    initSQ=0, initEQ=0, initSMQ=0, initMQ=0, initRQ=0,monteCarlo=False,n_samples=1,node_groups=None):
+                    initSQ=0, initEQ=0, initSMQ=0, initMQ=0, initRQ=0,monteCarlo=False,repeats=1,node_groups=None):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~
         # Setup Adjacency matrix:
@@ -1233,7 +1236,7 @@ class SEIRSNetworkModel():
         # Initiate Model Parameters:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~
         self.beta   = numpy.array(beta).reshape((self.numNodes, 1))  if isinstance(beta, (list, numpy.ndarray)) else numpy.full(fill_value=beta, shape=(self.numNodes,1))
-        self.sigma  = numpy.array(sigma).reshape((self.numNodes, 1)) if isinstance(sigma, (list, numpy.ndarray)) else numpy.full(fill_value=sigma, shape=(self.numNodes,1))
+        #self.sigma  = numpy.array(sigma).reshape((self.numNodes, 1)) if isinstance(sigma, (list, numpy.ndarray)) else numpy.full(fill_value=sigma, shape=(self.numNodes,1))
         self.zeta     = numpy.array(zeta).reshape((self.numNodes, 1))    if isinstance(zeta, (list, numpy.ndarray)) else numpy.full(fill_value=zeta, shape=(self.numNodes,1))
         self.p      = numpy.array(p).reshape((self.numNodes, 1))     if isinstance(p, (list, numpy.ndarray)) else numpy.full(fill_value=p, shape=(self.numNodes,1))        
         self.sm  = numpy.array(sm).reshape((self.numNodes, 1)) if isinstance(sm, (list, numpy.ndarray)) else numpy.full(fill_value=sm, shape=(self.numNodes,1))
@@ -1263,11 +1266,17 @@ class SEIRSNetworkModel():
 
         # monte-carlo sampling is an attribute of the model
         self.monteCarlo = monteCarlo
-        self.n_samples = n_samples
         # node-groups should also ben an attribute of the model
         self.node_groups = node_groups
         # initN is used to extrapolate results to given population
         self.initN = initN
+        # number of repeats
+        self.repeats = repeats
+
+        if self.monteCarlo is True:
+            self.sigma = numpy.full(fill_value=self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.numNodes).reshape((self.numNodes, 1)), shape=(self.numNodes,1))
+        else:
+            self.sigma  = numpy.array(sigma).reshape((self.numNodes, 1)) if isinstance(sigma, (list, numpy.ndarray)) else numpy.full(fill_value=sigma, shape=(self.numNodes,1))
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Each node can undergo up to 4 transitions (sans vitality/re-susceptibility returns to S state),
@@ -2115,14 +2124,14 @@ class SEIRSNetworkModel():
 
     def sim(self, T, dt=1, checkpoints=None, verbose=False):
         tN = int(T) + 1
-        if self.monteCarlo==False:
-            sigmavect = numpy.array([self.sigma])
-            self.n_samples = 1
-        else:
-            if self.n_samples is 1:
-                self.n_samples = 100
+        #if self.monteCarlo==False:
+        #    sigmavect = numpy.array([self.sigma])
+        #    self.n_samples = 1
+        #else:
+        #    if self.n_samples is 1:
+        #        self.n_samples = 100
             # sample a total of n_samples from distribution of 
-            sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
+        #    sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         # age-structuring extension will be included at a later time
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2143,24 +2152,24 @@ class SEIRSNetworkModel():
         # self.RQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
 
         # pre-allocate a 2D matrix for the results summed over all age bins
-        self.sumS = numpy.zeros([tN,self.n_samples])
-        self.sumE = numpy.zeros([tN,self.n_samples])
-        self.sumSM = numpy.zeros([tN,self.n_samples])
-        self.sumM = numpy.zeros([tN,self.n_samples])
-        self.sumH = numpy.zeros([tN,self.n_samples])
-        self.sumC = numpy.zeros([tN,self.n_samples])
-        self.sumHH = numpy.zeros([tN,self.n_samples])
-        self.sumCH = numpy.zeros([tN,self.n_samples])
-        self.sumR = numpy.zeros([tN,self.n_samples])
-        self.sumF = numpy.zeros([tN,self.n_samples])
-        self.sumSQ = numpy.zeros([tN,self.n_samples])
-        self.sumEQ = numpy.zeros([tN,self.n_samples])
-        self.sumSMQ = numpy.zeros([tN,self.n_samples])
-        self.sumMQ = numpy.zeros([tN,self.n_samples])
-        self.sumRQ = numpy.zeros([tN,self.n_samples])
+        self.sumS = numpy.zeros([tN,self.repeats])
+        self.sumE = numpy.zeros([tN,self.repeats])
+        self.sumSM = numpy.zeros([tN,self.repeats])
+        self.sumM = numpy.zeros([tN,self.repeats])
+        self.sumH = numpy.zeros([tN,self.repeats])
+        self.sumC = numpy.zeros([tN,self.repeats])
+        self.sumHH = numpy.zeros([tN,self.repeats])
+        self.sumCH = numpy.zeros([tN,self.repeats])
+        self.sumR = numpy.zeros([tN,self.repeats])
+        self.sumF = numpy.zeros([tN,self.repeats])
+        self.sumSQ = numpy.zeros([tN,self.repeats])
+        self.sumEQ = numpy.zeros([tN,self.repeats])
+        self.sumSMQ = numpy.zeros([tN,self.repeats])
+        self.sumMQ = numpy.zeros([tN,self.repeats])
+        self.sumRQ = numpy.zeros([tN,self.repeats])
         # simulation loop
         i=0
-        for self.sigma in sigmavect:
+        while i <= self.repeats-1:
             # reset self to initial condition
             self.reset()
             # perform simulation
