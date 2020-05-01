@@ -1,4 +1,4 @@
-key !=# Original implementation by Ryan S. Mcgee can be found using the following link: https://github.com/ryansmcgee/seirsplus
+# Original implementation by Ryan S. Mcgee can be found using the following link: https://github.com/ryansmcgee/seirsplus
 # Copyright (c) 2020 by T.W. Alleman, D. Van Hauwermeiren, BIOMATH, Ghent University. All Rights Reserved.
 
 from __future__ import absolute_import
@@ -770,7 +770,7 @@ class SEIRSAgeModel():
 
     def constructHorizonRealTimeMPC(self,thetas,parNames,policy_period):
         # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames)) 
+        N = int(len(thetas)/len(parNames))
         # Time
         t = []
         for i in range(N):
@@ -2019,7 +2019,7 @@ class SEIRSNetworkModel():
                         # Reset all parameter values that were changed back to their original value
                         i = 0
                         for key in checkpoints.keys():
-                            if key is not 't':
+                            if key != 't':
                                 setattr(self,key,beforeChk[i])
                                 i = i+1
                         # We are out of checkpoints, stop checking them:
