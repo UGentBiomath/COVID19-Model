@@ -2128,9 +2128,9 @@ class SEIRSNetworkModel():
         #    sigmavect = numpy.array([self.sigma])
         #    self.n_samples = 1
         #else:
-        #    if self.n_samples is 1:
+        #    if self.n_samples == 1:
         #        self.n_samples = 100
-            # sample a total of n_samples from distribution of 
+            # sample a total of n_samples from distribution of
         #    sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         # age-structuring extension will be included at a later time
