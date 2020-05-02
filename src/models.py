@@ -47,7 +47,7 @@ class SEIRSAgeModel():
     """
     A class to simulate the Deterministic extended SEIRS Model with optionl age-structuring
     =======================================================================================
-    Params: 
+    Params:
     """
 
     def __init__(self, initN, beta, sigma, Nc=0, zeta=0,sm=0,m=0,h=0,c=0,dsm=0,dm=0,dhospital=0,dh=0,dcf=0,dcr=0,mc0=0,ICU=0,totalTests=0,
@@ -58,14 +58,14 @@ class SEIRSAgeModel():
         # Initialize Model Parameters:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Clinical parameters
-        self.beta   = beta  
-        self.sigma  = sigma 
+        self.beta   = beta
+        self.sigma  = sigma
         self.Nc     = Nc
         self.zeta     = zeta
         self.sm     = sm
-        self.m     = m  
+        self.m     = m
         self.h     = h
-        self.c     = c     
+        self.c     = c
         self.dsm     = dsm
         self.dm     = dm
         self.dhospital     = dhospital
@@ -143,7 +143,7 @@ class SEIRSAgeModel():
         self.t       = 0
         self.tmax    = 0 # will be set when run() is called
         self.tseries = numpy.array([0])
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Reshape inital condition in Nc.shape[0] x 1 2D arrays:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,21 +224,21 @@ class SEIRSAgeModel():
         theta_R = totalTests/nT
         theta_R[theta_R > 1] = 1
         # calculate rates of change using the 2D arrays
-        dS  = - beta*numpy.matmul(Nc,((E+SM)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R 
+        dS  = - beta*numpy.matmul(Nc,((E+SM)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
         dE  = beta*numpy.matmul(Nc,((E+SM)/N)*S) - E/sigma - theta_E*psi_PP*E
-        dSM = sm/sigma*E - SM/dsm - theta_SM*psi_PP*SM 
+        dSM = sm/sigma*E - SM/dsm - theta_SM*psi_PP*SM
         dM = m/sigma*E - M/dm - theta_M*psi_PP*M
         dH = h/sigma*E - H/dhospital + h/sigma*EQ
         dC = c/sigma*E - C/dhospital + c/sigma*EQ
         dHH = H/dhospital - HH/dh
         dCH = C/dhospital - mc0*CH/dcf - (1-mc0)*CH/dcr
-        dR  = SM/dsm + M/dm + HH/dh + (1-mc0)*CH/dcr + SMQ/dsm + MQ/dm + RQ/dq - zeta*R 
+        dR  = SM/dsm + M/dm + HH/dh + (1-mc0)*CH/dcr + SMQ/dsm + MQ/dm + RQ/dq - zeta*R
         dF  = mc0*CH/dcf
         dSQ = theta_S*psi_FP*S - SQ/dq
-        dEQ = theta_E*psi_PP*E - EQ/sigma 
-        dSMQ = theta_SM*psi_PP*SM + sm/sigma*EQ - SMQ/dsm 
+        dEQ = theta_E*psi_PP*E - EQ/sigma
+        dSMQ = theta_SM*psi_PP*SM + sm/sigma*EQ - SMQ/dsm
         dMQ = theta_M*psi_PP*M + m/sigma*EQ - MQ/dm
-        dRQ = theta_R*psi_FP*R - RQ/dq 
+        dRQ = theta_R*psi_FP*R - RQ/dq
         # reshape output back into a 1D array of similar dimension as input
         out = numpy.array([dS,dE,dSM,dM,dH,dC,dHH,dCH,dR,dF,dSQ,dEQ,dSMQ,dMQ,dRQ])
         out = numpy.reshape(out,15*Nc.shape[0])
@@ -258,18 +258,18 @@ class SEIRSAgeModel():
         t_span          = (self.t, self.t+runtime)
 
         # Define the initial conditions as the system's current state:
-        # (which will be the t=0 condition if this is the first run of this model, 
+        # (which will be the t=0 condition if this is the first run of this model,
         # else where the last sim left off)
         init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numSM[:,-1], self.numM[:,-1], self.numH[:,-1], self.numC[:,-1], self.numHH[:,-1], self.numCH[:,-1], self.numR[:,-1], self.numF[:,-1], self.numSQ[:,-1], self.numEQ[:,-1], self.numSMQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
         init_cond = numpy.reshape(init_cond,15*self.Nc.shape[0])
         #init_cond       = [self.numS[-1], self.numE[-1], self.numSM[-1], self.numM[-1], self.numH[-1], self.numC[-1], self.numHH[-1], self.numCH[-1],self.numR[-1], self.numF[-1], self.numSQ[-1],self.numEQ[-1], self.numSMQ[-1], self.numMQ[-1], self.numRQ[-1]]
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Solve the system of differential eqns:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.Nc, self.zeta, self.sm, self.m, self.h, self.c, self.dsm,self.dm,
-                            self.dhospital,self.dh,self.dcf,self.dcr,self.mc0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq), 
+                            self.dhospital,self.dh,self.dcf,self.dcr,self.mc0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq),
                                                         t_span=[self.t, self.tmax], y0=init_cond, t_eval=t_eval
                                                    )
         # output of size (nTimesteps * Nc.shape[0])
@@ -308,26 +308,26 @@ class SEIRSAgeModel():
             self.tmax += T + 1
         else:
             return False
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Pre-process checkpoint values:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         if(checkpoints):
             numCheckpoints = len(checkpoints['t'])
             paramNames = ['beta', 'sigma', 'Nc', 'zeta', 'sm', 'm', 'h', 'c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU','totalTests',
                           'psi_FP','psi_PP','dq']
             for param in paramNames:
-                # For params that don't have given checkpoint values (or bad value given), 
+                # For params that don't have given checkpoint values (or bad value given),
                 # set their checkpoint values to the value they have now for all checkpoints.
                 if(param not in list(checkpoints.keys())
-                    or not isinstance(checkpoints[param], (list, numpy.ndarray)) 
+                    or not isinstance(checkpoints[param], (list, numpy.ndarray))
                     or len(checkpoints[param])!=numCheckpoints):
                     checkpoints[param] = [getattr(self, param)]*numCheckpoints
             # Before using checkpoints, save variables to be changed by method
             beforeChk=[]
             for key in checkpoints.keys():
-                if key is not 't':
+                if key != 't':
                     beforeChk.append(getattr(self,key))
 
         #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -354,7 +354,7 @@ class SEIRSAgeModel():
                 print("\t SMQ   = " + str(self.numSMQ[:,-1]))
                 print("\t MQ   = " + str(self.numMQ[:,-1]))
                 print("\t RQ   = " + str(self.numRQ[:,-1]))
-                    
+
 
         else: # checkpoints provided
             for checkpointIdx, checkpointTime in enumerate(checkpoints['t']):
@@ -364,7 +364,7 @@ class SEIRSAgeModel():
                 #print("[Checkpoint: Updating parameters]")
                 for param in paramNames:
                     setattr(self, param, checkpoints[param][checkpointIdx])
-          
+
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                 #print("t = %.2f" % self.t)
@@ -390,9 +390,9 @@ class SEIRSAgeModel():
                 # Reset all parameter values that were changed back to their original value
                 i = 0
                 for key in checkpoints.keys():
-                    if key is not 't':
+                    if key != 't':
                         setattr(self,key,beforeChk[i])
-                        i = i+1          
+                        i = i+1
 
         return self
 
@@ -402,9 +402,9 @@ class SEIRSAgeModel():
             sigmavect = numpy.array([5.2])
             self.n_samples = 1
         else:
-            if self.n_samples is 1:
+            if self.n_samples == 1:
                 self.n_samples = 100
-            # sample a total of n_samples from distribution of 
+            # sample a total of n_samples from distribution of
             sigmavect = self.sampleFromDistribution('../data/corona_incubatie_data.csv',self.n_samples)
         # pre-allocate a 3D matrix for the raw results
         self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
@@ -448,15 +448,15 @@ class SEIRSAgeModel():
             # append raw results to 3D matrix
             self.S[:,:,i] = self.numS
             self.E[:,:,i] = self.numE
-            self.SM[:,:,i] = self.numSM 
+            self.SM[:,:,i] = self.numSM
             self.M[:,:,i] = self.numM
             self.H[:,:,i] = self.numH
-            self.C[:,:,i] = self.numC 
+            self.C[:,:,i] = self.numC
             self.HH[:,:,i] = self.numHH
             self.CH[:,:,i] = self.numCH
             self.R[:,:,i] = self.numR
             self.F[:,:,i] = self.numF
-            self.SQ[:,:,i] = self.numSQ 
+            self.SQ[:,:,i] = self.numSQ
             self.EQ[:,:,i] = self.numEQ
             self.SMQ[:,:,i] = self.numSMQ
             self.MQ[:,:,i] = self.numMQ
@@ -529,11 +529,11 @@ class SEIRSAgeModel():
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)  
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)
         if mild is not False and asymptotic is not False:
             legend_labels = ('asymptotic','mild','heavy','critical','dead')
         elif mild is not False and asymptotic is False:
@@ -566,7 +566,7 @@ class SEIRSAgeModel():
     def LSQ(self,thetas,data,parNames,positions,weights):
         # ------------------
         # Prepare simulation
-        # ------------------    
+        # ------------------
         # reset all numX
         self.reset()
         # assign estimates to correct variable
@@ -575,7 +575,7 @@ class SEIRSAgeModel():
         for param in parNames:
             setattr(self,param,thetas[i+1])
             i = i + 1
-            if param is 'h':
+            if param == 'h':
                 m_acc = self.m/(1-self.sm)
                 h_acc = self.h/(1-self.sm)
                 self.c = (1-self.sm)*(1-m_acc-h_acc)
@@ -592,7 +592,7 @@ class SEIRSAgeModel():
         self.sim(T)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # ---------------
         # extract results
         # ---------------
@@ -626,12 +626,12 @@ class SEIRSAgeModel():
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
-            # For params that don't have given checkpoint values (or bad value given), 
+            # For params that don't have given checkpoint values (or bad value given),
             # set their checkpoint values to the value they have now for all checkpoints.
             if param not in possibleNames:
                 raise Exception('The parametername provided by user in position {} of argument parNames is not an actual model parameter. Please check its spelling.'.format(i))
             i = i + 1
-        
+
         # ---------------------
         # Run genetic algorithm
         # ---------------------
@@ -650,7 +650,7 @@ class SEIRSAgeModel():
             for param in parNames:
                 setattr(self,param,theta_hat[i+1])
                 i  = i + 1
-                if param is 'h':
+                if param == 'h':
                     m_acc = self.m/(1-self.sm)
                     h_acc = self.h/(1-self.sm)
                     self.c = (1-self.sm)*(1-m_acc-h_acc)
@@ -661,7 +661,7 @@ class SEIRSAgeModel():
     def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
-        # ------------------  
+        # ------------------
         # reset all numX
         self.reset()
         # Compute number of dataseries
@@ -674,7 +674,7 @@ class SEIRSAgeModel():
         # ------------------
         self.sim(T)
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # -----------
         # Plot result
         # -----------
@@ -682,7 +682,7 @@ class SEIRSAgeModel():
         timeObj = index[0]
         timestampStr = timeObj.strftime("%Y-%m-%d")
         index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
-        # Plot figure        
+        # Plot figure
         fig, ax = plt.subplots()
         # Plot data
         for i in range(n):
@@ -743,7 +743,7 @@ class SEIRSAgeModel():
 
     def constructHorizon(self,thetas,parNames,policy_period):
         # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames)) 
+        N = int(len(thetas)/len(parNames))
         # Time
         t = []
         for i in range(N-1):
@@ -754,23 +754,23 @@ class SEIRSAgeModel():
             checkpoints.update({parNames[i] : []})
         # Append to list
         for i in range(len(parNames)):
-            if parNames[i] is 'Nc':
+            if parNames[i] == 'Nc':
                 for j in range(0,N):
-                    if j is 0:
+                    if j == 0:
                         setattr(self, parNames[i],numpy.array([thetas[i*N+j]]))
                     else:
                         checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
             else:
                 for j in range(0,N):
-                    if j is 0:
+                    if j == 0:
                         setattr(self, parNames[i],numpy.array([thetas[i*N+j]]))
                     else:
                         checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
         return(checkpoints)
-        
+
     def constructHorizonRealTimeMPC(self,thetas,parNames,policy_period):
         # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames)) 
+        N = int(len(thetas)/len(parNames))
         # Time
         t = []
         for i in range(N):
@@ -781,7 +781,7 @@ class SEIRSAgeModel():
             checkpoints.update({parNames[i] : []})
         # Append to list
         for i in range(len(parNames)):
-            if parNames[i] is 'Nc':
+            if parNames[i] == 'Nc':
                 # There is a bug here, parNames[i] is 'Nc' but somehow the if doesn't end up here
                 for j in range(0,N):
                     checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
@@ -796,7 +796,7 @@ class SEIRSAgeModel():
         # ------------------------------------------------------
 
         # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames)) 
+        N = int(len(thetas)/len(parNames))
 
         # Build prediction horizon
         thetas_lst=[]
@@ -806,7 +806,7 @@ class SEIRSAgeModel():
             for k in range(P-N):
                 thetas_lst.append(thetas[i*N + j])
         chk = self.constructHorizon(thetas_lst,parNames,policy_period)
-        
+
         # ------------------
         # Perform simulation
         # ------------------
@@ -818,7 +818,7 @@ class SEIRSAgeModel():
         self.sim(T,checkpoints=chk)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # ---------------
         # Calculate error
         # ---------------
@@ -853,12 +853,12 @@ class SEIRSAgeModel():
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
-            # For params that don't have given checkpoint values (or bad value given), 
+            # For params that don't have given checkpoint values (or bad value given),
             # set their checkpoint values to the value they have now for all checkpoints.
             if param not in possibleNames:
                 raise Exception('The parametername provided by user in position {} of argument parNames is not an actual model parameter. Please check its spelling.'.format(i))
             i = i + 1
-        
+
         # ----------------------------------------------------------------------------------------
         # Convert bounds vector to an appropriate format for scipy.optimize.differential_evolution
         # ----------------------------------------------------------------------------------------
@@ -900,11 +900,11 @@ class SEIRSAgeModel():
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)   
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)
         if mild is not False and asymptotic is not False:
             legend_labels = ('asymptotic','mild','heavy','critical','dead')
         elif mild is not False and asymptotic is False:
@@ -939,18 +939,18 @@ class SEIRSAgeModel():
         Function to update the available data on hospitalisation cases (including ICU).
         The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
         Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
-        
+
         Output:
         * initial – initial date of records: string 'YYYY-MM-DD'
         * data – list with total number of patients as [hospital, ICUvect]:
             * hospital - total number of hospitalised patients : array
-            * ICUvect - total number of hospitalised patients in ICU: array 
-        
+            * ICUvect - total number of hospitalised patients in ICU: array
+
         Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
         """
         # Data source
         url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
-        
+
         # Extract hospitalisation data from source
         df = pd.read_excel(url, sheet_name="HOSP")
         # Date of initial records
@@ -966,7 +966,7 @@ class SEIRSAgeModel():
         # List of daily numbers of ICU and hospitaliside patients
         data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
         return [index, data]
-        
+
     def mergeDict(self,T,dict1, dict2):
         # length of dict1 is needed later on
         orig_len = len(dict1['t'])
@@ -976,7 +976,7 @@ class SEIRSAgeModel():
         #end = dict1['t'][-1]
         for i in range(len(dict2['t'])):
             dict2['t'][i] = dict2['t'][i]+end
-        # merge dictionaries by updating          
+        # merge dictionaries by updating
         temp = {**dict2, **dict1}
         # loop over all key-value pairs
         for key,value in temp.items():
@@ -985,7 +985,7 @@ class SEIRSAgeModel():
                     value.append(dict2[key][i])
                 merged[key] = value
             elif key in dict1 and not key in dict2:
-                if key is not 'Nc':
+                if key != 'Nc':
                     for i in range(len(dict2['t'])):
                         dict1[key].append(getattr(self,key))
                     merged[key] = dict1[key]
@@ -994,7 +994,7 @@ class SEIRSAgeModel():
                         dict1[key].append(getattr(self,key))
                     merged[key] = dict1[key]
             elif key in dict2 and not key in dict1:
-                if key is not 'Nc':
+                if key != 'Nc':
                     for i in range(orig_len):
                         dict2[key].insert(0,getattr(self,key))
                     merged[key] = dict2[key]
@@ -1028,22 +1028,22 @@ class SEIRSAgeModel():
             chk = pastPolicy
         # ------------------
         # Prepare simulation
-        # ------------------  
+        # ------------------
         # reset all numX
         self.reset()
-        
+
         # ------------------
         # Perform simulation
         # ------------------
         self.sim(T,checkpoints=chk)
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # -----------
         # Plot result
         # -----------
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
-        # Plot figure        
+        # Plot figure
         fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
@@ -1093,9 +1093,9 @@ class SEIRSAgeModel():
         # Step 1: Run simulation untill the end of the dataseries
         # -------------------------------------------------------
         # Initialize a vector of dates starting on the user provided startDate and of length data
-        t_data = pd.date_range(startDate, freq='D', periods=data[0].size)            
+        t_data = pd.date_range(startDate, freq='D', periods=data[0].size)
         # Calculate length of data to obtain an initial simulation time
-        T = len(t_data) + self.extraTime - 1 # number of datapoints    
+        T = len(t_data) + self.extraTime - 1 # number of datapoints
         # make a deepcopy of pastPolicy
         dict1_orig = copy.deepcopy(pastPolicy)
         # add estimated extraTime to past policy vector
@@ -1108,7 +1108,7 @@ class SEIRSAgeModel():
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
 
         # ----------------------------------------------------------------------
-        # Step 2: Pass population pools to MPC optimiser, save initial condition 
+        # Step 2: Pass population pools to MPC optimiser, save initial condition
         # ----------------------------------------------------------------------
         # Assign self.initX to local variable initX
         initE = self.initE
@@ -1136,12 +1136,12 @@ class SEIRSAgeModel():
 
         # ---------------------------
         # Step 4: Merge dictionaries
-        # ---------------------------       
+        # ---------------------------
         chk = self.mergeDict((T-1),dict1_orig,dict2_orig)
 
         # -------------------------------
         # Step 5: Reset initial condition
-        # -------------------------------     
+        # -------------------------------
         # Assign local variable initX back to self.initX
         self.initE = initE
         self.initSM = initSM
@@ -1160,7 +1160,7 @@ class SEIRSAgeModel():
 
         # ----------------------
         # Step 6: Simulate model
-        # ----------------------  
+        # ----------------------
         self.reset()
         T = chk['t'][-1]+int(policy_period)
         self.sim(T,checkpoints=chk)
@@ -1171,7 +1171,7 @@ class SEIRSAgeModel():
         # -------------------
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
-        # Plot figure        
+        # Plot figure
         fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
@@ -1238,11 +1238,11 @@ class SEIRSNetworkModel():
         self.beta   = numpy.array(beta).reshape((self.numNodes, 1))  if isinstance(beta, (list, numpy.ndarray)) else numpy.full(fill_value=beta, shape=(self.numNodes,1))
         #self.sigma  = numpy.array(sigma).reshape((self.numNodes, 1)) if isinstance(sigma, (list, numpy.ndarray)) else numpy.full(fill_value=sigma, shape=(self.numNodes,1))
         self.zeta     = numpy.array(zeta).reshape((self.numNodes, 1))    if isinstance(zeta, (list, numpy.ndarray)) else numpy.full(fill_value=zeta, shape=(self.numNodes,1))
-        self.p      = numpy.array(p).reshape((self.numNodes, 1))     if isinstance(p, (list, numpy.ndarray)) else numpy.full(fill_value=p, shape=(self.numNodes,1))        
+        self.p      = numpy.array(p).reshape((self.numNodes, 1))     if isinstance(p, (list, numpy.ndarray)) else numpy.full(fill_value=p, shape=(self.numNodes,1))
         self.sm  = numpy.array(sm).reshape((self.numNodes, 1)) if isinstance(sm, (list, numpy.ndarray)) else numpy.full(fill_value=sm, shape=(self.numNodes,1))
         self.m  = numpy.array(m).reshape((self.numNodes, 1)) if isinstance(m, (list, numpy.ndarray)) else numpy.full(fill_value=m, shape=(self.numNodes,1))
         self.h  = numpy.array(h).reshape((self.numNodes, 1)) if isinstance(h, (list, numpy.ndarray)) else numpy.full(fill_value=h, shape=(self.numNodes,1))
-        self.c  = numpy.array(c).reshape((self.numNodes, 1)) if isinstance(c, (list, numpy.ndarray)) else numpy.full(fill_value=c, shape=(self.numNodes,1))        
+        self.c  = numpy.array(c).reshape((self.numNodes, 1)) if isinstance(c, (list, numpy.ndarray)) else numpy.full(fill_value=c, shape=(self.numNodes,1))
         self.dsm  = numpy.array(dsm).reshape((self.numNodes, 1)) if isinstance(dsm, (list, numpy.ndarray)) else numpy.full(fill_value=dsm, shape=(self.numNodes,1))
         self.dm  = numpy.array(dm).reshape((self.numNodes, 1)) if isinstance(dm, (list, numpy.ndarray)) else numpy.full(fill_value=dm, shape=(self.numNodes,1))
         self.dhospital  = numpy.array(dhospital).reshape((self.numNodes, 1)) if isinstance(dhospital, (list, numpy.ndarray)) else numpy.full(fill_value=dhospital, shape=(self.numNodes,1))
@@ -1261,8 +1261,8 @@ class SEIRSNetworkModel():
         self.phi_SM  = numpy.array(phi_SM).reshape((self.numNodes, 1)) if isinstance(phi_SM, (list, numpy.ndarray)) else numpy.full(fill_value=phi_SM, shape=(self.numNodes,1))
         self.phi_R  = numpy.array(phi_R).reshape((self.numNodes, 1)) if isinstance(phi_R, (list, numpy.ndarray)) else numpy.full(fill_value=phi_R, shape=(self.numNodes,1))
         self.psi_FP  = numpy.array(psi_FP).reshape((self.numNodes, 1)) if isinstance(psi_FP, (list, numpy.ndarray)) else numpy.full(fill_value=psi_FP, shape=(self.numNodes,1))
-        self.psi_PP  = numpy.array(psi_PP).reshape((self.numNodes, 1)) if isinstance(psi_PP, (list, numpy.ndarray)) else numpy.full(fill_value=psi_PP, shape=(self.numNodes,1))        
-        self.dq  = numpy.array(dq).reshape((self.numNodes, 1)) if isinstance(dq, (list, numpy.ndarray)) else numpy.full(fill_value=dq, shape=(self.numNodes,1))        
+        self.psi_PP  = numpy.array(psi_PP).reshape((self.numNodes, 1)) if isinstance(psi_PP, (list, numpy.ndarray)) else numpy.full(fill_value=psi_PP, shape=(self.numNodes,1))
+        self.dq  = numpy.array(dq).reshape((self.numNodes, 1)) if isinstance(dq, (list, numpy.ndarray)) else numpy.full(fill_value=dq, shape=(self.numNodes,1))
 
         # monte-carlo sampling is an attribute of the model
         self.monteCarlo = monteCarlo
@@ -1280,7 +1280,7 @@ class SEIRSNetworkModel():
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Each node can undergo up to 4 transitions (sans vitality/re-susceptibility returns to S state),
-        # so there are ~numNodes*4 events/timesteps expected; initialize numNodes*5 timestep slots to start 
+        # so there are ~numNodes*4 events/timesteps expected; initialize numNodes*5 timestep slots to start
         # (will be expanded during run if needed)
         self.tseries = numpy.zeros(5*self.numNodes)
         self.numE   = numpy.zeros(5*self.numNodes)
@@ -1307,7 +1307,7 @@ class SEIRSNetworkModel():
         self.tmax   = 0 # will be set when run() is called
         self.tidx   = 0
         self.tseries[0] = 0
-        
+
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # initial condition must be an attribute of class: WAS NOT ADDED ORIGINALLY
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1329,7 +1329,7 @@ class SEIRSNetworkModel():
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Counts of inidividuals with each state:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         self.numE[0] = int(initE)
         self.numSM[0] = int(initSM)
         self.numM[0] = int(initM)
@@ -1346,7 +1346,7 @@ class SEIRSNetworkModel():
         self.numF[0] = int(initF)
         self.numS[0] = self.numNodes - self.numE[0] - self.numSM[0] - self.numM[0] - self.numH[0] - self.numHH[0] - self.numC[0] - self.numCH[0] - self.numSQ[0] - self.numEQ[0] - self.numSMQ[0] - self.numMQ[0]- self.numRQ[0]- self.numR[0] - self.numF[0]
         self.N[0]    = self.numS[0] + self.numE[0] + self.numSM[0] + self.numM[0] + self.numH[0] + self.numHH[0] + self.numC[0] + self.numCH[0]  + self.numSQ[0] + self.numEQ[0] + self.numSMQ[0] + self.numMQ[0] + self.numRQ[0] + self.numR[0]
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Node states:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1369,7 +1369,7 @@ class SEIRSNetworkModel():
         self.X = numpy.array([self.S]*int(self.numS[0]) + [self.E]*int(self.numE[0]) + [self.SM]*int(self.numSM[0]) + [self.M]*int(self.numM[0]) + [self.H]*int(self.numH[0]) + [self.HH]*int(self.numHH[0]) + [self.C]*int(self.numC[0]) + [self.CH]*int(self.numCH[0]) + [self.SQ]*int(self.numSQ[0]) + [self.EQ]*int(self.numEQ[0]) + [self.SMQ]*int(self.numSMQ[0]) + [self.MQ]*int(self.numMQ[0]) + [self.RQ]*int(self.numRQ[0]) + [self.R]*int(self.numR[0]) + [self.F]*int(self.numF[0])).reshape((self.numNodes,1))
         numpy.random.shuffle(self.X)
 
-        self.transitions =  { 
+        self.transitions =  {
                                 'StoE': {'currentState':self.S, 'newState':self.E},
                                 'EtoSM': {'currentState':self.E, 'newState':self.SM},
                                 'EtoM': {'currentState':self.E, 'newState':self.M},
@@ -1433,8 +1433,8 @@ class SEIRSNetworkModel():
                 self.nodeGroupData[groupName]['numSM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SM)
                 self.nodeGroupData[groupName]['numM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.M)
                 self.nodeGroupData[groupName]['numH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.H)
-                self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)   
-                self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)  
+                self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)
+                self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)
                 self.nodeGroupData[groupName]['numCH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.CH)
 
                 self.nodeGroupData[groupName]['numSQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SQ)
@@ -1457,7 +1457,7 @@ class SEIRSNetworkModel():
         # A function which re-initialises the network with the initial conditions
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Each node can undergo up to 4 transitions (sans vitality/re-susceptibility returns to S state),
-        # so there are ~numNodes*4 events/timesteps expected; initialize numNodes*5 timestep slots to start 
+        # so there are ~numNodes*4 events/timesteps expected; initialize numNodes*5 timestep slots to start
         # (will be expanded during run if needed)
         self.tseries = numpy.zeros(5*self.numNodes)
         self.numE   = numpy.zeros(5*self.numNodes)
@@ -1484,7 +1484,7 @@ class SEIRSNetworkModel():
         self.tmax   = 0 # will be set when run() is called
         self.tidx   = 0
         self.tseries[0] = 0
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Counts of inidividuals with each state:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1504,7 +1504,7 @@ class SEIRSNetworkModel():
         self.numF[0] = int(self.initF)
         self.numS[0] = self.numNodes - self.numE[0] - self.numSM[0] - self.numM[0] - self.numH[0] - self.numHH[0] - self.numC[0] - self.numCH[0] - self.numSQ[0] - self.numEQ[0] - self.numSMQ[0] - self.numMQ[0]- self.numRQ[0]- self.numR[0] - self.numF[0]
         self.N[0]    = self.numS[0] + self.numE[0] + self.numSM[0] + self.numM[0] + self.numH[0] + self.numHH[0] + self.numC[0] + self.numCH[0]  + self.numSQ[0] + self.numEQ[0] + self.numSMQ[0] + self.numMQ[0] + self.numRQ[0] + self.numR[0]
-        
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Node states:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1527,7 +1527,7 @@ class SEIRSNetworkModel():
         self.X = numpy.array([self.S]*int(self.numS[0]) + [self.E]*int(self.numE[0]) + [self.SM]*int(self.numSM[0]) + [self.M]*int(self.numM[0]) + [self.H]*int(self.numH[0]) + [self.HH]*int(self.numHH[0]) + [self.C]*int(self.numC[0]) + [self.CH]*int(self.numCH[0]) + [self.SQ]*int(self.numSQ[0]) + [self.EQ]*int(self.numEQ[0]) + [self.SMQ]*int(self.numSMQ[0]) + [self.MQ]*int(self.numMQ[0]) + [self.RQ]*int(self.numRQ[0]) + [self.R]*int(self.numR[0]) + [self.F]*int(self.numF[0])).reshape((self.numNodes,1))
         numpy.random.shuffle(self.X)
 
-        self.transitions =  { 
+        self.transitions =  {
                                 'StoE': {'currentState':self.S, 'newState':self.E},
                                 'EtoSM': {'currentState':self.E, 'newState':self.SM},
                                 'EtoM': {'currentState':self.E, 'newState':self.M},
@@ -1591,8 +1591,8 @@ class SEIRSNetworkModel():
                 self.nodeGroupData[groupName]['numSM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SM)
                 self.nodeGroupData[groupName]['numM'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.M)
                 self.nodeGroupData[groupName]['numH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.H)
-                self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)   
-                self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)  
+                self.nodeGroupData[groupName]['numHH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.HH)
+                self.nodeGroupData[groupName]['numC'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.C)
                 self.nodeGroupData[groupName]['numCH'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.CH)
 
                 self.nodeGroupData[groupName]['numSQ'][0]    = numpy.count_nonzero(self.nodeGroupData[groupName]['mask']*self.X==self.SQ)
@@ -1634,7 +1634,7 @@ class SEIRSNetworkModel():
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    # De eigenlijke vergelijkingen!    
+    # De eigenlijke vergelijkingen!
     def calc_propensities(self):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1642,47 +1642,47 @@ class SEIRSNetworkModel():
         # and check to see if their computation is necessary before doing the multiplication
 
         numContacts_SM = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numSM[self.tidx]) 
+        if(numpy.any(self.numSM[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_SM = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.SM) )
 
         numContacts_E = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numE[self.tidx]) 
+        if(numpy.any(self.numE[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_E = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.E) )
 
         numContacts_SQ = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numSQ[self.tidx]) 
+        if(numpy.any(self.numSQ[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_SQ = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.SQ) )
 
         numContacts_EQ = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numEQ[self.tidx]) 
+        if(numpy.any(self.numEQ[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_EQ = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.EQ) )
 
         numContacts_SMQ = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numSMQ[self.tidx]) 
+        if(numpy.any(self.numSMQ[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_SMQ = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.SMQ) )
 
         numContacts_MQ = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numMQ[self.tidx]) 
+        if(numpy.any(self.numMQ[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_MQ = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.MQ) )
 
         numContacts_RQ = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numRQ[self.tidx]) 
+        if(numpy.any(self.numRQ[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_RQ = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.RQ) )
 
         numContacts_HH = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numHH[self.tidx]) 
+        if(numpy.any(self.numHH[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_HH = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.HH) )
-        
+
         numContacts_CH = numpy.zeros(shape=(self.numNodes,1))
-        if(numpy.any(self.numCH[self.tidx]) 
+        if(numpy.any(self.numCH[self.tidx])
             and numpy.any(self.beta!=0)):
             numContacts_CH = numpy.asarray( scipy.sparse.csr_matrix.dot(self.A, self.X==self.CH) )
 
@@ -1700,7 +1700,7 @@ class SEIRSNetworkModel():
         propensities_EtoH   = self.h*self.sigma*(self.X==self.E)
 
         propensities_EtoC   = self.c*self.sigma*(self.X==self.E)
-        
+
         propensities_HtoHH   = (self.X==self.H)/self.dhospital
 
         propensities_CtoCH   = (self.X==self.C)/self.dhospital
@@ -1739,13 +1739,13 @@ class SEIRSNetworkModel():
 
         propensities_MQtoR = (self.X==self.MQ)/self.dm
 
-        propensities_RQtoR = (self.X==self.RQ)/self.dq   
+        propensities_RQtoR = (self.X==self.RQ)/self.dq
 
         propensities_RtoS   = self.zeta*(self.X==self.R)
 
         #propensities__toS   = self.nu*(self.X!=self.F)
 
-        propensities = numpy.hstack([propensities_StoE, propensities_EtoSM, 
+        propensities = numpy.hstack([propensities_StoE, propensities_EtoSM,
                                      propensities_EtoM, propensities_EtoH,
                                      propensities_EtoC, propensities_HtoHH,
                                      propensities_CtoCH, propensities_SMtoR,
@@ -1765,7 +1765,7 @@ class SEIRSNetworkModel():
 
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^    
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     def increase_data_series_length(self):
         self.tseries = numpy.pad(self.tseries, [(0, 5*self.numNodes)], mode='constant', constant_values=0)
@@ -1810,7 +1810,7 @@ class SEIRSNetworkModel():
 
         return None
 
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     def finalize_data_series(self):
         self.tseries = numpy.array(self.tseries, dtype=float)[:self.tidx+1]
@@ -1849,11 +1849,11 @@ class SEIRSNetworkModel():
                 self.nodeGroupData[groupName]['numR']    = numpy.array(self.nodeGroupData[groupName]['numR'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['numF']    = numpy.array(self.nodeGroupData[groupName]['numF'], dtype=float)[:self.tidx+1]
                 self.nodeGroupData[groupName]['N']       = numpy.array(self.nodeGroupData[groupName]['N'], dtype=float)[:self.tidx+1]
-                
+
         return None
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     
+#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     def run_iteration(self):
 
@@ -1873,7 +1873,7 @@ class SEIRSNetworkModel():
         propensities, transitionTypes = self.calc_propensities()
 
         # Terminate when probability of all events is 0:
-        if(propensities.sum() <= 0.0):            
+        if(propensities.sum() <= 0.0):
             self.finalize_data_series()
             return False
 
@@ -1904,7 +1904,7 @@ class SEIRSNetworkModel():
         self.X[transitionNode] = self.transitions[transitionType]['newState']
 
         self.tidx += 1
-        
+
         self.tseries[self.tidx]  = self.t
         self.numS[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.S), a_min=0, a_max=self.numNodes)
         self.numE[self.tidx]     = numpy.clip(numpy.count_nonzero(self.X==self.E), a_min=0, a_max=self.numNodes)
@@ -1971,7 +1971,7 @@ class SEIRSNetworkModel():
             # Before using checkpoints, save variables to be changed by method
             beforeChk=[]
             for key in checkpoints.keys():
-                if key is not 't':
+                if key != 't':
                     beforeChk.append(getattr(self,key))
             numCheckpoints = len(checkpoints['t'])
             paramNames = ['G', 'beta', 'sigma', 'zeta', 'p',
@@ -1984,7 +1984,7 @@ class SEIRSNetworkModel():
             checkpointIdx  = numpy.searchsorted(checkpoints['t'], self.t) # Finds 1st index in list greater than given val
             if(checkpointIdx >= numCheckpoints):
                 # We are out of checkpoints, stop checking them:
-                checkpoints = None 
+                checkpoints = None
             else:
                 checkpointTime = checkpoints['t'][checkpointIdx]
 
@@ -2019,11 +2019,11 @@ class SEIRSNetworkModel():
                         # Reset all parameter values that were changed back to their original value
                         i = 0
                         for key in checkpoints.keys():
-                            if key is not 't':
+                            if key != 't':
                                 setattr(self,key,beforeChk[i])
                                 i = i+1
                         # We are out of checkpoints, stop checking them:
-                        checkpoints = None 
+                        checkpoints = None
                     else:
                         checkpointTime = checkpoints['t'][checkpointIdx]
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2181,15 +2181,15 @@ class SEIRSNetworkModel():
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             # self.S[:,:,i] = self.numS
             # self.E[:,:,i] = self.numE
-            # self.SM[:,:,i] = self.numSM 
+            # self.SM[:,:,i] = self.numSM
             # self.M[:,:,i] = self.numM
             # self.H[:,:,i] = self.numH
-            # self.C[:,:,i] = self.numC 
+            # self.C[:,:,i] = self.numC
             # self.HH[:,:,i] = self.numHH
             # self.CH[:,:,i] = self.numCH
             # self.R[:,:,i] = self.numR
             # self.F[:,:,i] = self.numF
-            # self.SQ[:,:,i] = self.numSQ 
+            # self.SQ[:,:,i] = self.numSQ
             # self.EQ[:,:,i] = self.numEQ
             # self.SMQ[:,:,i] = self.numSMQ
             # self.MQ[:,:,i] = self.numMQ
@@ -2260,11 +2260,11 @@ class SEIRSNetworkModel():
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)  
+        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)    
+        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)  
+        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)
         if mild is not False and asymptotic is not False:
             legend_labels = ('asymptotic','mild','heavy','critical','dead')
         elif mild is not False and asymptotic is False:
@@ -2297,7 +2297,7 @@ class SEIRSNetworkModel():
     def LSQ(self,thetas,data,parNames,positions,weights):
         # ------------------
         # Prepare simulation
-        # ------------------    
+        # ------------------
         # reset all numX
         self.reset()
         # assign estimates to correct variable
@@ -2306,7 +2306,7 @@ class SEIRSNetworkModel():
         for param in parNames:
             setattr(self,param,thetas[i+1])
             i = i + 1
-            if param is 'h':
+            if param == 'h':
                 m_acc = self.m/(1-self.sm)
                 h_acc = self.h/(1-self.sm)
                 self.c = (1-self.sm)*(1-m_acc-h_acc)
@@ -2323,7 +2323,7 @@ class SEIRSNetworkModel():
         self.sim(T)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # ---------------
         # extract results
         # ---------------
@@ -2359,15 +2359,15 @@ class SEIRSNetworkModel():
                           'sm','m','h','c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU']
         i = 0
         for param in parNames:
-            # For params that don't have given checkpoint values (or bad value given), 
+            # For params that don't have given checkpoint values (or bad value given),
             # set their checkpoint values to the value they have now for all checkpoints.
             if param not in possibleNames:
                 raise Exception('The parametername provided by user in position {} of argument parNames is not an actual model parameter. Please check its spelling.'.format(i))
             else:
-                if param is 'G':
+                if param == 'G':
                     raise Exception('Cannot fit parameter G because this is a network object')
             i = i + 1
-        
+
         # ---------------------
         # Run genetic algorithm
         # ---------------------
@@ -2388,7 +2388,7 @@ class SEIRSNetworkModel():
             for param in parNames:
                 setattr(self,param,theta_hat[i+1])
                 i  = i + 1
-                if param is 'h':
+                if param == 'h':
                     m_acc = self.m/(1-self.sm)
                     h_acc = self.h/(1-self.sm)
                     self.c = (1-self.sm)*(1-m_acc-h_acc)
@@ -2399,7 +2399,7 @@ class SEIRSNetworkModel():
     def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
-        # ------------------  
+        # ------------------
         # reset all numX
         self.reset()
         # Compute number of dataseries
@@ -2412,7 +2412,7 @@ class SEIRSNetworkModel():
         # ------------------
         self.sim(T)
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
          # -----------
         # Plot result
         # -----------
@@ -2420,7 +2420,7 @@ class SEIRSNetworkModel():
         timeObj = index[0]
         timestampStr = timeObj.strftime("%Y-%m-%d")
         index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
-        # Plot figure        
+        # Plot figure
         fig, ax = plt.subplots()
         # Plot data
         for i in range(n):
@@ -2476,7 +2476,7 @@ class SEIRSNetworkModel():
         #end = dict1['t'][-1]
         for i in range(len(dict2['t'])):
             dict2['t'][i] = dict2['t'][i]+end
-        # merge dictionaries by updating          
+        # merge dictionaries by updating
         temp = {**dict2, **dict1}
         # loop over all key-value pairs
         for key,value in temp.items():
@@ -2520,7 +2520,7 @@ class SEIRSNetworkModel():
 
         # ------------------
         # Prepare simulation
-        # ------------------  
+        # ------------------
         # reset all numX
         self.reset()
 
@@ -2530,13 +2530,13 @@ class SEIRSNetworkModel():
         print(chk)
         self.sim(T,checkpoints=chk)
         out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
-        
+
         # -----------
         # Plot result
         # -----------
         # Create shifted index vector using self.extraTime
         t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
-        # Plot figure        
+        # Plot figure
         fig, ax = plt.subplots()
         # Plot data
         for i in range(len(data)):
@@ -2585,9 +2585,9 @@ class SEIRSNetworkModel():
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Define a custom method for generating 
-# power-law-like graphs with exponential tails 
-# both above and below the degree mean and  
+# Define a custom method for generating
+# power-law-like graphs with exponential tails
+# both above and below the degree mean and
 # where the mean degree be easily down-shifted
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def custom_exponential_graph(base_graph=None, scale=100, min_num_edges=0, m=9, n=None):
@@ -2601,7 +2601,7 @@ def custom_exponential_graph(base_graph=None, scale=100, min_num_edges=0, m=9, n
         graph = networkx.barabasi_albert_graph(n=n, m=m)
 
     # To get a graph with power-law-esque properties but without the fixed minimum degree,
-    # We modify the graph by probabilistically dropping some edges from each node. 
+    # We modify the graph by probabilistically dropping some edges from each node.
     for node in graph:
         neighbors = list(graph[node].keys())
         quarantineEdgeNum = int( max(min(numpy.random.exponential(scale=scale, size=1), len(neighbors)), min_num_edges) )
@@ -2609,7 +2609,7 @@ def custom_exponential_graph(base_graph=None, scale=100, min_num_edges=0, m=9, n
         for neighbor in neighbors:
             if(neighbor not in quarantineKeepNeighbors):
                 graph.remove_edge(node, neighbor)
-    
+
     return graph
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2638,7 +2638,3 @@ def plot_degree_distn(graph, max_degree=None, show=True, use_seaborn=True):
     pyplot.legend(loc='upper right')
     if(show):
         pyplot.show()
-
-
-
-
