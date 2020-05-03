@@ -154,10 +154,10 @@ class SEIRSAgeModel():
         self.initE = numpy.reshape(self.initE,[Nc.shape[0],1])
         self.initA = numpy.reshape(self.initA,[Nc.shape[0],1])
         self.initM = numpy.reshape(self.initM,[Nc.shape[0],1])
-        initCtot = self.initC + self.initCmirec + self.initCicurec
         self.initC = numpy.reshape(self.initC,[Nc.shape[0],1])
         self.initCmirec = numpy.reshape(self.initCmirec,[Nc.shape[0],1])
         self.initCicurec = numpy.reshape(self.initCicurec,[Nc.shape[0],1])
+        initCtot = self.initC + self.initCmirec + self.initCicurec
         self.initCtot = numpy.reshape(initCtot,[Nc.shape[0],1])
         self.initMi = numpy.reshape(self.initMi,[Nc.shape[0],1])
         self.initICU = numpy.reshape(self.initICU,[Nc.shape[0],1])
@@ -600,19 +600,13 @@ class SEIRSAgeModel():
         # assign estimates to correct variable
         extraTime = int(thetas[0])
         i = 0
-        #for param in parNames:
-        #    setattr(self,param,thetas[i+1])
-        #    i = i + 1
-        #    if param == 'h':
-        #        m_acc = self.m/(1-self.sm)
-        #        h_acc = self.h/(1-self.sm)
-        #        self.c = (1-self.sm)*(1-m_acc-h_acc)
+        for param in parNames:
+            setattr(self,param,thetas[i+1])
+            i = i + 1
         # Compute length of data
         n = len(data)
         # Compute simulation time --> build in some redundancy here, datasizes don't have to be equal to eachother.
         T = data[0].size+extraTime-1
-        # Set initial condition
-        # ...
 
         # ------------------
         # Perform simulation
@@ -650,7 +644,7 @@ class SEIRSAgeModel():
         if (len(parNames)+1) is not len(bounds):
             raise Exception('The number of bounds must match the number of parameter names given to function fit.')
         # Check that all parNames are actual model parameters
-        possibleNames = ['beta', 'sigma', 'Nc', 'zeta', 'sm', 'm', 'h', 'c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU','totalTests',
+        possibleNames = ['beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
@@ -666,7 +660,7 @@ class SEIRSAgeModel():
         #optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
         #theta_hat = optim_out.x
         p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
-                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
+                                                                                   processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
         theta_hat = p_hat
         print(theta_hat)
         # ---------------------------------------------------
@@ -678,12 +672,7 @@ class SEIRSAgeModel():
             for param in parNames:
                 setattr(self,param,theta_hat[i+1])
                 i  = i + 1
-                if param == 'h':
-                    m_acc = self.m/(1-self.sm)
-                    h_acc = self.h/(1-self.sm)
-                    self.c = (1-self.sm)*(1-m_acc-h_acc)
-                    c_acc = self.c/(1-self.sm)
-                    print(m_acc,h_acc,c_acc)
+
         return self,theta_hat
 
     def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
@@ -701,6 +690,7 @@ class SEIRSAgeModel():
         # Perform simulation
         # ------------------
         self.sim(T)
+        # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # -----------
@@ -754,17 +744,18 @@ class SEIRSAgeModel():
 
     def passInitial(self):
         self.initE = numpy.reshape(numpy.mean(self.E[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initSM = numpy.reshape(numpy.mean(self.SM[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initA = numpy.reshape(numpy.mean(self.A[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initM = numpy.reshape(numpy.mean(self.M[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initH = numpy.reshape(numpy.mean(self.H[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initC = numpy.reshape(numpy.mean(self.C[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initHH = numpy.reshape(numpy.mean(self.HH[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initCH = numpy.reshape(numpy.mean(self.CH[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initCmirec = numpy.reshape(numpy.mean(self.Cmirec[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initCicurec = numpy.reshape(numpy.mean(self.Cicurec[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initMi = numpy.reshape(numpy.mean(self.Mi[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initICU = numpy.reshape(numpy.mean(self.ICU[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initR = numpy.reshape(numpy.mean(self.R[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initF = numpy.reshape(numpy.mean(self.F[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initD = numpy.reshape(numpy.mean(self.D[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initSQ = numpy.reshape(numpy.mean(self.SQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initEQ = numpy.reshape(numpy.mean(self.EQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initSMQ = numpy.reshape(numpy.mean(self.SMQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initAQ = numpy.reshape(numpy.mean(self.AQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initMQ = numpy.reshape(numpy.mean(self.MQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initRQ = numpy.reshape(numpy.mean(self.RQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         return self
@@ -845,7 +836,7 @@ class SEIRSAgeModel():
         self.reset()
         self.sim(T,checkpoints=chk)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # ---------------
         # Calculate error
@@ -858,10 +849,10 @@ class SEIRSAgeModel():
                 som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
             ymodel.append(som.reshape(som.size,1))
             # calculate error
-        #print(ymodel)
         for i in range(len(ymodel)):
             error = error + weights[i]*(ymodel[i]-setpoints[i])**2
-        return(sum(error))
+        SSE = sum(error)[0]
+        return(SSE)
 
     def optimizePolicy(self,parNames,bounds,setpoints,positions,weights,policy_period=7,N=6,P=12,disp=True,polish=True,maxiter=100,popsize=20):
         # -------------------------------
@@ -877,7 +868,7 @@ class SEIRSAgeModel():
         if len(setpoints) is not len(positions):
             raise Exception('The number of output positions must match the number of setpoints names given to function MPCoptimize.')
         # Check that all parNames are actual model parameters
-        possibleNames = ['beta', 'sigma', 'Nc', 'zeta', 'sm', 'm', 'h', 'c','dsm','dm','dhospital','dh','dcf','dcr','mc0','ICU','totalTests',
+        possibleNames = ['beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
@@ -900,8 +891,7 @@ class SEIRSAgeModel():
         # ---------------------
         #optim_out = scipy.optimize.differential_evolution(self.calcMPCsse, scipy_bounds, args=(parNames,setpoints,positions,weights,policy_period,P),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
         #theta_hat = optim_out.x
-        print(multiprocessing.cpu_count())
-        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.calcMPCsse, scipy_bounds, args=(parNames,setpoints,positions,weights,policy_period,P), swarmsize=popsize, maxiter=maxiter,
                                                                                     processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
         theta_hat = p_hat
         # ---------------------------------------------
@@ -910,7 +900,7 @@ class SEIRSAgeModel():
         self.optimalPolicy = theta_hat
         return(theta_hat)
 
-    def plotOptimalPolicy(self,parNames,setpoints,policy_period,asymptotic=False,mild=False,filename=None,getfig=False):
+    def plotOptimalPolicy(self,parNames,setpoints,policy_period,asymptomatic=False,mild=False,filename=None,getfig=False):
         # Construct checkpoints dictionary using the optimalPolicy list
         # Mind that constructHorizon also sets self.Parameters to the first optimal value of every control handle
         # This is done because the first checkpoint cannot be at time 0.
@@ -921,26 +911,28 @@ class SEIRSAgeModel():
 
         # Then perform plot
         fig, ax = plt.subplots()
-        if asymptotic is not False:
-            ax.plot(self.tseries,numpy.mean(self.sumSM,axis=1),color=blue)
-            ax.fill_between(self.tseries, numpy.percentile(self.sumSM,90,axis=1), numpy.percentile(self.sumSM,10,axis=1),color=blue,alpha=0.2)
+        if asymptomatic is not False:
+            ax.plot(self.tseries,numpy.mean(self.sumA,axis=1),color=blue)
+            ax.fill_between(self.tseries, numpy.percentile(self.sumA,90,axis=1), numpy.percentile(self.sumA,10,axis=1),color=blue,alpha=0.2)
         if mild is not False:
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
-        ax.plot(self.tseries,numpy.mean(self.sumHH,axis=1),color=orange)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumHH,90,axis=1), numpy.percentile(self.sumHH,10,axis=1),color=orange,alpha=0.2)
-        ax.plot(self.tseries,numpy.mean(self.sumCH,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumCH,90,axis=1), numpy.percentile(self.sumCH,10,axis=1),color=red,alpha=0.2)
-        ax.plot(self.tseries,numpy.mean(self.sumF,axis=1),color=black)
-        ax.fill_between(self.tseries, numpy.percentile(self.sumF,90,axis=1), numpy.percentile(self.sumF,10,axis=1),color=black,alpha=0.2)
-        if mild is not False and asymptotic is not False:
-            legend_labels = ('asymptotic','mild','heavy','critical','dead')
-        elif mild is not False and asymptotic is False:
-            legend_labels = ('mild','heavy','critical','dead')
-        elif mild is False and asymptotic is not False:
-            legend_labels = ('asymptotic','heavy','critical','dead')
-        elif mild is False and asymptotic is False:
-            legend_labels = ('heavy','critical','dead')
+        H = self.sumCtot + self.sumMi + self.sumICU
+        ax.plot(self.tseries,numpy.mean(H,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(H,90,axis=1), numpy.percentile(H,10,axis=1),color=orange,alpha=0.2)
+        icu = self.sumMi + self.sumICU
+        ax.plot(self.tseries,numpy.mean(icu,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(icu,90,axis=1), numpy.percentile(icu,10,axis=1),color=red,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumD,axis=1),color=black)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumD,90,axis=1), numpy.percentile(self.sumD,10,axis=1),color=black,alpha=0.2)
+        if mild is not False and asymptomatic is not False:
+            legend_labels = ('asymptomatic','mild','hospitalised','ICU','dead')
+        elif mild is not False and asymptomatic is False:
+            legend_labels = ('mild','hospitalised','ICU','dead')
+        elif mild is False and asymptomatic is not False:
+            legend_labels = ('asymptomatic','hospitalised','ICU','dead')
+        elif mild is False and asymptomatic is False:
+            legend_labels = ('hospitalised','ICU','dead')
         ax.legend(legend_labels, loc="upper left", bbox_to_anchor=(1,1))
         ax.set_xlabel('days')
         ax.set_ylabel('number of patients')
@@ -1064,7 +1056,8 @@ class SEIRSAgeModel():
         # Perform simulation
         # ------------------
         self.sim(T,checkpoints=chk)
-        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        # tuple the results, this is necessary to use the positions index
+        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # -----------
         # Plot result
@@ -1133,24 +1126,26 @@ class SEIRSAgeModel():
         self.reset()
         # run simulation
         self.sim(T,checkpoints=dict1_orig)
-        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        # tuple the results, this is necessary to use the positions index
+        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # ----------------------------------------------------------------------
         # Step 2: Pass population pools to MPC optimiser, save initial condition
         # ----------------------------------------------------------------------
         # Assign self.initX to local variable initX
         initE = self.initE
-        initSM = self.initSM
+        initA = self.initA
         initM = self.initM
-        initH = self.initH
         initC = self.initC
-        initHH = self.initHH
-        initCH = self.initCH
+        initCicurec = self.initCicurec
+        initCmirec = self.initCmirec
+        initMi = self.initMi
+        initICU = self.initICU       
         initR = self.initR
-        initF = self.initF
+        initD = self.initD
         initSQ = self.initSQ
         initEQ = self.initEQ
-        initSMQ = self.initSMQ
+        initAQ = self.initAQ
         initMQ = self.initMQ
         initRQ = self.initRQ
         self.passInitial()
@@ -1172,17 +1167,18 @@ class SEIRSAgeModel():
         # -------------------------------
         # Assign local variable initX back to self.initX
         self.initE = initE
-        self.initSM = initSM
+        self.initA = initA
         self.initM = initM
-        self.initH = initH
         self.initC = initC
-        self.initHH = initHH
-        self.initCH = initCH
+        self.initCicurec = initCicurec
+        self.initCmirec = initCmirec
+        self.initMi = initMi
+        self.initICU = initICU
         self.initR = initR
-        self.initF = initF
+        self.initD = initD
         self.initSQ = initSQ
         self.initEQ = initEQ
-        self.initSMQ = initSMQ
+        self.initAQ = initAQ
         self.initMQ = initMQ
         self.initRQ = initRQ
 
@@ -1192,7 +1188,8 @@ class SEIRSAgeModel():
         self.reset()
         T = chk['t'][-1]+int(policy_period)
         self.sim(T,checkpoints=chk)
-        out = (self.sumS,self.sumE,self.sumSM,self.sumM,self.sumH,self.sumC,self.sumHH,self.sumCH,self.sumR,self.sumF,self.sumSQ,self.sumEQ,self.sumSMQ,self.sumMQ,self.sumRQ)
+        # tuple the results, this is necessary to use the positions index
+        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # -------------------
         # Step 7: Plot result
