@@ -24,7 +24,7 @@ import models
 
 # Construct the network G
 # ~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 120000
+numNodes = 60000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=7)
 # Baseline normal interactions:
 G_norm     = models.custom_exponential_graph(baseGraph, scale=200)
@@ -32,7 +32,7 @@ models.plot_degree_distn(G_norm, max_degree=40)
 
 # Construct the network G under social distancing
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 120000
+numNodes = 60000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=2)
 # Baseline normal interactions:
 G_dist     = models.custom_exponential_graph(baseGraph, scale=20000)
@@ -45,25 +45,28 @@ model = models.SEIRSNetworkModel(
                                  G = G_norm,
                                  p       = 0.6,
                                  # clinical parameters
-                                 beta    = 0.3, 
+                                 beta    = 0.05, 
                                  sigma   = 5.2,
                                  zeta    = 0,
-                                 sm      = 0.50,
-                                 m       = (1-0.50)*0.81,
-                                 h       = (1-0.50)*0.15,
-                                 c       = (1-0.50)*0.04,
-                                 dsm     = 14,
-                                 dm      = 14,
-                                 dhospital = 1,
-                                 dh      = 21,
-                                 dcf     = 18.5,
-                                 dcr     = 22.0,
-                                 mc0     = 0.49,
-                                 ICU     = 2000,
+                                 a = 0.43, # probability of an asymptotic (supermild) infection
+                                 m = 1-0.43, # probability of a mild infection
+                                 h = 0.20, # probability of hospitalisation for a mild infection
+                                 c = 2/3, # probability of hospitalisation in cohort
+                                 mi = 1/6, # probability of hospitalisation in midcare
+                                 da = 14, # days of infection when asymptomatic (supermild)
+                                 dm = 14, # days of infection when mild
+                                 dc = 7,
+                                 dmi = 14,
+                                 dICU = 14,
+                                 dICUrec = 6,
+                                 dmirec = 6,
+                                 dhospital = 3, # days before reaching the hospital when heavy or critical
+                                 m0 = 0.49, # mortality in ICU
+                                 maxICU = 2000,
                                  # testing
                                  theta_S = 0,
                                  theta_E = 0,
-                                 theta_SM= 0,
+                                 theta_A = 0,
                                  theta_M = 0,
                                  theta_R = 0,
                                  psi_FP = 0,
@@ -72,25 +75,32 @@ model = models.SEIRSNetworkModel(
                                  # back-tracking
                                  phi_S   = 0,
                                  phi_E   = 0,
-                                 phi_SM  = 0,
+                                 phi_A   = 0,
                                  phi_R   = 0,
                                  # initial condition
                                  initN = 11.43e6, #results are extrapolated to entire population
                                  initE = 100,
-                                 initSM = 0, 
+                                 initA = 0, 
                                  initM = 0,
-                                 initH = 0,
                                  initC = 0,
-                                 initHH = 0,
-                                 initCH = 0,
+                                 initCmirec=0,
+                                 initCicurec=0,
                                  initR = 0,
-                                 initF = 0,
+                                 initD = 0,
                                  initSQ = 0,
                                  initEQ = 0,
-                                 initSMQ = 0,
+                                 initAQ = 0,
                                  initMQ = 0,
-                                 initRQ = 0
+                                 initRQ = 0,
+                                 # monte-carlo sampling
+                                 monteCarlo = True,
+                                 repeats = 10
                             )
+# Load data
+# ~~~~~~~~~~~~
+#[index,data] = model.obtainData()
+#ICUvect = np.transpose(data[0])
+#hospital = np.transpose(data[1])
 
 # Perform optimisation and time
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -106,8 +116,8 @@ index = index[0:idx]
 data=[np.transpose(ICUvect[:,0:idx]),np.transpose(hospital[:,0:idx])]
 # set optimisation settings
 parNames = ['beta','p'] # must be a list!
-positions = [np.array([7]),np.array([6,7])] # must be a list!
-bounds=[(1,100),(0.1,0.5),(0.5,0.9)] # must be a list!
+positions = [np.array([6]),np.array([4,5,6])] # must be a list!
+bounds=[(1,100),(0.1,0.5),(0.1,1)] # must be a list!
 weights = np.array([0,1])
 # run optimisation
 theta = model.fit(data,parNames,positions,bounds,weights,setvar=True,maxiter=10,popsize=5)
