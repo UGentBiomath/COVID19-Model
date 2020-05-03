@@ -4,7 +4,8 @@
 #PBS -l walltime=1:00:00 ## max. 2h of wall time
 
 # load python module
-module load Python/3.6.6-intel-2018b
+module load networkx/2.4-intel-2019b-Python-3.7.4
+module load matplotlib/3.1.1-intel-2019b-Python-3.7.4
 
 # Change to package folder
 cd $VSC_HOME/Documents/COVID-19/hpc/
