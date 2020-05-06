@@ -19,6 +19,8 @@ from scipy import interpolate as inter
 import copy
 import pso
 import multiprocessing
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -1787,6 +1789,7 @@ class SEIRSNetworkModel():
                                      propensities_MtoMi, propensities_MtoICU,
                                      propensities_AtoR, propensities_MtoR,
                                      propensities_MitoCmirec, propensities_MitoCmirec,
+                                     propensities_ICUtoCicurec,
                                      propensities_ICUtoD, propensities_CtoR,
                                      propensities_CmirectoR, propensities_CicurectoR,
                                      propensities_StoSQ, propensities_EtoEQ,
@@ -1798,7 +1801,7 @@ class SEIRSNetworkModel():
                                      propensities_AQtoR, propensities_MQtoR,
                                      propensities_RQtoR, propensities_RtoS]) #propensities__toS
 
-        columns = ['StoE', 'EtoA', 'EtoM', 'MtoC', 'MtoMi', 'MtoICU','AtoR','MtoR','MitoCmirec','MitoCmirec','ICUtoD','CtoR','CmirectoR','CicurectoR',
+        columns = ['StoE', 'EtoA', 'EtoM', 'MtoC', 'MtoMi', 'MtoICU','AtoR','MtoR','MitoCmirec','MitoCmirec','ICUtoCicurec','ICUtoD','CtoR','CmirectoR','CicurectoR',
                     'StoSQ','EtoEQ','AtoAQ','MtoMQ','RtoRQ','SQtoS','EQtoAQ','EQtoMQ','MQtoC','MQtoMi','MQtoICU','MQtoR','AQtoR','MQtoR','RQtoR','RtoS'] #'_toS'
         return propensities, columns
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
