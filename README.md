@@ -3,13 +3,73 @@
 
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University.
 
-Our code implements a SEIRS infectious disease dynamics model with extensions to model the effect of quarantining detected cases. Our code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate *optimal* government policies using a model predictive controller (MPC). A white paper and source code of our previous work can be found on the [BIOMATH website](https://biomath.ugent.be/covid-19-outbreak-modelling-and-control). 
+## Introduction
 
+Our code implements a SEIRS infectious disease dynamics model with extensions to model the effect of quarantining detected cases. Our code allows to perform Monte Carlo simulations, calibrate model parameters and calculate *optimal* government policies using a model predictive controller (MPC). A white paper and source code of our previous work can be found on the [BIOMATH website](https://biomath.ugent.be/covid-19-outbreak-modelling-and-control).
 
-## Demo
+## Get started
+
+### Get the code
+
+- Create a [`github`](https://github.com/) account if you do not ahve one already.
+- On the [COVID19-Model Github repository page](https://github.com/stijnvanhoey/COVID19-Model) click the `Fork` button.
+- From your own repository page (your account) of the `COVID19-Model`, use [`git`](https://git-scm.com/) to download the code to your own computer. See the [Github documentation](https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository) on how to clone/download a repository.
+
+When all went fine, you should have the code on your computer in a directory called `COVID19-Model`.
+
+### Install Python (conda) and packages
+
+To get started using the code, make sure to have all dependencies installed. We recommend using `Anaconda` to manage your Python packages. See the [conda installation instructions](https://docs.anaconda.com/anaconda/install/) and make sure you have conda up and running. Next:
+
+- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file, so anybody can recreate the required environment using:
+
+     ```
+     conda env create -f environment.yml
+     conda activate COVID_MODEL
+     ```
+
+     See the [Anaconda navigator documentation](https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment) how you can import the `environment.yml` file using the GUI.
+
+- Install the code developed specifically for the project (lives inside the `src/covid19model` folder) in the environment (in `-e` edit mode):
+
+     ```
+     conda activate COVID_MODEL
+     pip install -e .
+     ```
+
+     __Note:__ This step needs to be done in a terminal or command prompt. Use your favorite terminal or use the [Anaconda Prompt](https://docs.anaconda.com/anaconda/user-guide/getting-started/#open-anaconda-prompt). Navigate with the `cd` command to the directory where you copied the repository.
+
+### Demo
 A demo of the model can be found [here](src/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder,
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=src%2FSEIRSAgeModel_demo.ipynb)
+
+## Start to collaborate
+
+When working on the model or the model code, make sure to read the following guidelines and keep them in mind.
+
+### Notebooks are for exploration and communication
+
+Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:
+
+- Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-talleman-model-network.ipynb).
+- Refactor the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder.
+
+As the code of the `src/covid19model` folder is a Python package itself (see the `setup.py` file). You can import your code and use it in notebooks without the need of reinstallation. Put the following at the top of your notebook:
+
+```
+# OPTIONAL: Load the "autoreload" extension so that code can change
+%load_ext autoreload
+
+# OPTIONAL: always reload modules so that as you change code in src, it gets loaded
+%autoreload 2
+
+from covid19model.models import ...
+```
+
+## Acknowledgements
+
+The setup is a derived version of the [data science cookiecutter](https://drivendata.github.io/cookiecutter-data-science/) providing a consistent structure.
 
 
 ## Model highlights
@@ -20,13 +80,13 @@ We use an extended version of the SEIR model to model the disease at a higher re
 <img src="figs/flowchartAll.jpg" alt="drawing" width="400"/>
 
 ### Additional capabilities
-As of now (20/04/2020), the *SEIRSAgeModel* (deterministic model implementation with inherent age-structuring) contains 7 functions which can be grouped into three parts: 1) functions to run and visualise simulations, 2) functions to perform parameter estimations and visualise the results and 3) functions to optimize future policies using model predictive control (MPC).  Also, scenario specific functions will be added over the course of next week. 
+As of now (20/04/2020), the *SEIRSAgeModel* (deterministic model implementation with inherent age-structuring) contains 7 functions which can be grouped into three parts: 1) functions to run and visualise simulations, 2) functions to perform parameter estimations and visualise the results and 3) functions to optimize future policies using model predictive control (MPC).  Also, scenario specific functions will be added over the course of next week.
 <img src="figs/SEIRSAgeModel.jpg"
      alt="class"
-     width="700"     
-     style="float: left; margin-right: 500px;" /> 
+     width="700"
+     style="float: left; margin-right: 500px;" />
 
-As of now (20/04/2020), the *SEIRSNetworkModel* contains 5 functions which can be grouped into two parts: 1) functions to run and visualise simulations and 2) functions to perform parameter estimations and visualise the results. Implementing the model predictive controller is straightforward and can easily be done. However, the optimisation problem is really difficult and requires thousands of function evaluations. Given the large amount of computational resources required to run just one stochastic simulation, it is highly unlikely that the model predictive controller will ever be used to optimize government policy. The MPC functions will be implemented and their usefullness assessed after a calibration is performed. Also, scenario specific functions will be added over the course of next week. 
+As of now (20/04/2020), the *SEIRSNetworkModel* contains 5 functions which can be grouped into two parts: 1) functions to run and visualise simulations and 2) functions to perform parameter estimations and visualise the results. Implementing the model predictive controller is straightforward and can easily be done. However, the optimisation problem is really difficult and requires thousands of function evaluations. Given the large amount of computational resources required to run just one stochastic simulation, it is highly unlikely that the model predictive controller will ever be used to optimize government policy. The MPC functions will be implemented and their usefullness assessed after a calibration is performed. Also, scenario specific functions will be added over the course of next week.
 
 
 ## How to use the model
