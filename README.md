@@ -59,7 +59,8 @@ __Remember:__ Don't ever edit the `raw` data, especially not manually, and espec
 
 To make sure the `data` directory does not become an unstructured set of data files from which no one knows the origin, the following guidelines apply to all data added to the `data` directory:
 
-- All data file names are written in lowercase, without spaces (use `_` instead).
+- All `raw` data files are stored as the downloaded data file.
+- All `interim` data file names are written in lowercase, without spaces (use `_` instead).
 - When a (new) data set has been downloaded from a source, store it as such in the `raw` directory and document the origin in the [`data/README.md`](./data/README.md) file.
 - The functions to prepare data sets are stored in the `src/covid19model/data/` folder. Add the function to the [`data/README.md`](./data/README.md) document to define on which raw files the function operates and which `interim` files are created by it.
 
