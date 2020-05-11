@@ -5,7 +5,14 @@ setup(
     packages=find_packages("src", exclude=["*.tests"]),
     package_dir={'': 'src'},
     version='0.1',
-    description='COVID modelling package.',
+    description='COVID modelling package',
     author='Biomath',
     license='MIT',
+    extras_require={
+        "develop":  ["pytest",
+                     "sphinx",
+                     "numpydoc",
+                     "sphinx_rtd_theme",
+                     "recommonmark"],
+    }
 )
