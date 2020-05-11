@@ -12,3 +12,4 @@ dependencies:
   - networkx
   - pandas
   - ipywidgets
+  - xlrd
