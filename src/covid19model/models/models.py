@@ -17,10 +17,11 @@ import matplotlib.dates as mdates
 import datetime
 from scipy import interpolate as inter
 import copy
-import pso
 import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
+
+from ..optimization import pso
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/

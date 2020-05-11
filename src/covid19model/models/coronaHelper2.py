@@ -13,10 +13,12 @@ from random import choices
 import scipy
 from scipy.integrate import odeint
 import math
-import models
 import networkx
 from scipy import interpolate as inter
 from gekko import GEKKO
+
+from . import models
+
 
 def sampleFromDistribution(filename,k):
     df = pd.read_csv(filename)
