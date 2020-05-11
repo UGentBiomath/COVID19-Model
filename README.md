@@ -48,6 +48,21 @@ A demo of the model can be found [here](src/SEIRSAgeModel_demo.ipynb). This note
 
 When working on the model or the model code, make sure to read the following guidelines and keep them in mind.
 
+### Using data
+
+Data is crucial for both the setup and the evaluation of the models and all the required data is collected in the `data` directory. To organize the data sets, the `data` directory has been split up:
+
+- A `raw` folder contains data as it has been downloaded from the original source, __without any changes__ made (neither manual or using code). For each of the data sets it is crucial to describe the source (URL, contact person,...) from which this data set was derived.
+- A `interim` folder contains data as it has been adopted to become useful for the model. Use code to transform the data sets in the `raw` folder and store the result in the `interim` folder. The script or function to do the transformation is kept in the `src/covid19model/data/` folder.
+
+__Remember:__ Don't ever edit the `raw` data, especially not manually, and especially not in Excel. Don't overwrite your raw data. Don't save multiple versions of the raw data. Treat the data (and its format) as immutable. The code you write should move the raw data through a pipeline to your final analysis. Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`! The source of each raw data set need to de documented.
+
+To make sure the `data` directory does not become an unstructured set of data files from which no one knows the origin, the following guidelines apply to all data added to the `data` directory:
+
+- All data file names are written in lowercase, without spaces (use `_` instead).
+- When a (new) data set has been downloaded from a source, store it as such in the `raw` directory and document the origin in the `data/README.md` file.
+- The functions to prepare data sets are stored in the `src/covid19model/data/` folder. Add the function to the `data/README.md` document to define on which raw files the function operates and which `interim` files are created by it.
+
 ### Notebooks are for exploration and communication
 
 Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:
@@ -66,6 +81,20 @@ As the code of the `src/covid19model` folder is a Python package itself (see the
 
 from covid19model.models import ...
 ```
+
+### The `covid19model` Python package
+
+
+- Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
+     - If you are a command line person, chekc [this work flow](https://gist.github.com/CristinaSolana/1885435)
+     - If you are not a command line person: [this work flow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
+
+### Repository layout overview
+
+Each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to improve the workflow are certainly possible.
+
+he structure of the repository
+
 
 ## Acknowledgements
 
