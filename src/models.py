@@ -52,9 +52,9 @@ class SEIRSAgeModel():
     Params:
     """
 
-    def __init__(self, initN, beta, sigma, Nc=0, zeta=0,a=0,m=0,h=0,c=0,mi=0,da=0,dm=0,dc=0,dmi=0,dICU=0,dICUrec=0,dmirec=0,dhospital=0,m0=0,maxICU=0,totalTests=0,
-                psi_FP=0,psi_PP=0,dq=14,initE=0,initA=0,initM=0,initC=0,initCmirec=0,initCicurec=0,initMi=0,initICU=0,initR=0,
-                initD=0,initSQ=0,initEQ=0,initAQ=0,initMQ=0,initRQ=0,monteCarlo=False,n_samples=1):
+    def __init__(self, initN, beta, sigma, omega, Nc=0, zeta=0,a=0,m=0,h=0,c=0,mi=0,da=0,dm=0,dc=0,dmi=0,dICU=0,dICUrec=0,dmirec=0,dhospital=0,m0=0,maxICU=0,totalTests=0,
+                psi_FP=0,psi_PP=0,dq=14,initE=0,initI=0,initA=0,initM=0,initC=0,initCmirec=0,initCicurec=0,initMi=0,initICU=0,initR=0,
+                initD=0,initSQ=0,initEQ=0,initIQ=0,initAQ=0,initMQ=0,initRQ=0,monteCarlo=False,n_samples=1):
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Model Parameters:
@@ -62,6 +62,7 @@ class SEIRSAgeModel():
         # Clinical parameters
         self.beta   = beta
         self.sigma  = sigma
+        self.omega = omega
         self.Nc     = Nc
         self.zeta     = zeta
         self.a     = a
@@ -95,6 +96,7 @@ class SEIRSAgeModel():
         # initial condition must be an attribute of class: WAS NOT ADDED ORIGINALLY
         self.initN = numpy.reshape(initN,[Nc.shape[0],1])
         self.initE = numpy.reshape(initE,[Nc.shape[0],1])
+        self.initI = numpy.reshape(initI,[Nc.shape[0],1])
         self.initA = numpy.reshape(initA,[Nc.shape[0],1])
         self.initM = numpy.reshape(initM,[Nc.shape[0],1])
         initCtot = initC + initCmirec + initCicurec
@@ -108,6 +110,7 @@ class SEIRSAgeModel():
         self.initD = numpy.reshape(initD,[Nc.shape[0],1])
         self.initSQ = numpy.reshape(initSQ,[Nc.shape[0],1])
         self.initEQ = numpy.reshape(initEQ,[Nc.shape[0],1])
+        self.initIQ = numpy.reshape(initIQ,[Nc.shape[0],1])
         self.initAQ = numpy.reshape(initAQ,[Nc.shape[0],1])
         self.initMQ = numpy.reshape(initMQ,[Nc.shape[0],1])
         self.initRQ = numpy.reshape(initRQ,[Nc.shape[0],1])
@@ -125,6 +128,7 @@ class SEIRSAgeModel():
         # per age category:
         self.N          = self.initN.astype(int)
         self.numE       = self.initE.astype(int)
+        self.numI       = self.initI.astype(int)
         self.numA      = self.initA.astype(int)
         self.numM       = self.initM.astype(int)
         self.numCtot       = self.initCtot.astype(int)
@@ -137,13 +141,14 @@ class SEIRSAgeModel():
         self.numD       = self.initD.astype(int)
         self.numSQ      = self.initSQ.astype(int)
         self.numEQ      = self.initEQ.astype(int)
+        self.numIQ      = self.initIQ.astype(int)
         self.numAQ     = self.initAQ.astype(int)
         self.numMQ      = self.initMQ.astype(int)
         self.numRQ      = self.initRQ.astype(int)
-        self.numS = numpy.reshape(self.N[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numE[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numA[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numM[:,-1],[Nc.shape[0],1])
+        self.numS = numpy.reshape(self.N[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numE[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numI[:,-1],[Nc.shape[0],1])- numpy.reshape(self.numA[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numM[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numCtot[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMi[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numICU[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numR[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numD[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numSQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numEQ[:,-1],[Nc.shape[0],1])
-        - numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
+        - numpy.reshape(self.numIQ[:,-1],[Nc.shape[0],1])- numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
 
     def reset(self):
         Nc = self.Nc
@@ -154,6 +159,7 @@ class SEIRSAgeModel():
         # initial condition must be an attribute of class: WAS NOT ADDED ORIGINALLY
         self.initN = numpy.reshape(self.initN,[Nc.shape[0],1])
         self.initE = numpy.reshape(self.initE,[Nc.shape[0],1])
+        self.initI = numpy.reshape(self.initI,[Nc.shape[0],1])
         self.initA = numpy.reshape(self.initA,[Nc.shape[0],1])
         self.initM = numpy.reshape(self.initM,[Nc.shape[0],1])
         self.initC = numpy.reshape(self.initC,[Nc.shape[0],1])
@@ -167,6 +173,7 @@ class SEIRSAgeModel():
         self.initD = numpy.reshape(self.initD,[Nc.shape[0],1])
         self.initSQ = numpy.reshape(self.initSQ,[Nc.shape[0],1])
         self.initEQ = numpy.reshape(self.initEQ,[Nc.shape[0],1])
+        self.initIQ = numpy.reshape(self.initIQ,[Nc.shape[0],1])
         self.initAQ = numpy.reshape(self.initAQ,[Nc.shape[0],1])
         self.initMQ = numpy.reshape(self.initMQ,[Nc.shape[0],1])
         self.initRQ = numpy.reshape(self.initRQ,[Nc.shape[0],1])
@@ -184,6 +191,7 @@ class SEIRSAgeModel():
         # per age category:
         self.N          = self.initN.astype(int)
         self.numE       = self.initE.astype(int)
+        self.numI       = self.initI.astype(int)
         self.numA      = self.initA.astype(int)
         self.numM       = self.initM.astype(int)
         self.numCtot       = self.initCtot.astype(int)
@@ -196,25 +204,27 @@ class SEIRSAgeModel():
         self.numD       = self.initD.astype(int)
         self.numSQ      = self.initSQ.astype(int)
         self.numEQ      = self.initEQ.astype(int)
+        self.numIQ      = self.initIQ.astype(int)
         self.numAQ     = self.initAQ.astype(int)
         self.numMQ      = self.initMQ.astype(int)
         self.numRQ      = self.initRQ.astype(int)
-        self.numS = numpy.reshape(self.N[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numE[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numA[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numM[:,-1],[Nc.shape[0],1])
+        self.numS = numpy.reshape(self.N[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numE[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numI[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numA[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numM[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numCtot[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMi[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numICU[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numR[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numD[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numSQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numEQ[:,-1],[Nc.shape[0],1])
-        - numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
+        - numpy.reshape(self.numIQ[:,-1],[Nc.shape[0],1])- numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     @staticmethod
-    def system_dfes(t, variables, beta, sigma, Nc, zeta, a, m, h, c, mi, da, dm, dc, dmi, dICU, dICUrec, dmirec, dhospital, m0, ICU, totalTests, psi_FP, psi_PP, dq):
+    def system_dfes(t, variables, beta, sigma,omega, Nc, zeta, a, m, h, c, mi, da, dm, dc, dmi, dICU, dICUrec, dmirec, dhospital, m0, ICU, totalTests, psi_FP, psi_PP, dq):
 
         # input is a 1D-array
         # first extract seperate variables in 1D-array
-        S,E,A,M,C,Cmirec,Cicurec,Mi,ICU,R,D,SQ,EQ,AQ,MQ,RQ = variables.reshape(16,Nc.shape[0])
+        S,E,I,A,M,C,Cmirec,Cicurec,Mi,ICU,R,D,SQ,EQ,IQ,AQ,MQ,RQ = variables.reshape(18,Nc.shape[0])
         # reshape all variables to a Nc.shape[0]x1 2D-array
         S = numpy.reshape(S,[Nc.shape[0],1])
         E = numpy.reshape(E,[Nc.shape[0],1])
+        I = numpy.reshape(I,[Nc.shape[0],1])
         A = numpy.reshape(A,[Nc.shape[0],1])
         M = numpy.reshape(M,[Nc.shape[0],1])
         C = numpy.reshape(C,[Nc.shape[0],1])
@@ -226,18 +236,21 @@ class SEIRSAgeModel():
         D = numpy.reshape(D,[Nc.shape[0],1])
         SQ = numpy.reshape(SQ,[Nc.shape[0],1])
         EQ = numpy.reshape(EQ,[Nc.shape[0],1])
+        IQ = numpy.reshape(IQ,[Nc.shape[0],1])
         AQ = numpy.reshape(AQ,[Nc.shape[0],1])
         MQ = numpy.reshape(MQ,[Nc.shape[0],1])
         RQ = numpy.reshape(RQ,[Nc.shape[0],1])
         Ctot = C + Cmirec + Cicurec
         # calculate total population per age bin using 2D array
-        N   = S + E + A + M + Ctot + Mi + ICU + R + SQ + EQ + AQ + MQ + RQ
+        N   = S + E + I + A + M + Ctot + Mi + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
         # calculate the test rates for each pool using the total number of available tests
-        nT = S + E + A + M + R
+        nT = S + E + I + A + M + R
         theta_S = totalTests/nT
         theta_S[theta_S > 1] = 1
         theta_E = totalTests/nT
         theta_E[theta_E > 1] = 1
+        theta_I = totalTests/nT
+        theta_I[theta_I > 1] = 1
         theta_A = totalTests/nT
         theta_A[theta_A > 1] = 1
         theta_M = totalTests/nT
@@ -245,10 +258,11 @@ class SEIRSAgeModel():
         theta_R = totalTests/nT
         theta_R[theta_R > 1] = 1
         # calculate rates of change using the 2D arrays
-        dS  = - beta*numpy.matmul(Nc,((E+A)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
-        dE  = beta*numpy.matmul(Nc,((E+A)/N)*S) - E/sigma - theta_E*psi_PP*E
-        dA = a/sigma*E - A/da - theta_A*psi_PP*A
-        dM = m/sigma*E - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
+        dS  = - beta*numpy.matmul(Nc,((I+A)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
+        dE  = beta*numpy.matmul(Nc,((I+A)/N)*S) - E/sigma - theta_E*psi_PP*E
+        dI = (1/sigma)*E - (1/omega)*I - theta_I*psi_PP*I
+        dA = (a/omega)*I - A/da - theta_A*psi_PP*A
+        dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc) 
         dCmirec = Mi/dmi- Cmirec*(1/dmirec)
         dCicurec = (1-m0)/dICU*ICU - Cicurec*(1/dICUrec)
@@ -258,12 +272,13 @@ class SEIRSAgeModel():
         dD  = (m0/dICU)*ICU
         dSQ = theta_S*psi_FP*S - SQ/dq
         dEQ = theta_E*psi_PP*E - EQ/sigma
-        dAQ = theta_A*psi_PP*A + (a/sigma)*EQ - AQ/dq
-        dMQ = theta_M*psi_PP*M + (m/sigma)*EQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
+        dIQ = theta_I*psi_PP*I + (1/sigma)*EQ - (1/omega)*IQ
+        dAQ = theta_A*psi_PP*A + (a/omega)*IQ - AQ/dq
+        dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
         # reshape output back into a 1D array of similar dimension as input
-        out = numpy.array([dS,dE,dA,dM,dC,dCmirec,dCicurec,dMi,dICUstar,dR,dD,dSQ,dEQ,dAQ,dMQ,dRQ])
-        out = numpy.reshape(out,16*Nc.shape[0])
+        out = numpy.array([dS,dE,dI,dA,dM,dC,dCmirec,dCicurec,dMi,dICUstar,dR,dD,dSQ,dEQ,dIQ,dAQ,dMQ,dRQ])
+        out = numpy.reshape(out,18*Nc.shape[0])
         return out
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -282,18 +297,18 @@ class SEIRSAgeModel():
         # Define the initial conditions as the system's current state:
         # (which will be the t=0 condition if this is the first run of this model,
         # else where the last sim left off)
-        init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numA[:,-1], self.numM[:,-1], self.numC[:,-1], self.numCmirec[:,-1],self.numCicurec[:,-1], self.numMi[:,-1], self.numICU[:,-1], self.numR[:,-1], self.numD[:,-1], self.numSQ[:,-1], self.numEQ[:,-1], self.numAQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
-        init_cond = numpy.reshape(init_cond,16*self.Nc.shape[0])
+        init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numI[:,-1], self.numA[:,-1], self.numM[:,-1], self.numC[:,-1], self.numCmirec[:,-1],self.numCicurec[:,-1], self.numMi[:,-1], self.numICU[:,-1], self.numR[:,-1], self.numD[:,-1], self.numSQ[:,-1], self.numEQ[:,-1],self.numIQ[:,-1], self.numAQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
+        init_cond = numpy.reshape(init_cond,18*self.Nc.shape[0])
        
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Solve the system of differential eqns:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.Nc, self.zeta, self.a, self.m, self.h, self.c, self.mi, self.da,
+        solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.omega, self.Nc, self.zeta, self.a, self.m, self.h, self.c, self.mi, self.da,
         self.dm, self.dc,self.dmi,self.dICU,self.dICUrec,self.dmirec,self.dhospital,self.m0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq), t_span=[self.t, self.tmax], y0=init_cond, t_eval=t_eval)
 
         # output of size (nTimesteps * Nc.shape[0])
-        S,E,A,M,C,Cmirec,Cicurec,Mi,ICU,R,F,SQ,EQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),16,axis=1)
+        S,E,I,A,M,C,Cmirec,Cicurec,Mi,ICU,R,F,SQ,EQ,IQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),18,axis=1)
         Ctot = C + Cmirec + Cicurec
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -304,6 +319,7 @@ class SEIRSAgeModel():
         self.tseries    = numpy.append(self.tseries, solution['t'])
         self.numS       = numpy.append(self.numS, numpy.transpose(S),axis=1)
         self.numE       = numpy.append(self.numE, numpy.transpose(E),axis=1)
+        self.numI       = numpy.append(self.numI, numpy.transpose(I),axis=1)
         self.numA       = numpy.append(self.numA, numpy.transpose(A),axis=1)
         self.numM       = numpy.append(self.numM, numpy.transpose(M),axis=1)
         self.numCtot    = numpy.append(self.numCtot, numpy.transpose(Ctot),axis=1)
@@ -363,6 +379,7 @@ class SEIRSAgeModel():
             if(verbose):
                 print("\t S   = " + str(self.numS[:,-1]))
                 print("\t E   = " + str(self.numE[:,-1]))
+                print("\t I   = " + str(self.numI[:,-1]))
                 print("\t A   = " + str(self.numA[:,-1]))
                 print("\t M   = " + str(self.numM[:,-1]))
                 print("\t C   = " + str(self.numC[:,-1]))
@@ -372,6 +389,7 @@ class SEIRSAgeModel():
                 print("\t D   = " + str(self.numD[:,-1]))
                 print("\t SQ   = " + str(self.numSQ[:,-1]))
                 print("\t EQ   = " + str(self.numEQ[:,-1]))
+                print("\t IQ   = " + str(self.numIQ[:,-1]))
                 print("\t AQ   = " + str(self.numAQ[:,-1]))
                 print("\t MQ   = " + str(self.numMQ[:,-1]))
                 print("\t RQ   = " + str(self.numRQ[:,-1]))
@@ -392,6 +410,7 @@ class SEIRSAgeModel():
                 if(verbose):
                     print("\t S   = " + str(self.numS[:,-1]))
                     print("\t E   = " + str(self.numE[:,-1]))
+                    print("\t I   = " + str(self.numI[:,-1]))
                     print("\t A   = " + str(self.numA[:,-1]))
                     print("\t M   = " + str(self.numM[:,-1]))
                     print("\t C   = " + str(self.numC[:,-1]))
@@ -401,6 +420,7 @@ class SEIRSAgeModel():
                     print("\t D   = " + str(self.numD[:,-1]))
                     print("\t SQ   = " + str(self.numSQ[:,-1]))
                     print("\t EQ   = " + str(self.numEQ[:,-1]))
+                    print("\t IQ   = " + str(self.numIQ[:,-1]))
                     print("\t AQ   = " + str(self.numAQ[:,-1]))
                     print("\t MQ   = " + str(self.numMQ[:,-1]))
                     print("\t RQ   = " + str(self.numRQ[:,-1]))
@@ -429,6 +449,7 @@ class SEIRSAgeModel():
         # pre-allocate a 3D matrix for the raw results
         self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.E = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        self.I = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.A = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.M = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.C = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
@@ -441,12 +462,18 @@ class SEIRSAgeModel():
         self.D = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.SQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.EQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        self.IQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.AQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.MQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.RQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # total hospitalised
+        self.H = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        # total infected
+        self.InfTot = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         # pre-allocate a 2D matrix for the results summed over all age bins
         self.sumS = numpy.zeros([tN,self.n_samples])
         self.sumE = numpy.zeros([tN,self.n_samples])
+        self.sumI = numpy.zeros([tN,self.n_samples])
         self.sumA = numpy.zeros([tN,self.n_samples])
         self.sumM = numpy.zeros([tN,self.n_samples])
         self.sumC = numpy.zeros([tN,self.n_samples])
@@ -459,9 +486,14 @@ class SEIRSAgeModel():
         self.sumD = numpy.zeros([tN,self.n_samples])
         self.sumSQ = numpy.zeros([tN,self.n_samples])
         self.sumEQ = numpy.zeros([tN,self.n_samples])
+        self.sumIQ = numpy.zeros([tN,self.n_samples])
         self.sumAQ = numpy.zeros([tN,self.n_samples])
         self.sumMQ = numpy.zeros([tN,self.n_samples])
         self.sumRQ = numpy.zeros([tN,self.n_samples])
+        # total hospitalised
+        self.sumH = numpy.zeros([tN,self.n_samples])
+        # total infected
+        self.sumInfTot = numpy.zeros([tN,self.n_samples])
         # simulation loop
         i=0
         for self.sigma in sigmavect:
@@ -472,6 +504,7 @@ class SEIRSAgeModel():
             # append raw results to 3D matrix
             self.S[:,:,i] = self.numS
             self.E[:,:,i] = self.numE
+            self.I[:,:,i] = self.numI
             self.A[:,:,i] = self.numA
             self.M[:,:,i] = self.numM
             self.C[:,:,i] = self.numC
@@ -484,12 +517,18 @@ class SEIRSAgeModel():
             self.D[:,:,i] = self.numD
             self.SQ[:,:,i] = self.numSQ
             self.EQ[:,:,i] = self.numEQ
+            self.IQ[:,:,i] = self.numIQ
             self.AQ[:,:,i] = self.numAQ
             self.MQ[:,:,i] = self.numMQ
             self.RQ[:,:,i] = self.numRQ
+            # total hospitalised
+            self.H[:,:,i] = self.numCtot + self.numMi + self.numICU
+            # total infected
+            self.InfTot[:,:,i] = self.numCtot + self.numMi + self.numICU + self.numI + self.numA + self.numM
             # convert raw results to sums of all age categories
             self.sumS[:,i] = self.numS.sum(axis=0)
             self.sumE[:,i] = self.numE.sum(axis=0)
+            self.sumI[:,i] = self.numI.sum(axis=0)
             self.sumA[:,i] = self.numA.sum(axis=0)
             self.sumM[:,i] = self.numM.sum(axis=0)
             self.sumC[:,i] = self.numC.sum(axis=0)
@@ -502,9 +541,14 @@ class SEIRSAgeModel():
             self.sumD[:,i] = self.numD.sum(axis=0)
             self.sumSQ[:,i] = self.numSQ.sum(axis=0)
             self.sumEQ[:,i] = self.numEQ.sum(axis=0)
+            self.sumIQ[:,i] = self.numIQ.sum(axis=0)
             self.sumAQ[:,i] = self.numAQ.sum(axis=0)
             self.sumMQ[:,i] = self.numMQ.sum(axis=0)
             self.sumRQ[:,i] = self.numRQ.sum(axis=0)
+            # total hospitalised
+            self.sumH[:,i] = self.numCtot.sum(axis=0) + self.numMi.sum(axis=0) + self.numICU.sum(axis=0)
+            # total infected
+            self.sumInfTot[:,i] = self.numCtot.sum(axis=0) + self.numMi.sum(axis=0) + self.numICU.sum(axis=0)+ self.numI.sum(axis=0) + self.numA.sum(axis=0) + self.numM.sum(axis=0)
             i = i + 1
         return self
 
@@ -521,9 +565,9 @@ class SEIRSAgeModel():
         ax.fill_between(self.tseries, numpy.percentile(self.sumS,90,axis=1), numpy.percentile(self.sumS,10,axis=1),color=black,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumE,axis=1),color=orange)
         ax.fill_between(self.tseries, numpy.percentile(self.sumE,90,axis=1), numpy.percentile(self.sumE,10,axis=1),color=orange,alpha=0.2)
-        I = self.sumA + self.sumM + self.sumCtot + self.sumMi + self.sumICU
-        ax.plot(self.tseries,numpy.mean(I,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(I,90,axis=1), numpy.percentile(I,10,axis=1),color=red,alpha=0.2)
+        #I = self.sumA + self.sumM + self.sumCtot + self.sumMi + self.sumICU
+        ax.plot(self.tseries,numpy.mean(self.sumInfTot,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumInfTot,90,axis=1), numpy.percentile(self.sumInfTot,10,axis=1),color=red,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumR,axis=1),color=green)
         ax.fill_between(self.tseries, numpy.percentile(self.sumR,90,axis=1), numpy.percentile(self.sumR,10,axis=1),color=green,alpha=0.2)
         ax.legend(('susceptible','exposed','total infected','immune'), loc="upper left", bbox_to_anchor=(1,1))
@@ -556,9 +600,9 @@ class SEIRSAgeModel():
         if mild is not False:
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
-        H = self.sumCtot + self.sumMi + self.sumICU
-        ax.plot(self.tseries,numpy.mean(H,axis=1),color=orange)
-        ax.fill_between(self.tseries, numpy.percentile(H,90,axis=1), numpy.percentile(H,10,axis=1),color=orange,alpha=0.2)
+        #H = self.sumCtot + self.sumMi + self.sumICU
+        ax.plot(self.tseries,numpy.mean(self.sumH,axis=1),color=orange)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumH,90,axis=1), numpy.percentile(self.sumH,10,axis=1),color=orange,alpha=0.2)
         icu = self.sumMi + self.sumICU
         ax.plot(self.tseries,numpy.mean(icu,axis=1),color=red)
         ax.fill_between(self.tseries, numpy.percentile(icu,90,axis=1), numpy.percentile(icu,10,axis=1),color=red,alpha=0.2)
@@ -746,6 +790,7 @@ class SEIRSAgeModel():
 
     def passInitial(self):
         self.initE = numpy.reshape(numpy.mean(self.E[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initI = numpy.reshape(numpy.mean(self.I[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initA = numpy.reshape(numpy.mean(self.A[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initM = numpy.reshape(numpy.mean(self.M[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initC = numpy.reshape(numpy.mean(self.C[:,-1,:],axis=1),[self.Nc.shape[0],1])
@@ -757,6 +802,7 @@ class SEIRSAgeModel():
         self.initD = numpy.reshape(numpy.mean(self.D[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initSQ = numpy.reshape(numpy.mean(self.SQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initEQ = numpy.reshape(numpy.mean(self.EQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
+        self.initIQ = numpy.reshape(numpy.mean(self.IQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initAQ = numpy.reshape(numpy.mean(self.AQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initMQ = numpy.reshape(numpy.mean(self.MQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initRQ = numpy.reshape(numpy.mean(self.RQ[:,-1,:],axis=1),[self.Nc.shape[0],1])
