@@ -44,9 +44,9 @@ A demo of the model can be found [here](src/SEIRSAgeModel_demo.ipynb). This note
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=src%2FSEIRSAgeModel_demo.ipynb)
 
-## Start to collaborate
+## Start to collaborate!
 
-When working on the model or the model code, make sure to read the following guidelines and keep them in mind.
+When working on the model or the model code, make sure to read the following guidelines and keep them in mind. The main purpose of being rigid about the structure of the repository is to improve the general collaboration while keeping structure of the code in the long run and support reproducibility of the work. Still, it is work in progress and it should not block your work. In case you get stuck on something or you have a suggestion for improvement, feel free to open an [New Issue](https://github.com/UGentBiomath/COVID19-Model/issues/new) on the repository.
 
 ### Using data
 
@@ -67,8 +67,8 @@ To make sure the `data` directory does not become an unstructured set of data fi
 
 Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:
 
-- Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-talleman-model-network.ipynb).
-- Refactor the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder.
+- Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-twallema-model-network.ipynb).
+- Reuse the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder, e;g. visualisations inside `src/covid19model/visualization`
 
 As the code of the `src/covid19model` folder is a Python package itself (see the `setup.py` file). You can import your code and use it in notebooks without the need of reinstallation. Put the following at the top of your notebook:
 
@@ -82,19 +82,41 @@ As the code of the `src/covid19model` folder is a Python package itself (see the
 from covid19model.models import ...
 ```
 
+__Note:__ Use one of the [`notebook/templates`](./notebook/templates) to get started. You can run these online using [Binder](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=notebook/templates). To use them locally, copy paste one of the templates to the general notebooks directory, rename it according to the defined format and start working on it.
+
+ [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=src%2FSEIRSAgeModel_demo.ipynb)
+
+### Documentation
+
+Documentation consists of both the technical matter about the code as well as background information on the models. To keep these up to date and centralized, we use [Sphinx](https://www.sphinx-doc.org/en/master/) which enables us to keep the documentation together on a website.
+
+The Sphinx setup provides the usage of both `.rst` file, i.e. [restructuredtext](https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html) as well as `.md` files, i.e. [Markdown](https://www.markdownguide.org/basic-syntax/). The latter is generally experienced as easier to write, while the former provides a more advanced functionalities.
+
+Existing pages can be adusted directly (editing them online or on your computer). When you want to create a new page, makee sure to add the page to the `index.rst` in order to make the page part of the website.
+
+__TODO__ - extend info on this; CI info + how to do it locally...
+
 ### The `covid19model` Python package
 
+The code inside the [`src/covid19model`](./src) directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.
 
-- Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
+__Note:__ Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
      - If you are a command line person, chekc [this work flow](https://gist.github.com/CristinaSolana/1885435)
      - If you are not a command line person: [this work flow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
 
+For each of the functions you write, make sure to add the documentation to the function. We use the [numpy docstring](https://numpydoc.readthedocs.io/en/latest/format.html) format to write documentation. For each function, make sure the following items are defined at least:
+
+- Short summary (top line)
+- Parameters
+- Returns
+- References (if applicable)
+
+
 ### Repository layout overview
 
-Each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to improve the workflow are certainly possible.
+As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a [New issue](https://github.com/UGentBiomath/COVID19-Model/issues/new/choose).
 
-he structure of the repository
-
+__TODO__
 
 ## Acknowledgements
 
