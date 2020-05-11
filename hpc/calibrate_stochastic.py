@@ -24,7 +24,7 @@ import models
 
 # Construct the network G
 # ~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 60000
+numNodes = 30000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=7)
 # Baseline normal interactions:
 G_norm     = models.custom_exponential_graph(baseGraph, scale=200)
@@ -32,7 +32,7 @@ models.plot_degree_distn(G_norm, max_degree=40)
 
 # Construct the network G under social distancing
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-numNodes = 60000
+numNodes = 30000
 baseGraph    = networkx.barabasi_albert_graph(n=numNodes, m=2)
 # Baseline normal interactions:
 G_dist     = models.custom_exponential_graph(baseGraph, scale=20000)
@@ -94,7 +94,7 @@ model = models.SEIRSNetworkModel(
                                  initRQ = 0,
                                  # monte-carlo sampling
                                  monteCarlo = True,
-                                 repeats = 10
+                                 repeats = 1
                             )
 # Load data
 # ~~~~~~~~~~~~
@@ -117,7 +117,7 @@ data=[np.transpose(ICUvect[:,0:idx]),np.transpose(hospital[:,0:idx])]
 # set optimisation settings
 parNames = ['beta','p'] # must be a list!
 positions = [np.array([6]),np.array([4,5,6])] # must be a list!
-bounds=[(1,100),(0.1,0.5),(0.1,1)] # must be a list!
+bounds=[(10,100),(0.1,0.5),(0.4,0.8)] # must be a list!
 weights = np.array([0,1])
 # run optimisation
 theta = model.fit(data,parNames,positions,bounds,weights,setvar=True,maxiter=10,popsize=5)
@@ -126,4 +126,4 @@ print('Required time: ', stop - start,' seconds')
 
 # Make a graphical representation of results
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-model.plotFit(index,data,positions,modelClr=['red','orange'],legendText=('ICU (model)','ICU (data)','Hospital (model)','Hospital (data)'),titleText='Belgium')
+model.plotFit(index,data,positions,modelClr=['red','orange'],legendText=('ICU (model)','ICU (data)','Hospital (model)','Hospital (data)'),titleText='Belgium',filename-'calibration.svg')
