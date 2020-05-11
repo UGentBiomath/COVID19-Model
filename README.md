@@ -40,7 +40,7 @@ To get started using the code, make sure to have all dependencies installed. We 
      __Note:__ This step needs to be done in a terminal or command prompt. Use your favorite terminal or use the [Anaconda Prompt](https://docs.anaconda.com/anaconda/user-guide/getting-started/#open-anaconda-prompt). Navigate with the `cd` command to the directory where you copied the repository.
 
 ### Demo
-A demo of the model can be found [here](src/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder,
+A demo of the model can be found [here](notebooks/templates/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder,
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=src%2FSEIRSAgeModel_demo.ipynb)
 
@@ -55,7 +55,7 @@ Data is crucial for both the setup and the evaluation of the models and all the 
 - A `raw` folder contains data as it has been downloaded from the original source, __without any changes__ made (neither manual or using code). For each of the data sets it is crucial to describe the source (URL, contact person,...) from which this data set was derived.
 - A `interim` folder contains data as it has been adopted to become useful for the model. Use code to transform the data sets in the `raw` folder and store the result in the `interim` folder. The script or function to do the transformation is kept in the `src/covid19model/data/` folder.
 
-__Remember:__ Don't ever edit the `raw` data, especially not manually, and especially not in Excel. Don't overwrite your raw data. Don't save multiple versions of the raw data. Treat the data (and its format) as immutable. The code you write should move the raw data through a pipeline to your final analysis. Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`! The source of each raw data set need to de documented.
+__Remember:__ Don't ever edit the `raw` data, especially not manually, and especially not in Excel. Don't overwrite your raw data. Don't save multiple versions of the raw data. Treat the data (and its format) as immutable. The code you write should move the raw data through a pipeline to your final analysis.
 
 To make sure the `data` directory does not become an unstructured set of data files from which no one knows the origin, the following guidelines apply to all data added to the `data` directory:
 
@@ -116,12 +116,14 @@ For each of the functions you write, make sure to add the documentation to the f
 
 As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a [New issue](https://github.com/UGentBiomath/COVID19-Model/issues/new/choose).
 
+__Remember:__ Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`!
+
 __TODO__
 
 ## Acknowledgements
 
-The setup is a derived version of the [data science cookiecutter](https://drivendata.github.io/cookiecutter-data-science/) providing a consistent structure.
-
+- The repository setup is a derived version of the [data science cookiecutter](https://drivendata.github.io/cookiecutter-data-science/) providing a consistent structure.
+- Original code by Ryan S. McGee
 
 ## Model highlights
 
