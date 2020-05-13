@@ -47,7 +47,7 @@ The Sphinx setup provides the usage of both `.rst` file, i.e. [restructuredtext]
 
 Existing pages can be adusted directly (editing them online or on your computer). When you want to create a new page, makee sure to add the page to the `index.rst` in order to make the page part of the website.
 
-__TODO__ - extend info on this; CI info + how to do it locally...
+__TODO__ - extend info on this; CI info + how to build it locally...
 
 ### The `covid19model` Python package
 
@@ -64,6 +64,7 @@ For each of the functions you write, make sure to add the documentation to the f
 - Returns
 - References (if applicable)
 
+__TODO__ -> add info on addition of new packages
 
 ### Repository layout overview
 
