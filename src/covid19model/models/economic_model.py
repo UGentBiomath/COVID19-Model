@@ -15,7 +15,9 @@ import matplotlib.dates as mdates
 import datetime
 from scipy import interpolate as inter
 import copy
-import models
+
+from . import models
+
 
 class EconomicModel():
     """
