@@ -222,6 +222,11 @@ class SEIRSAgeModel():
         # input is a 1D-array
         # first extract seperate variables in 1D-array
         S,E,I,A,M,C,Cmirec,Cicurec,Mi,ICU,R,D,SQ,EQ,IQ,AQ,MQ,RQ = variables.reshape(18,Nc.shape[0])
+        # reshape all age dependent parameters to a Nc.shape[0]x1 2D-array
+        h = numpy.reshape(h,[Nc.shape[0],1])
+        c = numpy.reshape(c,[Nc.shape[0],1])
+        mi = numpy.reshape(mi,[Nc.shape[0],1])
+        m0 = numpy.reshape(m0,[Nc.shape[0],1])
         # reshape all variables to a Nc.shape[0]x1 2D-array
         S = numpy.reshape(S,[Nc.shape[0],1])
         E = numpy.reshape(E,[Nc.shape[0],1])
@@ -654,7 +659,7 @@ class SEIRSAgeModel():
         n = len(data)
         # Compute simulation time --> build in some redundancy here, datasizes don't have to be equal to eachother.
         T = data[0].size+extraTime-1
-
+        #print(n,T,thetas,data)
         # ------------------
         # Perform simulation
         # ------------------

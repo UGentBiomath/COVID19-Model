@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -N python_test ## job name
-#PBS -l nodes=1:ppn=1 ## single-node job, single core
-#PBS -l walltime=1:00:00 ## max. 2h of wall time
+#PBS -l nodes=1:ppn=all ## single-node job, single core
+#PBS -l walltime=72:00:00 ## max. 2h of wall time
 
 # load python module
 module load networkx/2.4-intel-2019b-Python-3.7.4
