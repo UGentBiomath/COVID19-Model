@@ -8,6 +8,14 @@ setup(
     description='COVID modelling package',
     author='Biomath',
     license='MIT',
+    install_requires=[
+        'matplotlib',
+        'numpy',
+        'scipy',
+        'networkx',
+        'pandas',
+        'xlrd'
+    ],
     extras_require={
         "develop":  ["pytest",
                      "sphinx",
