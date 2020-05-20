@@ -17,6 +17,7 @@ setup(
         'xlrd',
 	'pyMC3',
 	'theano',
+        'sklearn',
     ],
     extras_require={
         "develop":  ["pytest",
