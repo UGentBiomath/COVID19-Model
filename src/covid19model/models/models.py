@@ -18,6 +18,9 @@ import datetime
 from scipy import interpolate as inter
 import copy
 import multiprocessing
+#import pyMC3 as pm
+#import theano.tensor as tt
+from theano.compile.ops import as_op
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -45,6 +48,39 @@ plt.rcParams["axes.prop_cycle"] = matplotlib.cycler('color', Okabe_Ito)
 #    plt.rcParams[key] *= multiplier
 plt.rcParams["font.size"] = 15
 plt.rcParams["lines.linewidth"] = 3
+
+def obtainData():
+    """
+    Function to update the available data on hospitalisation cases (including ICU).
+    The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
+    Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
+
+    Output:
+    * initial – initial date of records: string 'YYYY-MM-DD'
+    * data – list with total number of patients as [hospital, ICUvect]:
+        * hospital - total number of hospitalised patients : array
+        * ICUvect - total number of hospitalised patients in ICU: array
+
+    Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
+    """
+    # Data source
+    url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
+
+    # Extract hospitalisation data from source
+    df = pd.read_excel(url, sheet_name="HOSP")
+    # Date of initial records
+    initial = df.astype(str)['DATE'][0]
+    # Resample data from all regions and sum all values for each date
+    data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
+    data = data.resample('D', on='DATE').sum()
+    hospital = numpy.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
+    ICUvect = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+    # List of time datapoints
+    index = pd.date_range(initial, freq='D', periods=ICUvect.size)
+    #data.index # equivalently from dataframe index
+    # List of daily numbers of ICU and hospitaliside patients
+    data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
+    return [index, data]
 
 class SEIRSAgeModel():
     """
@@ -271,7 +307,7 @@ class SEIRSAgeModel():
         dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc) 
         dCmirec = Mi/dmi- Cmirec*(1/dmirec)
-        dCicurec = (1-m0)/dICU*ICU - Cicurec*(1/dICUrec)
+        dCicurec = ((1-m0)/dICU)*ICU - Cicurec*(1/dICUrec)
         dMi = mi*(M+MQ)*(h/dhospital) - Mi/dmi
         dICUstar = (1-c-mi)*(M+MQ)*(h/dhospital) - ICU/dICU
         dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cmirec*(1/dmirec) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
@@ -439,7 +475,6 @@ class SEIRSAgeModel():
                     if key != 't':
                         setattr(self,key,beforeChk[i])
                         i = i+1
-
         return self
 
     def sim(self, T, dt=1, checkpoints=None, verbose=False):
@@ -1007,39 +1042,6 @@ class SEIRSAgeModel():
             return fig, ax
         else:
             plt.show()
-
-    def obtainData(self):
-        """
-        Function to update the available data on hospitalisation cases (including ICU).
-        The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
-        Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
-
-        Output:
-        * initial – initial date of records: string 'YYYY-MM-DD'
-        * data – list with total number of patients as [hospital, ICUvect]:
-            * hospital - total number of hospitalised patients : array
-            * ICUvect - total number of hospitalised patients in ICU: array
-
-        Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
-        """
-        # Data source
-        url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
-
-        # Extract hospitalisation data from source
-        df = pd.read_excel(url, sheet_name="HOSP")
-        # Date of initial records
-        initial = df.astype(str)['DATE'][0]
-        # Resample data from all regions and sum all values for each date
-        data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
-        data = data.resample('D', on='DATE').sum()
-        hospital = numpy.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
-        ICUvect = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
-        # List of time datapoints
-        index = pd.date_range(initial, freq='D', periods=ICUvect.size)
-        #data.index # equivalently from dataframe index
-        # List of daily numbers of ICU and hospitaliside patients
-        data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
-        return [index, data]
 
     def mergeDict(self,T,dict1, dict2):
         # length of dict1 is needed later on
