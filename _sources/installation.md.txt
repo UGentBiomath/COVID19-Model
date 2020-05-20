@@ -18,7 +18,11 @@ To use the code, make sure you have Python (conda) and the required dependency p
      conda env create -f environment.yml
      conda activate COVID_MODEL
      ```
-
+     or when the environment was already created,
+     ```
+     conda env update environment.yml
+     ```
+     
      See the [Anaconda navigator documentation](https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment) how you can import the `environment.yml` file using the GUI.
 
 - Install the code developed specifically for the project (lives inside the `src/covid19model` folder) in the environment (in `-e` edit mode):
