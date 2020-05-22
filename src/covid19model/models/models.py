@@ -49,7 +49,7 @@ plt.rcParams["axes.prop_cycle"] = matplotlib.cycler('color', Okabe_Ito)
 plt.rcParams["font.size"] = 15
 plt.rcParams["lines.linewidth"] = 3
 
-def obtainData():
+def getSciensanoData():
     """
     Function to update the available data on hospitalisation cases (including ICU).
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
@@ -61,11 +61,10 @@ def obtainData():
         * hospital - total number of hospitalised patients : array
         * ICUvect - total number of hospitalised patients in ICU: array
 
-    Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
+    Utilisation: use as [hospital, ICUvect] = getData()
     """
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
-
     # Extract hospitalisation data from source
     df = pd.read_excel(url, sheet_name="HOSP")
     # Date of initial records
@@ -74,13 +73,62 @@ def obtainData():
     data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
     data = data.resample('D', on='DATE').sum()
     hospital = numpy.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
-    ICUvect = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+    ICU = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
     # List of time datapoints
-    index = pd.date_range(initial, freq='D', periods=ICUvect.size)
+    index = pd.date_range(initial, freq='D', periods=ICU.size)
     #data.index # equivalently from dataframe index
     # List of daily numbers of ICU and hospitaliside patients
-    data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
+    data = [initial,ICU,hospital]
     return [index, data]
+
+def getMobilityData(filename=None):
+    # Data source
+    url = 'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a'
+    # Extract only Belgian data
+    raw = pd.read_csv(url)
+    raw=raw[raw['country_region']=='Belgium']
+    data=raw[raw['sub_region_1'].isnull().values]
+    # Assign data to output variables
+    retail_recreation=numpy.array(data.loc[:,'retail_and_recreation_percent_change_from_baseline'].tolist())
+    grocery=numpy.array(data.loc[:,'grocery_and_pharmacy_percent_change_from_baseline'].tolist())
+    parks=numpy.array(data.loc[:,'parks_percent_change_from_baseline'].tolist())
+    transport=numpy.array(data.loc[:,'transit_stations_percent_change_from_baseline'].tolist())
+    work=numpy.array(data.loc[:,'workplaces_percent_change_from_baseline'].tolist())
+    residential=numpy.array(data.loc[:,'residential_percent_change_from_baseline'].tolist())
+    dates = pd.date_range(data.astype(str)['date'].tolist()[0], freq='D', periods=residential.size)
+    data_lst=[[retail_recreation,grocery],[parks,transport],[work,residential]]
+    titleText=[['Retail and recreation','Groceries and pharmacy'],['Parks','Transit stations'],['Workplaces','Residential']]
+
+    # using the variable axs for multiple Axes
+    fig, ax = plt.subplots(3,2,figsize=(15,12))
+    for i in range(3):
+        for j in range(2):
+            ax[i,j].plot(dates,data_lst[i][j])
+            ax[i,j].axvline(x='13-03-2020',color='k',linestyle='--')          
+            ax[i,j].set_ylabel('% compared to baseline')
+            # Hide the right and top spines
+            ax[i,j].spines['right'].set_visible(False)
+            ax[i,j].spines['top'].set_visible(False)
+            # Only show ticks on the left and bottom spines
+            ax[i,j].yaxis.set_ticks_position('left')
+            ax[i,j].xaxis.set_ticks_position('bottom')
+            # enable the grid
+            ax[i,j].grid(True)
+            # Set title
+            ax[i,j].set_title(titleText[i][j],{'fontsize':18})
+            # Format dateticks
+            ax[i,j].xaxis.set_major_locator(mdates.MonthLocator())
+            ax[i,j].xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+            ax[i,j].autoscale(enable=True) 
+
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename,dpi=600,bbox_inches='tight',orientation='portrait',papertype='a4')
+    else:
+        plt.show()
+
+    return [dates,retail_recreation,grocery,parks,transport,work,residential]
 
 class SEIRSAgeModel():
     """
@@ -2690,38 +2738,6 @@ class SEIRSNetworkModel():
         else:
             plt.show()
 
-    def obtainData(self):
-        """
-        Function to update the available data on hospitalisation cases (including ICU).
-        The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
-        Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
-
-        Output:
-        * initial – initial date of records: string 'YYYY-MM-DD'
-        * data – list with total number of patients as [hospital, ICUvect]:
-            * hospital - total number of hospitalised patients : array
-            * ICUvect - total number of hospitalised patients in ICU: array
-
-        Utilisation: use as [initial, hospital, ICUvect] = model.obtainData()
-        """
-        # Data source
-        url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
-
-        # Extract hospitalisation data from source
-        df = pd.read_excel(url, sheet_name="HOSP")
-        # Date of initial records
-        initial = df.astype(str)['DATE'][0]
-        # Resample data from all regions and sum all values for each date
-        data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
-        data = data.resample('D', on='DATE').sum()
-        hospital = numpy.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
-        ICUvect = numpy.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
-        # List of time datapoints
-        index = pd.date_range(initial, freq='D', periods=ICUvect.size)
-        #data.index # equivalently from dataframe index
-        # List of daily numbers of ICU and hospitaliside patients
-        data = [numpy.transpose(ICUvect),numpy.transpose(hospital)]
-        return [index, data]
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
