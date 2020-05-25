@@ -69,6 +69,67 @@ class SIR(BaseModel):
 
         return dS, dI, dR
 
+
+class SEIRSAge(BaseModel):
+    """Biomath SEIRS model"""
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cmirec', 'Cicurec', 'Mi',
+                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dmi', 'dICU', 'dICUrec',
+                  'dmirec', 'dhospital', 'maxICU', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
+    parameters_stratified_names = ['h', 'c', 'm0','mi']
+    stratification = 'nc'
+
+    # ..transitions/equations
+    @staticmethod
+    def integrate(t, S, E, I, A, M, C, Cmirec, Cicurec, Mi, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
+                  beta, sigma, omega, zeta, a, m, da, dm, dc, dmi, dICU, dICUrec,
+                  dmirec, dhospital, maxICU, totalTests, psi_FP, psi_PP, dq, h, c, m0, mi, Nc):
+        """Basic SIR model"""
+
+        # Model equations
+        Ctot = C + Cmirec + Cicurec
+        # calculate total population per age bin using 2D array
+        N = S + E + I + A + M + Ctot + Mi + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
+        # calculate the test rates for each pool using the total number of available tests
+        nT = S + E + I + A + M + R
+        theta_S = totalTests/nT
+        theta_S[theta_S > 1] = 1
+        theta_E = totalTests/nT
+        theta_E[theta_E > 1] = 1
+        theta_I = totalTests/nT
+        theta_I[theta_I > 1] = 1
+        theta_A = totalTests/nT
+        theta_A[theta_A > 1] = 1
+        theta_M = totalTests/nT
+        theta_M[theta_M > 1] = 1
+        theta_R = totalTests/nT
+        theta_R[theta_R > 1] = 1
+        # calculate rates of change using the 2D arrays
+        dS  = - beta*np.matmul(Nc,((I+A)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
+        dE  = beta*np.matmul(Nc,((I+A)/N)*S) - E/sigma - theta_E*psi_PP*E
+        dI = (1/sigma)*E - (1/omega)*I - theta_I*psi_PP*I
+        dA = (a/omega)*I - A/da - theta_A*psi_PP*A
+        dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
+        dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
+        dCmirec = Mi/dmi- Cmirec*(1/dmirec)
+        dCicurec = ((1-m0)/dICU)*ICU - Cicurec*(1/dICUrec)
+        dMi = mi*(M+MQ)*(h/dhospital) - Mi/dmi
+        dICUstar = (1-c-mi)*(M+MQ)*(h/dhospital) - ICU/dICU
+        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cmirec*(1/dmirec) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
+        dD  = (m0/dICU)*ICU
+        dSQ = theta_S*psi_FP*S - SQ/dq
+        dEQ = theta_E*psi_PP*E - EQ/sigma
+        dIQ = theta_I*psi_PP*I + (1/sigma)*EQ - (1/omega)*IQ
+        dAQ = theta_A*psi_PP*A + (a/omega)*IQ - AQ/dq
+        dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
+        dRQ = theta_R*psi_FP*R - RQ/dq
+
+        return (dS, dE, dI, dA, dM, dC, dCmirec, dCicurec, dMi,
+                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
+
+
 def getSciensanoData():
     """
     Function to update the available data on hospitalisation cases (including ICU).
