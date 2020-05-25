@@ -33,20 +33,23 @@ class EconomicModel():
         # Student population taken as men and women below 20 y.o. 
         # Elderly population taken as men and women above 65 y.o.
         fullPop    = numpy.sum(self.epiModel.initN)
-        studentPop = numpy.sum(self.epiModel.initN[0:3])
+        studentPop = numpy.sum(self.epiModel.initN[0:2])
         retiredPop = numpy.sum(self.epiModel.initN[-3:])        
         # Load economic inputs
-        SectoralData = pd.read_excel("../data/Sectoral_data.xlsx", sheet_name=None)
+        SectoralData = pd.read_excel("../data/raw/economical/Sectoral_data.xlsx", sheet_name=None)
         Industry   = SectoralData["value added"].get("Industry breakdown")
         ValueAdded = SectoralData["value added"].Value * 1e6
-        Employment = SectoralData["Employment"].Value * 1e3        
+        Employment = SectoralData["Employment"].Value * 1e3
+        Social = SectoralData["social interaction"].est_degree
+
         # Raw economic data of 2018 from http://stat.nbb.be/index.aspx?DatasetCode=SUTAP38
         # Element [0] of each series is the aggregated value for all industries.
         Inputs = {'Industry breakdown'      : Industry,                 # Description of industry classes
                   'Value Added'             : ValueAdded,               # Economic value added by Belgian workers (per year)
                   'Employment'              : Employment,               # Number of employee per industry 
                   'Value Added per Employe' : ValueAdded / Employment,  # Value added per employee (per year)
-                  'Employment fraction'     : Employment / Employment[0]}     # Ratio of employees in each industry without pandemics with respect to total number of workers.
+                  'Employment fraction'     : Employment / Employment[0],
+                  'Social interaction'      : Social}     # Ratio of employees in each industry without pandemics with respect to total number of workers.
         ReferenceNumbers = {'Population': fullPop,                                  # Full population of Belgium
                             'Student population' : studentPop,                      # Population of "students", i.e. Belgians below 20.
                             'Retired population': retiredPop,                       # Population of "retired", i.e. Belgians above 70.
@@ -56,7 +59,7 @@ class EconomicModel():
         self.ReferenceNumbers = ReferenceNumbers
         # Load adaptation to pandemic inputs according to a survey obtained on April 25th.
         # Element [0] of each series is the average value for all industries.
-        StaffDistrib = pd.read_excel("../data/Staff distribution by sector.xlsx", sheet_name=None)
+        StaffDistrib = pd.read_excel("../data/raw/economical/Staff distribution by sector.xlsx", sheet_name=None)
         WorkAtHome = StaffDistrib["Formated data"].get("telework")
         Mix        = StaffDistrib["Formated data"].get("mix telework-workplace")
         WorkAtWork = StaffDistrib["Formated data"].get("at workplace")
@@ -80,22 +83,13 @@ class EconomicModel():
                         epidemologicalModel.IQ, epidemologicalModel.AQ,
                         epidemologicalModel.MQ, epidemologicalModel.RQ]
 
-    def prepareMetaPopulationModel(self):
-
-        # Load interaction matrices (hardcode for now but should be removed in the future)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~
-        Nc_home = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELhome.txt", dtype='f', delimiter='\t')
-        Nc_work = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELwork.txt", dtype='f', delimiter='\t')
-        Nc_schools = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELschools.txt", dtype='f', delimiter='\t')
-        Nc_others = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELothers.txt", dtype='f', delimiter='\t')
-        Nc_all = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELall.txt", dtype='f', delimiter='\t')
-        initN = numpy.loadtxt("../data/Interaction_matrices/Belgium/BELagedist.txt", dtype='f', delimiter='\t')
+    def prepareMetaPopulationModel(self,confinement,Nc_home,Nc_work,Nc_schools,Nc_transport,Nc_leisure,Nc_others,Nc_total,initN_orig):   
         
         # Calculate priors
         # ~~~~~~~~~~~~~~~~
     
-        # Calculate fraction of active population ( = individuals aged 20 to 65)
-        activePopProb = (self.ReferenceNumbers['Working population']+self.ReferenceNumbers['Non working population'])/numpy.sum(self.epiModel.initN)        
+        # Calculate fraction of active population ( = individuals aged 20 to 60)
+        activePopProb = (self.ReferenceNumbers['Working population']+self.ReferenceNumbers['Non working population'])/numpy.sum(initN_orig)        
         # Calculate what fraction of the "active" population has a job
         workingProb = self.ReferenceNumbers['Working population']/(self.ReferenceNumbers['Working population']+self.ReferenceNumbers['Non working population'])
         nonWorkingProb = 1 - workingProb
@@ -104,37 +98,114 @@ class EconomicModel():
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         initN = []
         Nc = []
-        initN.append(nonWorkingProb*activePopProb*self.epiModel.initN)
-        Nc.append(Nc_home + Nc_schools + Nc_others)
+        initN.append(nonWorkingProb*self.epiModel.initN)
+        Nc.append(confinement[0]*Nc_home + confinement[1]*Nc_schools + confinement[3]*Nc_leisure + confinement[4]*Nc_others)
 
         # Define working metapopulations
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        # Confinement is a list containing 5 entries:
+        # confinement[0] | scalar | 0 to 1 | home interactions
+        # confinement[1] | scalar | 0 or 1 | schools open or closed (same for all sectors)
+        # confinement[2] | list   | 0 or 1 | sector open or closed
+        # confinement[3] | scalar | 0 to 1 | fraction of business-as-usual leisure
+        # confinement[4] | scalar | 0 or 1 | fraction of business-as-usual others
+        # The fraction of home contacts depends on the degree of social restrictions
+        # The fraction of transport will depend on the opening of schools and sectors
+        sigma = 0.5 # prevention measures in the work place
         # Ratio of employees in each industry without pandemics with respect to total number of workers.
-        for i in range(len(self.Inputs['Employment fraction'][1:])): 
-            initN.append(self.Inputs['Employment fraction'][i+1]*workingProb*activePopProb*self.epiModel.initN)
-            Nc.append(Nc_home + Nc_work + Nc_schools + Nc_others)
+        for i in range(len(self.Inputs['Employment fraction'][1:])):
+            initN.append(self.Inputs['Employment fraction'][i+1]*workingProb*initN_orig)
+            if confinement[2][i] == 0:
+                fractionAtWork = (self.Adaptation["Work at work"][i+1] + 0.5*self.Adaptation["Mix home - office"][i+1])/100
+                Nc.append(confinement[0]*Nc_home+confinement[1]*Nc_schools+sigma*self.Inputs["Social interaction"][i+1]*fractionAtWork*Nc_work + confinement[3]*Nc_leisure + confinement[4]*Nc_others)
+            else:
+                Nc.append(confinement[0]*Nc_home+confinement[1]*Nc_schools+ self.Inputs["Social interaction"][i+1]*Nc_work + confinement[3]*Nc_leisure + confinement[4]*Nc_others)
         return initN,Nc
 
-    def runMetaPopulationSimulation(self,T,checkpoints=None):
+    def runMetaPopulationSimulation(self,T,confinement,checkpoints=None):
+
+        # Load interaction matrices
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~
+        Nc_home = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELhome.txt", dtype='f', delimiter='\t')
+        Nc_work = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELwork.txt", dtype='f', delimiter='\t')
+        Nc_schools = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELschools.txt", dtype='f', delimiter='\t')
+        Nc_transport = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELtransport.txt", dtype='f', delimiter='\t')
+        Nc_leisure = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELleisure.txt", dtype='f', delimiter='\t')
+        Nc_others = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELothers.txt", dtype='f', delimiter='\t')
+        Nc_total = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELtotal.txt", dtype='f', delimiter='\t')
+        initN_orig = numpy.loadtxt("../data/raw/Interaction_matrices/Belgium/BELagedist_10year.txt", dtype='f', delimiter='\t')  
         # prepare initN and Nc for every metapopulation
-        initN,Nc=self.prepareMetaPopulationModel()
-        # make a copy of the model object
-        mdl = self.epiModel
+        initN,Nc=self.prepareMetaPopulationModel(confinement,Nc_home,Nc_work,Nc_schools,Nc_transport,Nc_leisure,Nc_others,Nc_total,initN_orig)
         # pre-allocation of results
         out=[]
         # loop over all metapopulations
         for i in range(len(initN)):
             # set initN and Nc
-            mdl.initN = initN[i]
-            mdl.Nc = Nc[i]
+            self.epiModel.initN = initN[i]
+            self.epiModel.Nc = Nc[i]
             # run model
-            mdl.sim(T,checkpoints=checkpoints)
+            self.epiModel.sim(T,checkpoints=checkpoints)
             # store result
-            out.append(self.getEpidemologicalModelOutput(mdl))
+            out.append(self.getEpidemologicalModelOutput(self.epiModel))
+            # calculate the sumX variables
+            self.calcSumX(out)
+
         return out
 
-    def calcAddedValue(self,out,confinement=False):
+    def calcSumX(self,out):
+        S = 0
+        E = 0
+        I = 0
+        A = 0
+        M = 0
+        Ctot = 0
+        Mi = 0
+        ICU = 0
+        R = 0
+        D = 0
+        SQ = 0
+        EQ = 0
+        IQ = 0
+        AQ = 0
+        MQ = 0
+        RQ = 0
+        for i in range(len(out)):
+            S = S + numpy.sum(out[i][0],axis=0)
+            E = E + numpy.sum(out[i][1],axis=0)
+            I = I + numpy.sum(out[i][2],axis=0)
+            A = A + numpy.sum(out[i][3],axis=0)
+            M = M + numpy.sum(out[i][4],axis=0)
+            Ctot = Ctot + numpy.sum(out[i][5],axis=0)
+            Mi = Mi + numpy.sum(out[i][6],axis=0)
+            ICU = ICU + numpy.sum(out[i][7],axis=0)
+            R = R + numpy.sum(out[i][8],axis=0)
+            D = D + numpy.sum(out[i][9],axis=0)
+            SQ = SQ + numpy.sum(out[i][10],axis=0)
+            EQ = EQ + numpy.sum(out[i][11],axis=0)
+            IQ = IQ + numpy.sum(out[i][12],axis=0)
+            AQ = AQ + numpy.sum(out[i][13],axis=0)
+            MQ = MQ + numpy.sum(out[i][14],axis=0)
+            RQ = RQ + numpy.sum(out[i][15],axis=0)
+        self.epiModel.sumS = S
+        self.epiModel.sumE = E
+        self.epiModel.sumI = I
+        self.epiModel.sumA = A
+        self.epiModel.sumM = M
+        self.epiModel.sumCtot = Ctot
+        self.epiModel.sumMi = Mi
+        self.epiModel.sumICU = ICU
+        self.epiModel.sumR = R
+        self.epiModel.sumD = D
+        self.epiModel.sumSQ = SQ
+        self.epiModel.sumEQ = EQ
+        self.epiModel.sumIQ = IQ
+        self.epiModel.sumAQ = AQ
+        self.epiModel.sumRQ = RQ
+        self.epiModel.sumMQ = MQ
+
+        return None
+
+    def calcAddedValue(self,out,confinement):
         VA = []
         VA_total = 0
         # loop over all metapopulations
@@ -145,7 +216,7 @@ class EconomicModel():
             # loop over SEIR model states who are not 'sick'
             for j in [0,1,2,3,8]: 
                 # Total number of 'healthy' workers in sector
-                working = working + numpy.expand_dims((out[i][j].mean(axis=2))[4:-3,:].sum(axis=0)*workingProb,axis=0)
+                working = working + numpy.expand_dims((out[i][j].mean(axis=2))[2:-3,:].sum(axis=0)*workingProb,axis=0)
             # correct with confinement policy
             if confinement is True:
                 fractionAtWorkPerSector = (self.Adaptation['Work at home'][i] + self.Adaptation['Mix home - office'][i] + self.Adaptation['Work at work'][i])/100
