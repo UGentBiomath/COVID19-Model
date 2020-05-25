@@ -7,7 +7,7 @@ Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University.
 
 Our code implements a SEIRS infectious disease dynamics model with extensions to model the effect of quarantining detected cases. Our code allows to perform Monte Carlo simulations, calibrate model parameters and calculate *optimal* government policies using a model predictive controller (MPC). A white paper and source code of our previous work can be found on the [BIOMATH website](https://biomath.ugent.be/covid-19-outbreak-modelling-and-control).
 
-Check the (TODO - ADD link) [documentation website]() for more information about the code and the models.
+Check the [documentation website](https://ugentbiomath.github.io/COVID19-Model/) for more information about the code and the models.
 
 ### Demo
 
