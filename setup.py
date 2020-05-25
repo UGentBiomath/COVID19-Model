@@ -14,7 +14,10 @@ setup(
         'scipy',
         'networkx',
         'pandas',
-        'xlrd'
+        'xlrd',
+	'pyMC3',
+	'theano',
+        'sklearn',
     ],
     extras_require={
         "develop":  ["pytest",
