@@ -18,9 +18,10 @@ import datetime
 from scipy import interpolate as inter
 import copy
 import multiprocessing
-#import pyMC3 as pm
-#import theano.tensor as tt
+import pymc3 as pm
+import theano.tensor as tt
 from theano.compile.ops import as_op
+
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -525,16 +526,22 @@ class SEIRSAgeModel():
                         i = i+1
         return self
 
-    def sim(self, T, dt=1, checkpoints=None, verbose=False):
-        tN = int(T) + 1
-        if self.monteCarlo==False:
-            sigmavect = numpy.array([5.2])
-            self.n_samples = 1
+    def sim(self, T, dt=1, checkpoints=None,trace=None):
+        tN = int(T) +1
+        # if trace is not None:
+        #     # Perform input check on trace dictionary
+        #     # Check that all parNames are actual model parameters
+        #     possibleNames = ['beta', 'sigma', 'omega','Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','totalTests',
+        #                     'psi_FP','psi_PP','dq']
+        #     for key in trace.keys():
+        #         if key not in trace:
+        #             raise Exception('The parametername provided by user in position {} of trace dictionary is not an actual model parameter. Please check its spelling.'.format(i))
+        #     #random.sample(trace[key],self.n_samples)
+        if trace is not None:
+            self.n_samples = len(trace)
         else:
-            if self.n_samples == 1:
-                self.n_samples = 100
-            # sample a total of n_samples from distribution of
-            sigmavect = self.sampleFromDistribution('../data/incubation.csv',self.n_samples)
+            self.n_samples = 1
+
         # pre-allocate a 3D matrix for the raw results
         self.S = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.E = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
@@ -584,8 +591,9 @@ class SEIRSAgeModel():
         # total infected
         self.sumInfTot = numpy.zeros([tN,self.n_samples])
         # simulation loop
-        i=0
-        for self.sigma in sigmavect:
+        for i in range(self.n_samples):
+            if trace is not None:
+                self.beta = trace[i]
             # reset self to initial conditioin
             self.reset()
             # perform simulation
@@ -638,7 +646,6 @@ class SEIRSAgeModel():
             self.sumH[:,i] = self.numCtot.sum(axis=0) + self.numMi.sum(axis=0) + self.numICU.sum(axis=0)
             # total infected
             self.sumInfTot[:,i] = self.numCtot.sum(axis=0) + self.numMi.sum(axis=0) + self.numICU.sum(axis=0)+ self.numI.sum(axis=0) + self.numA.sum(axis=0) + self.numM.sum(axis=0)
-            i = i + 1
         return self
 
     def sampleFromDistribution(self,filename,k):
@@ -1128,7 +1135,7 @@ class SEIRSAgeModel():
                     merged[key] = dict2[key]
         return(merged)
 
-    def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,T_extra=14,dataMkr=['o','v','s','*','^'],
+    def realTimeScenario(self,startDate,data,positions,pastPolicy,futurePolicy=None,trace=None,T_extra=14,dataMkr=['o','v','s','*','^'],
                                 modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
 
         # Initialize a vector of dates starting on the user provided startDate and of length data
@@ -1159,7 +1166,7 @@ class SEIRSAgeModel():
         # ------------------
         # Perform simulation
         # ------------------
-        self.sim(T,checkpoints=chk)
+        self.sim(T,checkpoints=chk,trace=trace)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
