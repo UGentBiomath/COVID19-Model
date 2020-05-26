@@ -20,6 +20,10 @@
 + `contacts.Rdata` contains the characteristics of 97,904 human contacts made by 9,000 participants during one day. Data were gathered during the 2008 Polymod study by Mossong. The characterstics including age, sex, location, duration, frequency, and occurrence of physical contact. The data was downloaded from https://lwillem.shinyapps.io/socrates_rshiny/.
 + `Age pyramid of Belgium.csv` contains the age pyramid of Belgium. Given as the number of individuals per gender and per 5 year age bins. Retreived from https://statbel.fgov.be/en/themes/population/structure-population
 
+#### Google
+
++ `community_mobility_data.csv` contains a copy of the Google Community Mobility Report dataset downloaded by the function `get_google_mobility_data()`. Mobility data is extracted from 'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a'
+
 #### Others
 
 + `imperialCollegeAgeDist.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the infection fatality ratio. Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext

@@ -1,5 +1,10 @@
+import os
+import datetime
 import pandas as pd
+import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 
 def get_google_mobility_data(filename=None):
@@ -44,18 +49,23 @@ def get_google_mobility_data(filename=None):
     # Data source
     url = 'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a'
 
-    # Extract only Belgian data
+    # download raw data
     raw = pd.read_csv(url)
+    # save a copy in the raw folder
+    abs_dir = os.path.dirname(__file__)
+    rel_dir = os.path.join(abs_dir, '../../../data/raw/google/community_mobility_data.csv')
+    raw.to_csv(rel_dir,index=False)
+    # Extract only Belgian data
     raw=raw[raw['country_region']=='Belgium']
     data=raw[raw['sub_region_1'].isnull().values]
 
     # Assign data to output variables
-    retail_recreation=numpy.array(data.loc[:,'retail_and_recreation_percent_change_from_baseline'].tolist())
-    grocery=numpy.array(data.loc[:,'grocery_and_pharmacy_percent_change_from_baseline'].tolist())
-    parks=numpy.array(data.loc[:,'parks_percent_change_from_baseline'].tolist())
-    transport=numpy.array(data.loc[:,'transit_stations_percent_change_from_baseline'].tolist())
-    work=numpy.array(data.loc[:,'workplaces_percent_change_from_baseline'].tolist())
-    residential=numpy.array(data.loc[:,'residential_percent_change_from_baseline'].tolist())
+    retail_recreation=np.array(data.loc[:,'retail_and_recreation_percent_change_from_baseline'].tolist())
+    grocery=np.array(data.loc[:,'grocery_and_pharmacy_percent_change_from_baseline'].tolist())
+    parks=np.array(data.loc[:,'parks_percent_change_from_baseline'].tolist())
+    transport=np.array(data.loc[:,'transit_stations_percent_change_from_baseline'].tolist())
+    work=np.array(data.loc[:,'workplaces_percent_change_from_baseline'].tolist())
+    residential=np.array(data.loc[:,'residential_percent_change_from_baseline'].tolist())
     dates = pd.date_range(data.astype(str)['date'].tolist()[0], freq='D', periods=residential.size)
     data_lst=[[retail_recreation,grocery],[parks,transport],[work,residential]]
     titleText=[['Retail and recreation','Groceries and pharmacy'],['Parks','Transit stations'],['Workplaces','Residential']]
