@@ -3,6 +3,44 @@ import matplotlib.pyplot as plt
 
 
 def get_google_mobility_data(filename=None):
+    """Download Google Community mobility report data
+
+    This function downloads, formats and returns the available Belgian Google Community mobility report data.
+
+    Parameters
+    -----------
+    filename: string
+        filename and extension to automatically save the generated visualisation of the data
+        argument is optional
+
+    Returns
+    -----------
+    dates : pd.DatetimeIndex
+        datetimes for which a data point is available
+    retail_recreation : np.array
+        Mobility trends for places such as restaurants, cafés, shopping centres, theme parks, museums, libraries and cinemas.
+    grocery : np.array
+        Mobility trends for places such as grocery shops, food warehouses, farmers markets, specialty food shops and pharmacies.
+    parks: np.array
+        Mobility trends for places such as local parks, national parks, public beaches, marinas, dog parks, plazas and public gardens.
+    transport: np.array
+        Mobility trends for places that are public transport hubs, such as underground, bus and train stations.
+    work: np.array
+        Mobility trends for places of work.
+    residential: np.array
+        Mobility trends for places of residence.
+
+    Notes
+    ----------
+    Mobility data can be extracted as a report for any country from: https://www.google.com/covid19/mobility/
+    Dataset was downloaded from: 'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a'
+    Documentation by Google on data collection can be found here : https://www.google.com/covid19/mobility/data_documentation.html?hl=nl
+
+    Example use
+    -----------
+    dates, retail_recreation, grocery, parks, transport, work, residential = get_google_mobility_data(filename='community_report.svg')
+    """
+
     # Data source
     url = 'https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a'
 
@@ -51,4 +89,4 @@ def get_google_mobility_data(filename=None):
     else:
         plt.show()
 
-    return [dates,retail_recreation,grocery,parks,transport,work,residential]
+    return dates,retail_recreation,grocery,parks,transport,work,residential

@@ -3,18 +3,29 @@ import numpy as np
 
 
 def get_sciensano_data():
-    """
-    Function to update the available data on hospitalisation cases (including ICU).
+    """Download Sciensano hospitalisation cases data 
+
+    This function returns the publically available Sciensano data on COVID-19 related hospitalisations.
+
+    Returns
+    -----------
+    index : pd.DatetimeIndex
+        datetimes for which a data point is available
+    initial :  str 'YYYY-MM-DD'
+        initial date of records as string
+    ICU : np.array
+        total number of hospitalised patients in ICU
+    hospital : np.array
+        total number of hospitalised patients
+
+    Notes
+    ----------
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
     Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
 
-    Output:
-    * initial – initial date of records: string 'YYYY-MM-DD'
-    * data – list with total number of patients as [hospital, ICUvect]:
-        * hospital - total number of hospitalised patients : array
-        * ICUvect - total number of hospitalised patients in ICU: array
-
-    Utilisation: use as [hospital, ICUvect] = getData()
+    Example use
+    -----------
+    index, initial, ICU, hospital = get_sciensano_data()
     """
 
     # Data source
@@ -34,7 +45,5 @@ def get_sciensano_data():
 
     # List of time datapoints
     index = pd.date_range(initial, freq='D', periods=ICU.size)
-    #data.index # equivalently from dataframe index
-    # List of daily numbers of ICU and hospitaliside patients
-    data = [initial,ICU,hospital]
-    return [index, data]
+
+    return index, initial, ICU, hospital
