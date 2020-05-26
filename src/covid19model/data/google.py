@@ -11,7 +11,8 @@ def get_google_mobility_data(filename=None):
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
-
+    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    
     Parameters
     -----------
     filename: string

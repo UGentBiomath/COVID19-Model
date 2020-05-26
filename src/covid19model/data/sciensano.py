@@ -1,11 +1,13 @@
+import os
+import datetime
 import pandas as pd
 import numpy as np
-
 
 def get_sciensano_data():
     """Download Sciensano hospitalisation cases data 
 
     This function returns the publically available Sciensano data on COVID-19 related hospitalisations.
+    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
 
     Returns
     -----------
@@ -31,9 +33,13 @@ def get_sciensano_data():
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
 
+
     # Extract hospitalisation data from source
     df = pd.read_excel(url, sheet_name="HOSP")
-
+    # save a copy in the raw folder
+    abs_dir = os.path.dirname(__file__)
+    rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
+    df.to_csv(rel_dir,index=False)
     # Date of initial records
     initial = df.astype(str)['DATE'][0]
 

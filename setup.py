@@ -18,6 +18,7 @@ setup(
 	'pyMC3',
 	'theano',
         'sklearn',
+	'openpyxl'
     ],
     extras_require={
         "develop":  ["pytest",
