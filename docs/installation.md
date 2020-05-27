@@ -12,7 +12,7 @@ When all went fine, you should have the code on your computer in a directory cal
 
 To use the code, make sure you have Python (conda) and the required dependency packages installed. We recommend using `Anaconda` to manage your Python packages. See the [conda installation instructions](https://docs.anaconda.com/anaconda/install/) and make sure you have conda up and running. Next:
 
-- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file, so anybody can recreate the required environment using:
+- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file (inside the root folder), so anybody can recreate the required environment using:
 
      ```
      conda env create -f environment.yml
