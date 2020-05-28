@@ -53,22 +53,6 @@ plt.rcParams["lines.linewidth"] = 3
 from .base import BaseModel
 
 
-class SIR(BaseModel):
-
-    # state variables and parameters
-    state_names = ['S', 'I', 'R']
-    parameter_names = ['beta', 'gamma']
-
-    @staticmethod
-    def integrate(t, S, I, R, beta, gamma):  # All variables and parameters... will be long list or arguments(!)
-        """Basic SIR model"""
-        N = S + I + R
-        dS = -beta*S*I/N
-        dI = beta*S*I/N - gamma*I
-        dR = gamma*I
-
-        return dS, dI, dR
-
 
 class SEIRSAge(BaseModel):
     """Biomath SEIRS model"""
