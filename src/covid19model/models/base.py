@@ -1,9 +1,9 @@
 
 import inspect
-from typing import List
+import itertools
 
+import numpy as np
 from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
 
 
 class BaseModel:
@@ -43,9 +43,13 @@ class BaseModel:
     def sim(self, time):
         """"""
         fun = self.create_fun()
+
+        t0, t1 = time
+        t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
+
         output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
-                           args=list(self.parameters.values()))
+                           args=list(self.parameters.values()), t_eval=t_eval)
         return output["t"], self.array_to_variables(output["y"]) # map back to variable names
 
     def array_to_variables(self, y):
