@@ -3,6 +3,7 @@ channels:
   - defaults
   - conda-forge
 dependencies:
+  - pip
   - ipython
   - jupyter
   - notebook
@@ -16,3 +17,4 @@ dependencies:
   - pyMC3
   - theano
   - scikit-learn
+  - openpyxl
