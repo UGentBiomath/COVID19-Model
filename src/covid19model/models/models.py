@@ -63,7 +63,7 @@ class SEIRSAge(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dmi', 'dICU', 'dICUrec',
                   'dmirec', 'dhospital', 'maxICU', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['h', 'c', 'm0','mi']
-    stratification = 'nc'
+    stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
