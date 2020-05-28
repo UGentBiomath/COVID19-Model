@@ -3,6 +3,7 @@ import itertools
 
 import numpy as np
 from scipy.integrate import solve_ivp
+import xarray
 
 
 class BaseModel:
@@ -84,7 +85,7 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def create_fun(self):
+    def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, *pars):
@@ -99,7 +100,7 @@ class BaseModel:
 
     def sim(self, time):
         """"""
-        fun = self.create_fun()
+        fun = self._create_fun()
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
@@ -107,9 +108,26 @@ class BaseModel:
         output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
                            args=list(self.parameters.values()), t_eval=t_eval)
-        return output["t"], self.array_to_variables(output["y"]) # map back to variable names
+        # map to variable names
+        return self._output_to_xarray_dataset(output)
 
-    def array_to_variables(self, y):
-        """Convert array (used by scipy) to dictionary (used by model API)"""
-        return dict(zip(self.state_names, y.reshape(len(self.state_names),
-                                                    self.stratification_size, -1)))
+    def _output_to_xarray_dataset(self, output):
+        """
+        Convert array (returned by scipy) to an xarray Dataset with variable names
+        """
+        dims = ['stratification', 't']
+        coords = {
+            "t": output["t"],
+            "stratification": np.arange(self.stratification_size)
+        }
+
+        y_reshaped = output["y"].reshape(
+            len(self.state_names), self.stratification_size, len(output["t"])
+        )
+        data = {}
+        for var, arr in zip(self.state_names, y_reshaped):
+            xarr = xarray.DataArray(arr, coords=coords, dims=dims)
+            data[var] = xarr
+
+        attrs = {'parameters': dict(self.parameters)}
+        return xarray.Dataset(data, attrs=attrs)

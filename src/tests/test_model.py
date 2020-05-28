@@ -29,12 +29,12 @@ def test_simple_sir_model():
     model = SIR(initial_states, parameters)
 
     time = [0, 50]
-    t, output = model.sim(time)
+    output = model.sim(time)
 
-    np.testing.assert_allclose(t, np.arange(0, 51))
+    np.testing.assert_allclose(output["t"], np.arange(0, 51))
 
     # TODO look for better (analytical?) validation of the simple model
-    S = output["S"].squeeze()
+    S = output["S"].values.squeeze()
     assert S[0] == 1_000_000 - 10
     assert S.shape == (51, )
     assert S[-1] < 12000
