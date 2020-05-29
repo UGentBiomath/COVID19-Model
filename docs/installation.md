@@ -20,6 +20,7 @@ To use the code, make sure you have Python (conda) and the required dependency p
      ```
      or when the environment was already created,
      ```
+     conda activate COVID_MODEL
      conda env update environment.yml
      ```
      
