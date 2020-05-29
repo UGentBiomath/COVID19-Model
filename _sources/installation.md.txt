@@ -20,6 +20,7 @@ To use the code, make sure you have Python (conda) and the required dependency p
      ```
      or when the environment was already created,
      ```
+     conda activate COVID_MODEL
      conda env update environment.yml
      ```
      
@@ -35,8 +36,8 @@ To use the code, make sure you have Python (conda) and the required dependency p
      __Note:__ This step needs to be done in a terminal or command prompt. Use your favorite terminal or use the [Anaconda Prompt](https://docs.anaconda.com/anaconda/user-guide/getting-started/#open-anaconda-prompt). Navigate with the `cd` command to the directory where you copied the repository.
 
 
-_Optional_ To use the code, the general installation instruction outlined above suffice. When you're planning to work on the documentation or the code of the model implementations itself, make sure to also install the development requirements:
+_Optional_: To use the code, the general installation instruction outlined above suffice. When you're planning to work on the documentation or the code of the model implementations itself, make sure to also install the development requirements:
 
 ```
-pip install -e .[develop]
+pip install -e . develop
 ```
