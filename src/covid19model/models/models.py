@@ -238,7 +238,7 @@ class SEIRSAgeModel():
         RQ = numpy.reshape(RQ,[Nc.shape[0],1])
         Ctot = C + Cicurec
         # calculate total population per age bin using 2D array
-        N   = S + E + I + A + M + Ctot + Mi + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
+        N   = S + E + I + A + M + Ctot + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
         # calculate the test rates for each pool using the total number of available tests
         nT = S + E + I + A + M + R
         theta_S = totalTests/nT
@@ -590,9 +590,8 @@ class SEIRSAgeModel():
         #H = self.sumCtot + self.sumMi + self.sumICU
         ax.plot(self.tseries,numpy.mean(self.sumH,axis=1),color=orange)
         ax.fill_between(self.tseries, numpy.percentile(self.sumH,90,axis=1), numpy.percentile(self.sumH,10,axis=1),color=orange,alpha=0.2)
-        icu = self.sumMi + self.sumICU
-        ax.plot(self.tseries,numpy.mean(icu,axis=1),color=red)
-        ax.fill_between(self.tseries, numpy.percentile(icu,90,axis=1), numpy.percentile(icu,10,axis=1),color=red,alpha=0.2)
+        ax.plot(self.tseries,numpy.mean(self.sumICU,axis=1),color=red)
+        ax.fill_between(self.tseries, numpy.percentile(self.sumICU,90,axis=1), numpy.percentile(self.sumICU,10,axis=1),color=red,alpha=0.2)
         ax.plot(self.tseries,numpy.mean(self.sumD,axis=1),color=black)
         ax.fill_between(self.tseries, numpy.percentile(self.sumD,90,axis=1), numpy.percentile(self.sumD,10,axis=1),color=black,alpha=0.2)
         if mild is not False and asymptomatic is not False:
@@ -646,7 +645,7 @@ class SEIRSAgeModel():
         # ------------------
         self.sim(T)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # ---------------
         # extract results
@@ -695,7 +694,7 @@ class SEIRSAgeModel():
         p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
         theta_hat = p_hat
-        print(theta_hat)
+
         # ---------------------------------------------------
         # If setattr is True: assign estimated thetas to self
         # ---------------------------------------------------
@@ -724,7 +723,7 @@ class SEIRSAgeModel():
         # ------------------
         self.sim(T)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # -----------
         # Plot result
@@ -781,9 +780,7 @@ class SEIRSAgeModel():
         self.initA = numpy.reshape(numpy.mean(self.A[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initM = numpy.reshape(numpy.mean(self.M[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initC = numpy.reshape(numpy.mean(self.C[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initCmirec = numpy.reshape(numpy.mean(self.Cmirec[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initCicurec = numpy.reshape(numpy.mean(self.Cicurec[:,-1,:],axis=1),[self.Nc.shape[0],1])
-        self.initMi = numpy.reshape(numpy.mean(self.Mi[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initICU = numpy.reshape(numpy.mean(self.ICU[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initR = numpy.reshape(numpy.mean(self.R[:,-1,:],axis=1),[self.Nc.shape[0],1])
         self.initD = numpy.reshape(numpy.mean(self.D[:,-1,:],axis=1),[self.Nc.shape[0],1])
@@ -871,7 +868,7 @@ class SEIRSAgeModel():
         self.reset()
         self.sim(T,checkpoints=chk)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # ---------------
         # Calculate error
@@ -952,7 +949,7 @@ class SEIRSAgeModel():
         if mild is not False:
             ax.plot(self.tseries,numpy.mean(self.sumM,axis=1),color=green)
             ax.fill_between(self.tseries, numpy.percentile(self.sumM,90,axis=1), numpy.percentile(self.sumM,10,axis=1),color=green,alpha=0.2)
-        H = self.sumCtot + self.sumMi + self.sumICU
+        H = self.sumCtot + self.sumICU
         ax.plot(self.tseries,numpy.mean(H,axis=1),color=orange)
         ax.fill_between(self.tseries, numpy.percentile(H,90,axis=1), numpy.percentile(H,10,axis=1),color=orange,alpha=0.2)
         icu = self.sumMi + self.sumICU
@@ -1059,7 +1056,7 @@ class SEIRSAgeModel():
         # ------------------
         self.sim(T,checkpoints=chk,trace=trace)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # -----------
         # Plot result
@@ -1129,7 +1126,7 @@ class SEIRSAgeModel():
         # run simulation
         self.sim(T,checkpoints=dict1_orig)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
 
         # ----------------------------------------------------------------------
         # Step 2: Pass population pools to MPC optimiser, save initial condition
@@ -1140,8 +1137,6 @@ class SEIRSAgeModel():
         initM = self.initM
         initC = self.initC
         initCicurec = self.initCicurec
-        initCmirec = self.initCmirec
-        initMi = self.initMi
         initICU = self.initICU
         initR = self.initR
         initD = self.initD
