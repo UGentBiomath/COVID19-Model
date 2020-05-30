@@ -630,7 +630,7 @@ class SEIRSAgeModel():
         # reset all numX
         self.reset()
         # assign estimates to correct variable
-        extraTime = int(thetas[0])
+        extraTime = int(round(thetas[0]))
         i = 0
         for param in parNames:
             setattr(self,param,thetas[i+1])
@@ -699,7 +699,7 @@ class SEIRSAgeModel():
         # If setattr is True: assign estimated thetas to self
         # ---------------------------------------------------
         if setvar is True:
-            self.extraTime = int(theta_hat[0])
+            self.extraTime = int(round(theta_hat[0]))
             i = 0
             for param in parNames:
                 setattr(self,param,theta_hat[i+1])
@@ -731,7 +731,7 @@ class SEIRSAgeModel():
         # Create shifted index vector using self.extraTime
         timeObj = index[0]
         timestampStr = timeObj.strftime("%Y-%m-%d")
-        index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime-1)
+        index_acc = pd.date_range(timestampStr,freq='D',periods=data[0].size + self.extraTime) - datetime.timedelta(days=self.extraTime)
         # Plot figure
         fig, ax = plt.subplots()
         # Plot data
@@ -754,7 +754,7 @@ class SEIRSAgeModel():
         plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
         plt.setp(plt.gca().xaxis.get_majorticklabels(),
             'rotation', 90)
-        ax.set_xlim( index_acc[self.extraTime-3], pd.to_datetime(index_acc[-1]))
+        ax.set_xlim( index_acc[self.extraTime-3], pd.to_datetime(index_acc[-1]+ datetime.timedelta(days=1)))
         ax.set_ylabel('number of patients')
         # Hide the right and top spines
         ax.spines['right'].set_visible(False)
