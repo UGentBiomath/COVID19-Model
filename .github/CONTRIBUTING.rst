@@ -13,7 +13,7 @@ Contributing to covid19model
 
 
 First of all, thanks for considering contributing to the COVID-19! It's people like you that make it
-rewarding for us - the project authors to work on COVID-19 model.
+rewarding for us, the project authors, to work on COVID-19 model.
 
 How you can contribute?
 -----------------------
@@ -23,7 +23,7 @@ There are several ways you can contribute to this project.
 Share the love
 ^^^^^^^^^^^^^^
 
-Think COVID-19 modelling is useful? Let others discover it, by telling them in person, via Twitter_ or a blog post.
+Think COVID-19 modelling is useful? Let others discover it by telling them in person, via Twitter_ or a blog post.
 
 .. _Twitter: https://twitter.com/biomathugent
 
