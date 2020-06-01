@@ -39,5 +39,5 @@ To use the code, make sure you have Python (conda) and the required dependency p
 _Optional_: To use the code, the general installation instruction outlined above suffice. When you're planning to work on the documentation or the code of the model implementations itself, make sure to also install the development requirements:
 
 ```
-pip install -e . develop
+pip install -e ".[develop]"
 ```
