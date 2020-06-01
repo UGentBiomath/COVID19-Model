@@ -19,6 +19,11 @@ class BaseModel:
         self.initial_states = states
 
         if self.stratification:
+            if not self.stratification in parameters:
+                raise ValueError(
+                    "stratification parameter '{0}' is missing from the specified "
+                    "parameters dictionary".format(self.stratification)
+                )
             self.stratification_size = parameters[self.stratification].shape[0]
         else:
             self.stratification_size = 1
@@ -57,7 +62,7 @@ class BaseModel:
                 "the state_names: {0} vs {1}".format(integrate_states, self.state_names)
             )
         integrate_params = keywords[1 + N_states :]
-        specified_params = self.parameter_names
+        specified_params = self.parameter_names.copy()
         if self.parameters_stratified_names:
             specified_params += self.parameters_stratified_names
         if self.stratification:
