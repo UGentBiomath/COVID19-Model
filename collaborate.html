@@ -222,8 +222,8 @@
 <h2>The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package<a class="headerlink" href="#the-covid19model-python-package" title="Permalink to this headline">¶</a></h2>
 <p>The code inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.</p>
 <p><strong>Note:</strong> Before doing any changes, always make sure your own version of your code (i.e. <code class="docutils literal notranslate"><span class="pre">fork</span></code>) is up to date with the <code class="docutils literal notranslate"><span class="pre">master</span></code> of the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">main repository </a>.
-- If you are a command line person, chekc <a class="reference external" href="https://gist.github.com/CristinaSolana/1885435">this work flow</a>
-- If you are not a command line person: <a class="reference external" href="https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/">this work flow</a> can help you staying up to date.</p>
+- If you are a command line person, check <a class="reference external" href="https://gist.github.com/CristinaSolana/1885435">this workflow</a>
+- If you are not a command line person: <a class="reference external" href="https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/">this workflow</a> can help you staying up to date.</p>
 <p>For each of the functions you write, make sure to add the documentation to the function. We use the <a class="reference external" href="https://numpydoc.readthedocs.io/en/latest/format.html">numpy docstring</a> format to write documentation. For each function, make sure the following items are defined at least:</p>
 <ul class="simple">
 <li><p>Short summary (top line)</p></li>
@@ -231,7 +231,11 @@
 <li><p>Returns</p></li>
 <li><p>References (if applicable)</p></li>
 </ul>
-<p><strong>TODO</strong> -&gt; add info on addition of new packages</p>
+<p><strong>Note:</strong> When adding new packages makes sure to update both,</p>
+<ul class="simple">
+<li><p>the environment file, <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/blob/master/environment.yml">evironment.yml</a> for binder,</p></li>
+<li><p>the setup file, <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/blob/master/setup.py">setup.py</a> file to include this dependency for the installation of the package.</p></li>
+</ul>
 </div>
 <div class="section" id="repository-layout-overview">
 <h2>Repository layout overview<a class="headerlink" href="#repository-layout-overview" title="Permalink to this headline">¶</a></h2>
