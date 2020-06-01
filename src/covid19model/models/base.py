@@ -115,9 +115,9 @@ class BaseModel:
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
         """
-        dims = ['stratification', 't']
+        dims = ['stratification', 'time']
         coords = {
-            "t": output["t"],
+            "time": output["t"],
             "stratification": np.arange(self.stratification_size)
         }
 

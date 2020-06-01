@@ -31,7 +31,7 @@ def test_simple_sir_model():
     time = [0, 50]
     output = model.sim(time)
 
-    np.testing.assert_allclose(output["t"], np.arange(0, 51))
+    np.testing.assert_allclose(output["time"], np.arange(0, 51))
 
     # TODO look for better (analytical?) validation of the simple model
     S = output["S"].values.squeeze()
