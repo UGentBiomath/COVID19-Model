@@ -85,6 +85,27 @@ class BaseModel:
                 "The specified parameters don't exactly match the predefined parameters"
             )
 
+        # Validate the stratified params having the correct length
+        if self.parameters_stratified_names:
+            for param in self.parameters_stratified_names:
+                param_value = np.asarray(self.parameters[param])
+                if param_value.ndim != 1:
+                    raise ValueError(
+                        "A stratified parameter value should be a 1D array, but "
+                        "stratified parameter '{0}' has dimension {1}".format(
+                            param, param_value.ndim
+                        )
+                    )
+                if len(self.parameters[param]) != self.stratification_size:
+                    raise ValueError(
+                        "The stratification parameter '{0}' indicates a "
+                        "stratification size of {1}, but stratified parameter {2} "
+                        "has length {3}".format(
+                            self.stratification, self.stratification_size,
+                            param, len(self.parameters[param])
+                        )
+                    )
+
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
