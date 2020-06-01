@@ -45,20 +45,13 @@ Documentation consists of both the technical matter about the code as well as ba
 
 The Sphinx setup provides the usage of both `.rst` file, i.e. [restructuredtext](https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html) as well as `.md` files, i.e. [Markdown](https://www.markdownguide.org/basic-syntax/). The latter is generally experienced as easier to write, while the former provides more advanced functionalities. Existing pages can be adjusted directly (editing them online or on your computer). When you want to create a new page, make sure to add the page to the `index.rst` in order to make the page part of the website.
 
-The website is build automatically using [github actions](https://github.com/UGentBiomath/COVID19-Model/blob/master/.github/workflows/deploy.yml#L22-L24) and the output is deployed to [https://ugentbiomath.github.io/COVID19-Model/](https://ugentbiomath.github.io/COVID19-Model/). In case you want to build the documentation locally, make sure you have the development dependencies installed (`pip install -e .[develop]`) to run the sphinx build script. The build sphinx script relies on the [`setuptools` integration of Sphinx](https://www.sphinx-doc.org/en/master/usage/advanced/setuptools.html#setuptools-integration):
+The website is build automatically using [github actions](https://github.com/UGentBiomath/COVID19-Model/blob/master/.github/workflows/deploy.yml#L22-L24) and the output is deployed to [https://ugentbiomath.github.io/COVID19-Model/](https://ugentbiomath.github.io/COVID19-Model/). In case you want to build the documentation locally, make sure you have the development dependencies installed (`pip install -e ".[develop]"`) to run the sphinx build script. The build sphinx script relies on the [`setuptools` integration of Sphinx](https://www.sphinx-doc.org/en/master/usage/advanced/setuptools.html#setuptools-integration):
 
 ```
 python setup.py build_sphinx
 ```
 
-An alternative (for linux users only) is using the `Makefile` provided with Sphinx itself. To build the html-pages:
-
-```
-cd docs
-make html
-```
-
-The resulting html-website is created in the directory `docs/_build/html`. Double click any of the `html` file in the folder to open the website in your browser (no running server required).
+The resulting html-website is created in the directory `build/html`. Double click any of the `html` file in the folder to open the website in your browser (no server required).
 
 ### The `covid19model` Python package
 
