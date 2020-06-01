@@ -70,7 +70,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # check if ax object is provided by user
     if ax is None:
-        ax = plt.gca()
+        fig, ax = plt.subplots()
 
     # create plot using xarray interface
     data2plot = data[["S", "E", "I_total", "R"]].to_array(dim="states")
@@ -157,7 +157,7 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
 
     # check if ax object is provided by user
     if ax is None:
-        ax = plt.gca()
+        fig, ax = plt.subplots()
 
     # create plot using xarray interface
     data2plot = data[variables].to_array(dim="states")
