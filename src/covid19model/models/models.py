@@ -676,7 +676,9 @@ class SEIRSAgeModel():
         # ------------------
         # Perform simulation
         # ------------------
-        self.sim(T,checkpoints)
+        #print(self.dc,self.dICU)
+        #print(checkpoints)
+        self.sim(T,checkpoints=checkpoints)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
 
