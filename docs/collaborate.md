@@ -65,7 +65,7 @@ The resulting html-website is created in the directory `docs/_build/html`. Doubl
 The code inside the `src/covid19model` directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.
 
 __Note:__ Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
-     - If you are a command line person, chekc [this work flow](https://gist.github.com/CristinaSolana/1885435)
+     - If you are a command line person, check [this work flow](https://gist.github.com/CristinaSolana/1885435)
      - If you are not a command line person: [this work flow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
 
 For each of the functions you write, make sure to add the documentation to the function. We use the [numpy docstring](https://numpydoc.readthedocs.io/en/latest/format.html) format to write documentation. For each function, make sure the following items are defined at least:
