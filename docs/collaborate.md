@@ -58,7 +58,7 @@ cd docs
 make html
 ```
 
-The resulting html-website is created in the directory `build/sphinx/html`. Double click any of the `html` file in the folder to open the website in your browser (no running server required).
+The resulting html-website is created in the directory `docs/_build/html`. Double click any of the `html` file in the folder to open the website in your browser (no running server required).
 
 ### The `covid19model` Python package
 
