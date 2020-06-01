@@ -112,6 +112,8 @@ class SEIRSAgeModel():
         self.initAQ = numpy.reshape(initAQ,[Nc.shape[0],1])
         self.initMQ = numpy.reshape(initMQ,[Nc.shape[0],1])
         self.initRQ = numpy.reshape(initRQ,[Nc.shape[0],1])
+        self.initH_in = numpy.reshape(numpy.zeros(9),[Nc.shape[0],1])
+        self.initH_out = numpy.reshape(numpy.zeros(9),[Nc.shape[0],1])
 
         #~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Timekeeping:
@@ -145,6 +147,8 @@ class SEIRSAgeModel():
         - numpy.reshape(self.numCtot[:,-1],[Nc.shape[0],1]) -  numpy.reshape(self.numICU[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numR[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numD[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numSQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numEQ[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numIQ[:,-1],[Nc.shape[0],1])- numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
+        self.numH_in = self.initH_in.astype(int)
+        self.numH_out = self.initH_out.astype(int)
 
     def reset(self):
         Nc = self.Nc
@@ -171,6 +175,8 @@ class SEIRSAgeModel():
         self.initAQ = numpy.reshape(self.initAQ,[Nc.shape[0],1])
         self.initMQ = numpy.reshape(self.initMQ,[Nc.shape[0],1])
         self.initRQ = numpy.reshape(self.initRQ,[Nc.shape[0],1])
+        self.initH_in = numpy.reshape(numpy.zeros(9),[Nc.shape[0],1])
+        self.initH_out = numpy.reshape(numpy.zeros(9),[Nc.shape[0],1])
 
         #~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Timekeeping:
@@ -204,6 +210,8 @@ class SEIRSAgeModel():
         - numpy.reshape(self.numCtot[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numICU[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numR[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numD[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numSQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numEQ[:,-1],[Nc.shape[0],1])
         - numpy.reshape(self.numIQ[:,-1],[Nc.shape[0],1])- numpy.reshape(self.numAQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numMQ[:,-1],[Nc.shape[0],1]) - numpy.reshape(self.numRQ[:,-1],[Nc.shape[0],1])
+        self.numH_in = self.initH_in.astype(int)
+        self.numH_out = self.initH_out.astype(int)
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -258,7 +266,7 @@ class SEIRSAgeModel():
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
         dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
-        dICUstar = (1-c)*(M+MQ)*(h/dhospital) - ICU/dICU
+        dICUstar = (1-c)*(M+MQ)*(h/(dhospital)) - ICU/dICU
         dCicurec = ((1-m0)/dICU)*ICU - Cicurec*(1/dICUrec)
         dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
         dD  = (m0/dICU)*ICU
@@ -303,6 +311,20 @@ class SEIRSAgeModel():
         S,E,I,A,M,C,Cicurec,ICU,R,F,SQ,EQ,IQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),16,axis=1)
         Ctot = C + Cicurec
 
+        # calculate hospital in and hospital out
+        h = self.h
+        c = self.c
+        m0 = self.m0
+        dhospital = self.dhospital
+        dc = self.dc
+        dICU = self.dICU
+        dICUrec = self.dICUrec
+        H_in=numpy.zeros([len(M),self.Nc.shape[0]])
+        H_out=numpy.zeros([len(M),self.Nc.shape[0]])
+        for i in range(len(H_in)):
+            H_in[i,:]=(M[i,:]+MQ[i,:])*(h/dhospital)
+            H_out[i,:] =  C[i,:]*(1/dc) + (m0/dICU)*ICU[i,:] + Cicurec[i,:]*(1/dICUrec)
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Store the solution output as the model's time series and data series:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -326,7 +348,8 @@ class SEIRSAgeModel():
         self.numMQ      = numpy.append(self.numMQ, numpy.transpose(MQ),axis=1)
         self.numRQ      = numpy.append(self.numRQ, numpy.transpose(RQ),axis=1)
         self.t = self.tseries[-1]
-
+        self.numH_in      = numpy.append(self.numH_in, numpy.transpose(H_in),axis=1)
+        self.numH_out      = numpy.append(self.numH_out, numpy.transpose(H_out),axis=1)
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -457,6 +480,8 @@ class SEIRSAgeModel():
         self.AQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.MQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         self.RQ = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        self.H_in = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
+        self.H_out = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         # total hospitalised
         self.H = numpy.zeros([self.Nc.shape[0],tN,self.n_samples])
         # total infected
@@ -479,6 +504,8 @@ class SEIRSAgeModel():
         self.sumAQ = numpy.zeros([tN,self.n_samples])
         self.sumMQ = numpy.zeros([tN,self.n_samples])
         self.sumRQ = numpy.zeros([tN,self.n_samples])
+        self.sumH_in = numpy.zeros([tN,self.n_samples])
+        self.sumH_out = numpy.zeros([tN,self.n_samples])
         # total hospitalised
         self.sumH = numpy.zeros([tN,self.n_samples])
         # total infected
@@ -509,6 +536,8 @@ class SEIRSAgeModel():
             self.AQ[:,:,i] = self.numAQ
             self.MQ[:,:,i] = self.numMQ
             self.RQ[:,:,i] = self.numRQ
+            self.H_in[:,:,i] = self.numH_in
+            self.H_out[:,:,i] = self.numH_out
             # total hospitalised
             self.H[:,:,i] = self.numCtot + self.numICU
             # total infected
@@ -531,6 +560,8 @@ class SEIRSAgeModel():
             self.sumAQ[:,i] = self.numAQ.sum(axis=0)
             self.sumMQ[:,i] = self.numMQ.sum(axis=0)
             self.sumRQ[:,i] = self.numRQ.sum(axis=0)
+            self.sumH_in[:,i] = self.numH_in.sum(axis=0)
+            self.sumH_out[:,i] = self.numH_out.sum(axis=0)
             # total hospitalised
             self.sumH[:,i] = self.numCtot.sum(axis=0) + self.numICU.sum(axis=0)
             # total infected
@@ -621,29 +652,33 @@ class SEIRSAgeModel():
         else:
             plt.show()
 
-    def LSQ(self,thetas,data,parNames,positions,weights):
+    def LSQ(self,thetas,data,parNames,positions,weights,checkpoints):
         # ------------------
         # Prepare simulation
         # ------------------
         # reset all numX
         self.reset()
         # assign estimates to correct variable
-        extraTime = int(round(thetas[0]))
         i = 0
         for param in parNames:
-            setattr(self,param,thetas[i+1])
+            if param == 'extraTime':
+                setattr(self,param,int(round(thetas[i])))
+            else:
+                setattr(self,param,thetas[i])
             i = i + 1
         # Compute length of data
         n = len(data)
         # Compute simulation time --> build in some redundancy here, datasizes don't have to be equal to eachother.
-        T = data[0].size+extraTime-1
+        T = data[0].size+self.extraTime-1
         #print(n,T,thetas,data)
         # ------------------
         # Perform simulation
         # ------------------
-        self.sim(T)
+        #print(self.dc,self.dICU)
+        #print(checkpoints)
+        self.sim(T,checkpoints=checkpoints)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
 
         # ---------------
         # extract results
@@ -654,7 +689,7 @@ class SEIRSAgeModel():
             som = 0
             for j in positions[i]:
                 som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
-            ymodel.append(som[extraTime:,0].reshape(som[extraTime:,0].size,1))
+            ymodel.append(som[self.extraTime:,0].reshape(som[self.extraTime:,0].size,1))
             # calculate quadratic error
             SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
         SSE = SSE[0]
@@ -671,10 +706,10 @@ class SEIRSAgeModel():
         if len(data) is not len(positions):
             raise Exception('The number of positions must match the number of dataseries given to function fit.')
         # Check that length of parNames is equal to length of bounds
-        if (len(parNames)+1) is not len(bounds):
+        if (len(parNames)) is not len(bounds):
             raise Exception('The number of bounds must match the number of parameter names given to function fit.')
         # Check that all parNames are actual model parameters
-        possibleNames = ['beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
+        possibleNames = ['extraTime','beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
@@ -689,7 +724,7 @@ class SEIRSAgeModel():
         # ---------------------
         #optim_out = scipy.optimize.differential_evolution(self.LSQ, bounds, args=(data,parNames,positions,weights),disp=disp,polish=polish,workers=-1,maxiter=maxiter, popsize=popsize,tol=1e-18)
         #theta_hat = optim_out.x
-        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights), swarmsize=popsize, maxiter=maxiter,
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.pso(self.LSQ, bounds, args=(data,parNames,positions,weights,checkpoints), swarmsize=popsize, maxiter=maxiter,
                                                                                    processes=multiprocessing.cpu_count(),minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
         theta_hat = p_hat
 
@@ -697,15 +732,18 @@ class SEIRSAgeModel():
         # If setattr is True: assign estimated thetas to self
         # ---------------------------------------------------
         if setvar is True:
-            self.extraTime = int(round(theta_hat[0]))
+            #self.extraTime = int(round(theta_hat[0]))
             i = 0
             for param in parNames:
-                setattr(self,param,theta_hat[i+1])
+                if param == 'extraTime':
+                    setattr(self,param,int(round(theta_hat[i])))
+                else:
+                    setattr(self,param,theta_hat[i])
                 i  = i + 1
 
         return self,theta_hat
 
-    def plotFit(self,index,data,positions,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
+    def plotFit(self,index,data,positions,checkpoints=None,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
         # ------------------
@@ -719,9 +757,9 @@ class SEIRSAgeModel():
         # ------------------
         # Perform simulation
         # ------------------
-        self.sim(T)
+        self.sim(T,checkpoints=checkpoints)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
 
         # -----------
         # Plot result
