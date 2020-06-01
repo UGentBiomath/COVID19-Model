@@ -1,4 +1,3 @@
+from .output import population_status,infected
 
-from .output import population_status
-
-__all__ = ["population_status"]
+__all__ = ["population_status", "infected"]
