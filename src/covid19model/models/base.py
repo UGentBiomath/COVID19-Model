@@ -30,6 +30,12 @@ class BaseModel:
 
         self._validate()
 
+    def _fill_initial_state_with_zero(self):
+        for state in self.state_names:
+            if state in self.initial_states:
+                state_values = self.initial_states[state]
+
+
     def _validate(self):
         """
         This does some basic validation of the model + initialization:
@@ -75,36 +81,60 @@ class BaseModel:
                 "{0} vs {1}".format(integrate_params, specified_params)
             )
 
-        # Validate the init states / params
-        if list(self.initial_states.keys()) != self.state_names:
-            raise ValueError(
-                "The specified initial states don't exactly match the predefined states"
-            )
+        # Validate the params
         if list(self.parameters.keys()) != specified_params:
             raise ValueError(
                 "The specified parameters don't exactly match the predefined parameters"
             )
 
-        # Validate the stratified params having the correct length
+        # Validate the initial_states / stratified params having the correct length
+
+        def validate_values(values, name, object_name):
+            values = np.asarray(values)
+            if values.ndim != 1:
+                raise ValueError(
+                    "A {obj} value should be a 1D array, but {obj} '{name}' has "
+                    "dimension {val}".format(
+                        obj=object_name, name=name, val=values.ndim
+                    )
+                )
+            if len(values) != self.stratification_size:
+                raise ValueError(
+                    "The stratification parameter '{strat}' indicates a "
+                    "stratification size of {strat_size}, but {obj} '{name}' "
+                    "has length {val}".format(
+                        strat=self.stratification, strat_size=self.stratification_size,
+                        obj=object_name, name=name, val=len(values)
+                    )
+                )
+
+        # the size of the stratified parameters
         if self.parameters_stratified_names:
             for param in self.parameters_stratified_names:
-                param_value = np.asarray(self.parameters[param])
-                if param_value.ndim != 1:
-                    raise ValueError(
-                        "A stratified parameter value should be a 1D array, but "
-                        "stratified parameter '{0}' has dimension {1}".format(
-                            param, param_value.ndim
-                        )
-                    )
-                if len(self.parameters[param]) != self.stratification_size:
-                    raise ValueError(
-                        "The stratification parameter '{0}' indicates a "
-                        "stratification size of {1}, but stratified parameter {2} "
-                        "has length {3}".format(
-                            self.stratification, self.stratification_size,
-                            param, len(self.parameters[param])
-                        )
-                    )
+                validate_values(
+                    self.parameters[param], param, "stratified parameter"
+                )
+
+        # the size of the initial states + fill in defaults
+        for state in self.state_names:
+            if state in self.initial_states:
+                # if present, check that the length is correct
+                validate_values(
+                    self.initial_states[state], state, "initial state"
+                )
+
+            else:
+                # otherwise add default of 0
+                self.initial_states[state] = np.zeros(self.stratification_size)
+
+        # validate the states (using `set` to ignore order)
+        if set(self.initial_states.keys()) != set(self.state_names):
+            raise ValueError(
+                "The specified initial states don't exactly match the predefined states"
+            )
+        # sort the initial states to match the state_names
+        self.initial_states = {state: self.initial_states[state] for state in self.state_names}
+
 
     @staticmethod
     def integrate():

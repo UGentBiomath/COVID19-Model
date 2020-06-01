@@ -56,7 +56,7 @@ def test_model_init_validation():
     assert model.parameter_names == ['beta', 'gamma']
 
     # wrong initial states
-    initial_states2 = {"S": [1_000_000 - 10], "I": [10]}
+    initial_states2 = {"S": [1_000_000 - 10], "II": [10]}
     with pytest.raises(ValueError, match="specified initial states don't"):
         SIR(initial_states2, parameters)
 
@@ -142,7 +142,7 @@ def test_model_stratified_init_validation():
     assert model.stratification == 'nc'
 
     # wrong initial states
-    initial_states2 = {"S": [1_000_000 - 10]*2, "I": [10]*2}
+    initial_states2 = {"S": [1_000_000 - 10]*2, "II": [10]*2}
     with pytest.raises(ValueError, match="specified initial states don't"):
         SIRstratified(initial_states2, parameters)
 
@@ -171,6 +171,17 @@ def test_model_stratified_init_validation():
     with pytest.raises(ValueError, match=msg):
         SIRstratified(initial_states, parameters2)
 
+    # initial state of the wrong length
+    initial_states2 = {"S": 600_000 - 20, "I": [20, 10], "R": [0, 0]}
+    msg = "A initial state value should be a 1D array"
+    with pytest.raises(ValueError, match=msg):
+        SIRstratified(initial_states2, parameters)
+
+    initial_states2 = {"S": [0] * 3, "I": [20, 10], "R": [0, 0]}
+    msg = "The stratification parameter 'nc' indicates a stratification size of 2, but"
+    with pytest.raises(ValueError, match=msg):
+        SIRstratified(initial_states2, parameters)
+
     # validate model class itself
     msg = "The parameters in the 'integrate' function definition do not match"
     SIRstratified.parameter_names = ["gamma", "alpha"]
@@ -187,3 +198,17 @@ def test_model_stratified_init_validation():
     SIRstratified.parameter_names = ["gamma"]
     SIRstratified.parameters_stratified_names = ["beta"]
     SIRstratified.stratification = "nc"
+
+
+def test_model_stratified_default_initial_state():
+    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
+    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
+    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
+
+    model = SIRstratified(initial_states, parameters)
+    
+    # leave out one the initial states that are 0
+    initial_states2 = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
+
+    model = SIRstratified(initial_states2, parameters)
+    assert model.initial_states["R"].tolist() == [0, 0]
