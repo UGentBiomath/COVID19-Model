@@ -10,6 +10,7 @@ import numpy as numpy
 import scipy as scipy
 import scipy.integrate
 import pandas as pd
+import random
 from random import choices
 import matplotlib
 import matplotlib.pyplot as plt
@@ -224,6 +225,8 @@ class SEIRSAgeModel():
         # first extract seperate variables in 1D-array
         S,E,I,A,M,C,Cicurec,ICU,R,D,SQ,EQ,IQ,AQ,MQ,RQ = variables.reshape(16,Nc.shape[0])
         # reshape all age dependent parameters to a Nc.shape[0]x1 2D-array
+        a = numpy.reshape(a,[Nc.shape[0],1])
+        m = numpy.reshape(m,[Nc.shape[0],1])
         h = numpy.reshape(h,[Nc.shape[0],1])
         c = numpy.reshape(c,[Nc.shape[0],1])
         m0 = numpy.reshape(m0,[Nc.shape[0],1])
@@ -450,17 +453,15 @@ class SEIRSAgeModel():
 
     def sim(self, T, dt=1, checkpoints=None,trace=None):
         tN = int(T) +1
-        # if trace is not None:
-        #     # Perform input check on trace dictionary
-        #     # Check that all parNames are actual model parameters
-        #     possibleNames = ['beta', 'sigma', 'omega','Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','totalTests',
-        #                     'psi_FP','psi_PP','dq']
-        #     for key in trace.keys():
-        #         if key not in trace:
-        #             raise Exception('The parametername provided by user in position {} of trace dictionary is not an actual model parameter. Please check its spelling.'.format(i))
-        #     #random.sample(trace[key],self.n_samples)
         if trace is not None:
-            self.n_samples = len(trace)
+            #Perform input check on trace dictionary
+            #Check that all parNames are actual model parameters
+            possibleNames = ['beta', 'sigma', 'omega','Nc', 'zeta', 'a', 'm', 'h', 'c','da','dm','dc','dICU','dICUrec','dhospital','m0','totalTests',
+                             'psi_FP','psi_PP','dq']
+            for key in trace.keys():
+                if key not in trace:
+                    raise Exception('The parametername provided by user in position {} of trace dictionary is not an actual model parameter. Please check its spelling.'.format(i))
+            self.n_samples = len(trace[key])
         else:
             self.n_samples = 1
 
@@ -515,7 +516,11 @@ class SEIRSAgeModel():
         # simulation loop
         for i in range(self.n_samples):
             if trace is not None:
-                self.beta = trace[i]
+                for key in trace.keys():
+                    lst = list(trace[key])
+                    param=random.sample(lst, 1)
+                    setattr(self,key,random.sample(lst, 1)[0])
+               
             # reset self to initial conditioin
             self.reset()
             # perform simulation
@@ -1075,7 +1080,7 @@ class SEIRSAgeModel():
 
         # add estimated extraTime to past policy vector
         for i in range(len(dict1_orig['t'])):
-            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime - 1
+            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime 
 
         # Create a merged dictionary accounting for estimated 'extraTime'
         if futurePolicy is not None:
@@ -1094,13 +1099,13 @@ class SEIRSAgeModel():
         # ------------------
         self.sim(T,checkpoints=chk,trace=trace)
         # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumMi,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
-
+        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
+        
         # -----------
         # Plot result
         # -----------
         # Create shifted index vector using self.extraTime
-        t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime-1)
+        t_acc = pd.date_range(startDate,freq='D',periods=T+1)-datetime.timedelta(days=self.extraTime+1)
         # Plot figure
         fig, ax = plt.subplots()
         # Plot data
@@ -1113,7 +1118,7 @@ class SEIRSAgeModel():
                 ymodel = ymodel + out[j]
             ax.plot(t_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
             ax.fill_between(t_acc,numpy.percentile(ymodel,95,axis=1),
-                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.3)
         # Attributes
         if legendText is not None:
             ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
@@ -2527,8 +2532,8 @@ class SEIRSNetworkModel():
             for j in positions[i]:
                 ymodel = ymodel + out[j]
             ax.plot(index_acc,numpy.mean(ymodel,axis=1),'--',color=modelClr[i])
-            ax.fill_between(index_acc,numpy.percentile(ymodel,95,axis=1),
-                 numpy.percentile(ymodel,5,axis=1),color=modelClr[i],alpha=0.2)
+            ax.fill_between(index_acc,numpy.percentile(ymodel,99,axis=1),
+                 numpy.percentile(ymodel,1,axis=1),color=modelClr[i],alpha=0.3)
         # Attributes
         if legendText is not None:
             ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
