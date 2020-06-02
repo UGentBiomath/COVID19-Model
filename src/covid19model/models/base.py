@@ -154,7 +154,7 @@ class BaseModel:
 
         return func
 
-    def sim(self, time):
+    def _sim_single(self, time):
         """"""
         fun = self._create_fun()
 
@@ -166,6 +166,72 @@ class BaseModel:
                            args=list(self.parameters.values()), t_eval=t_eval)
         # map to variable names
         return self._output_to_xarray_dataset(output)
+
+    def sim(self, time, checkpoints=None):
+        """
+        Run a model simulation for the given time period.
+
+        Parameters
+        ----------
+        time : int or list of int [start, stop]
+            The start and stop time for the simulation run.
+            If an int is specified, it is interpreted as [0, time].
+        checkpoints : dict
+            A dictionary with a "time" key and additional parameter keys,
+            in the form of
+            ``{"time": [t1, t2, ..], "param": [param1, param2, ..], ..}``
+            indicating new parameter values at the corresponding timestamps.
+
+        Returns
+        -------
+        xarray.Dataset
+
+        """
+        if isinstance(time, int):
+            time = [0, time]
+
+        if checkpoints is None:
+            return self._sim_single(time)
+
+        # checkpoints dictionary has the form of
+        #   {"time": [t1, t2], "param": [param1, param2]}
+
+        time_points = [time[0], *checkpoints["time"], time[1]]
+        results = []
+
+        original_parameters = self.parameters.copy()
+        original_initial_states = self.initial_states.copy()
+
+        # first part of the simulation with original parameter
+        output = self._sim_single([time_points[0], time_points[1]])
+        results.append(output)
+
+        # further simulations with updated parameters
+        for i in range(0, len(checkpoints["time"])):
+            # update parameters
+            for param in checkpoints.keys():
+                if param != "time":
+                    self.parameters[param] = checkpoints[param][i]
+            self._validate()
+
+            # update initial states with states of last result
+            previous_output = results[-1]
+            last_states = previous_output.isel(time=-1)
+            initial_states = {}
+            for state in self.state_names:
+                initial_states[state] = last_states[state].values
+            self.initial_states = initial_states
+
+            # continue simulation
+            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
+            results.append(output)
+
+        # reset parameters and initial states to original value
+        self.parameters = original_parameters
+        self.initial_states = original_initial_states
+
+        # return combined output
+        return xarray.concat(results, dim="time")
 
     def _output_to_xarray_dataset(self, output):
         """
