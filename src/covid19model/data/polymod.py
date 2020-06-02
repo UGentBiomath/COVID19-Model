@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 def get_interaction_matrices():
-    """Extract interaction matrices from data/raw/polymod folder 
+    """Extract interaction matrices and demographic data from `data/raw/polymod` folder 
 
     This function returns the total number of individuals in ten year age bins in the Belgian population and the interaction matrices Nc at home, at work, in schools, on public transport, during leisure activities and during other activities.
 
@@ -45,6 +45,6 @@ def get_interaction_matrices():
     Nc_leisure = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELleisure.txt", dtype='f', delimiter='\t')
     Nc_others = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELothers.txt", dtype='f', delimiter='\t')
     Nc_total = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELtotal.txt", dtype='f', delimiter='\t')
-    initN = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELagedist_10year.txt", dtype='f', delimiter='\t')
+    initN = np.loadtxt("../../data/raw/polymod/demographic/Belgium/BELagedist_10year.txt", dtype='f', delimiter='\t')
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
