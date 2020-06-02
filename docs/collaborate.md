@@ -37,25 +37,29 @@ from covid19model.models import ...
 
 __Note:__ Use one of the `notebook/templates` to get started. You can run these online using [Binder](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=notebook/templates). To use them locally, copy paste one of the templates to the general notebooks directory, rename it according to the defined format and start working on it.
 
- [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=src%2FSEIRSAgeModel_demo.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master)
 
 ### Documentation website
 
 Documentation consists of both the technical matter about the code as well as background information on the models. To keep these up to date and centralized, we use [Sphinx](https://www.sphinx-doc.org/en/master/) which enables us to keep the documentation together on a website.
 
-The Sphinx setup provides the usage of both `.rst` file, i.e. [restructuredtext](https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html) as well as `.md` files, i.e. [Markdown](https://www.markdownguide.org/basic-syntax/). The latter is generally experienced as easier to write, while the former provides a more advanced functionalities.
+The Sphinx setup provides the usage of both `.rst` file, i.e. [restructuredtext](https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html) as well as `.md` files, i.e. [Markdown](https://www.markdownguide.org/basic-syntax/). The latter is generally experienced as easier to write, while the former provides more advanced functionalities. Existing pages can be adjusted directly (editing them online or on your computer). When you want to create a new page, make sure to add the page to the `index.rst` in order to make the page part of the website.
 
-Existing pages can be adusted directly (editing them online or on your computer). When you want to create a new page, makee sure to add the page to the `index.rst` in order to make the page part of the website.
+The website is build automatically using [github actions](https://github.com/UGentBiomath/COVID19-Model/blob/master/.github/workflows/deploy.yml#L22-L24) and the output is deployed to [https://ugentbiomath.github.io/COVID19-Model/](https://ugentbiomath.github.io/COVID19-Model/). In case you want to build the documentation locally, make sure you have the development dependencies installed (`pip install -e ".[develop]"`) to run the sphinx build script. The build sphinx script relies on the [`setuptools` integration of Sphinx](https://www.sphinx-doc.org/en/master/usage/advanced/setuptools.html#setuptools-integration):
 
-__TODO__ - extend info on this; CI info + how to build it locally...
+```
+python setup.py build_sphinx
+```
+
+The resulting html-website is created in the directory `build/html`. Double click any of the `html` file in the folder to open the website in your browser (no server required).
 
 ### The `covid19model` Python package
 
 The code inside the `src/covid19model` directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.
 
 __Note:__ Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
-     - If you are a command line person, chekc [this work flow](https://gist.github.com/CristinaSolana/1885435)
-     - If you are not a command line person: [this work flow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
+     - If you are a command line person, check [this workflow](https://gist.github.com/CristinaSolana/1885435)
+     - If you are not a command line person: [this workflow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
 
 For each of the functions you write, make sure to add the documentation to the function. We use the [numpy docstring](https://numpydoc.readthedocs.io/en/latest/format.html) format to write documentation. For each function, make sure the following items are defined at least:
 
@@ -64,7 +68,9 @@ For each of the functions you write, make sure to add the documentation to the f
 - Returns
 - References (if applicable)
 
-__TODO__ -> add info on addition of new packages
+__Note:__ When adding new packages makes sure to update both,
+- the environment file, [evironment.yml](https://github.com/UGentBiomath/COVID19-Model/blob/master/environment.yml) for binder,
+- the setup file, [setup.py](https://github.com/UGentBiomath/COVID19-Model/blob/master/setup.py) file to include this dependency for the installation of the package. 
 
 ### Repository layout overview
 

@@ -18,8 +18,7 @@ Demo
 A demo of the model can be found [here](notebooks/templates/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder,
 
 .. image:: https://mybinder.org/badge_logo.svg
- :target: https://mybinder.org/v2/gh/https%3A%2F%2Fmybinder.org%2Fv2%2Fgh%2FUGentBiomath%2FCOVID19-Model%2Fmaster/master
-
+ :target: https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master
 
 .. toctree::
    :caption: Getting started

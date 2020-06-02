@@ -12,7 +12,7 @@ When all went fine, you should have the code on your computer in a directory cal
 
 To use the code, make sure you have Python (conda) and the required dependency packages installed. We recommend using `Anaconda` to manage your Python packages. See the [conda installation instructions](https://docs.anaconda.com/anaconda/install/) and make sure you have conda up and running. Next:
 
-- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file, so anybody can recreate the required environment using:
+- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file (inside the root folder), so anybody can recreate the required environment using:
 
      ```
      conda env create -f environment.yml
@@ -20,6 +20,7 @@ To use the code, make sure you have Python (conda) and the required dependency p
      ```
      or when the environment was already created,
      ```
+     conda activate COVID_MODEL
      conda env update environment.yml
      ```
      
@@ -35,8 +36,8 @@ To use the code, make sure you have Python (conda) and the required dependency p
      __Note:__ This step needs to be done in a terminal or command prompt. Use your favorite terminal or use the [Anaconda Prompt](https://docs.anaconda.com/anaconda/user-guide/getting-started/#open-anaconda-prompt). Navigate with the `cd` command to the directory where you copied the repository.
 
 
-_Optional_ To use the code, the general installation instruction outlined above suffice. When you're planning to work on the documentation or the code of the model implementations itself, make sure to also install the development requirements:
+_Optional_: To use the code, the general installation instruction outlined above suffice. When you're planning to work on the documentation or the code of the model implementations itself, make sure to also install the development requirements:
 
 ```
-pip install -e .[develop]
+pip install -e ".[develop]"
 ```
