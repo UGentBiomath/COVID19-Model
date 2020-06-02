@@ -59,8 +59,8 @@ def get_agemodel_parameters():
     m0 = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/h/icu
 
     # Abrams_etal
-    df=pd.read_csv("../../data/raw/model_parameters/verity_etal.csv", sep=',',header='infer')
-    a =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())
+    df=pd.read_csv("../../data/raw/model_parameters/abrams_etal.csv", sep=',',header='infer')
+    a =  np.array(df.loc[:,'fraction asymptomatic'].astype(float).tolist())
     m = 1-a
 
     # Other parameters
