@@ -45,6 +45,6 @@ def get_interaction_matrices():
     Nc_leisure = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELleisure.txt", dtype='f', delimiter='\t')
     Nc_others = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELothers.txt", dtype='f', delimiter='\t')
     Nc_total = np.loadtxt("../../data/raw/polymod/interaction_matrices/Belgium/BELtotal.txt", dtype='f', delimiter='\t')
-    initN = np.loadtxt("../../data/raw/polymod/demographic/Belgium/BELagedist_10year.txt", dtype='f', delimiter='\t')
+    initN = np.loadtxt("../../data/raw/polymod/demographic/BELagedist_10year.txt", dtype='f', delimiter='\t')
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
