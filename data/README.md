@@ -28,10 +28,11 @@
 
 + `COVID19BE_HOSP.csv` contains a copy of the "HOSP" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
 
+#### Model parameters
 
-#### Others
-
-+ `imperialCollegeAgeDist.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the infection fatality ratio. Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
++ `verity_etal.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the case fatality ratio. Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
++ `abrams_etal.csv` contains age-stratified estimates of the fraction of asymptomatic cases. Data were obtained from a confidential report, which will be published in the future.
++ `others.csv` contains all other parameters used to run the model. Obtained from various sources, detailed in the report.
 
 ### Interim data sets conversion scripts
 
