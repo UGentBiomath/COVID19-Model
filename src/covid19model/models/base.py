@@ -14,7 +14,18 @@ class BaseModel:
     stratification = None
 
     def __init__(self, states, parameters):
-        """"""
+        """
+        Initialise the models
+
+        Parameters
+        ---------
+        states : dictionary
+            e.g. {'S': N, 'E': np.ones(n_age_classes)} with N total population
+            initialising zeros is not required
+        parameters : dictionary
+            containing the values of all parameters (both stratified and not)
+            these can be obtained with the function parameters.get_agemodel_parameters()
+        """
         self.parameters = parameters
         self.initial_states = states
 
@@ -82,10 +93,15 @@ class BaseModel:
             )
 
         # Validate the params
-        if list(self.parameters.keys()) != specified_params:
+        if set(self.parameters.keys()) != set(specified_params):
             raise ValueError(
-                "The specified parameters don't exactly match the predefined parameters"
+                "The specified parameters don't exactly match the predefined parameters. "
+                "Redundant parameters: {0}. Missing parameters: {1}".format(
+                set(self.parameters.keys()).difference(set(specified_params)),
+                set(specified_params).difference(set(self.parameters.keys())))
             )
+
+        self.parameters = {param: self.parameters[param] for param in specified_params}
 
         # Validate the initial_states / stratified params having the correct length
 
