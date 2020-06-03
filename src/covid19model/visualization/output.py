@@ -32,7 +32,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
     The function is currently tailor-made for the SeirsAge model,
     (but could be more generalized in the future). As such, it requires
     the following variable names from the SeirsAge model:
-    S, E, R, C, Cmirec, Cicurec, I, MI, ICU, A, M.
+    S, E, R, C, Cicurec, I, ICU, A, M.
 
     # TODO - should work with MC-based version as well, using percentiles
 
@@ -52,16 +52,16 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
     """
     # check the required variable names to let function work
     required_var_names = ["S", "E", "R",
-                          "C", "Cmirec", "Cicurec",
-                          "I","Mi", "ICU", "A", "M"]
+                          "C", "Cicurec",
+                          "I", "ICU", "A", "M"]
     if not (set(required_var_names)).issubset(set(data.variables.keys())):
         raise Exception(f"population_status plot function"
                         f"requires the variables {required_var_names}")
 
     # create the 'combined variables'
     # TODO abstract away 'observed' or 'states of interest' to higher level
-    data["C_total"] = data["C"] + data["Cmirec"] + data["Cicurec"]
-    data["I_total"] = (data["Mi"] + data["ICU"] + data["I"] +
+    data["C_total"] = data["C"] + data["Cicurec"]
+    data["I_total"] = (data["ICU"] + data["I"] +
                        data["A"] + data["M"] + data["C_total"])
 
     # stratified models are summarized over stratification dimension
@@ -98,12 +98,12 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
 
 def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **kwargs):
-    """Plot evolution of the infected peaople as function of time
+    """Plot evolution of the infected people as function of time
 
     The function is currently tailor-made for the SeirsAge model,
     (but could be more generalized in the future). As such, it requires
     the following variable names from the SeirsAge model:
-    C, Cmirec, Cicurec, MI, ICU, D, and optioanlly A and/or M.
+    C, Cmirec, Cicurec, MI, ICU, D, and optionally A and/or M.
 
     # TODO - should work with MC-based version as well, using percentiles
 
@@ -122,9 +122,9 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
         Each of the lines can be further customized by the user
     """
 
-    required_var_names = ["C", "Cmirec", "Cicurec",
-                          "Mi", "ICU", "D"]
-    variables = ["H", "Mi_ICU", "D"]
+    required_var_names = ["C", "Cicurec",
+                          "ICU", "D"]
+    variables = ["H", "D"]
     legend_labels = ['hospitalised','ICU','dead']
     colors = ["orange", "red", "black"]
 
@@ -147,9 +147,8 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
 
     # create the 'combined variables'
     # TODO abstract away 'observed' or 'states of interest' to higher level
-    data["C_total"] = data["C"] + data["Cmirec"] + data["Cicurec"]
-    data["Mi_ICU"] = data["Mi"] + data["ICU"]
-    data["H"] = data["C_total"] + data["Mi_ICU"]
+    data["C_total"] = data["C"] + data["Cicurec"]
+    data["H"] = data["C_total"] + data["ICU"]
 
     # stratified models are summarized over stratification dimension
     if "stratification" in data.dims:
