@@ -4,22 +4,24 @@ import pandas as pd
 import numpy as np
 
 def get_agemodel_parameters():
-    """Extracts and returns the parameters for the age-stratified deterministic model 
+    """
+    Extracts and returns the parameters for the age-stratified deterministic model
 
-    This function will return all parameters needed to run the age-stratified model. This function was created to group all parameters in one centralised location.
+    This function will return all parameters needed to run the age-stratified model.
+    This function was created to group all parameters in one centralised location.
 
     Returns
     -----------
     h : np.array
-        fraction of the cases that require hospitalisation (-) 
+        fraction of the cases that require hospitalisation (-)
     icu: np.array
         fraction of the hospitalized in ICU
     c: np.array
         fraction of the hospitalized in Cohort, calculated as (c = 1 - icu) (-)
     m0: np.array
-        fraction of the patients in ICU who die (-) 
+        fraction of the patients in ICU who die (-)
     a: np.array
-        fraction of asymptomatic cases (-) 
+        fraction of asymptomatic cases (-)
     m: np.array
         fraction of (mild) symptomatic cases (-)
     da: float64
