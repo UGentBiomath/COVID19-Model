@@ -71,7 +71,7 @@ def get_agemodel_parameters():
 
     # Other parameters
     df_other_pars = pd.read_csv("../../data/raw/model_parameters/others.csv", sep=',',header='infer')
-    parameters.update(df_other_pars.to_dict())
+    parameters.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
     parameters['beta'] = 0.03492
