@@ -59,24 +59,24 @@ class SEIRSAge(BaseModel):
     """Biomath SEIRS model"""
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cmirec', 'Cicurec', 'Mi',
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dmi', 'dICU', 'dICUrec',
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                   'dmirec', 'dhospital', 'maxICU', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
-    parameters_stratified_names = ['h', 'c', 'm0','mi']
+    parameters_stratified_names = ['h', 'c', 'm0']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, Cmirec, Cicurec, Mi, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
-                  beta, sigma, omega, zeta, a, m, da, dm, dc, dmi, dICU, dICUrec,
-                  dmirec, dhospital, maxICU, totalTests, psi_FP, psi_PP, dq, h, c, m0, mi, Nc):
+    def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
+                  beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
+                  dmirec, dhospital, maxICU, totalTests, psi_FP, psi_PP, dq, h, c, m0, Nc):
         """Basic SIR model"""
 
         # Model equations
-        Ctot = C + Cmirec + Cicurec
+        Ctot = C + Cicurec
         # calculate total population per age bin using 2D array
-        N = S + E + I + A + M + Ctot + Mi + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
+        N = S + E + I + A + M + Ctot + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
         # calculate the test rates for each pool using the total number of available tests
         nT = S + E + I + A + M + R
         theta_S = totalTests/nT
@@ -98,11 +98,9 @@ class SEIRSAge(BaseModel):
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
         dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
-        dCmirec = Mi/dmi- Cmirec*(1/dmirec)
         dCicurec = ((1-m0)/dICU)*ICU - Cicurec*(1/dICUrec)
-        dMi = mi*(M+MQ)*(h/dhospital) - Mi/dmi
-        dICUstar = (1-c-mi)*(M+MQ)*(h/dhospital) - ICU/dICU
-        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cmirec*(1/dmirec) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
+        dICUstar = (1-c)*(M+MQ)*(h/dhospital) - ICU/dICU
+        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
         dD  = (m0/dICU)*ICU
         dSQ = theta_S*psi_FP*S - SQ/dq
         dEQ = theta_E*psi_PP*E - EQ/sigma
@@ -111,7 +109,7 @@ class SEIRSAge(BaseModel):
         dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
 
-        return (dS, dE, dI, dA, dM, dC, dCmirec, dCicurec, dMi,
+        return (dS, dE, dI, dA, dM, dC, dCicurec,
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
 
 
@@ -125,7 +123,7 @@ class SEIRSAgeModel():
     def __init__(self, initN, beta, sigma, omega, Nc=0, zeta=0,a=0,m=0,h=0,c=0,da=0,dm=0,dc=0,dICU=0,dICUrec=0,dhospital=0,m0=0,totalTests=0,
                 psi_FP=0,psi_PP=0,dq=14,initE=0,initI=0,initA=0,initM=0,initC=0,initCicurec=0,initICU=0,initR=0,
                 initD=0,initSQ=0,initEQ=0,initIQ=0,initAQ=0,initMQ=0,initRQ=0,monteCarlo=False,n_samples=1):
-    
+
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Initialize Model Parameters:
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -584,7 +582,7 @@ class SEIRSAgeModel():
                     lst = list(trace[key])
                     param=random.sample(lst, 1)
                     setattr(self,key,random.sample(lst, 1)[0])
-               
+
             # reset self to initial conditioin
             self.reset()
             # perform simulation
@@ -1144,7 +1142,7 @@ class SEIRSAgeModel():
 
         # add estimated extraTime to past policy vector
         for i in range(len(dict1_orig['t'])):
-            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime 
+            dict1_orig['t'][i] = dict1_orig['t'][i] + self.extraTime
 
         # Create a merged dictionary accounting for estimated 'extraTime'
         if futurePolicy is not None:
@@ -1164,7 +1162,7 @@ class SEIRSAgeModel():
         self.sim(T,checkpoints=chk,trace=trace)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
-        
+
         # -----------
         # Plot result
         # -----------
