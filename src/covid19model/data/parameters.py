@@ -74,6 +74,6 @@ def get_agemodel_parameters():
     parameters.update(df_other_pars.to_dict())
 
     # Fitted parameters
-    beta = 0.03492
+    parameters['beta'] = 0.03492
 
     return parameters
