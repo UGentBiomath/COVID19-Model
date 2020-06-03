@@ -62,15 +62,15 @@ class SEIRSAge(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
-                  'dmirec', 'dhospital', 'maxICU', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
-    parameters_stratified_names = ['h', 'c', 'm0']
+                       'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
+    parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
-                  dmirec, dhospital, maxICU, totalTests, psi_FP, psi_PP, dq, h, c, m0, Nc):
+                  dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
         """Basic SIR model"""
 
         # Model equations
