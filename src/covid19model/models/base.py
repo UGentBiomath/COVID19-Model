@@ -14,7 +14,18 @@ class BaseModel:
     stratification = None
 
     def __init__(self, states, parameters):
-        """"""
+        """
+        Initialise the models
+
+        Parameters
+        ---------
+        states : dictionary
+            e.g. {'S': N, 'E': np.ones(n_age_classes)} with N total population
+            initialising zeros is not required
+        parameters : dictionary
+            containing the values of all parameters (both stratified and not)
+            these can be obtained with the function parameters.get_agemodel_parameters()
+        """
         self.parameters = parameters
         self.initial_states = states
 

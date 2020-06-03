@@ -56,7 +56,21 @@ from .base import BaseModel
 
 
 class SEIRSAge(BaseModel):
-    """Biomath SEIRS model"""
+    """
+    Biomath SEIRS model
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        e.g. {'S': N, 'E': np.ones(n_age_classes)} with N total population
+        initialising zeros is not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_agemodel_parameters()
+
+    """
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
