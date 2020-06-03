@@ -8,12 +8,12 @@ Contributing to covid19model
 .. _Sphinx: http://www.sphinx-doc.org/en/master/
 .. _reStructuredText: http://docutils.sourceforge.net/rst.html
 .. _propose a file change: https://help.github.com/articles/editing-files-in-another-user-s-repository/
-.. _report an issue: https://github.com/fluves/pywaterinfo/issues/new
+.. _report an issue: https://github.com/UGentBiomath/COVID19-Model/issues/new
 .. _numpy docstring standard: https://numpydoc.readthedocs.io/en/latest/format.html
 
 
-First of all, thanks for considering contributing to pywaterinfo! It's people like you that make it
-rewarding for us - the project authors to work on COVID-19 model.
+First of all, thanks for considering contributing to the COVID-19! It's people like you that make it
+rewarding for us, the project authors, to work on COVID-19 model.
 
 How you can contribute?
 -----------------------
@@ -23,7 +23,7 @@ There are several ways you can contribute to this project.
 Share the love
 ^^^^^^^^^^^^^^
 
-Think COVID-19 modelling is useful? Let others discover it, by telling them in person, via Twitter_ or a blog post.
+Think COVID-19 modelling is useful? Let others discover it by telling them in person, via Twitter_ or a blog post.
 
 .. _Twitter: https://twitter.com/biomathugent
 

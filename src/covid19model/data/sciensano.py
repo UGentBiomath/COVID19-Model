@@ -23,11 +23,11 @@ def get_sciensano_data():
     Notes
     ----------
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
-    Data is reported as showed in: https://epistat.sciensano.be/COVID19BE_codebook.pdf
+    Variables in raw dataset are documented here: https://epistat.sciensano.be/COVID19BE_codebook.pdf
 
     Example use
     -----------
-    index, initial, ICU, hospital = get_sciensano_data()
+    index, initial, H_tot, ICU_tot, H_in, H_out = get_sciensano_data()
     """
 
     # Data source
@@ -44,12 +44,13 @@ def get_sciensano_data():
     initial = df.astype(str)['DATE'][0]
 
     # Resample data from all regions and sum all values for each date
-    data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU']]
+    data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU','NEW_IN','NEW_OUT']]
     data = data.resample('D', on='DATE').sum()
-    hospital = np.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
-    ICU = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+    H_tot = np.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
+    ICU_tot = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
+    H_in = np.array([data.loc[:,'NEW_IN'].tolist()]) # export as array
+    H_out = np.array([data.loc[:,'NEW_OUT'].tolist()]) # export as array
 
     # List of time datapoints
-    index = pd.date_range(initial, freq='D', periods=ICU.size)
-
-    return index, initial, ICU, hospital
+    index = pd.date_range(initial, freq='D', periods=ICU_tot.size)
+    return index, initial, H_tot, ICU_tot, H_in, H_out
