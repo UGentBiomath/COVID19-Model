@@ -53,11 +53,11 @@ def get_sciensano_COVID19_data():
     # Resample data from all regions and sum all values for each date
     data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU','NEW_IN','NEW_OUT']]
     data = data.resample('D', on='DATE').sum()
-    H_tot = np.array([data.loc[:,'TOTAL_IN'].tolist()]) # export as array
-    ICU_tot = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
-    H_in = np.array([data.loc[:,'NEW_IN'].tolist()]) # export as array
-    H_out = np.array([data.loc[:,'NEW_OUT'].tolist()]) # export as array
-    H_tot_cumsum=np.reshape(np.cumsum(H_in-H_out),(1,np.cumsum(H_in-H_out).size)) # export as array
+    H_tot = np.array([data.loc[:,'TOTAL_IN'].tolist()]).flatten() # export as 1D array
+    ICU_tot = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]).flatten() # export as 1D array
+    H_in = np.array([data.loc[:,'NEW_IN'].tolist()]).flatten() # export as 1D array
+    H_out = np.array([data.loc[:,'NEW_OUT'].tolist()]).flatten() # export as 1D array
+    H_tot_cumsum=np.reshape(np.cumsum(H_in-H_out),(1,np.cumsum(H_in-H_out).size)).flatten() # export as 1D array
 
     # List of time datapoints
     index = pd.date_range(initial, freq='D', periods=ICU_tot.size)
