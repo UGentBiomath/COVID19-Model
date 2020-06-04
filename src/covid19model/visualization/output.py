@@ -29,12 +29,12 @@ def _apply_tick_locator(ax):
 def population_status(data, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the population as function of time
 
-    The function is currently tailor-made for the SeirsAge model,
+    The function is currently tailor-made for the COVID19_SEIRD model,
     (but could be more generalized in the future). As such, it requires
-    the following variable names from the SeirsAge model:
+    the following variable names from the COVID19_SEIRD model:
     S, E, R, C, Cicurec, I, ICU, A, M.
 
-    # TODO - should work with MC-based version as well, using percentiles
+    # TODO - should work with MC-based version as well, using either percentiles or plotting every iteration as one line
 
     Parameters
     ----------
@@ -100,10 +100,10 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the infected people as function of time
 
-    The function is currently tailor-made for the SeirsAge model,
+    The function is currently tailor-made for the COVID19_SEIRD model,
     (but could be more generalized in the future). As such, it requires
-    the following variable names from the SeirsAge model:
-    C, Cmirec, Cicurec, MI, ICU, D, and optionally A and/or M.
+    the following variable names from the COVID19_SEIRD model:
+    C, Cicurec, ICU, D, and optionally A and/or M.
 
     # TODO - should work with MC-based version as well, using percentiles
 

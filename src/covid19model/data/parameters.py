@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_agemodel_parameters():
+def get_COVID19_SEIRD_parameters():
     """
     Extracts and returns the parameters for the age-stratified deterministic model
 
@@ -47,12 +47,9 @@ def get_agemodel_parameters():
     dq: float64
         length of quarantine when patient does not develop symptoms (days)
 
-    Notes
-    ----------
-
     Example use
     -----------
-    parameters = get_agemodel_parameters()
+    parameters = get_COVID19_SEIRD_parameters()
     """
     # Initialize parameters dictionary
     parameters = {}
