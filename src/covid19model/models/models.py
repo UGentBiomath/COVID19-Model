@@ -20,7 +20,6 @@ import multiprocessing
 import pymc3 as pm
 import theano.tensor as tt
 from theano.compile.ops import as_op
-
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -90,6 +89,13 @@ class SEIRSAgeModel():
         # monte-carlo sampling is an attribute of the model
         self.monteCarlo = monteCarlo
         self.n_samples = n_samples
+
+        # added for the compliance function
+        self.compliance=False
+        self.old_Nc=0
+        self.final_Nc=0
+        self.t0 = 7
+        self.k = 1
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # Reshape inital condition in Nc.shape[0] x 1 2D arrays:
@@ -286,73 +292,135 @@ class SEIRSAgeModel():
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    
+    def logistic(self,t,final,k,t0):
+        f = final/(1+numpy.exp(-k*(t-t0)))
+        return f
+
+    def compliance_fcn(self,time,old_Nc,final_Nc,k,t0):
+        new_Nc = numpy.zeros([old_Nc.shape[0],old_Nc.shape[1]])
+        for i in range(old_Nc.shape[0]):
+            for j in range(old_Nc.shape[1]):
+                new_Nc[i,j] = old_Nc[i,j] + self.logistic(time,1,k,t0)*(final_Nc[i,j]-old_Nc[i,j])
+        return new_Nc
 
     def run_epoch(self, runtime, dt=1):
+        if self.compliance == True:
+            timer = 0
+            while timer < runtime:
+                timer = timer + 1
+                self.Nc = self.compliance_fcn(timer,self.old_Nc,self.final_Nc,self.k,self.t0)
+                # Repeat normal run_epoch function but using 1 day as the timestep
+                t_eval    = numpy.arange(start=self.t+1, stop=self.t+2, step=dt)
+                t_span          = (self.t, self.t+1)
+                init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numI[:,-1], self.numA[:,-1], self.numM[:,-1], self.numC[:,-1],self.numCicurec[:,-1], self.numICU[:,-1], self.numR[:,-1], self.numD[:,-1], self.numSQ[:,-1], self.numEQ[:,-1],self.numIQ[:,-1], self.numAQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
+                init_cond = numpy.reshape(init_cond,16*self.Nc.shape[0])
+                solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.omega, self.Nc, self.zeta, self.a, self.m, self.h, self.c, self.da,
+                                    self.dm, self.dc,self.dICU,self.dICUrec,self.dhospital,self.m0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq), t_span=[self.t, self.tmax], y0=init_cond, t_eval=t_eval)
+                S,E,I,A,M,C,Cicurec,ICU,R,F,SQ,EQ,IQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),16,axis=1)
+                Ctot = C + Cicurec
+                # calculate hospital in and hospital out
+                h = self.h
+                c = self.c
+                m0 = self.m0
+                dhospital = self.dhospital
+                dc = self.dc
+                dICU = self.dICU
+                dICUrec = self.dICUrec
+                H_in=numpy.zeros([len(M),self.Nc.shape[0]])
+                H_out=numpy.zeros([len(M),self.Nc.shape[0]])
+                for i in range(len(H_in)):
+                    H_in[i,:]=(M[i,:]+MQ[i,:])*(h/dhospital)
+                    H_out[i,:] =  C[i,:]*(1/dc) + (m0/dICU)*ICU[i,:] + Cicurec[i,:]*(1/dICUrec)
+                # append output
+                self.tseries    = numpy.append(self.tseries, solution['t'])
+                self.numS       = numpy.append(self.numS, numpy.transpose(S),axis=1)
+                self.numE       = numpy.append(self.numE, numpy.transpose(E),axis=1)
+                self.numI       = numpy.append(self.numI, numpy.transpose(I),axis=1)
+                self.numA       = numpy.append(self.numA, numpy.transpose(A),axis=1)
+                self.numM       = numpy.append(self.numM, numpy.transpose(M),axis=1)
+                self.numCtot    = numpy.append(self.numCtot, numpy.transpose(Ctot),axis=1)
+                self.numC       = numpy.append(self.numC, numpy.transpose(C),axis=1)
+                self.numCicurec = numpy.append(self.numCicurec, numpy.transpose(Cicurec),axis=1)
+                self.numICU     = numpy.append(self.numICU, numpy.transpose(ICU),axis=1)
+                self.numR       = numpy.append(self.numR, numpy.transpose(R),axis=1)
+                self.numD       = numpy.append(self.numD, numpy.transpose(F),axis=1)
+                self.numSQ      = numpy.append(self.numSQ, numpy.transpose(SQ),axis=1)
+                self.numEQ      = numpy.append(self.numEQ, numpy.transpose(EQ),axis=1)
+                self.numAQ      = numpy.append(self.numAQ, numpy.transpose(AQ),axis=1)
+                self.numMQ      = numpy.append(self.numMQ, numpy.transpose(MQ),axis=1)
+                self.numRQ      = numpy.append(self.numRQ, numpy.transpose(RQ),axis=1)
+                self.t = self.tseries[-1]
+                self.numH_in      = numpy.append(self.numH_in, numpy.transpose(H_in),axis=1)
+                self.numH_out      = numpy.append(self.numH_out, numpy.transpose(H_out),axis=1)
+                #print(self.numH_out.shape,self.t)
+            else:
+                self.compliance = False
+        else:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Create a list of times at which the ODE solver should output system values.
+            # Append this list of times as the model's timeseries
+            t_eval    = numpy.arange(start=self.t+1, stop=self.t+runtime, step=dt)
+            #print(t_eval)
+            # Define the range of time values for the integration:
+            t_span          = (self.t, self.t+runtime)
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Create a list of times at which the ODE solver should output system values.
-        # Append this list of times as the model's timeseries
-        t_eval    = numpy.arange(start=self.t+1, stop=self.t+runtime, step=dt)
+            # Define the initial conditions as the system's current state:
+            # (which will be the t=0 condition if this is the first run of this model,
+            # else where the last sim left off)
+            init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numI[:,-1], self.numA[:,-1], self.numM[:,-1], self.numC[:,-1],self.numCicurec[:,-1], self.numICU[:,-1], self.numR[:,-1], self.numD[:,-1], self.numSQ[:,-1], self.numEQ[:,-1],self.numIQ[:,-1], self.numAQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
+            init_cond = numpy.reshape(init_cond,16*self.Nc.shape[0])
 
-        # Define the range of time values for the integration:
-        t_span          = (self.t, self.t+runtime)
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Solve the system of differential eqns:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        # Define the initial conditions as the system's current state:
-        # (which will be the t=0 condition if this is the first run of this model,
-        # else where the last sim left off)
-        init_cond = numpy.array([self.numS[:,-1], self.numE[:,-1], self.numI[:,-1], self.numA[:,-1], self.numM[:,-1], self.numC[:,-1],self.numCicurec[:,-1], self.numICU[:,-1], self.numR[:,-1], self.numD[:,-1], self.numSQ[:,-1], self.numEQ[:,-1],self.numIQ[:,-1], self.numAQ[:,-1], self.numMQ[:,-1], self.numRQ[:,-1]])
-        init_cond = numpy.reshape(init_cond,16*self.Nc.shape[0])
+            solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.omega, self.Nc, self.zeta, self.a, self.m, self.h, self.c, self.da,
+            self.dm, self.dc,self.dICU,self.dICUrec,self.dhospital,self.m0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq), t_span=[self.t, self.tmax], y0=init_cond, t_eval=t_eval)
 
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Solve the system of differential eqns:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # output of size (nTimesteps * Nc.shape[0])
+            S,E,I,A,M,C,Cicurec,ICU,R,F,SQ,EQ,IQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),16,axis=1)
+            Ctot = C + Cicurec
 
-        solution        = scipy.integrate.solve_ivp(lambda t, X: SEIRSAgeModel.system_dfes(t, X, self.beta, self.sigma, self.omega, self.Nc, self.zeta, self.a, self.m, self.h, self.c, self.da,
-        self.dm, self.dc,self.dICU,self.dICUrec,self.dhospital,self.m0,self.ICU,self.totalTests,self.psi_FP,self.psi_PP,self.dq), t_span=[self.t, self.tmax], y0=init_cond, t_eval=t_eval)
+            # calculate hospital in and hospital out
+            h = self.h
+            c = self.c
+            m0 = self.m0
+            dhospital = self.dhospital
+            dc = self.dc
+            dICU = self.dICU
+            dICUrec = self.dICUrec
+            H_in=numpy.zeros([len(M),self.Nc.shape[0]])
+            H_out=numpy.zeros([len(M),self.Nc.shape[0]])
+            for i in range(len(H_in)):
+                H_in[i,:]=(M[i,:]+MQ[i,:])*(h/dhospital)
+                H_out[i,:] =  C[i,:]*(1/dc) + (m0/dICU)*ICU[i,:] + Cicurec[i,:]*(1/dICUrec)
 
-        # output of size (nTimesteps * Nc.shape[0])
-        S,E,I,A,M,C,Cicurec,ICU,R,F,SQ,EQ,IQ,AQ,MQ,RQ = numpy.split(numpy.transpose(solution['y']),16,axis=1)
-        Ctot = C + Cicurec
-
-        # calculate hospital in and hospital out
-        h = self.h
-        c = self.c
-        m0 = self.m0
-        dhospital = self.dhospital
-        dc = self.dc
-        dICU = self.dICU
-        dICUrec = self.dICUrec
-        H_in=numpy.zeros([len(M),self.Nc.shape[0]])
-        H_out=numpy.zeros([len(M),self.Nc.shape[0]])
-        for i in range(len(H_in)):
-            H_in[i,:]=(M[i,:]+MQ[i,:])*(h/dhospital)
-            H_out[i,:] =  C[i,:]*(1/dc) + (m0/dICU)*ICU[i,:] + Cicurec[i,:]*(1/dICUrec)
-
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # Store the solution output as the model's time series and data series:
-        #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # transpose before appending
-        # append per category:
-        self.tseries    = numpy.append(self.tseries, solution['t'])
-        self.numS       = numpy.append(self.numS, numpy.transpose(S),axis=1)
-        self.numE       = numpy.append(self.numE, numpy.transpose(E),axis=1)
-        self.numI       = numpy.append(self.numI, numpy.transpose(I),axis=1)
-        self.numA       = numpy.append(self.numA, numpy.transpose(A),axis=1)
-        self.numM       = numpy.append(self.numM, numpy.transpose(M),axis=1)
-        self.numCtot    = numpy.append(self.numCtot, numpy.transpose(Ctot),axis=1)
-        self.numC       = numpy.append(self.numC, numpy.transpose(C),axis=1)
-        self.numCicurec = numpy.append(self.numCicurec, numpy.transpose(Cicurec),axis=1)
-        self.numICU     = numpy.append(self.numICU, numpy.transpose(ICU),axis=1)
-        self.numR       = numpy.append(self.numR, numpy.transpose(R),axis=1)
-        self.numD       = numpy.append(self.numD, numpy.transpose(F),axis=1)
-        self.numSQ      = numpy.append(self.numSQ, numpy.transpose(SQ),axis=1)
-        self.numEQ      = numpy.append(self.numEQ, numpy.transpose(EQ),axis=1)
-        self.numAQ      = numpy.append(self.numAQ, numpy.transpose(AQ),axis=1)
-        self.numMQ      = numpy.append(self.numMQ, numpy.transpose(MQ),axis=1)
-        self.numRQ      = numpy.append(self.numRQ, numpy.transpose(RQ),axis=1)
-        self.t = self.tseries[-1]
-        self.numH_in      = numpy.append(self.numH_in, numpy.transpose(H_in),axis=1)
-        self.numH_out      = numpy.append(self.numH_out, numpy.transpose(H_out),axis=1)
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # Store the solution output as the model's time series and data series:
+            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            # transpose before appending
+            # append per category:
+            self.tseries    = numpy.append(self.tseries, solution['t'])
+            self.numS       = numpy.append(self.numS, numpy.transpose(S),axis=1)
+            self.numE       = numpy.append(self.numE, numpy.transpose(E),axis=1)
+            self.numI       = numpy.append(self.numI, numpy.transpose(I),axis=1)
+            self.numA       = numpy.append(self.numA, numpy.transpose(A),axis=1)
+            self.numM       = numpy.append(self.numM, numpy.transpose(M),axis=1)
+            self.numCtot    = numpy.append(self.numCtot, numpy.transpose(Ctot),axis=1)
+            self.numC       = numpy.append(self.numC, numpy.transpose(C),axis=1)
+            self.numCicurec = numpy.append(self.numCicurec, numpy.transpose(Cicurec),axis=1)
+            self.numICU     = numpy.append(self.numICU, numpy.transpose(ICU),axis=1)
+            self.numR       = numpy.append(self.numR, numpy.transpose(R),axis=1)
+            self.numD       = numpy.append(self.numD, numpy.transpose(F),axis=1)
+            self.numSQ      = numpy.append(self.numSQ, numpy.transpose(SQ),axis=1)
+            self.numEQ      = numpy.append(self.numEQ, numpy.transpose(EQ),axis=1)
+            self.numAQ      = numpy.append(self.numAQ, numpy.transpose(AQ),axis=1)
+            self.numMQ      = numpy.append(self.numMQ, numpy.transpose(MQ),axis=1)
+            self.numRQ      = numpy.append(self.numRQ, numpy.transpose(RQ),axis=1)
+            self.t = self.tseries[-1]
+            self.numH_in      = numpy.append(self.numH_in, numpy.transpose(H_in),axis=1)
+            self.numH_out      = numpy.append(self.numH_out, numpy.transpose(H_out),axis=1)
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -413,15 +481,22 @@ class SEIRSAgeModel():
         else: # checkpoints provided
             for checkpointIdx, checkpointTime in enumerate(checkpoints['t']):
                 # Run the sim until the next checkpoint time:
+                #print(checkpointTime-self.t)
                 self.run_epoch(runtime=checkpointTime-self.t, dt=dt)
                 # Having reached the checkpoint, update applicable parameters:
                 #print("[Checkpoint: Updating parameters]")
                 for param in paramNames:
-                    setattr(self, param, checkpoints[param][checkpointIdx])
+                    if param == 'Nc':
+                        # initialise flag and timer
+                        self.compliance = True
+                        self.old_Nc = self.Nc
+                        self.final_Nc = checkpoints[param][checkpointIdx]
+                        #setattr(self, param, checkpoints[param][checkpointIdx])
+                    else:   
+                        setattr(self, param, checkpoints[param][checkpointIdx])
 
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-                #print("t = %.2f" % self.t)
                 if(verbose):
                     print("\t S   = " + str(self.numS[:,-1]))
                     print("\t E   = " + str(self.numE[:,-1]))
@@ -440,7 +515,8 @@ class SEIRSAgeModel():
                     print("\t RQ   = " + str(self.numRQ[:,-1]))
 
             if(self.t < self.tmax):
-                self.run_epoch(runtime=self.tmax-self.t, dt=dt)
+                #print(self.t)
+                self.run_epoch(runtime=self.tmax-self.t-1, dt=dt)
                 # Reset all parameter values that were changed back to their original value
                 i = 0
                 for key in checkpoints.keys():
@@ -714,7 +790,7 @@ class SEIRSAgeModel():
         if (len(parNames)) is not len(bounds):
             raise Exception('The number of bounds must match the number of parameter names given to function fit.')
         # Check that all parNames are actual model parameters
-        possibleNames = ['extraTime','beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
+        possibleNames = ['k','t0','extraTime','beta', 'sigma', 'Nc', 'zeta', 'a', 'm', 'h', 'c','mi','da','dm','dc','dmi','dICU','dICUrec','dmirec','dhospital','m0','maxICU','totalTests',
                         'psi_FP','psi_PP','dq']
         i = 0
         for param in parNames:
@@ -748,7 +824,7 @@ class SEIRSAgeModel():
 
         return self,theta_hat
 
-    def plotFit(self,index,data,positions,checkpoints=None,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
+    def plotFit(self,index,data,positions,checkpoints=None,trace=None,dataMkr=['o','v','s','*','^'],modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,filename=None,getfig=False):
         # ------------------
         # Prepare simulation
         # ------------------
@@ -762,7 +838,7 @@ class SEIRSAgeModel():
         # ------------------
         # Perform simulation
         # ------------------
-        self.sim(T,checkpoints=checkpoints)
+        self.sim(T,checkpoints=checkpoints,trace=trace)
         # tuple the results, this is necessary to use the positions index
         out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ,self.sumH_in,self.sumH_out)
 
