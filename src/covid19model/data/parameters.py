@@ -2,6 +2,7 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
+from covid19model.data import polymod
 
 def get_COVID19_SEIRD_parameters():
     """
@@ -14,6 +15,8 @@ def get_COVID19_SEIRD_parameters():
     -----------
     A dictionary with following keys and values:
 
+    Nc: np.array
+        9x9 social interaction matrix; by default, the total interaction matrix Nc_total from the Polymod study is assigned to the parameters dictionary
     h : np.array
         fraction of the cases that require hospitalisation (-)
     icu: np.array
@@ -54,6 +57,10 @@ def get_COVID19_SEIRD_parameters():
     # Initialize parameters dictionary
     parameters = {}
 
+    # Assign Nc_total from the Polymod study to the parameters dictionary
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
+    parameters['Nc'] = Nc_total
+    
     # Verity_etal
     df = pd.read_csv("../../data/raw/model_parameters/verity_etal.csv", sep=',',header='infer')
     parameters['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
