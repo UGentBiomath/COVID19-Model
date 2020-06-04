@@ -19,3 +19,4 @@ dependencies:
   - theano
   - scikit-learn
   - openpyxl
+  - emcee
