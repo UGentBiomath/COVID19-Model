@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
-def get_google_mobility_data(filename=None):
+def get_google_mobility_data(filename=None, plot=False):
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
     A copy of the downloaded dataset is automatically saved in the /data/raw folder.
-    
+
     Parameters
     -----------
     filename: string
@@ -71,33 +71,34 @@ def get_google_mobility_data(filename=None):
     data_lst=[[retail_recreation,grocery],[parks,transport],[work,residential]]
     titleText=[['Retail and recreation','Groceries and pharmacy'],['Parks','Transit stations'],['Workplaces','Residential']]
 
-    # using the variable axs for multiple Axes
-    fig, ax = plt.subplots(3,2,figsize=(15,12))
-    for i in range(3):
-        for j in range(2):
-            ax[i,j].plot(dates,data_lst[i][j])
-            ax[i,j].axvline(x='13-03-2020',color='k',linestyle='--')
-            ax[i,j].set_ylabel('% compared to baseline')
-            # Hide the right and top spines
-            ax[i,j].spines['right'].set_visible(False)
-            ax[i,j].spines['top'].set_visible(False)
-            # Only show ticks on the left and bottom spines
-            ax[i,j].yaxis.set_ticks_position('left')
-            ax[i,j].xaxis.set_ticks_position('bottom')
-            # enable the grid
-            ax[i,j].grid(True)
-            # Set title
-            ax[i,j].set_title(titleText[i][j],{'fontsize':18})
-            # Format dateticks
-            ax[i,j].xaxis.set_major_locator(mdates.MonthLocator())
-            ax[i,j].xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
-            ax[i,j].autoscale(enable=True)
+    if plot==True:
+        # using the variable axs for multiple Axes
+        fig, ax = plt.subplots(3,2,figsize=(15,12))
+        for i in range(3):
+            for j in range(2):
+                ax[i,j].plot(dates,data_lst[i][j])
+                ax[i,j].axvline(x='13-03-2020',color='k',linestyle='--')
+                ax[i,j].set_ylabel('% compared to baseline')
+                # Hide the right and top spines
+                ax[i,j].spines['right'].set_visible(False)
+                ax[i,j].spines['top'].set_visible(False)
+                # Only show ticks on the left and bottom spines
+                ax[i,j].yaxis.set_ticks_position('left')
+                ax[i,j].xaxis.set_ticks_position('bottom')
+                # enable the grid
+                ax[i,j].grid(True)
+                # Set title
+                ax[i,j].set_title(titleText[i][j],{'fontsize':18})
+                # Format dateticks
+                ax[i,j].xaxis.set_major_locator(mdates.MonthLocator())
+                ax[i,j].xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
+                ax[i,j].autoscale(enable=True)
 
-    plt.tight_layout()
+        plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename,dpi=600,bbox_inches='tight',orientation='portrait',papertype='a4')
-    else:
-        plt.show()
+        if filename is not None:
+            plt.savefig(filename,dpi=600,bbox_inches='tight',orientation='portrait',papertype='a4')
+        else:
+            plt.show()
 
     return dates,retail_recreation,grocery,parks,transport,work,residential

@@ -10,6 +10,7 @@ dependencies:
   - matplotlib>3
   - numpy
   - scipy
+  - xarray
   - networkx
   - pandas
   - ipywidgets
