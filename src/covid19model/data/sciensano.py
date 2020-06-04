@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_sciensano_data():
+def get_sciensano_COVID19_data():
     """Download Sciensano hospitalisation cases data 
 
     This function returns the publically available Sciensano data on COVID-19 related hospitalisations.
@@ -15,11 +15,18 @@ def get_sciensano_data():
         datetimes for which a data point is available
     initial :  str 'YYYY-MM-DD'
         initial date of records as string
-    ICU : np.array
+    ICU_tot : np.array
         total number of hospitalised patients in ICU
-    hospital : np.array
-        total number of hospitalised patients
-
+    H_tot : np.array
+        total number of hospitalised patients (according to Sciensano)
+    H_in : np.array
+        total number of patients going to hospital on given date
+    H_out: np.array
+        total number of patients discharged from hospital on given data
+    H_tot_cumsum: np.array
+        calculated total number of patients in hospital
+        calculated as by taking the cumulative sum of H_net = H_in - H_out
+    
     Notes
     ----------
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
@@ -50,7 +57,8 @@ def get_sciensano_data():
     ICU_tot = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]) # export as array
     H_in = np.array([data.loc[:,'NEW_IN'].tolist()]) # export as array
     H_out = np.array([data.loc[:,'NEW_OUT'].tolist()]) # export as array
+    H_tot_cumsum=np.reshape(np.cumsum(H_in-H_out),(1,np.cumsum(H_in-H_out).size)) # export as array
 
     # List of time datapoints
     index = pd.date_range(initial, freq='D', periods=ICU_tot.size)
-    return index, initial, H_tot, ICU_tot, H_in, H_out
+    return index, initial, H_tot, H_tot_cumsum, ICU_tot, H_in, H_out

@@ -52,22 +52,21 @@ plt.rcParams["lines.linewidth"] = 3
 
 from .base import BaseModel
 
-
-
-class SEIRSAge(BaseModel):
+class COVID19_SEIRD(BaseModel):
     """
-    Biomath SEIRS model
+    Biomath extended SEIRD model for COVID-19
 
     Parameters
     ----------
     To initialise the model, provide following inputs:
 
     states : dictionary
-        e.g. {'S': N, 'E': np.ones(n_age_classes)} with N total population
-        initialising zeros is not required
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_agemodel_parameters()
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
 
     """
 
@@ -84,7 +83,7 @@ class SEIRSAge(BaseModel):
     def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
-        """Basic SIR model"""
+        """Biomath extended SEIRD model for COVID-19"""
 
         # Model equations
         Ctot = C + Cicurec
