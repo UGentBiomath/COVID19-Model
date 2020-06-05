@@ -124,7 +124,7 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
 
     required_var_names = ["C", "Cicurec",
                           "ICU", "D"]
-    variables = ["H", "D"]
+    variables = ["H", "ICU", "D"]
     legend_labels = ['hospitalised','ICU','dead']
     colors = ["orange", "red", "black"]
 
