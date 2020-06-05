@@ -3,7 +3,8 @@ import numpy as np
 def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
     """
-    A function to return the sum of squared errors given a model prediction and a dataset
+    A function to return the sum of squared errors given a model prediction and a dataset.
+    Preferentially, the MLE is used to perform optimizations.
 
     Parameters
     -----------
@@ -38,9 +39,9 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
         else:
-            setattr(BaseModel,param,thetas[i])
+            BaseModel.parameters.update({param:thetas[i]})
         i = i + 1
-    
+
     # ~~~~~~~~~~~~~~
     # Run simulation
     # ~~~~~~~~~~~~~~
@@ -95,6 +96,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     Notes
     -----------
     An explanation of the difference between SSE and MLE can be found here: https://emcee.readthedocs.io/en/stable/tutorials/line/
+
     Brief summary: if measurement noise is unbiased, Gaussian and independent than the MLE and SSE are identical.
 
     Example use
@@ -105,15 +107,23 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # by defenition, if N is the number of data timeseries then the first N parameters are the estimated variances of these timeseries!
     i = 0
     for param in parNames:
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
-        elif param == 'log_f':
-            log_f=thetas[i]
         else:
-            setattr(BaseModel,param,thetas[i])
+            sigma=[]
+            if i <= len(data):
+                sigma.append(thetas[i])
+            else:
+                BaseModel.parameters.update({param:thetas[i]})
         i = i + 1
+
+    # set first N variables to the uncertainty of the dataset
+    sigma=[]
+    for i in range(len(data)):
+        sigma.append(thetas[i])
 
     # ~~~~~~~~~~~~~~
     # Run simulation
@@ -140,10 +150,8 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
             som = som + out[states[i][j]].sum(dim="stratification").values
         ymodel.append(som[BaseModel.extraTime:])
         # calculate simga2 and log-likelihood function
-        yerr = 0.10*data[i] # assumption: 10% variance on data
-        sigma2 = yerr ** 2 + ymodel[i] ** 2 * np.exp(2 * log_f[i])
-        MLE = MLE -0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma2 + np.log(sigma2))
-    return MLE
+        MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+    return abs(MLE) # must be positive for pso
 
 def log_prior(thetas,bounds):
 
@@ -181,12 +189,12 @@ def log_prior(thetas,bounds):
             lp.append(np.log(prob))
         else:
             lp.append(-np.inf)
-    if not np.isfinite(lp).any:
+    if not np.isfinite(lp).all():
         return - np.inf
     else:
         return 0
 
-def log_probability(thetas,BaseModel,bounds,data,states,parNames,weights=None,checkpoints=None,method='MLE'):
+def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -205,25 +213,24 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,weights=None,ch
         list containing dataseries
     states: array
         list containg the names of the model states to be fitted to data
-    weights: np.array
-        weight of every dataseries
 
     Returns
     -----------
     lp : float
         returns the MLE if all parameters fall within the user-specified bounds
-        return - np.inf if one parameter doesn't fall in the user-provided bounds
+        returns - np.inf if one parameter doesn't fall in the user-provided bounds
 
     Example use
     -----------
     lp = log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
     """
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Check if all provided thetas are within the user-specified bounds
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     lp = log_prior(thetas,bounds)
-    if not np.isfinite(lp).any:
-        return -np.inf
-    if method == 'MLE':
-        return lp + MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints)
+    if not np.isfinite(lp).all():
+        return - np.inf
     else:
-        return lp + SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=checkpoints)
+        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints) # must be negative for emcee
 
