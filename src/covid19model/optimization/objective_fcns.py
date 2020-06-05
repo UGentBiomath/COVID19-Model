@@ -1,6 +1,6 @@
 import numpy as np
 
-def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
+def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
     """
     A function to return the sum of squared errors given a model prediction and a dataset
@@ -29,7 +29,7 @@ def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
     -----------
     SSE = SSE(model,thetas,data,parNames,positions,weights)
     """
-
+    
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,7 +69,7 @@ def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
+def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
 
     """
     A function to return the maximum likelihood estimator given a model prediction and a dataset
@@ -86,8 +86,6 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
-    weights: np.array
-        weight of every dataseries
 
     Returns
     -----------
@@ -101,7 +99,7 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
 
     Example use
     -----------
-    MLE = MLE(model,thetas,data,parNames,positions,weights)
+    MLE = MLE(model,thetas,data,parNames,positions)
     """
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -116,7 +114,7 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
         else:
             setattr(BaseModel,param,thetas[i])
         i = i + 1
-    
+
     # ~~~~~~~~~~~~~~
     # Run simulation
     # ~~~~~~~~~~~~~~
@@ -188,7 +186,7 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
-def log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE'):
+def log_probability(thetas,BaseModel,bounds,data,states,parNames,weights=None,checkpoints=None,method='MLE'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -225,7 +223,7 @@ def log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpo
     if not np.isfinite(lp).any:
         return -np.inf
     if method == 'MLE':
-        return lp + MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=checkpoints)
+        return lp + MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints)
     else:
-        return lp + SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=checkpoints)
+        return lp + SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=checkpoints)
 
