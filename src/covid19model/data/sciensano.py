@@ -3,11 +3,18 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_sciensano_COVID19_data():
-    """Download Sciensano hospitalisation cases data 
+def get_sciensano_COVID19_data(update=True):
+    """Download Sciensano hospitalisation cases data
 
-    This function returns the publically available Sciensano data on COVID-19 related hospitalisations.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    This function returns the publically available Sciensano data
+    on COVID-19 related hospitalisations.A copy of the downloaded dataset
+    is automatically saved in the /data/raw folder.
+
+    Parameters
+    ----------
+    update : boolean (default True)
+        True if you want to update the data,
+        False if you want to read only previously saved data
 
     Returns
     -----------
@@ -26,7 +33,7 @@ def get_sciensano_COVID19_data():
     H_tot_cumsum: np.array
         calculated total number of patients in hospital
         calculated as by taking the cumulative sum of H_net = H_in - H_out
-    
+
     Notes
     ----------
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
@@ -36,17 +43,19 @@ def get_sciensano_COVID19_data():
     -----------
     index, initial, H_tot, ICU_tot, H_in, H_out = get_sciensano_data()
     """
-
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
-
-
-    # Extract hospitalisation data from source
-    df = pd.read_excel(url, sheet_name="HOSP")
-    # save a copy in the raw folder
     abs_dir = os.path.dirname(__file__)
-    rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
-    df.to_csv(rel_dir,index=False)
+
+    if update==True:
+        # Extract hospitalisation data from source
+        df = pd.read_excel(url, sheet_name="HOSP")
+        # save a copy in the raw folder
+        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
+        df.to_csv(rel_dir,index=False)
+    else:
+        df = pd.read_csv(os.path.join(abs_dir,
+        '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
     # Date of initial records
     initial = df.astype(str)['DATE'][0]
 
