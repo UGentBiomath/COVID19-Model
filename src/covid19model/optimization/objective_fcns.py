@@ -1,5 +1,4 @@
 import numpy as np
-import xarray
 
 def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
 
@@ -30,10 +29,6 @@ def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
     -----------
     SSE = SSE(model,thetas,data,parNames,positions,weights)
     """
-
-    # ~~~~~~~~~~~~
-    # Input checks
-    # ~~~~~~~~~~~~
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
@@ -71,7 +66,6 @@ def SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
             som = som + out[states[i][j]].sum(dim="stratification").values
         ymodel.append(som[BaseModel.extraTime:])
         # calculate quadratic error
-        print(ymodel[i].shape,data[i].shape)
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
@@ -97,7 +91,7 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
 
     Returns
     -----------
-    MLE : float64
+    MLE : float
         total sum of squared errors
 
     Notes
@@ -109,10 +103,6 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
     -----------
     MLE = MLE(model,thetas,data,parNames,positions,weights)
     """
-
-    # ~~~~~~~~~~~~
-    # Input checks
-    # ~~~~~~~~~~~~
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
@@ -141,7 +131,7 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
     out=BaseModel.sim(T,checkpoints=checkpoints)
 
     # -------------
-    # calculate SSE
+    # calculate MLE
     # -------------
     ymodel=[]
     MLE = 0
@@ -156,4 +146,86 @@ def MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=None):
         sigma2 = yerr ** 2 + ymodel[i] ** 2 * np.exp(2 * log_f[i])
         MLE = MLE -0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma2 + np.log(sigma2))
     return MLE
+
+def log_prior(thetas,bounds):
+
+    """
+    A function to compute a uniform prior distribution for a given set of parameters and bounds.
+
+    Parameters
+    -----------
+    thetas: array
+        vector containing estimated parameter values
+    bounds: tuple
+        contains one tuples with the lower and upper bounds of each parameter theta
+
+    Returns
+    -----------
+    lp : float
+        returns 0 if all parameters fall within the user-provided bounds
+        return - np.inf if one parameter doesn't fall in the user-provided bounds
+
+
+    Example use
+    -----------
+    thetas = [1,1]
+
+    bounds = ((0,1),(1,8))
+
+    lp = log_prior(thetas,bounds)
+    """
+
+    lp=[]
+    for i in range(len(bounds)):
+        prob = 1/(bounds[i][1]-bounds[i][0])
+        condition = bounds[i][0] < thetas[i] < bounds[i][1]
+        if condition == True:
+            lp.append(np.log(prob))
+        else:
+            lp.append(-np.inf)
+    if not np.isfinite(lp).any:
+        return - np.inf
+    else:
+        return 0
+
+def log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE'):
+
+    """
+    A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
+
+    Parameters
+    -----------
+    BaseModel: model object
+        correctly initialised model to be fitted to the dataset
+    thetas: np.array
+        vector containing estimated parameter values
+    bounds: tuple
+        contains one tuples with the lower and upper bounds of each parameter theta
+    thetas: array
+        names of parameters to be fitted
+    data: array
+        list containing dataseries
+    states: array
+        list containg the names of the model states to be fitted to data
+    weights: np.array
+        weight of every dataseries
+
+    Returns
+    -----------
+    lp : float
+        returns the MLE if all parameters fall within the user-specified bounds
+        return - np.inf if one parameter doesn't fall in the user-provided bounds
+
+    Example use
+    -----------
+    lp = log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    """
+
+    lp = log_prior(thetas,bounds)
+    if not np.isfinite(lp).any:
+        return -np.inf
+    if method == 'MLE':
+        return lp + MLE(BaseModel,thetas,data,states,parNames,weights,checkpoints=checkpoints)
+    else:
+        return lp + SSE(BaseModel,thetas,data,states,parNames,weights,checkpoints=checkpoints)
 
