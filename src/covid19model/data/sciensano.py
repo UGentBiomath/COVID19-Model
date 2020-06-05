@@ -4,10 +4,11 @@ import pandas as pd
 import numpy as np
 
 def get_sciensano_COVID19_data():
-    """Download Sciensano hospitalisation cases data 
+    """Download Sciensano hospitalisation cases data
 
-    This function returns the publically available Sciensano data on COVID-19 related hospitalisations.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    This function returns the publically available Sciensano data
+    on COVID-19 related hospitalisations.A copy of the downloaded dataset
+    is automatically saved in the /data/raw folder.
 
     Returns
     -----------
@@ -26,7 +27,7 @@ def get_sciensano_COVID19_data():
     H_tot_cumsum: np.array
         calculated total number of patients in hospital
         calculated as by taking the cumulative sum of H_net = H_in - H_out
-    
+
     Notes
     ----------
     The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
