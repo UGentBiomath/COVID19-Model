@@ -54,27 +54,30 @@ def get_COVID19_SEIRD_parameters():
     -----------
     parameters = get_COVID19_SEIRD_parameters()
     """
+    abs_dir = os.path.dirname(__file__)
+    rel_dir = os.path.join(abs_dir, "../../../data/raw/model_parameters")
+
     # Initialize parameters dictionary
     parameters = {}
 
     # Assign Nc_total from the Polymod study to the parameters dictionary
     initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
     parameters['Nc'] = Nc_total
-    
+
     # Verity_etal
-    df = pd.read_csv("../../data/raw/model_parameters/verity_etal.csv", sep=',',header='infer')
+    df = pd.read_csv(os.path.join(rel_dir, "verity_etal.csv"), sep=',',header='infer')
     parameters['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
     parameters['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
     parameters['c'] = 1-parameters['icu']
     parameters['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/parameters['h']/parameters['icu']
 
     # Abrams_etal
-    df_asymp = pd.read_csv("../../data/raw/model_parameters/abrams_etal.csv", sep=',',header='infer')
+    df_asymp = pd.read_csv(os.path.join(rel_dir, "wu_etal.csv"), sep=',',header='infer')
     parameters['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
     parameters['m'] = 1-parameters['a']
 
     # Other parameters
-    df_other_pars = pd.read_csv("../../data/raw/model_parameters/others.csv", sep=',',header='infer')
+    df_other_pars = pd.read_csv(os.path.join(rel_dir, "others.csv"), sep=',',header='infer')
     parameters.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
