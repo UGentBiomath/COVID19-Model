@@ -43,7 +43,7 @@ def sse(theta, model, data, model_parameters, lag_time=None):
     >>> # whereas the first one can be used inside optimization
     """
 
-    if data_to_fit.name not in sir_model.state_names:
+    if data.name not in model.state_names:
         raise Exception("Data variable to fit is not available as model output")
 
     # define new parameters in model
