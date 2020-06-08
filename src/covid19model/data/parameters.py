@@ -68,7 +68,7 @@ def get_COVID19_SEIRD_parameters():
     parameters['c'] = 1-parameters['icu']
     parameters['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/parameters['h']/parameters['icu']
 
-    # Abrams_etal
+    # Wu_etal
     df_asymp = pd.read_csv("../../data/raw/model_parameters/wu_etal.csv", sep=',',header='infer')
     parameters['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
     parameters['m'] = 1-parameters['a']
