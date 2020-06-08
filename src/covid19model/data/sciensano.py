@@ -18,21 +18,17 @@ def get_sciensano_COVID19_data(update=True):
 
     Returns
     -----------
-    index : pd.DatetimeIndex
-        datetimes for which a data point is available
-    initial :  str 'YYYY-MM-DD'
-        initial date of records as string
-    ICU_tot : np.array
-        total number of hospitalised patients in ICU
-    H_tot : np.array
-        total number of hospitalised patients (according to Sciensano)
-    H_in : np.array
-        total number of patients going to hospital on given date
-    H_out: np.array
-        total number of patients discharged from hospital on given data
-    H_tot_cumsum: np.array
-        calculated total number of patients in hospital
-        calculated as by taking the cumulative sum of H_net = H_in - H_out
+    df : pandas.DataFrame
+        DataFrame with the sciensano data on daily basis. The following columns
+        are returned:
+
+        - pd.DatetimeIndex : datetimes for which a data point is available
+        - H_tot : total number of hospitalised patients (according to Sciensano)
+        - ICU_tot : total number of hospitalised patients in ICU
+        - H_in : total number of patients going to hospital on given date
+        - H_out : total number of patients discharged from hospital on given data
+        - H_tot_cumsum : calculated total number of patients in hospital,
+              calculated as by taking the cumulative sum of H_net = H_in - H_out
 
     Notes
     ----------
@@ -41,7 +37,10 @@ def get_sciensano_COVID19_data(update=True):
 
     Example use
     -----------
-    index, initial, H_tot, ICU_tot, H_in, H_out = get_sciensano_data()
+    >>> # download data from sciensano website and store new version
+    >>> sciensano_data = get_sciensano_data(update=True)
+    >>> # load data from raw data directory (no new download)
+    >>> sciensano_data = get_sciensano_data()
     """
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
@@ -52,22 +51,20 @@ def get_sciensano_COVID19_data(update=True):
         df = pd.read_excel(url, sheet_name="HOSP")
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
-        df.to_csv(rel_dir,index=False)
+        df.to_csv(rel_dir, index=False)
     else:
         df = pd.read_csv(os.path.join(abs_dir,
         '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
-    # Date of initial records
-    initial = df.astype(str)['DATE'][0]
 
     # Resample data from all regions and sum all values for each date
-    data = df.loc[:,['DATE','TOTAL_IN','TOTAL_IN_ICU','NEW_IN','NEW_OUT']]
-    data = data.resample('D', on='DATE').sum()
-    H_tot = np.array([data.loc[:,'TOTAL_IN'].tolist()]).flatten() # export as 1D array
-    ICU_tot = np.array([data.loc[:,'TOTAL_IN_ICU'].tolist()]).flatten() # export as 1D array
-    H_in = np.array([data.loc[:,'NEW_IN'].tolist()]).flatten() # export as 1D array
-    H_out = np.array([data.loc[:,'NEW_OUT'].tolist()]).flatten() # export as 1D array
-    H_tot_cumsum=np.reshape(np.cumsum(H_in-H_out),(1,np.cumsum(H_in-H_out).size)).flatten() # export as 1D array
+    df = df.resample('D', on='DATE').sum()
 
-    # List of time datapoints
-    index = pd.date_range(initial, freq='D', periods=ICU_tot.size)
-    return index, initial, H_tot, H_tot_cumsum, ICU_tot, H_in, H_out
+    variable_mapping = {"TOTAL_IN": "H_tot",
+                        "TOTAL_IN_ICU": "ICU_tot",
+                        "NEW_IN": "H_in",
+                        "NEW_OUT": "H_out"}
+    df = df.rename(columns=variable_mapping)
+    df = df[list(variable_mapping.values())]
+    df["H_tot_cumsum"] = (df["H_in"] - df["H_out"]).cumsum().values
+
+    return df
