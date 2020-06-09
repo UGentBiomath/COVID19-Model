@@ -11,9 +11,11 @@
 + `Staff distribution by sector.xlsx` contains the fraction of employees who worked at the workplace, at home, in a mix of both, those temporarely unemployed and those abscent during the Belgian lockdown of March 17th, 2020 to March 4th, 2020. Belgian data. Received from prof. Gert Peersman.
 +`Supply and use table - Belgium.xlsx` contains the sectoral input-output tables for 2016. Belgian data. Received from prof. Gert Peersman.
 
-#### UZ Ghent data
+#### Hospital data
 
 + `symptomOnsetHospitalization.xlsx` contains: 1) the date at which patients first reported having symptoms, 2) the data at which patients were hospitalized and 3) the age of the patient. Received from Ghent University hospital, contact: Pascal Coorevits.
+
++ `AZmariaMiddelares.xlsx` contains: 1) patient ID, 2) per patient: in chronological order, from bottom to top (!), the amount of time spent in the emergency room, cohort or intensive care unit, 3) the age of the patient, 4) the sex of the patient, 5) if the patient recovered or died. 'cohortafdeling D601' is a geriatric cohort ward, 'cohortafdeling D501' is a regular cohort ward. Received from AZ Maria Middelares, contact: Leen Van Hoeymissen.
 
 #### Polymod
 
