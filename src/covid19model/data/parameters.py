@@ -54,30 +54,34 @@ def get_COVID19_SEIRD_parameters():
     -----------
     parameters = get_COVID19_SEIRD_parameters()
     """
+
+    abs_dir = os.path.dirname(__file__)
+    par_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
+
     # Initialize parameters dictionary
-    parameters = {}
+    pars_dict = {}
 
     # Assign Nc_total from the Polymod study to the parameters dictionary
-    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
-    parameters['Nc'] = Nc_total
-    
+    Nc_total = polymod.get_interaction_matrices()[-1]
+    pars_dict['Nc'] = Nc_total
+
     # Verity_etal
-    df = pd.read_csv("../../data/raw/model_parameters/verity_etal.csv", sep=',',header='infer')
-    parameters['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
-    parameters['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
-    parameters['c'] = 1-parameters['icu']
-    parameters['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/parameters['h']/parameters['icu']
+    df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
+    pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+    pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
+    pars_dict['c'] = 1-pars_dict['icu']
+    pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
 
     # Wu_etal
-    df_asymp = pd.read_csv("../../data/raw/model_parameters/wu_etal.csv", sep=',',header='infer')
-    parameters['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-    parameters['m'] = 1-parameters['a']
+    df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
+    pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
+    pars_dict['m'] = 1-pars_dict['a']
 
     # Other parameters
-    df_other_pars = pd.read_csv("../../data/raw/model_parameters/others.csv", sep=',',header='infer')
-    parameters.update(df_other_pars.T.to_dict()[0])
+    df_other_pars = pd.read_csv(os.path.join(par_path,"others.csv"), sep=',',header='infer')
+    pars_dict.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
-    parameters['beta'] = 0.03492
+    pars_dict['beta'] = 0.03492
 
-    return parameters
+    return pars_dict
