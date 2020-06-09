@@ -11,7 +11,7 @@ Check the [documentation website](https://ugentbiomath.github.io/COVID19-Model/)
 
 ## Demo
 
-A demo of the model can be found [here](notebooks/templates/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder,
+A demo of the model can be found [here](notebooks/templates/SEIRSAgeModel_demo.ipynb). This notebook can also be run in the browser through binder.
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master)
 
