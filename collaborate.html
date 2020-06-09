@@ -88,7 +88,16 @@
 <li class="toctree-l2"><a class="reference internal" href="#notebooks-are-for-exploration-and-communication">Notebooks are for exploration and communication</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#documentation-website">Documentation website</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#the-covid19model-python-package">The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#repository-layout-overview">Repository layout overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#repository-layout-overview">Repository layout overview</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data">data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code">code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#documentation">documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hpc-specific-code">HPC specific code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#notebooks">notebooks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#automate-stuff">automate stuff</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#other-info">other info</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -191,7 +200,7 @@
 <p>Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:</p>
 <ul class="simple">
 <li><p>Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-twallema-model-network.ipynb).</p></li>
-<li><p>Reuse the good parts. Don’t write code to do the same task in multiple notebooks. If it’s a data preprocessing task, put it in the pipeline at <code class="docutils literal notranslate"><span class="pre">src/covid19model/data/make_dataset.py</span></code> and load data from <code class="docutils literal notranslate"><span class="pre">data/interim</span></code>. If it’s useful utility code, refactor it and put it in the appropriate subfolder of the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> folder, e;g. visualisations inside <code class="docutils literal notranslate"><span class="pre">src/covid19model/visualization</span></code></p></li>
+<li><p>Reuse the good parts. Don’t write code to do the same task in multiple notebooks. If it’s a data preprocessing task, put it in the pipeline at <code class="docutils literal notranslate"><span class="pre">src/covid19model/data/make_dataset.py</span></code> and load data from <code class="docutils literal notranslate"><span class="pre">data/interim</span></code>. If it’s useful utility code, refactor it and put it in the appropriate subfolder of the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> folder, e.g. visualisations inside <code class="docutils literal notranslate"><span class="pre">src/covid19model/visualization</span></code></p></li>
 </ul>
 <p>As the code of the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> folder is a Python package itself (see the <code class="docutils literal notranslate"><span class="pre">setup.py</span></code> file). You can import your code and use it in notebooks without the need of reinstallation. Put the following at the top of your notebook:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># OPTIONAL: Load the &quot;autoreload&quot; extension so that code can change</span>
@@ -237,7 +246,77 @@
 <h2>Repository layout overview<a class="headerlink" href="#repository-layout-overview" title="Permalink to this headline">¶</a></h2>
 <p>As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/issues/new/choose">New issue</a>.</p>
 <p><strong>Remember:</strong> Anyone should be able to reproduce the final products with only the <code class="docutils literal notranslate"><span class="pre">code</span></code> in <code class="docutils literal notranslate"><span class="pre">src</span></code> and the data in <code class="docutils literal notranslate"><span class="pre">data/raw</span></code>!</p>
-<p><strong>TODO</strong></p>
+<div class="section" id="data">
+<h3>data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
+<p>├── data                                    &lt;- cfr. current set of data sets
+│   ├── raw                                 &lt;- data as provided in raw format
+│   │   ├── UZGent
+│   │   └── economical
+│   │   └── google
+│   │   └── model_parameters
+│   │   └── polymod
+│   │   └── sciensano
+│   ├── interim                             &lt;- data sets after speicific manipulation
+│   │   ├── …
+│   └── README.md                           &lt;- for each data set: what, how to get,…</p>
+</div>
+<div class="section" id="code">
+<h3>code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
+<p>├── src                                     &lt;- all reusable code blocks
+│   ├── covid19model
+|   │   ├── data                            &lt;- any code required for data reading and manipulation
+|   │   ├── models                          &lt;- any code constructing the models
+|   │   ├── optimization                    &lt;- code related to parameter callibration
+|   │   ├── visualization                   &lt;- code for making figures
+|   │   └── <strong>init</strong>.py                     &lt;- structured as lightweight python package
+│   ├── tests
+|   │   ├── … .py                         &lt;- all test code during development</p>
+</div>
+<div class="section" id="documentation">
+<h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h3>
+<p>├── docs                                    &lt;- documentation
+│   ├── conf.py
+│   ├── index.rst                           &lt;- explanations are written inside markdown or st files
+│   ├── … .md                             &lt;- pages of the documentation website
+│   ├── Makefile
+│   └── _static
+│   │   └── figs                            &lt;- figs linked to the documentation
+│   │       ├── …
+│   │       └── SEIRSNetworkModel.jpg</p>
+</div>
+<div class="section" id="hpc-specific-code">
+<h3>HPC specific code<a class="headerlink" href="#hpc-specific-code" title="Permalink to this headline">¶</a></h3>
+<p>├── hpc
+│   ├── calibrate_stochastic.py
+│   ├── README.md
+│   ├── sim_stochastic.py
+│   └── test.sh</p>
+</div>
+<div class="section" id="notebooks">
+<h3>notebooks<a class="headerlink" href="#notebooks" title="Permalink to this headline">¶</a></h3>
+<p>├── notebooks                               &lt;- notebooks are collected here
+│   ├── 0.1-user-content.ipynb              &lt;- notebook per version-user-content
+│   ├── templates                           &lt;- demo notebooks that can be used as starting point (and binder intro)
+│       ├── SEIRSAgeModel_demo.ipynb
+│       └── SEIRSNetworkModel_demo.ipynb
+│   ├── scratch                             &lt;- test notebooks</p>
+<p>├── reports                                 &lt;- optional (e.g. report from automatic daily rerun)
+│   └── figures</p>
+</div>
+<div class="section" id="automate-stuff">
+<h3>automate stuff<a class="headerlink" href="#automate-stuff" title="Permalink to this headline">¶</a></h3>
+<p>├── .github                                 &lt;- Automate specific steps with github actions
+│   ├── workflows
+│   │   ├── deploy.yml
+│   │   └── …</p>
+</div>
+<div class="section" id="other-info">
+<h3>other info<a class="headerlink" href="#other-info" title="Permalink to this headline">¶</a></h3>
+<p>├── LICENSE
+├── environment.yml
+├── setup.py
+└── README.md                               &lt;- focus on how to get started, setup environment name conventions and</p>
+</div>
 </div>
 </div>
 
