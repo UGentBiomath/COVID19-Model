@@ -79,7 +79,7 @@ As the previous sections described, each subfolder of the repository has a speci
 __Remember:__ Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`!
 
 #### data
-
+```
 ├── data                                    <- cfr. current set of data sets
 │   ├── raw                                 <- data as provided in raw format
 │   │   ├── UZGent
@@ -91,9 +91,10 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 │   ├── interim                             <- data sets after speicific manipulation
 │   │   ├── ...
 │   └── README.md                           <- for each data set: what, how to get,...
+```
 
 #### code
-
+```
 ├── src                                     <- all reusable code blocks 
 │   ├── covid19model
 |   │   ├── data                            <- any code required for data reading and manipulation
@@ -103,9 +104,10 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 |   │   └── __init__.py                     <- structured as lightweight python package
 │   ├── tests
 |   │   ├── ... .py                         <- all test code during development
+```
 
 #### documentation
-
+```
 ├── docs                                    <- documentation 
 │   ├── conf.py
 │   ├── index.rst                           <- explanations are written inside markdown or st files
@@ -115,17 +117,19 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 │   │   └── figs                            <- figs linked to the documentation
 │   │       ├── ...
 │   │       └── SEIRSNetworkModel.jpg
+```
 
 #### HPC specific code
-
+```
 ├── hpc
 │   ├── calibrate_stochastic.py
 │   ├── README.md
 │   ├── sim_stochastic.py
 │   └── test.sh
+```
 
 #### notebooks
-
+```
 ├── notebooks                               <- notebooks are collected here
 │   ├── 0.1-user-content.ipynb              <- notebook per version-user-content
 │   ├── templates                           <- demo notebooks that can be used as starting point (and binder intro)
@@ -135,18 +139,20 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 
 ├── reports                                 <- optional (e.g. report from automatic daily rerun)
 │   └── figures
+```
 
 #### automate stuff
-
+```
 ├── .github                                 <- Automate specific steps with github actions
 │   ├── workflows
 │   │   ├── deploy.yml
 │   │   └── ...
+```
 
 #### other info
-
+```
 ├── LICENSE
 ├── environment.yml
 ├── setup.py
 └── README.md                               <- focus on how to get started, setup environment name conventions and 
-
+```

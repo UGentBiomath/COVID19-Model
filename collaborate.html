@@ -248,7 +248,7 @@
 <p><strong>Remember:</strong> Anyone should be able to reproduce the final products with only the <code class="docutils literal notranslate"><span class="pre">code</span></code> in <code class="docutils literal notranslate"><span class="pre">src</span></code> and the data in <code class="docutils literal notranslate"><span class="pre">data/raw</span></code>!</p>
 <div class="section" id="data">
 <h3>data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
-<p>├── data                                    &lt;- cfr. current set of data sets
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── data                                    &lt;- cfr. current set of data sets
 │   ├── raw                                 &lt;- data as provided in raw format
 │   │   ├── UZGent
 │   │   └── economical
@@ -257,65 +257,80 @@
 │   │   └── polymod
 │   │   └── sciensano
 │   ├── interim                             &lt;- data sets after speicific manipulation
-│   │   ├── …
-│   └── README.md                           &lt;- for each data set: what, how to get,…</p>
+│   │   ├── ...
+│   └── README.md                           &lt;- for each data set: what, how to get,...
+</pre></div>
+</div>
 </div>
 <div class="section" id="code">
 <h3>code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
-<p>├── src                                     &lt;- all reusable code blocks
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── src                                     &lt;- all reusable code blocks 
 │   ├── covid19model
 |   │   ├── data                            &lt;- any code required for data reading and manipulation
 |   │   ├── models                          &lt;- any code constructing the models
 |   │   ├── optimization                    &lt;- code related to parameter callibration
 |   │   ├── visualization                   &lt;- code for making figures
-|   │   └── <strong>init</strong>.py                     &lt;- structured as lightweight python package
+|   │   └── __init__.py                     &lt;- structured as lightweight python package
 │   ├── tests
-|   │   ├── … .py                         &lt;- all test code during development</p>
+|   │   ├── ... .py                         &lt;- all test code during development
+</pre></div>
+</div>
 </div>
 <div class="section" id="documentation">
 <h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h3>
-<p>├── docs                                    &lt;- documentation
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── docs                                    &lt;- documentation 
 │   ├── conf.py
 │   ├── index.rst                           &lt;- explanations are written inside markdown or st files
-│   ├── … .md                             &lt;- pages of the documentation website
+│   ├── ... .md                             &lt;- pages of the documentation website
 │   ├── Makefile
 │   └── _static
 │   │   └── figs                            &lt;- figs linked to the documentation
-│   │       ├── …
-│   │       └── SEIRSNetworkModel.jpg</p>
+│   │       ├── ...
+│   │       └── SEIRSNetworkModel.jpg
+</pre></div>
+</div>
 </div>
 <div class="section" id="hpc-specific-code">
 <h3>HPC specific code<a class="headerlink" href="#hpc-specific-code" title="Permalink to this headline">¶</a></h3>
-<p>├── hpc
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── hpc
 │   ├── calibrate_stochastic.py
 │   ├── README.md
 │   ├── sim_stochastic.py
-│   └── test.sh</p>
+│   └── test.sh
+</pre></div>
+</div>
 </div>
 <div class="section" id="notebooks">
 <h3>notebooks<a class="headerlink" href="#notebooks" title="Permalink to this headline">¶</a></h3>
-<p>├── notebooks                               &lt;- notebooks are collected here
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── notebooks                               &lt;- notebooks are collected here
 │   ├── 0.1-user-content.ipynb              &lt;- notebook per version-user-content
 │   ├── templates                           &lt;- demo notebooks that can be used as starting point (and binder intro)
 │       ├── SEIRSAgeModel_demo.ipynb
 │       └── SEIRSNetworkModel_demo.ipynb
-│   ├── scratch                             &lt;- test notebooks</p>
-<p>├── reports                                 &lt;- optional (e.g. report from automatic daily rerun)
-│   └── figures</p>
+│   ├── scratch                             &lt;- test notebooks
+
+├── reports                                 &lt;- optional (e.g. report from automatic daily rerun)
+│   └── figures
+</pre></div>
+</div>
 </div>
 <div class="section" id="automate-stuff">
 <h3>automate stuff<a class="headerlink" href="#automate-stuff" title="Permalink to this headline">¶</a></h3>
-<p>├── .github                                 &lt;- Automate specific steps with github actions
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── .github                                 &lt;- Automate specific steps with github actions
 │   ├── workflows
 │   │   ├── deploy.yml
-│   │   └── …</p>
+│   │   └── ...
+</pre></div>
+</div>
 </div>
 <div class="section" id="other-info">
 <h3>other info<a class="headerlink" href="#other-info" title="Permalink to this headline">¶</a></h3>
-<p>├── LICENSE
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── LICENSE
 ├── environment.yml
 ├── setup.py
-└── README.md                               &lt;- focus on how to get started, setup environment name conventions and</p>
+└── README.md                               &lt;- focus on how to get started, setup environment name conventions and 
+</pre></div>
+</div>
 </div>
 </div>
 </div>
