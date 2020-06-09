@@ -38,9 +38,9 @@ def get_sciensano_COVID19_data(update=True):
     Example use
     -----------
     >>> # download data from sciensano website and store new version
-    >>> sciensano_data = get_sciensano_data(update=True)
+    >>> sciensano_data = get_sciensano_COVID19_data(update=True)
     >>> # load data from raw data directory (no new download)
-    >>> sciensano_data = get_sciensano_data()
+    >>> sciensano_data = get_sciensano_COVID19_data()
     """
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
