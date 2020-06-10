@@ -4,12 +4,18 @@ import pandas as pd
 import numpy as np
 from covid19model.data import polymod
 
-def get_COVID19_SEIRD_parameters():
+def get_COVID19_SEIRD_parameters(stratified=True):
     """
     Extracts and returns the parameters for the age-stratified deterministic model
 
     This function returns all parameters needed to run the age-stratified model.
     This function was created to group all parameters in one centralised location.
+
+    Parameters
+    ----------
+    stratified : boolean
+        If True: returns parameters stratified by age, for agestructured model
+        If False: returns parameters for non-agestructured model
 
     Returns
     -----------
@@ -65,18 +71,25 @@ def get_COVID19_SEIRD_parameters():
     Nc_total = polymod.get_interaction_matrices()[-1]
     pars_dict['Nc'] = Nc_total
 
-    # Verity_etal
-    df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
-    pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
-    pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
+    if stratified == True:
+        # Verity_etal
+        df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
+        pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
+
+        # Wu_etal
+        df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
+        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
+
+    else:
+        non_strat = pd.read_csv(os.path.join(par_path,"non_stratified.csv"), sep=',',header='infer')
+        pars_dict.update(non_strat.T.to_dict()[0])
+
+    # deduced parameters
     pars_dict['c'] = 1-pars_dict['icu']
-    pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
-
-    # Wu_etal
-    df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
-    pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
     pars_dict['m'] = 1-pars_dict['a']
-
+        
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_path,"others.csv"), sep=',',header='infer')
     pars_dict.update(df_other_pars.T.to_dict()[0])
