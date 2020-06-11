@@ -224,26 +224,31 @@ class BaseModel:
         # first part of the simulation with original parameter
         output = self._sim_single([time_points[0], time_points[1]])
         results.append(output)
+        try:
+            # further simulations with updated parameters
+            for i in range(0, len(checkpoints["time"])):
+                # update parameters
+                for param in checkpoints.keys():
+                    if param != "time":
+                        self.parameters[param] = checkpoints[param][i]
+                self._validate()
 
-        # further simulations with updated parameters
-        for i in range(0, len(checkpoints["time"])):
-            # update parameters
-            for param in checkpoints.keys():
-                if param != "time":
-                    self.parameters[param] = checkpoints[param][i]
-            self._validate()
+                # update initial states with states of last result
+                previous_output = results[-1]
+                last_states = previous_output.isel(time=-1)
+                initial_states = {}
+                for state in self.state_names:
+                    initial_states[state] = last_states[state].values
+                self.initial_states = initial_states
 
-            # update initial states with states of last result
-            previous_output = results[-1]
-            last_states = previous_output.isel(time=-1)
-            initial_states = {}
-            for state in self.state_names:
-                initial_states[state] = last_states[state].values
-            self.initial_states = initial_states
-
-            # continue simulation
-            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
-            results.append(output)
+                # continue simulation
+                output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
+                results.append(output)
+        except:
+            # reset parameters and initial states to original value
+            self.parameters = original_parameters
+            self.initial_states = original_initial_states
+            raise
 
         # reset parameters and initial states to original value
         self.parameters = original_parameters

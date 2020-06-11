@@ -4,19 +4,26 @@ import pandas as pd
 import numpy as np
 from covid19model.data import polymod
 
-def get_COVID19_SEIRD_parameters():
+def get_COVID19_SEIRD_parameters(stratified=True):
     """
     Extracts and returns the parameters for the age-stratified deterministic model
 
     This function returns all parameters needed to run the age-stratified model.
     This function was created to group all parameters in one centralised location.
 
+    Parameters
+    ----------
+    stratified : boolean
+        If True: returns parameters stratified by age, for agestructured model
+        If False: returns parameters for non-agestructured model
+
     Returns
     -----------
     A dictionary with following keys and values:
 
     Nc: np.array
-        9x9 social interaction matrix; by default, the total interaction matrix Nc_total from the Polymod study is assigned to the parameters dictionary
+        9x9 social interaction matrix; by default, the total interaction
+        matrix Nc_total from the Polymod study is assigned to the parameters dictionary
     h : np.array
         fraction of the cases that require hospitalisation (-)
     icu: np.array
@@ -61,20 +68,31 @@ def get_COVID19_SEIRD_parameters():
     # Initialize parameters dictionary
     pars_dict = {}
 
-    # Assign Nc_total from the Polymod study to the parameters dictionary
-    Nc_total = polymod.get_interaction_matrices()[-1]
-    pars_dict['Nc'] = Nc_total
+    if stratified == True:
 
-    # Verity_etal
-    df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
-    pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
-    pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
+        # Assign Nc_total from the Polymod study to the parameters dictionary
+        Nc_total = polymod.get_interaction_matrices()[-1]
+        pars_dict['Nc'] = Nc_total
+
+        # Verity_etal
+        df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
+        pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
+
+        # Wu_etal
+        df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
+        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
+
+    else:
+        pars_dict['Nc'] = np.array([11.2])
+
+        non_strat = pd.read_csv(os.path.join(par_path,"non_stratified.csv"), sep=',',header='infer')
+        pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
+
+
+    # deduced parameters
     pars_dict['c'] = 1-pars_dict['icu']
-    pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
-
-    # Wu_etal
-    df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
-    pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
     pars_dict['m'] = 1-pars_dict['a']
 
     # Other parameters
