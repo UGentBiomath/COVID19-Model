@@ -56,6 +56,7 @@ The dynamics of the deterministic system are mathematically formulated as the ra
 
 #### Equations
 
+```
 \begin{eqnarray}
 \dot{S} &=& - \beta N_c \cdot S \cdot \Big( \frac{I+A}{N} \Big) - \theta_{\text{S}} \psi_{\text{FP}} \cdot S + SQ/d_{\text{q,FP}} + \zeta \cdot R,\\
 \dot{E} &=&  \beta \cdot N_c \cdot S \Big( \frac{I+A}{N} \Big) - (1/\sigma) \cdot E - \theta_{\text{E}} \psi_{\text{PP}} \cdot E,\\
@@ -79,6 +80,7 @@ H &=& C_{\text{tot}} + \text{Mi} + \text{ICU},\\
 \dot{MQ} &=& \theta_{\text{M}} \psi_{\text{PP}} \cdot M + (m/\omega) \cdot EQ - MQ \cdot ((1-h)/d_m) - MQ \cdot h/d_{\text{hospital}}, \\
 \dot{RQ} &=& \theta_{\text{R}} \psi_{\text{FP}} - (1/d_{\text{q,FP}}) \cdot RQ,
 \end{eqnarray}
+```
 
 In the above equations: `S` stands for susceptible, `E` for exposed, `A` for asymptomatic, `M` for mild, `H` for hospitalised, `C` for cohort, `Mi` for midcare, `ICU` for intensive care unit, `D` for dead, `R` for recovered. The quarantined states are denoted with a `Q` suffix, for example `AQ` stands for asymptomatic and quarantined. The states `S`, `E`, `A`, `M` and `R` can be quarantined. The disease dynamics when quarantined are identical to the non quarantined dynamics. For instance, `EQ` will evolve into `AQ` or `MQ` with the same probability as `E` evolves into `A` or `M`. Individuals from the `MQ` pool can end up in the hospital. `N` stands for the total population.
 

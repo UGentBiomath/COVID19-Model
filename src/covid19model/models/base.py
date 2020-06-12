@@ -7,6 +7,21 @@ import xarray
 
 
 class BaseModel:
+    """
+    Initialise the models
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+    """
 
     state_names = None
     parameter_names = None
@@ -14,21 +29,6 @@ class BaseModel:
     stratification = None
 
     def __init__(self, states, parameters):
-        """
-        Initialise the models
-
-        Parameters
-        ----------
-        To initialise the model, provide following inputs:
-
-        states : dictionary
-            contains the initial values of all non-zero model states
-            e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-            initialising zeros is thus not required
-        parameters : dictionary
-            containing the values of all parameters (both stratified and not)
-            these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-        """
         self.parameters = parameters
         self.initial_states = states
 
@@ -224,26 +224,31 @@ class BaseModel:
         # first part of the simulation with original parameter
         output = self._sim_single([time_points[0], time_points[1]])
         results.append(output)
+        try:
+            # further simulations with updated parameters
+            for i in range(0, len(checkpoints["time"])):
+                # update parameters
+                for param in checkpoints.keys():
+                    if param != "time":
+                        self.parameters[param] = checkpoints[param][i]
+                self._validate()
 
-        # further simulations with updated parameters
-        for i in range(0, len(checkpoints["time"])):
-            # update parameters
-            for param in checkpoints.keys():
-                if param != "time":
-                    self.parameters[param] = checkpoints[param][i]
-            self._validate()
+                # update initial states with states of last result
+                previous_output = results[-1]
+                last_states = previous_output.isel(time=-1)
+                initial_states = {}
+                for state in self.state_names:
+                    initial_states[state] = last_states[state].values
+                self.initial_states = initial_states
 
-            # update initial states with states of last result
-            previous_output = results[-1]
-            last_states = previous_output.isel(time=-1)
-            initial_states = {}
-            for state in self.state_names:
-                initial_states[state] = last_states[state].values
-            self.initial_states = initial_states
-
-            # continue simulation
-            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
-            results.append(output)
+                # continue simulation
+                output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
+                results.append(output)
+        except:
+            # reset parameters and initial states to original value
+            self.parameters = original_parameters
+            self.initial_states = original_initial_states
+            raise
 
         # reset parameters and initial states to original value
         self.parameters = original_parameters
