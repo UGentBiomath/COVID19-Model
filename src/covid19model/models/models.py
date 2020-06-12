@@ -51,6 +51,7 @@ plt.rcParams["lines.linewidth"] = 3
 
 
 from .base import BaseModel
+from .discrete_time import DiscreteTimeModel
 
 class COVID19_SEIRD(BaseModel):
     """
@@ -83,7 +84,11 @@ class COVID19_SEIRD(BaseModel):
     def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
-        """Biomath extended SEIRD model for COVID-19"""
+        """
+        Biomath extended SEIRD model for COVID-19
+
+        *Deterministic implementation*
+        """
 
         # Model equations
         Ctot = C + Cicurec
@@ -123,6 +128,110 @@ class COVID19_SEIRD(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dCicurec,
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
+
+
+class COVID19_SEIRD_sto(DiscreteTimeModel):
+    """
+    Biomath extended SEIRD model for COVID-19
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
+                   'ICU', 'R', 'D']
+    parameter_names = ['l','beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
+                       'dhospital', 'theta']
+    parameters_stratified_names = ['h', 'c', 'm0', 'icu']
+    stratification = 'Nc'
+
+    # ..transitions/equations
+    @staticmethod
+    def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D,
+                  l,beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
+                  dhospital, theta, h, c, m0, icu, Nc):
+        """
+        BIOMATH extended SEIRD model for COVID-19
+
+        *Antwerp University stochastic implementation*
+        """
+        # m0 goes above 1 making the probability of transitioning negative
+        m0 = 0.50
+        # round all states (to be placed outside integrate later)
+        S = np.rint(S)
+        E = np.rint(E)
+        I = np.rint(I)
+        A = np.rint(A)
+        M = np.rint(M)
+        C = np.rint(C)
+        Cicurec = np.rint(Cicurec)
+        ICU = np.rint(ICU)
+        R = np.rint(R)
+        D = np.rint(D)
+        # calculate total population per age bin using 2D array
+        N = S + E + I + A + M + C + Cicurec + ICU + R  
+        # Calculate the infection probability upon contact
+        p_star_1 =  1 - np.exp( - l*beta*np.matmul(Nc,((I)/N)) )
+        p_star_2 =  1 - np.exp( - l*beta*np.matmul(Nc,((A)/N)) )
+        p_star = 1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) )
+        # Draw the sytem prospensities from a binominal distribution
+        names = ['StoE_I','StoE_A','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS','StoE']
+        p = [1-(1-p_star_1)**np.sum(I),
+                1-(1-p_star_2)**np.sum(A),
+                (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size), # problem: must be S.size arrays
+                1 - np.exp(- l * a * (1/omega) ),
+                1 - np.exp(- l * m * (1/omega) ),
+                (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
+                (1 - np.exp(- l * (1/dm) ))*np.ones(S.size),
+                1 - np.exp(- l * h * c * (1/dhospital) ),
+                1 - np.exp(- l * h * (1-c) * (1/dhospital) ),
+                (1 - np.exp(- l * (1/dc) ))*np.ones(S.size),
+                (1 - np.exp(- l * (1-m0) * (1/dICU) ))*np.ones(S.size),
+                (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
+                (1 - np.exp(- l * m0 * (1/dICU) ))*np.ones(S.size),
+                (1 - np.exp(- l * zeta ))*np.ones(S.size),
+                p_star,
+            ]
+        states = [S,S,E,I,I,A,M,M,M,C,ICU,Cicurec,ICU,R,S]
+        prospensities=[]
+        for i in range(len(names)):
+            tmp=[]
+            for j in range(S.size):
+                if states[i][j]<0:
+                    tmp.append(0)
+                else:
+                    tmp.append( np.random.binomial(states[i][j],p[i][j]) )
+            prospensities.append(np.asarray(tmp))
+
+        # calculate the states at timestep k+1
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dS  = S - prospensities[14] + prospensities[13]
+        dE  =  E + prospensities[14] - prospensities[2] 
+        dI =  I + prospensities[2] - prospensities[3] - prospensities[4]
+        dA =  A + prospensities[3] - prospensities[5]
+        dM =  M + prospensities[4] - prospensities[6] - prospensities[7] - prospensities[8]
+        dC =  C + prospensities[7] - prospensities[9]
+        dCicurec =  Cicurec+ prospensities[10] - prospensities[11]
+        dICUstar =  ICU +  prospensities[8] - prospensities[10] - prospensities[12]
+        dR  =  R + prospensities[5] + prospensities[6] + prospensities[9] + prospensities[11] - prospensities[13]
+        dD  = D +  prospensities[12]
+
+        # protection against states < 0
+        output = (dS, dE, dI, dA, dM, dC, dCicurec,dICUstar, dR, dD)
+        for i in range(len(output)):
+            output[i][output[i]<0] = 0
+        return output
 
 
 class SEIRSAgeModel():
