@@ -109,21 +109,16 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # by defenition, if N is the number of data timeseries then the first N parameters are the estimated variances of these timeseries!
     i = 0
+    sigma=[]
     for param in parNames:
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
         else:
-            sigma=[]
-            if i <= len(data):
+            if i < len(data):
                 sigma.append(thetas[i])
             else:
                 BaseModel.parameters.update({param:thetas[i]})
         i = i + 1
-
-    # set first N variables to the uncertainty of the dataset
-    sigma=[]
-    for i in range(len(data)):
-        sigma.append(thetas[i])
 
     # ~~~~~~~~~~~~~~
     # Run simulation
