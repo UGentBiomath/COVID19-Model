@@ -234,8 +234,11 @@ class DiscreteTimeModel:
         if isinstance(time, int):
             time = [0, time]
 
+        original_initial_states = self.initial_states.copy()
         if checkpoints is None:
-            return self._sim_single(time,l)
+            out = self._sim_single(time,l)
+            self.initial_states = original_initial_states
+            return(out)
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
