@@ -110,7 +110,7 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec',
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
@@ -119,7 +119,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
         """
@@ -129,7 +129,7 @@ class COVID19_SEIRD(BaseModel):
         """
 
         # Model equations
-        Ctot = C + Cicurec
+        Ctot = C + C_icurec
         # calculate total population per age bin using 2D array
         N = S + E + I + A + M + Ctot + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
         # calculate the test rates for each pool using the total number of available tests
@@ -153,9 +153,9 @@ class COVID19_SEIRD(BaseModel):
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
         dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
-        dCicurec = ((1-m0)/dICU)*ICU - Cicurec*(1/dICUrec)
+        dC_icurec = ((1-m0)/dICU)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(M+MQ)*(h/dhospital) - ICU/dICU
-        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + Cicurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
+        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
         dD  = (m0/dICU)*ICU
         dSQ = theta_S*psi_FP*S - SQ/dq
         dEQ = theta_E*psi_PP*E - EQ/sigma
@@ -164,7 +164,7 @@ class COVID19_SEIRD(BaseModel):
         dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
 
-        return (dS, dE, dI, dA, dM, dC, dCicurec,
+        return (dS, dE, dI, dA, dM, dC, dC_icurec,
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
 
 
@@ -187,89 +187,71 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'Cicurec',
-                   'ICU', 'R', 'D']
-    parameter_names = ['l','beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
-                       'dhospital', 'theta']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital', 'theta']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, Cicurec, ICU, R, D,
-                  l,beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
+    def integrate(t, l, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
+                  beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, theta, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
 
         *Antwerp University stochastic implementation*
         """
+
         # m0 goes above 1 making the probability of transitioning negative
         m0 = 0.50
-        # round all states (to be placed outside integrate later)
-        S = np.rint(S)
-        E = np.rint(E)
-        I = np.rint(I)
-        A = np.rint(A)
-        M = np.rint(M)
-        C = np.rint(C)
-        Cicurec = np.rint(Cicurec)
-        ICU = np.rint(ICU)
-        R = np.rint(R)
-        D = np.rint(D)
         # calculate total population per age bin using 2D array
-        N = S + E + I + A + M + C + Cicurec + ICU + R  
-        # Calculate the infection probability upon contact
-        p_star_1 =  1 - np.exp( - l*beta*np.matmul(Nc,((I)/N)) )
-        p_star_2 =  1 - np.exp( - l*beta*np.matmul(Nc,((A)/N)) )
-        p_star = 1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) )
-        # Draw the sytem prospensities from a binominal distribution
-        names = ['StoE_I','StoE_A','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS','StoE']
-        p = [1-(1-p_star_1)**np.sum(I),
-                1-(1-p_star_2)**np.sum(A),
-                (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size), # problem: must be S.size arrays
-                1 - np.exp(- l * a * (1/omega) ),
-                1 - np.exp(- l * m * (1/omega) ),
-                (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
-                (1 - np.exp(- l * (1/dm) ))*np.ones(S.size),
-                1 - np.exp(- l * h * c * (1/dhospital) ),
-                1 - np.exp(- l * h * (1-c) * (1/dhospital) ),
-                (1 - np.exp(- l * (1/dc) ))*np.ones(S.size),
-                (1 - np.exp(- l * (1-m0) * (1/dICU) ))*np.ones(S.size),
-                (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
-                (1 - np.exp(- l * m0 * (1/dICU) ))*np.ones(S.size),
-                (1 - np.exp(- l * zeta ))*np.ones(S.size),
-                p_star,
-            ]
-        states = [S,S,E,I,I,A,M,M,M,C,ICU,Cicurec,ICU,R,S]
-        prospensities=[]
-        for i in range(len(names)):
-            tmp=[]
+        N = S + E + I + A + M + C + C_icurec + ICU + R 
+
+        # Make a dictionary containing the propensities of the system
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS']
+        probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) ),
+                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size), 
+                        1 - np.exp(- l * a * (1/omega) ),
+                        1 - np.exp(- l * m * (1/omega) ),
+                        (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
+                        (1 - np.exp(- l * (1/dm) ))*np.ones(S.size),
+                        1 - np.exp(- l * h * c * (1/dhospital) ),
+                        1 - np.exp(- l * h * (1-c) * (1/dhospital) ),
+                        (1 - np.exp(- l * (1/dc) ))*np.ones(S.size),
+                        (1 - np.exp(- l * (1-m0) * (1/dICU) ))*np.ones(S.size),
+                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
+                        (1 - np.exp(- l * m0 * (1/dICU) ))*np.ones(S.size),
+                        (1 - np.exp(- l * zeta ))*np.ones(S.size),
+                        ]
+        states = [S,E,I,I,A,M,M,M,C,ICU,C_icurec,ICU,R]
+        propensity={}
+        for i in range(len(keys)):
+            prop=[]
             for j in range(S.size):
                 if states[i][j]<0:
-                    tmp.append(0)
+                    prop.append(0)
                 else:
-                    tmp.append( np.random.binomial(states[i][j],p[i][j]) )
-            prospensities.append(np.asarray(tmp))
+                    prop.append( np.random.binomial(states[i][j],probabilities[i][j]) )    
+            propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = S - prospensities[14] + prospensities[13]
-        dE  =  E + prospensities[14] - prospensities[2] 
-        dI =  I + prospensities[2] - prospensities[3] - prospensities[4]
-        dA =  A + prospensities[3] - prospensities[5]
-        dM =  M + prospensities[4] - prospensities[6] - prospensities[7] - prospensities[8]
-        dC =  C + prospensities[7] - prospensities[9]
-        dCicurec =  Cicurec+ prospensities[10] - prospensities[11]
-        dICUstar =  ICU +  prospensities[8] - prospensities[10] - prospensities[12]
-        dR  =  R + prospensities[5] + prospensities[6] + prospensities[9] + prospensities[11] - prospensities[13]
-        dD  = D +  prospensities[12]
-
-        # protection against states < 0
-        output = (dS, dE, dI, dA, dM, dC, dCicurec,dICUstar, dR, dD)
-        for i in range(len(output)):
-            output[i][output[i]<0] = 0
-        return output
+        S_new  = S - propensity['StoE'] + propensity['RtoS']
+        E_new  =  E + propensity['StoE'] - propensity['EtoI'] 
+        I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
+        A_new =  A + propensity['ItoA'] - propensity['AtoR']
+        M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoC'] - propensity['MtoICU']
+        C_new =  C + propensity['MtoC'] - propensity['CtoR']
+        C_icurec_new =  C_icurec + propensity['ICUtoCicurec'] - propensity['CicurectoR']
+        ICU_new =  ICU +  propensity['MtoICU'] - propensity['ICUtoCicurec'] - propensity['ICUtoD']
+        R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
+        D_new  = D +  propensity['ICUtoD']
+        # derived variables
+        H_in_new = propensity['MtoC'] + propensity['MtoICU']
+        H_out_new = propensity['CtoR'] + propensity['CicurectoR'] 
+        return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
 
 
 class SEIRSAgeModel():

@@ -74,14 +74,18 @@ class DiscreteTimeModel:
             raise ValueError(
                 "The first parameter of the 'integrate' function should be 't'"
             )
+        if keywords[1] != "l":
+            raise ValueError(
+                "The second parameter of the 'integrate' function should be the discrete stepsize 'l'"
+            )
         N_states = len(self.state_names)
-        integrate_states = keywords[1 : 1 + N_states]
+        integrate_states = keywords[2 : 2 + N_states]
         if integrate_states != self.state_names:
             raise ValueError(
                 "The states in the 'integrate' function definition do not match "
                 "the state_names: {0} vs {1}".format(integrate_states, self.state_names)
             )
-        integrate_params = keywords[1 + N_states :]
+        integrate_params = keywords[2 + N_states :]
         specified_params = self.parameter_names.copy()
         if self.parameters_stratified_names:
             specified_params += self.parameters_stratified_names
@@ -163,27 +167,27 @@ class DiscreteTimeModel:
     def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
-        def func(t, y, *pars):
+        def func(t, l, y, *pars):
             """As used by scipy -> flattend in, flattend out"""
 
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
-            dstates = self.integrate(t, *y_reshaped, *pars)
+            dstates = self.integrate(t, l, *y_reshaped, *pars)
             return np.array(dstates).flatten()
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time, l):
         """"""
         fun = self._create_fun()
 
         t0, t1 = time
 
-        output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),args=list(self.parameters.values()))
+        output = self.solve_discrete(fun,time,l,list(itertools.chain(*self.initial_states.values())),args=list(self.parameters.values()))
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
-    def solve_discrete(self,fun,time,y,args):
+    def solve_discrete(self,fun,time,l,y,args):
         # Preparations
         y=np.asarray(y) # otherwise error in func : y.reshape does not work
         y=np.reshape(y,[y.size,1])
@@ -191,9 +195,8 @@ class DiscreteTimeModel:
         # Iteration loop
         t_lst=[time[0]]
         t = time[0]
-        l = 1.0
         while t <= time[1]-1:
-            out = fun(time,y_prev,*args)
+            out = fun(time,l,y_prev,*args)
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
@@ -206,7 +209,7 @@ class DiscreteTimeModel:
         }
         return output
 
-    def sim(self, time, checkpoints=None):
+    def sim(self, time, l = 1.0, checkpoints=None):
         """
         Run a model simulation for the given time period.
 
@@ -215,6 +218,8 @@ class DiscreteTimeModel:
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+        l : float or int
+            Length of discrete time intervals
         checkpoints : dict
             A dictionary with a "time" key and additional parameter keys,
             in the form of
@@ -230,7 +235,7 @@ class DiscreteTimeModel:
             time = [0, time]
 
         if checkpoints is None:
-            return self._sim_single(time)
+            return self._sim_single(time,l)
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
@@ -242,7 +247,7 @@ class DiscreteTimeModel:
         original_initial_states = self.initial_states.copy()
 
         # first part of the simulation with original parameter
-        output = self._sim_single([time_points[0], time_points[1]])
+        output = self._sim_single([time_points[0], time_points[1]],l)
         results.append(output)
 
         # further simulations with updated parameters
@@ -262,7 +267,7 @@ class DiscreteTimeModel:
             self.initial_states = initial_states
 
             # continue simulation
-            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
+            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1],l)
             results.append(output)
 
         # reset parameters and initial states to original value
