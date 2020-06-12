@@ -88,7 +88,7 @@ class COVID19_SEIRD(BaseModel):
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
         a : probability of an asymptomatic cases
-        m : probability of a mild infection (m=1-a)
+        m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
         dc : average length of a hospital stay when not in ICU
