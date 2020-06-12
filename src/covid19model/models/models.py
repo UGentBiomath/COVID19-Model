@@ -150,14 +150,14 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
-    parameter_names = ['l','beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital', 'theta']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital', 'theta']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
-                  l,beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
+    def integrate(t, l, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
+                  beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, theta, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
