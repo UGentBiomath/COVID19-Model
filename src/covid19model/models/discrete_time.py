@@ -173,17 +173,17 @@ class DiscreteTimeModel:
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time,l):
         """"""
         fun = self._create_fun()
 
         t0, t1 = time
 
-        output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),args=list(self.parameters.values()))
+        output = self.solve_discrete(fun,time,l,list(itertools.chain(*self.initial_states.values())),args=list(self.parameters.values()))
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
-    def solve_discrete(self,fun,time,y,args):
+    def solve_discrete(self,fun,time,l,y,args):
         # Preparations
         y=np.asarray(y) # otherwise error in func : y.reshape does not work
         y=np.reshape(y,[y.size,1])
@@ -191,7 +191,6 @@ class DiscreteTimeModel:
         # Iteration loop
         t_lst=[time[0]]
         t = time[0]
-        l = 1.0
         while t <= time[1]-1:
             out = fun(time,y_prev,*args)
             y_prev=out
@@ -206,7 +205,7 @@ class DiscreteTimeModel:
         }
         return output
 
-    def sim(self, time, checkpoints=None):
+    def sim(self, time, l = 1.0, checkpoints=None):
         """
         Run a model simulation for the given time period.
 
@@ -215,6 +214,8 @@ class DiscreteTimeModel:
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+        l : float or int
+            Stepsize
         checkpoints : dict
             A dictionary with a "time" key and additional parameter keys,
             in the form of
@@ -230,7 +231,7 @@ class DiscreteTimeModel:
             time = [0, time]
 
         if checkpoints is None:
-            return self._sim_single(time)
+            return self._sim_single(time,l)
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
@@ -242,7 +243,7 @@ class DiscreteTimeModel:
         original_initial_states = self.initial_states.copy()
 
         # first part of the simulation with original parameter
-        output = self._sim_single([time_points[0], time_points[1]])
+        output = self._sim_single([time_points[0], time_points[1]],l)
         results.append(output)
 
         # further simulations with updated parameters
