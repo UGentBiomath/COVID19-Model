@@ -230,7 +230,7 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         for i in range(len(keys)):
             prop=[]
             for j in range(S.size):
-                if states[i][j]<0:
+                if states[i][j]<=0:
                     prop.append(0)
                 else:
                     prop.append( np.random.binomial(states[i][j],probabilities[i][j]) )    
@@ -251,7 +251,14 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         # derived variables
         H_in_new = propensity['MtoC'] + propensity['MtoICU']
         H_out_new = propensity['CtoR'] + propensity['CicurectoR'] 
-        return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
+
+        # protection against states < 0
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        output = (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
+        for i in range(len(output)):
+            output[i][output[i]<0] = 0
+            
+        return output
 
 
 class SEIRSAgeModel():
