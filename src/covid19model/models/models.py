@@ -64,9 +64,47 @@ class COVID19_SEIRD(BaseModel):
         contains the initial values of all non-zero model states
         e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
         initialising zeros is thus not required
+
+        S : susceptible
+        E : exposed
+        I : infected
+        A : asymptomatic
+        M : mild
+        C : cohort (normal care hospital section)
+        Cicurec : cohort after recovery from ICU
+        ICU : intensive care
+        R : recovered
+        D : dead
+        ...Q : state in quarantine
+
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of a mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        dc : average length of a hospital stay when not in ICU
+        dICU : average length of a hospital stay in ICU
+        dhospital : time before a patient reaches the hospital
+        totalTests: number of tests
+        psi_FP : probability of a false positive
+        psi_PP : probability of a correct test
+        dq : days in quarantine
+
+        Stratified parameters
+        --------------------
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in cohort (non-ICU) (c=1-icu)
+        m0 : mortality in ICU
+        icu : probability of hospitalisation in ICU
 
     """
 
@@ -369,7 +407,7 @@ class SEIRSAgeModel():
 
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    
+
     def logistic(self,t,final,k,t0):
         f = final/(1+numpy.exp(-k*(t-t0)))
         return f
@@ -569,7 +607,7 @@ class SEIRSAgeModel():
                         self.old_Nc = self.Nc
                         self.final_Nc = checkpoints[param][checkpointIdx]
                         #setattr(self, param, checkpoints[param][checkpointIdx])
-                    else:   
+                    else:
                         setattr(self, param, checkpoints[param][checkpointIdx])
 
                 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

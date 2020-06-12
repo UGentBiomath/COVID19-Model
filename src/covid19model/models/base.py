@@ -7,6 +7,21 @@ import xarray
 
 
 class BaseModel:
+    """
+    Initialise the models
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+    """
 
     state_names = None
     parameter_names = None
@@ -14,21 +29,6 @@ class BaseModel:
     stratification = None
 
     def __init__(self, states, parameters):
-        """
-        Initialise the models
-
-        Parameters
-        ----------
-        To initialise the model, provide following inputs:
-
-        states : dictionary
-            contains the initial values of all non-zero model states
-            e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-            initialising zeros is thus not required
-        parameters : dictionary
-            containing the values of all parameters (both stratified and not)
-            these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-        """
         self.parameters = parameters
         self.initial_states = states
 
