@@ -284,45 +284,29 @@ class DiscreteTimeModel:
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
 
-        Optionally, interpolate output to integer timesteps
+        Model output is always interpolated to integer timesteps
 
-        TO DO: make this a choice
         """
-        interpolate=True # tbd
-        if interpolate is False:
-            dims = ['stratification', 'time']
-            coords = {
-                "time": output["t"],
-                "stratification": np.arange(self.stratification_size)
-            }
 
-            y_reshaped = output["y"].reshape(
-                len(self.state_names), self.stratification_size, len(output["t"])
-            )
+        t0,t1 = int(round(output["t"][0])),int(round(output["t"][-1]))
+        t = np.linspace(t0,t1,t1-t0+1) 
 
-            data = {}
-            for var, arr in zip(self.state_names, y_reshaped):
-                xarr = xarray.DataArray(arr, coords=coords, dims=dims)
-                data[var] = xarr
-        else:
-            t0,t1 = int(round(output["t"][0])),int(round(output["t"][-1]))
-            t = np.linspace(t0,t1,t1-t0+1) 
+        dims = ['stratification', 'time']
+        coords = {
+            "time": t,
+            "stratification": np.arange(self.stratification_size)
+        }
 
-            dims = ['stratification', 'time']
-            coords = {
-                "time": t,
-                "stratification": np.arange(self.stratification_size)
-            }
+        y_reshaped = output["y"].reshape(
+            len(self.state_names), self.stratification_size, len(output["t"])
+        )
 
-            y_reshaped = output["y"].reshape(
-                len(self.state_names), self.stratification_size, len(output["t"])
-            )
+        data = {}
+        for var, arr in zip(self.state_names, y_reshaped):
+            inte=inter.interp1d(output["t"],arr)
+            arr = inte(t)
+            xarr = xarray.DataArray(arr, coords=coords, dims=dims)
+            data[var] = xarr    
 
-            data = {}
-            for var, arr in zip(self.state_names, y_reshaped):
-                inte=inter.interp1d(output["t"],arr)
-                arr = inte(t)
-                xarr = xarray.DataArray(arr, coords=coords, dims=dims)
-                data[var] = xarr            
         attrs = {'parameters': dict(self.parameters)}
         return xarray.Dataset(data, attrs=attrs)
