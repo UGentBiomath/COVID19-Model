@@ -168,7 +168,10 @@ class BaseModel:
 
             if interaction_matrix_function is not None:
                 if self.stratification is None:
-                    raise Exception("..")
+                    raise Exception(
+                        "Cannot specify a interaction matrix function for a "
+                        "non-stratified model"
+                    )
                 pars = list(pars)
                 # TODO check that output is correct
                 pars[-1] = interaction_matrix_function(t)
