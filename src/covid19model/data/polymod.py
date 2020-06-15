@@ -36,7 +36,6 @@ def get_interaction_matrices():
     -----------
     initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
     """
-
     abs_dir = os.path.dirname(__file__)
     polymod_path = os.path.join(abs_dir, "../../../data/raw/polymod/")
 
