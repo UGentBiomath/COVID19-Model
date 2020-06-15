@@ -52,7 +52,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
     if ax is None:
         fig, ax = plt.subplots()
     # Create shifted index vector using self.extraTime
-    idx = pd.date_range(startDate,freq='D',periods=data[0].size + model.extraTime) - datetime.timedelta(days=model.extraTime)
+    idx = pd.date_range(start_date,freq='D',periods=data[0].size + model.extraTime) - datetime.timedelta(days=model.extraTime)
     # Plot data
     for i in range(len(data)):
         ax.scatter(idx[model.extraTime:],data[i],color="black")
@@ -102,14 +102,6 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
         'rotation', 90)
     ax.set_xlim( idx[model.extraTime-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     ax.set_ylabel('number of patients')
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    # Only show ticks on the left and bottom spines
-    ax.yaxis.set_ticks_position('left')
-    ax.xaxis.set_ticks_position('bottom')
-    # enable the grid
-    plt.grid(True)
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
