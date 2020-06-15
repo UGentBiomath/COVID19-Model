@@ -37,16 +37,16 @@ def get_interaction_matrices():
     initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
     """
     abs_dir = os.path.dirname(__file__)
-    rel_dir = os.path.join(abs_dir, "../../../data/raw/polymod/interaction_matrices/Belgium")
+    polymod_path = os.path.join(abs_dir, "../../../data/raw/polymod/")
 
     # Data source
-    Nc_home = np.loadtxt(os.path.join(rel_dir, "BELhome.txt"), dtype='f', delimiter='\t')
-    Nc_work = np.loadtxt(os.path.join(rel_dir, "BELwork.txt"), dtype='f', delimiter='\t')
-    Nc_schools = np.loadtxt(os.path.join(rel_dir, "BELschools.txt"), dtype='f', delimiter='\t')
-    Nc_transport = np.loadtxt(os.path.join(rel_dir, "BELtransport.txt"), dtype='f', delimiter='\t')
-    Nc_leisure = np.loadtxt(os.path.join(rel_dir, "BELleisure.txt"), dtype='f', delimiter='\t')
-    Nc_others = np.loadtxt(os.path.join(rel_dir, "BELothers.txt"), dtype='f', delimiter='\t')
-    Nc_total = np.loadtxt(os.path.join(rel_dir, "BELtotal.txt"), dtype='f', delimiter='\t')
-    initN = np.loadtxt(os.path.join(abs_dir, "../../../data/raw/polymod/demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+    Nc_home = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELhome.txt"), dtype='f', delimiter='\t')
+    Nc_work = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELwork.txt"), dtype='f', delimiter='\t')
+    Nc_schools = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELschools.txt"), dtype='f', delimiter='\t')
+    Nc_transport = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELtransport.txt"), dtype='f', delimiter='\t')
+    Nc_leisure = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELleisure.txt"), dtype='f', delimiter='\t')
+    Nc_others = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELothers.txt"), dtype='f', delimiter='\t')
+    Nc_total = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELtotal.txt"), dtype='f', delimiter='\t')
+    initN = np.loadtxt(os.path.join(polymod_path, "demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total

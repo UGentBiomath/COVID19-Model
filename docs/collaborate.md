@@ -23,7 +23,7 @@ To make sure the `data` directory does not become an unstructured set of data fi
 Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:
 
 - Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-twallema-model-network.ipynb).
-- Reuse the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder, e;g. visualisations inside `src/covid19model/visualization`
+- Reuse the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder, e.g. visualisations inside `src/covid19model/visualization`
 
 As the code of the `src/covid19model` folder is a Python package itself (see the `setup.py` file). You can import your code and use it in notebooks without the need of reinstallation. Put the following at the top of your notebook:
 
@@ -78,4 +78,81 @@ As the previous sections described, each subfolder of the repository has a speci
 
 __Remember:__ Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`!
 
-__TODO__
+#### data
+```
+├── data                                    <- cfr. current set of data sets
+│   ├── raw                                 <- data as provided in raw format
+│   │   ├── UZGent
+│   │   └── economical
+│   │   └── google
+│   │   └── model_parameters
+│   │   └── polymod
+│   │   └── sciensano
+│   ├── interim                             <- data sets after speicific manipulation
+│   │   ├── ...
+│   └── README.md                           <- for each data set: what, how to get,...
+```
+
+#### code
+```
+├── src                                     <- all reusable code blocks 
+│   ├── covid19model
+|   │   ├── data                            <- any code required for data reading and manipulation
+|   │   ├── models                          <- any code constructing the models
+|   │   ├── optimization                    <- code related to parameter callibration
+|   │   ├── visualization                   <- code for making figures
+|   │   └── __init__.py                     <- structured as lightweight python package
+│   ├── tests
+|   │   ├── ... .py                         <- all test code during development
+```
+
+#### documentation
+```
+├── docs                                    <- documentation 
+│   ├── conf.py
+│   ├── index.rst                           <- explanations are written inside markdown or st files
+│   ├── ... .md                             <- pages of the documentation website
+│   ├── Makefile
+│   └── _static
+│   │   └── figs                            <- figs linked to the documentation
+│   │       ├── ...
+│   │       └── SEIRSNetworkModel.jpg
+```
+
+#### HPC specific code
+```
+├── hpc
+│   ├── calibrate_stochastic.py
+│   ├── README.md
+│   ├── sim_stochastic.py
+│   └── test.sh
+```
+
+#### notebooks
+```
+├── notebooks                               <- notebooks are collected here
+│   ├── 0.1-user-content.ipynb              <- notebook per version-user-content
+│   ├── templates                           <- demo notebooks that can be used as starting point (and binder intro)
+│       ├── SEIRSAgeModel_demo.ipynb
+│       └── SEIRSNetworkModel_demo.ipynb
+│   ├── scratch                             <- test notebooks
+
+├── reports                                 <- optional (e.g. report from automatic daily rerun)
+│   └── figures
+```
+
+#### automate stuff
+```
+├── .github                                 <- Automate specific steps with github actions
+│   ├── workflows
+│   │   ├── deploy.yml
+│   │   └── ...
+```
+
+#### other info
+```
+├── LICENSE
+├── environment.yml
+├── setup.py
+└── README.md                               <- focus on how to get started, setup environment name conventions and 
+```

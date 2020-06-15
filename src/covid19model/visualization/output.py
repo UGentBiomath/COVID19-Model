@@ -52,7 +52,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
     """
     # check the required variable names to let function work
     required_var_names = ["S", "E", "R",
-                          "C", "Cicurec",
+                          "C", "C_icurec",
                           "I", "ICU", "A", "M"]
     if not (set(required_var_names)).issubset(set(data.variables.keys())):
         raise Exception(f"population_status plot function"
@@ -60,7 +60,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # create the 'combined variables'
     # TODO abstract away 'observed' or 'states of interest' to higher level
-    data["C_total"] = data["C"] + data["Cicurec"]
+    data["C_total"] = data["C"] + data["C_icurec"]
     data["I_total"] = (data["ICU"] + data["I"] +
                        data["A"] + data["M"] + data["C_total"])
 
@@ -122,7 +122,7 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
         Each of the lines can be further customized by the user
     """
 
-    required_var_names = ["C", "Cicurec",
+    required_var_names = ["C", "C_icurec",
                           "ICU", "D"]
     variables = ["H", "ICU", "D"]
     legend_labels = ['hospitalised','ICU','dead']
@@ -147,7 +147,7 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
 
     # create the 'combined variables'
     # TODO abstract away 'observed' or 'states of interest' to higher level
-    data["C_total"] = data["C"] + data["Cicurec"]
+    data["C_total"] = data["C"] + data["C_icurec"]
     data["H"] = data["C_total"] + data["ICU"]
 
     # stratified models are summarized over stratification dimension
