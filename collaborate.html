@@ -35,7 +35,7 @@
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Model" href="models.html" />
+    <link rel="next" title="Git workflow" href="git_workflow.html" />
     <link rel="prev" title="Installation" href="installation.html" /> 
 </head>
 
@@ -100,6 +100,7 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="git_workflow.html">Git workflow</a></li>
 </ul>
 <p class="caption"><span class="caption-text">User guide</span></p>
 <ul>
@@ -226,9 +227,11 @@
 <div class="section" id="the-covid19model-python-package">
 <h2>The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package<a class="headerlink" href="#the-covid19model-python-package" title="Permalink to this headline">¶</a></h2>
 <p>The code inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.</p>
-<p><strong>Note:</strong> Before doing any changes, always make sure your own version of your code (i.e. <code class="docutils literal notranslate"><span class="pre">fork</span></code>) is up to date with the <code class="docutils literal notranslate"><span class="pre">master</span></code> of the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">main repository </a>.
-- If you are a command line person, check <a class="reference external" href="https://gist.github.com/CristinaSolana/1885435">this workflow</a>
-- If you are not a command line person: <a class="reference external" href="https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/">this workflow</a> can help you staying up to date.</p>
+<p>Before doing any changes, always make sure your own version of your code (i.e. <code class="docutils literal notranslate"><span class="pre">fork</span></code>) is up to date with the <code class="docutils literal notranslate"><span class="pre">master</span></code> of the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">main repository </a>. First, check out the <strong><a class="reference internal" href="git_workflow.html"><span class="doc">git workflow</span></a></strong> for a step-by-step explanation of the proposed workflow. For more information, see also:</p>
+<ul class="simple">
+<li><p>If you are a command line person, check <a class="reference external" href="https://gist.github.com/CristinaSolana/1885435">this workflow</a></p></li>
+<li><p>If you are not a command line person: <a class="reference external" href="https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/">this workflow</a> can help you staying up to date.</p></li>
+</ul>
 <p>For each of the functions you write, make sure to add the documentation to the function. We use the <a class="reference external" href="https://numpydoc.readthedocs.io/en/latest/format.html">numpy docstring</a> format to write documentation. For each function, make sure the following items are defined at least:</p>
 <ul class="simple">
 <li><p>Short summary (top line)</p></li>
@@ -264,7 +267,7 @@
 </div>
 <div class="section" id="code">
 <h3>code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── src                                     &lt;- all reusable code blocks 
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── src                                     &lt;- all reusable code blocks
 │   ├── covid19model
 |   │   ├── data                            &lt;- any code required for data reading and manipulation
 |   │   ├── models                          &lt;- any code constructing the models
@@ -278,7 +281,7 @@
 </div>
 <div class="section" id="documentation">
 <h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── docs                                    &lt;- documentation 
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── docs                                    &lt;- documentation
 │   ├── conf.py
 │   ├── index.rst                           &lt;- explanations are written inside markdown or st files
 │   ├── ... .md                             &lt;- pages of the documentation website
@@ -328,7 +331,7 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── LICENSE
 ├── environment.yml
 ├── setup.py
-└── README.md                               &lt;- focus on how to get started, setup environment name conventions and 
+└── README.md                               &lt;- focus on how to get started, setup environment name conventions and
 </pre></div>
 </div>
 </div>
@@ -343,7 +346,7 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="models.html" class="btn btn-neutral float-right" title="Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="git_workflow.html" class="btn btn-neutral float-right" title="Git workflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
