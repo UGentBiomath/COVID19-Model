@@ -9,7 +9,7 @@ from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
 def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename=None,dataMkr=['o','v','s','*','^'],
-            modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,getfig=False,ax=None):
+            modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,ax=None):
 
     """Plot model fit to user provided data 
 
@@ -71,7 +71,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
             out = out.sum(dim="stratification")
             for i in range(len(data)):
                 data2plot = out[states[i]].to_array(dim="states").values.ravel()
-                ax.plot(idx,data2plot,linewidth=0.25,alpha=0.2,color="blue")
+                lines = ax.plot(idx,data2plot,linewidth=0.25,alpha=0.2,color="blue")
             k = k +1
     else:
         original_parameters = model.parameters.copy()
@@ -85,7 +85,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
             out = out.sum(dim="stratification")
             for i in range(len(data)):
                 data2plot = out[states[i]].to_array(dim="states").values.ravel()
-                ax.plot(idx,data2plot)
+                lines = ax.plot(idx,data2plot)
             k = k+1
         # reset parameters
         model.parameters=original_parameters
@@ -106,9 +106,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
 
-    if filename is not None:
-        plt.savefig(filename,dpi=600,bbox_inches='tight')
-    if getfig:
-        return fig, ax
-    else:
-        plt.show()
+    if filename:
+        plt.savefig(filename, dpi=600, bbox_inches='tight')
+
+    return lines
