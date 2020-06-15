@@ -65,11 +65,6 @@ def test_model_init_validation():
     with pytest.raises(ValueError, match="specified parameters don't"):
         SIR(initial_states, parameters2)
 
-    # wrong order
-    parameters2 = {"gamma": 0.2, "beta": 0.9}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIR(initial_states, parameters2)
-
     # validate model class itself
     SIR.state_names = ["S", "R"]
     with pytest.raises(ValueError):
@@ -152,11 +147,6 @@ def test_model_stratified_init_validation():
         SIRstratified(initial_states, parameters2)
 
     parameters2 = {"gamma": 0.9, "other": 0.2, "nc": nc}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIRstratified(initial_states, parameters2)
-
-    # wrong order
-    parameters2 = {"beta": 0.2, "gamma": 0.9, "nc": nc}
     with pytest.raises(ValueError, match="specified parameters don't"):
         SIRstratified(initial_states, parameters2)
 
