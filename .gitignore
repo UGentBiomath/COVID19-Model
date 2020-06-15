@@ -130,3 +130,5 @@ dmypy.json
 
 notebooks/templates/test\.svg
 data/raw/sciensano/COVID19BE_HOSP.csv
+
+docs/.Rhistory
