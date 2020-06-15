@@ -25,6 +25,6 @@ setup(
                      "sphinx",
                      "numpydoc",
                      "sphinx_rtd_theme",
-                     "recommonmark"],
+                     "myst_parser[sphinx]"],
     }
 )

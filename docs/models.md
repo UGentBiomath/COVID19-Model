@@ -1,12 +1,12 @@
-## Model
+# Model
 
-### Introduction
+## Introduction
 
 We use an extended version of the SEIR model to model the disease at a higher resolution. This classic SEIR model splits the population into different categories, i.e. susceptible, exposed, infected and removed. We break down the latter two categories in super mild (asymptotic), mild, heavy and critical for the infected part of the population, whereas the removed population indicates the immune and dead fraction. Parameters values are (for now) based on Chinese covid-19 literature but we are seeking to closer collaborate with Belgian hospitals as more data becomes available. The dynamics are modeled using two frameworks: 1) deterministic and 2) stochastic. The deterministic model can fluently run age-structured (metapopulation) simulations naturally by changing the initial conditions.  The stochastic model class is under construction but will be updated soon.
 
 <img src="_static/figs/flowchartAll.jpg" alt="drawing" width="400"/>
 
-### General
+## General
 
 The SEIR model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population in four types of people :
 
@@ -34,7 +34,7 @@ We make the following assumptions with regard to the SEIRS dynamics:
 5. Recovered patients are assumed to be immune
 6. Seasonality is deemed out of scope of this work.
 
-### Hospital subystem (preliminary)
+## Hospital subystem (preliminary)
 
 The hospital subsystem is a simplification of actual hospital dynamics. The dynamics and estimated parameters were obtained by interviewing Ghent University Hospital staff and presenting the resulting meeting notes to the remaining three Ghent hospitals for verification.
 
@@ -50,12 +50,13 @@ Generally, patients can switch between any of the wards depending on how the dis
 4. Assume all patients in midcare and ICU pass via Cohort on their way to recovery.
 5. Assume that the 10\% of the patients that come from hospital actually come from the population.
 
-### Model description
+## Model description
 
 The dynamics of the deterministic system are mathematically formulated as the rate of change of each population pool shown in the above flowchart. This results in the following system of ordinary differential equations (the parameters are explained in the next section):
 
-#### Equations
+### Equations
 
+$$
 \begin{eqnarray}
 \dot{S} &=& - \beta N_c \cdot S \cdot \Big( \frac{I+A}{N} \Big) - \theta_{\text{S}} \psi_{\text{FP}} \cdot S + SQ/d_{\text{q,FP}} + \zeta \cdot R,\\
 \dot{E} &=&  \beta \cdot N_c \cdot S \Big( \frac{I+A}{N} \Big) - (1/\sigma) \cdot E - \theta_{\text{E}} \psi_{\text{PP}} \cdot E,\\
@@ -79,10 +80,11 @@ H &=& C_{\text{tot}} + \text{Mi} + \text{ICU},\\
 \dot{MQ} &=& \theta_{\text{M}} \psi_{\text{PP}} \cdot M + (m/\omega) \cdot EQ - MQ \cdot ((1-h)/d_m) - MQ \cdot h/d_{\text{hospital}}, \\
 \dot{RQ} &=& \theta_{\text{R}} \psi_{\text{FP}} - (1/d_{\text{q,FP}}) \cdot RQ,
 \end{eqnarray}
+$$
 
 In the above equations: `S` stands for susceptible, `E` for exposed, `A` for asymptomatic, `M` for mild, `H` for hospitalised, `C` for cohort, `Mi` for midcare, `ICU` for intensive care unit, `D` for dead, `R` for recovered. The quarantined states are denoted with a `Q` suffix, for example `AQ` stands for asymptomatic and quarantined. The states `S`, `E`, `A`, `M` and `R` can be quarantined. The disease dynamics when quarantined are identical to the non quarantined dynamics. For instance, `EQ` will evolve into `AQ` or `MQ` with the same probability as `E` evolves into `A` or `M`. Individuals from the `MQ` pool can end up in the hospital. `N` stands for the total population.
 
-#### Parameters
+### Parameters
 
 The clinical parameters are:
 
