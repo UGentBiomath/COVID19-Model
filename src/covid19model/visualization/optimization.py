@@ -8,7 +8,7 @@ import numpy as np
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
-def plot_fit(model,data,startDate,states,checkpoints=None,samples=None,filename=None,dataMkr=['o','v','s','*','^'],
+def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename=None,dataMkr=['o','v','s','*','^'],
             modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,getfig=False,ax=None):
 
     """Plot model fit to user provided data 
@@ -19,7 +19,7 @@ def plot_fit(model,data,startDate,states,checkpoints=None,samples=None,filename=
         correctly initialised model to be fitted to the dataset
     data: array
         list containing dataseries
-    startDate: string, format DD-MM-YYY
+    start_date: string, format DD-MM-YYY
         date corresponding to first entry of dataseries
     states: array
         list containg the names of the model states that correspond to the data
