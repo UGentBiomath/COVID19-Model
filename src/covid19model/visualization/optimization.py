@@ -96,10 +96,11 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
         ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
     if titleText is not None:
         ax.set_title(titleText,{'fontsize':18})
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator())
-    plt.gca().xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%d-%m-%Y'))
-    plt.setp(plt.gca().xaxis.get_majorticklabels(),
-        'rotation', 90)
+
+    # Format axes
+    ax.xaxis.set_major_locator(mdates.DayLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
+    fig.autofmt_xdate(rotation=90)
     ax.set_xlim( idx[model.extraTime-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     ax.set_ylabel('number of patients')
 
