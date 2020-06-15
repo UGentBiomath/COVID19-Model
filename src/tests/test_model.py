@@ -206,9 +206,29 @@ def test_model_stratified_default_initial_state():
     initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
 
     model = SIRstratified(initial_states, parameters)
-    
+
     # leave out one the initial states that are 0
     initial_states2 = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
 
     model = SIRstratified(initial_states2, parameters)
     assert model.initial_states["R"].tolist() == [0, 0]
+
+
+def test_model_interaction_matrix_function():
+    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
+    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
+    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
+
+    model = SIRstratified(initial_states, parameters)
+
+    def compliance_func(t):
+        if t < 10:
+            return nc
+        else:
+            return nc / 3
+
+    time = [0, 50]
+    output = model.sim(time, interaction_matrix_function=compliance_func)
+    # without the reduction in contact, the recovered/dead pool will always be larger
+    output_without = model.sim(time)
+    assert (output['R'] <= output_without['R']).all()
