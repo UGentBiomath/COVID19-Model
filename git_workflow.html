@@ -25,6 +25,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -94,8 +95,7 @@
 </ul>
 <p class="caption"><span class="caption-text">User guide</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="models.html">Model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="models.html#implementation">Implementation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Model background</a></li>
 <li class="toctree-l1"><a class="reference internal" href="application.html">Run the model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="roadmap.html">Future work</a></li>
 </ul>
@@ -177,8 +177,8 @@ The <code class="docutils literal notranslate"><span class="pre">master</span></
 <h2>Before I start working<a class="headerlink" href="#before-i-start-working" title="Permalink to this headline">¶</a></h2>
 <ul>
 <li><p><strong>STEP 1</strong>: Update the master branch on my PC to make sure it is aligned with the remote master (<code class="docutils literal notranslate"><span class="pre">upstream</span></code>):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">checkout</span> <span class="n">master</span>
-  <span class="n">git</span> <span class="n">pull</span> <span class="n">upstream</span> <span class="n">master</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout master
+  git pull upstream master
 </pre></div>
 </div>
 </li>
@@ -186,16 +186,16 @@ The <code class="docutils literal notranslate"><span class="pre">master</span></
 <ul>
 <li><p><strong>OPTION 2A</strong>: I already have a branch I want to continue working on:
 Switch to existing topic branch:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">checkout</span> <span class="n">name_existing_branch</span>
-  <span class="n">git</span> <span class="n">fetch</span> <span class="n">upstream</span>
-  <span class="n">git</span> <span class="n">merge</span> <span class="n">upstream</span><span class="o">/</span><span class="n">master</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout name_existing_branch
+  git fetch upstream
+  git merge upstream/master
 </pre></div>
 </div>
 <p>(<em>Note:</em> Normally you are the only working on your branch. In the rare case someone updated your branch, update your branch with the remote adjustments: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">merge</span> <span class="pre">upstream/name_existing_branch</span></code>)</p>
 </li>
 <li><p><strong>OPTION 2B</strong>:  I’ll make a new branch to work with: Create a new topic branch from master(!):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">checkout</span> <span class="n">master</span>
-  <span class="n">git</span> <span class="n">checkout</span> <span class="o">-</span><span class="n">b</span> <span class="n">name_new_branch</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout master
+  git checkout -b name_new_branch
 </pre></div>
 </div>
 </li>
@@ -209,12 +209,12 @@ Switch to existing topic branch:</p>
 <li><p><strong>STEP 3.x</strong>: adapt in tex, code,… (multiple times)</p>
 <ul>
 <li><p><strong>New files added</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">add</span> <span class="o">.</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git add .
 </pre></div>
 </div>
 </li>
 <li><p><strong>Adaptation</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">commit</span> <span class="o">-</span><span class="n">am</span> <span class="s2">&quot;clear and understandable message about edits&quot;</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git commit -am &quot;clear and understandable message about edits&quot;
 </pre></div>
 </div>
 </li>
@@ -228,12 +228,12 @@ Switch to existing topic branch:</p>
 <li><p><strong>STEP 4</strong>: Pull request to add your changes to the current master. Choose your option:</p>
 <ul>
 <li><p><strong>OPTION 2A CHOSEN</strong>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">push</span> <span class="n">origin</span> <span class="n">name_existing_branch</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git push origin name_existing_branch
 </pre></div>
 </div>
 </li>
 <li><p><strong>OPTION 2B CHOSEN</strong>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">push</span> <span class="n">origin</span> <span class="n">name_new_branch</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git push origin name_new_branch
 </pre></div>
 </div>
 </li>
@@ -246,9 +246,9 @@ Switch to existing topic branch:</p>
 <p>If the code can’t be merged automatically (provided by a message online), go to <strong>STEP 7</strong>.</p>
 </li>
 <li><p><strong>STEP 6</strong>: Update local master and remove local merged branch</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">checkout</span> <span class="n">master</span>
-  <span class="n">git</span> <span class="n">pull</span> <span class="n">upstream</span> <span class="n">master</span>
-  <span class="n">git</span> <span class="n">branch</span> <span class="o">-</span><span class="n">d</span> <span class="n">name_merged_branch</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout master
+  git pull upstream master
+  git branch -d name_merged_branch
 </pre></div>
 </div>
 </li>
@@ -258,13 +258,13 @@ Switch to existing topic branch:</p>
 <h2>Pull request can not be merged<a class="headerlink" href="#pull-request-can-not-be-merged" title="Permalink to this headline">¶</a></h2>
 <ul>
 <li><p><strong>STEP 7</strong>: master has changed and there are conflicts: update your working branch with rebase</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  <span class="n">git</span> <span class="n">checkout</span> <span class="n">name_existing_branch</span>
-  <span class="n">git</span> <span class="n">fetch</span> <span class="n">origin</span>
-  <span class="n">git</span> <span class="n">merge</span> <span class="n">upstream</span><span class="o">/</span><span class="n">master</span>
-  <span class="c1"># fix conflicts local</span>
-  <span class="n">git</span> <span class="n">add</span> <span class="n">file_with_conflict</span>
-  <span class="n">git</span> <span class="n">commit</span> <span class="n">file_with_conflict</span>
-  <span class="n">git</span> <span class="n">push</span> <span class="n">origin</span> <span class="n">name_existing_branch</span>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout name_existing_branch
+  git fetch origin
+  git merge upstream/master
+  # fix conflicts local
+  git add file_with_conflict
+  git commit file_with_conflict
+  git push origin name_existing_branch
 </pre></div>
 </div>
 </li>
