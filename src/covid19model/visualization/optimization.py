@@ -9,7 +9,7 @@ from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
 def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
-                legend_text=None,titleText=None,ax=None):
+                legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
 
     """Plot model fit to user provided data 
 
@@ -62,10 +62,10 @@ def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','
     y_model = y_model.sum(dim="stratification")
     for i in range(len(data)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
-        lines = ax.plot(idx,data2plot,color=clr[i])    
+        lines = ax.plot(idx,data2plot,color=clr[i],**plt_kwargs)    
     # Plot data
     for i in range(len(data)):
-        lines=ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i])
+        lines=ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i],**sct_kwargs)
 
     # Attributes
     if legend_text is not None:
