@@ -8,22 +8,23 @@ import numpy as np
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
-def plot_fit(y_model,data,start_date,lag_time,states,filename=None,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
+def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
                 legend_text=None,titleText=None,ax=None):
 
     """Plot model fit to user provided data 
 
     Parameters
     -----------
-    model: model object
-        correctly initialised model to be fitted to the dataset
+    y_model: xarray
+        model output to be visualised
     data: array
         list containing dataseries
     start_date: string, format DD-MM-YYY
         date corresponding to first entry of dataseries
+    lag_time: float or int
+        time between start of simulation and start of data recording
     states: array
         list containg the names of the model states that correspond to the data
-  
     filename: string, optional
         Filename + extension to save a copy of the plot_fit
     ax : matplotlib.axes.Axes, optional
@@ -31,33 +32,40 @@ def plot_fit(y_model,data,start_date,lag_time,states,filename=None,data_mkr=['o'
 
     Returns
     -----------
-
-    Notes
-    -----------
+    ax
 
     Example use
     -----------
+    data = [[71,  90, 123, 183, 212, 295, 332]]
+    start_date = '15-03-2020'
+    lag_time = int(42)
+    states = [["H_in"]]
+    T = data[0].size+lag_time-1
 
+    y_model = model.sim(int(T))
+    ax = plot_fit(y_model,data,start_date,lag_time,states)
+
+    for i in range(100):
+        y_model = model.sim(T)
+        ax = plot_fit(y_model,data,start_date,lag_time,states,ax=ax)
 
     """
 
-    # Initialize figure and visualize data
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
     # check if ax object is provided by user
     if ax is None:
-        fig, ax = plt.subplots()
-    # Create shifted index vector using self.extraTime
+        #fig, ax = plt.subplots()
+        ax = plt.gca()
+    # Create shifted index vector 
     idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time) - datetime.timedelta(days=lag_time)
+
     # Plot model prediction
     y_model = y_model.sum(dim="stratification")
     for i in range(len(data)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
-        lines = ax.plot(idx,data2plot,)    
+        lines = ax.plot(idx,data2plot,color=clr[i])    
     # Plot data
     for i in range(len(data)):
-        ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i])
-
+        lines=ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i])
 
     # Attributes
     if legend_text is not None:
@@ -68,14 +76,13 @@ def plot_fit(y_model,data,start_date,lag_time,states,filename=None,data_mkr=['o'
     # Format axes
     ax.xaxis.set_major_locator(mdates.DayLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
-    fig.autofmt_xdate(rotation=90)
+    plt.setp(plt.gca().xaxis.get_majorticklabels(),
+        'rotation', 90)
+    #fig.autofmt_xdate(rotation=90)
     ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     ax.set_ylabel('number of patients')
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
 
-    if filename:
-        plt.savefig(filename, dpi=600, bbox_inches='tight')
-
-    return lines
+    return ax
