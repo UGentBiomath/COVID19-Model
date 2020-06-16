@@ -160,11 +160,21 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self):
+    def _create_fun(self, interaction_matrix_function=None):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, *pars):
             """As used by scipy -> flattend in, flattend out"""
+
+            if interaction_matrix_function is not None:
+                if self.stratification is None:
+                    raise Exception(
+                        "Cannot specify a interaction matrix function for a "
+                        "non-stratified model"
+                    )
+                pars = list(pars)
+                # TODO check that output is correct
+                pars[-1] = interaction_matrix_function(t)
 
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
@@ -173,9 +183,9 @@ class BaseModel:
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time, interaction_matrix_function=None):
         """"""
-        fun = self._create_fun()
+        fun = self._create_fun(interaction_matrix_function=interaction_matrix_function)
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
@@ -186,7 +196,7 @@ class BaseModel:
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
-    def sim(self, time, checkpoints=None):
+    def sim(self, time, checkpoints=None, interaction_matrix_function=None):
         """
         Run a model simulation for the given time period.
 
@@ -210,7 +220,9 @@ class BaseModel:
             time = [0, time]
 
         if checkpoints is None:
-            return self._sim_single(time)
+            return self._sim_single(
+                time, interaction_matrix_function=interaction_matrix_function
+            )
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
@@ -222,7 +234,10 @@ class BaseModel:
         original_initial_states = self.initial_states.copy()
 
         # first part of the simulation with original parameter
-        output = self._sim_single([time_points[0], time_points[1]])
+        output = self._sim_single(
+            [time_points[0], time_points[1]],
+            interaction_matrix_function=interaction_matrix_function
+        )
         results.append(output)
         try:
             # further simulations with updated parameters
@@ -242,7 +257,10 @@ class BaseModel:
                 self.initial_states = initial_states
 
                 # continue simulation
-                output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1])
+                output = self._sim_single(
+                    [time_points[i + 1], time_points[i + 2] - 1],
+                    interaction_matrix_function=interaction_matrix_function
+                )
                 results.append(output)
         except:
             # reset parameters and initial states to original value
