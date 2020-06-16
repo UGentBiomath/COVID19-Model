@@ -65,11 +65,6 @@ def test_model_init_validation():
     with pytest.raises(ValueError, match="specified parameters don't"):
         SIR(initial_states, parameters2)
 
-    # wrong order
-    parameters2 = {"gamma": 0.2, "beta": 0.9}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIR(initial_states, parameters2)
-
     # validate model class itself
     SIR.state_names = ["S", "R"]
     with pytest.raises(ValueError):
@@ -155,11 +150,6 @@ def test_model_stratified_init_validation():
     with pytest.raises(ValueError, match="specified parameters don't"):
         SIRstratified(initial_states, parameters2)
 
-    # wrong order
-    parameters2 = {"beta": 0.2, "gamma": 0.9, "nc": nc}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIRstratified(initial_states, parameters2)
-
     # stratified parameter of the wrong length
     parameters2 = {"gamma": 0.2, "beta": np.array([0.8, 0.9, 0.1]), "nc": nc}
     msg = "The stratification parameter 'nc' indicates a stratification size of 2, but"
@@ -206,9 +196,29 @@ def test_model_stratified_default_initial_state():
     initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
 
     model = SIRstratified(initial_states, parameters)
-    
+
     # leave out one the initial states that are 0
     initial_states2 = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
 
     model = SIRstratified(initial_states2, parameters)
     assert model.initial_states["R"].tolist() == [0, 0]
+
+
+def test_model_interaction_matrix_function():
+    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
+    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
+    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
+
+    model = SIRstratified(initial_states, parameters)
+
+    def compliance_func(t):
+        if t < 10:
+            return nc
+        else:
+            return nc / 3
+
+    time = [0, 50]
+    output = model.sim(time, interaction_matrix_function=compliance_func)
+    # without the reduction in contact, the recovered/dead pool will always be larger
+    output_without = model.sim(time)
+    assert (output['R'] <= output_without['R']).all()

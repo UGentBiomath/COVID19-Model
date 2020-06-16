@@ -4,24 +4,9 @@ import itertools
 import numpy as np
 from scipy.integrate import solve_ivp
 import xarray
+from scipy import interpolate as inter
 
-
-class BaseModel:
-    """
-    Initialise the models
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-    """
+class DiscreteTimeModel:
 
     state_names = None
     parameter_names = None
@@ -29,6 +14,21 @@ class BaseModel:
     stratification = None
 
     def __init__(self, states, parameters):
+        """
+        Initialise the models
+
+        Parameters
+        ----------
+        To initialise the model, provide following inputs:
+
+        states : dictionary
+            contains the initial values of all non-zero model states
+            e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+            initialising zeros is thus not required
+        parameters : dictionary
+            containing the values of all parameters (both stratified and not)
+            these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+        """
         self.parameters = parameters
         self.initial_states = states
 
@@ -74,14 +74,18 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the 'integrate' function should be 't'"
             )
+        if keywords[1] != "l":
+            raise ValueError(
+                "The second parameter of the 'integrate' function should be the discrete stepsize 'l'"
+            )
         N_states = len(self.state_names)
-        integrate_states = keywords[1 : 1 + N_states]
+        integrate_states = keywords[2 : 2 + N_states]
         if integrate_states != self.state_names:
             raise ValueError(
                 "The states in the 'integrate' function definition do not match "
                 "the state_names: {0} vs {1}".format(integrate_states, self.state_names)
             )
-        integrate_params = keywords[1 + N_states :]
+        integrate_params = keywords[2 + N_states :]
         specified_params = self.parameter_names.copy()
         if self.parameters_stratified_names:
             specified_params += self.parameters_stratified_names
@@ -160,43 +164,52 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self, interaction_matrix_function=None):
+    def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
-        def func(t, y, *pars):
+        def func(t, l, y, *pars):
             """As used by scipy -> flattend in, flattend out"""
-
-            if interaction_matrix_function is not None:
-                if self.stratification is None:
-                    raise Exception(
-                        "Cannot specify a interaction matrix function for a "
-                        "non-stratified model"
-                    )
-                pars = list(pars)
-                # TODO check that output is correct
-                pars[-1] = interaction_matrix_function(t)
 
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
-            dstates = self.integrate(t, *y_reshaped, *pars)
+            dstates = self.integrate(t, l, *y_reshaped, *pars)
             return np.array(dstates).flatten()
 
         return func
 
-    def _sim_single(self, time, interaction_matrix_function=None):
+    def _sim_single(self, time, l):
         """"""
-        fun = self._create_fun(interaction_matrix_function=interaction_matrix_function)
+        fun = self._create_fun()
 
         t0, t1 = time
-        t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
 
-        output = solve_ivp(fun, time,
-                           list(itertools.chain(*self.initial_states.values())),
-                           args=list(self.parameters.values()), t_eval=t_eval)
+        output = self.solve_discrete(fun,time,l,list(itertools.chain(*self.initial_states.values())),args=list(self.parameters.values()))
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
-    def sim(self, time, checkpoints=None, interaction_matrix_function=None):
+    def solve_discrete(self,fun,time,l,y,args):
+        # Preparations
+        y=np.asarray(y) # otherwise error in func : y.reshape does not work
+        y=np.reshape(y,[y.size,1])
+        y_prev=y
+        # Iteration loop
+        t_lst=[time[0]]
+        t = time[0]
+        while t <= time[1]-1:
+            out = fun(time,l,y_prev,*args)
+            y_prev=out
+            out = np.reshape(out,[out.size,1])
+            y = np.append(y,out,axis=1)
+            t = t + l
+            t_lst.append(t)
+        # Make a dictionary with output
+        output = {
+            'y':    y,
+            't':    t_lst
+        }
+        return output
+
+    def sim(self, time, l = 1.0, checkpoints=None):
         """
         Run a model simulation for the given time period.
 
@@ -205,6 +218,8 @@ class BaseModel:
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+        l : float or int
+            Length of discrete time intervals
         checkpoints : dict
             A dictionary with a "time" key and additional parameter keys,
             in the form of
@@ -220,9 +235,7 @@ class BaseModel:
             time = [0, time]
 
         if checkpoints is None:
-            return self._sim_single(
-                time, interaction_matrix_function=interaction_matrix_function
-            )
+            return self._sim_single(time,l)
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
@@ -234,39 +247,28 @@ class BaseModel:
         original_initial_states = self.initial_states.copy()
 
         # first part of the simulation with original parameter
-        output = self._sim_single(
-            [time_points[0], time_points[1]],
-            interaction_matrix_function=interaction_matrix_function
-        )
+        output = self._sim_single([time_points[0], time_points[1]],l)
         results.append(output)
-        try:
-            # further simulations with updated parameters
-            for i in range(0, len(checkpoints["time"])):
-                # update parameters
-                for param in checkpoints.keys():
-                    if param != "time":
-                        self.parameters[param] = checkpoints[param][i]
-                self._validate()
 
-                # update initial states with states of last result
-                previous_output = results[-1]
-                last_states = previous_output.isel(time=-1)
-                initial_states = {}
-                for state in self.state_names:
-                    initial_states[state] = last_states[state].values
-                self.initial_states = initial_states
+        # further simulations with updated parameters
+        for i in range(0, len(checkpoints["time"])):
+            # update parameters
+            for param in checkpoints.keys():
+                if param != "time":
+                    self.parameters[param] = checkpoints[param][i]
+            self._validate()
 
-                # continue simulation
-                output = self._sim_single(
-                    [time_points[i + 1], time_points[i + 2] - 1],
-                    interaction_matrix_function=interaction_matrix_function
-                )
-                results.append(output)
-        except:
-            # reset parameters and initial states to original value
-            self.parameters = original_parameters
-            self.initial_states = original_initial_states
-            raise
+            # update initial states with states of last result
+            previous_output = results[-1]
+            last_states = previous_output.isel(time=-1)
+            initial_states = {}
+            for state in self.state_names:
+                initial_states[state] = last_states[state].values
+            self.initial_states = initial_states
+
+            # continue simulation
+            output = self._sim_single([time_points[i + 1], time_points[i + 2] - 1],l)
+            results.append(output)
 
         # reset parameters and initial states to original value
         self.parameters = original_parameters

@@ -57,9 +57,9 @@ The resulting html-website is created in the directory `build/html`. Double clic
 
 The code inside the `src/covid19model` directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.
 
-__Note:__ Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model).
-     - If you are a command line person, check [this workflow](https://gist.github.com/CristinaSolana/1885435)
-     - If you are not a command line person: [this workflow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
+Before doing any changes, always make sure your own version of your code (i.e. `fork`) is up to date with the `master` of the [main repository ](https://github.com/UGentBiomath/COVID19-Model). First, check out the __[git workflow](./git_workflow.md)__ for a step-by-step explanation of the proposed workflow. For more information, see also:
+- If you are a command line person, check [this workflow](https://gist.github.com/CristinaSolana/1885435)
+- If you are not a command line person: [this workflow](https://www.sitepoint.com/quick-tip-sync-your-fork-with-the-original-without-the-cli/) can help you staying up to date.
 
 For each of the functions you write, make sure to add the documentation to the function. We use the [numpy docstring](https://numpydoc.readthedocs.io/en/latest/format.html) format to write documentation. For each function, make sure the following items are defined at least:
 
@@ -70,7 +70,7 @@ For each of the functions you write, make sure to add the documentation to the f
 
 __Note:__ When adding new packages makes sure to update both,
 - the environment file, [evironment.yml](https://github.com/UGentBiomath/COVID19-Model/blob/master/environment.yml) for binder,
-- the setup file, [setup.py](https://github.com/UGentBiomath/COVID19-Model/blob/master/setup.py) file to include this dependency for the installation of the package. 
+- the setup file, [setup.py](https://github.com/UGentBiomath/COVID19-Model/blob/master/setup.py) file to include this dependency for the installation of the package.
 
 ### Repository layout overview
 
@@ -95,7 +95,7 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 
 #### code
 ```
-├── src                                     <- all reusable code blocks 
+├── src                                     <- all reusable code blocks
 │   ├── covid19model
 |   │   ├── data                            <- any code required for data reading and manipulation
 |   │   ├── models                          <- any code constructing the models
@@ -108,7 +108,7 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 
 #### documentation
 ```
-├── docs                                    <- documentation 
+├── docs                                    <- documentation
 │   ├── conf.py
 │   ├── index.rst                           <- explanations are written inside markdown or st files
 │   ├── ... .md                             <- pages of the documentation website
@@ -154,5 +154,5 @@ __Remember:__ Anyone should be able to reproduce the final products with only th
 ├── LICENSE
 ├── environment.yml
 ├── setup.py
-└── README.md                               <- focus on how to get started, setup environment name conventions and 
+└── README.md                               <- focus on how to get started, setup environment name conventions and
 ```
