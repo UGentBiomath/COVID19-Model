@@ -8,8 +8,8 @@ import numpy as np
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
-def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename=None,dataMkr=['o','v','s','*','^'],
-            modelClr=['green','orange','red','black','blue'],legendText=None,titleText=None,ax=None):
+def plot_fit(y_model,data,start_date,lag_time,states,filename=None,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
+                legend_text=None,titleText=None,ax=None):
 
     """Plot model fit to user provided data 
 
@@ -23,12 +23,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
         date corresponding to first entry of dataseries
     states: array
         list containg the names of the model states that correspond to the data
-    checkpoints : dict, optional
-        A dictionary with a "time" key and additional parameter keys,in the form of
-        ``{"time": [t1, t2, ..], "param": [param1, param2, ..], ..}``
-        indicating new parameter values at the corresponding timestamps.
-    samples: dict, optional
-        A dictionary containing parameter values obtained from a sampling algorithm (f.i. MCMC)
+  
     filename: string, optional
         Filename + extension to save a copy of the plot_fit
     ax : matplotlib.axes.Axes, optional
@@ -48,52 +43,25 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
 
     # Initialize figure and visualize data
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     # check if ax object is provided by user
     if ax is None:
         fig, ax = plt.subplots()
     # Create shifted index vector using self.extraTime
-    idx = pd.date_range(start_date,freq='D',periods=data[0].size + model.extraTime) - datetime.timedelta(days=model.extraTime)
+    idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time) - datetime.timedelta(days=lag_time)
+    # Plot model prediction
+    y_model = y_model.sum(dim="stratification")
+    for i in range(len(data)):
+        data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
+        lines = ax.plot(idx,data2plot,)    
     # Plot data
     for i in range(len(data)):
-        ax.scatter(idx[model.extraTime:],data[i],color="black")
+        ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i])
 
-    # Perform simulation(s) and plot model prediction
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Compute number of dataseries
-    n = len(data)
-    # Compute simulation time
-    T = data[0].size+model.extraTime-1
-    # Perform simulation(s)
-    if samples is None:
-        k = 0
-        while k < 200:
-            out = model.sim(T,checkpoints=checkpoints)
-            out = out.sum(dim="stratification")
-            for i in range(len(data)):
-                data2plot = out[states[i]].to_array(dim="states").values.ravel()
-                lines = ax.plot(idx,data2plot,linewidth=0.25,alpha=0.2,color="blue")
-            k = k +1
-    else:
-        original_parameters = model.parameters.copy()
-        k=0
-        while k < 100:
-            for key,value in samples:
-                # do random draw and assign to model
-                model.parameters[key] = random.choice(value)
-            # run simulation
-            out = model.sim(T,checkpoints=checkpoints)
-            out = out.sum(dim="stratification")
-            for i in range(len(data)):
-                data2plot = out[states[i]].to_array(dim="states").values.ravel()
-                lines = ax.plot(idx,data2plot)
-            k = k+1
-        # reset parameters
-        model.parameters=original_parameters
-    
 
     # Attributes
-    if legendText is not None:
-        ax.legend(legendText, loc="upper left", bbox_to_anchor=(1,1))
+    if legend_text is not None:
+        ax.legend(legend_text, loc="upper left", bbox_to_anchor=(1,1))
     if titleText is not None:
         ax.set_title(titleText,{'fontsize':18})
 
@@ -101,7 +69,7 @@ def plot_fit(model,data,start_date,states,checkpoints=None,samples=None,filename
     ax.xaxis.set_major_locator(mdates.DayLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
     fig.autofmt_xdate(rotation=90)
-    ax.set_xlim( idx[model.extraTime-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
+    ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     ax.set_ylabel('number of patients')
 
     # limit the number of ticks on the axis
