@@ -51,7 +51,6 @@ plt.rcParams["lines.linewidth"] = 3
 
 
 from .base import BaseModel
-from .discrete_time import DiscreteTimeModel
 
 class COVID19_SEIRD(BaseModel):
     """
