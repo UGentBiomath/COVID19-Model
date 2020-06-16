@@ -168,7 +168,7 @@ class COVID19_SEIRD(BaseModel):
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
 
 
-class COVID19_SEIRD_sto(DiscreteTimeModel):
+class COVID19_SEIRD_sto(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19
 
@@ -188,21 +188,21 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital', 'theta']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, l, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
-                  dhospital, theta, h, c, m0, icu, Nc):
+                  dhospital, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
 
         *Antwerp University stochastic implementation*
         """
-
+        l = 1.0
         # m0 goes above 1 making the probability of transitioning negative
         m0 = 0.50
         # calculate total population per age bin using 2D array
