@@ -29,6 +29,11 @@
 #### Sciensano
 
 + `COVID19BE_HOSP.csv` contains a copy of the "HOSP" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
++ `ObsInf.txt` contains cumulative observed infections from 1 March on
+ (note that this is an underestimation since especially in the beginning, only sick people
+   were tested)
++ `ObsDeceased.txt` contains cumulative observed deaths from 1 March on
++ `ObsRecovered.txt` contains cumulative observed recovered (from hospital) from 1 March on
 
 #### Model parameters
 
