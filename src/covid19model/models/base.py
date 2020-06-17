@@ -177,40 +177,39 @@ class BaseModel:
     def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
-        def func(t, y, *pars):
+        def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
+            compliance_pars = [v for k,v in pars.items() if k in self.parameters_compliance_names]
+            model_pars = [v for k,v in pars.items() if k not in self.parameters_compliance_names]
 
-            if interaction_matrix_function is not None:
-                if self.stratification is None:
-                    raise Exception(
-                        "Cannot specify a interaction matrix function for a "
-                        "non-stratified model"
-                    )
-                pars = list(pars)
-                # TODO check that output is correct
-                pars[-1] = interaction_matrix_function(t)
-
+            # TODO check that output is correct
+            if self.time_of_lst_chk > 0:
+                model_pars[-1] = self.compliance(t-self.time_of_lst_chk, self.Nc_old, self.Nc_new, *compliance_pars)
+            else:
+                model_pars[-1] = self.compliance(t, self.Nc_old, self.Nc_new, *compliance_pars)
+            #print(self.Nc_old[0,0],self.Nc_new[0,0],model_pars[-1][0,0],compliance_pars)
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
-            dstates = self.integrate(t, *y_reshaped, *pars)
+            dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
         return func
 
-    def _sim_single(self, time, interaction_matrix_function=None):
+    def _sim_single(self, time):
         """"""
-        fun = self._create_fun(interaction_matrix_function=interaction_matrix_function)
+        fun = self._create_fun()
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
 
-        if self.solver == 'solve_ivp':
+        if self.discrete == False:
             output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
-                           args=list(self.parameters.values()), t_eval=t_eval)
-        elif self.solver == 'discrete':
+                           args=self.parameters, t_eval=t_eval)
+        else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
-                            args=list(self.parameters.values()))
+                            args=self.parameters)
+        
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
@@ -223,7 +222,7 @@ class BaseModel:
         t_lst=[time[0]]
         t = time[0]
         while t < time[1]:
-            out = fun(time,y_prev,*args)
+            out = fun(t,y_prev,args)
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
@@ -236,7 +235,7 @@ class BaseModel:
         }
         return output
 
-    def sim(self, time, checkpoints=None, interaction_matrix_function=None):
+    def sim(self, time, checkpoints=None):
         """
         Run a model simulation for the given time period.
 
