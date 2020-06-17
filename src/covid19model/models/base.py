@@ -27,10 +27,12 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
+    solver = None
 
-    def __init__(self, states, parameters):
+    def __init__(self, states, parameters,solver):
         self.parameters = parameters
         self.initial_states = states
+        self.solver = solver
 
         if self.stratification:
             if not self.stratification in parameters:
@@ -190,11 +192,37 @@ class BaseModel:
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
 
-        output = solve_ivp(fun, time,
+        if self.solver == 'solve_ivp':
+            output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
                            args=list(self.parameters.values()), t_eval=t_eval)
+        elif self.solver == 'discrete':
+            output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
+                            args=list(self.parameters.values()))
         # map to variable names
         return self._output_to_xarray_dataset(output)
+
+    def solve_discrete(self,fun,time,y,args):
+        # Preparations
+        y=np.asarray(y) # otherwise error in func : y.reshape does not work
+        y=np.reshape(y,[y.size,1])
+        y_prev=y
+        # Iteration loop
+        t_lst=[time[0]]
+        t = time[0]
+        while t < time[1]:
+            out = fun(time,y_prev,*args)
+            y_prev=out
+            out = np.reshape(out,[out.size,1])
+            y = np.append(y,out,axis=1)
+            t = t + 1
+            t_lst.append(t)
+        # Make a dictionary with output
+        output = {
+            'y':    y,
+            't':    t_lst
+        }
+        return output
 
     def sim(self, time, checkpoints=None, interaction_matrix_function=None):
         """

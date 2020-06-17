@@ -1,30 +1,6 @@
 import matplotlib.pyplot as plt
-
-# From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
-colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
-                        "green" : "#009E73", "yellow" : "#F0E442",
-                        "blue" : "#0072B2", "red" : "#D55E00",
-                        "pink" : "#CC79A7", "black" : "#000000"}
-
-# covid 19 specific parameters
-plt.rcParams.update({
-    "axes.prop_cycle": plt.cycler('color',
-                                  list(colorscale_okabe_ito.values())),
-    "font.size": 15,
-    "lines.linewidth" : 3,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "ytick.major.left": True,
-    "axes.grid": True
-})
-
-
-def _apply_tick_locator(ax):
-    """support function to apply default ticklocator settings"""
-    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-    ax.yaxis.set_major_locator(plt.MaxNLocator(4))
-    return ax
-
+from .utils import colorscale_okabe_ito
+from .utils import _apply_tick_locator
 
 def population_status(data, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the population as function of time
