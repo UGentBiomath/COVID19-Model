@@ -23,7 +23,7 @@ def _cons_f_ieqcons_wrapper(f_ieqcons, args, kwargs, x):
 
 
 def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
-        swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=100,
+        swarmsize=100, omega=0.8, phip=0.8, phig=0.8, maxiter=100,
         minstep=1e-12, minfunc=1e-12, debug=False, processes=1,
         particle_output=False, transform_pars=None):
     """
