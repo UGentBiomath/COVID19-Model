@@ -302,7 +302,7 @@ class COVID19_SEIRD_sto(BaseModel):
                     prop.append(0)
                 else:
                     draw=np.array([])
-                    for k in range(30):
+                    for k in range(10):
                         draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
                     draw = np.mean(draw)
                     prop.append( draw )    
