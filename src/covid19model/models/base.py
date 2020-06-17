@@ -259,24 +259,28 @@ class BaseModel:
         if isinstance(time, int):
             time = [0, time]
 
+        original_parameters = self.parameters.copy()
+        original_initial_states = self.initial_states.copy()
+
+        # if before-after compliance parameters are equal, no compliance is applied
+        self.Nc_old = self.parameters['Nc']
+        self.Nc_new = self.parameters['Nc']
+        self.time_of_lst_chk= 0
+
         if checkpoints is None:
             return self._sim_single(
-                time, interaction_matrix_function=interaction_matrix_function
-            )
+                time
+                )
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
 
         time_points = [time[0], *checkpoints["time"], time[1]]
         results = []
-
-        original_parameters = self.parameters.copy()
-        original_initial_states = self.initial_states.copy()
-
-        # first part of the simulation with original parameter
+        
+        # first part of the simulation with original parameters
         output = self._sim_single(
-            [time_points[0], time_points[1]],
-            interaction_matrix_function=interaction_matrix_function
+            [time_points[0], time_points[1]]
         )
         results.append(output)
         try:
@@ -284,8 +288,12 @@ class BaseModel:
             for i in range(0, len(checkpoints["time"])):
                 # update parameters
                 for param in checkpoints.keys():
-                    if param != "time":
+                    if param != "time" and param != "Nc":
                         self.parameters[param] = checkpoints[param][i]
+                    elif param != "time" and param == "Nc":
+                        # assign old and new Nc to class
+                        self.Nc_old = self.parameters[param]
+                        self.Nc_new = checkpoints[param][i]
                 self._validate()
 
                 # update initial states with states of last result
