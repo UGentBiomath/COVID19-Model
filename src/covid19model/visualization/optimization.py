@@ -8,6 +8,43 @@ import numpy as np
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
+def traceplot(samples,labels,plt_kwargs={}):
+    """Make a visualization of sampled parameters
+
+    Parameters
+    ----------
+    samples: np.array
+        A 3-D numpy array containing the sampled parameters. 
+        The x-dimension must be the number of samples, the y-dimension the number of parallel chains and the z-dimension the number of sampled parameters.
+    labels: list
+        A list containing the names of the sampled parameters. Must be the same length as the z-dimension of the samples np.array.
+    plt_kwargs: dictionary
+        A dictionary containing arguments for the plt.plot function.
+
+    Returns
+    -------
+    ax
+    """
+    # extract dimensions of sampler output
+    nsamples,nwalkers, ndim = samples.shape
+    # input check    
+    if len(labels) != ndim:
+        raise ValueError(
+        "The length of label list is not equal to the length of the z-dimension of the samples.\n"
+        "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
+        )
+    # initialise figure
+    fig, axes = plt.subplots(len(labels))
+    # plot data
+    for i in range(ndim):
+        ax = axes[i]
+        ax.plot(samples[:, :, i], **plt_kwargs)
+        ax.set_xlim(0, nsamples)
+        ax.set_ylabel(labels[i])
+    axes[-1].set_xlabel("step number")
+
+    return ax
+
 def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
                 legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
 
