@@ -28,11 +28,12 @@ class BaseModel:
     parameters_stratified_names = None
     stratification = None
     solver = None
+    parameters_compliance_names = None
 
-    def __init__(self, states, parameters,solver):
+    def __init__(self, states, parameters,discrete=False):
         self.parameters = parameters
         self.initial_states = states
-        self.solver = solver
+        self.discrete = discrete
 
         if self.stratification:
             if not self.stratification in parameters:
