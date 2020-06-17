@@ -111,7 +111,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec',
-                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ']
+                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ', 'H_in', 'H_out']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
@@ -119,7 +119,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ, H_in, H_out,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
         """
@@ -164,8 +164,11 @@ class COVID19_SEIRD(BaseModel):
         dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
 
+        H_in=(M+MQ)*(h/dhospital)
+        H_out =  C*(1/dc) + (m0/dICU)*ICU + C_icurec*(1/dICUrec)
+
         return (dS, dE, dI, dA, dM, dC, dC_icurec,
-                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ)
+                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ, H_in, H_out)
 
 
 class COVID19_SEIRD_sto(DiscreteTimeModel):
@@ -206,13 +209,13 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         # m0 goes above 1 making the probability of transitioning negative
         m0 = 0.50
         # calculate total population per age bin using 2D array
-        N = S + E + I + A + M + C + C_icurec + ICU + R 
+        N = S + E + I + A + M + C + C_icurec + ICU + R
 
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS']
         probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) ),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size), 
+                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
                         1 - np.exp(- l * a * (1/omega) ),
                         1 - np.exp(- l * m * (1/omega) ),
                         (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
@@ -233,13 +236,13 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
                 if states[i][j]<0:
                     prop.append(0)
                 else:
-                    prop.append( np.random.binomial(states[i][j],probabilities[i][j]) )    
+                    prop.append( np.random.binomial(states[i][j],probabilities[i][j]) )
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         S_new  = S - propensity['StoE'] + propensity['RtoS']
-        E_new  =  E + propensity['StoE'] - propensity['EtoI'] 
+        E_new  =  E + propensity['StoE'] - propensity['EtoI']
         I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
         A_new =  A + propensity['ItoA'] - propensity['AtoR']
         M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoC'] - propensity['MtoICU']
@@ -250,7 +253,7 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         D_new  = D +  propensity['ICUtoD']
         # derived variables
         H_in_new = propensity['MtoC'] + propensity['MtoICU']
-        H_out_new = propensity['CtoR'] + propensity['CicurectoR'] 
+        H_out_new = propensity['CtoR'] + propensity['CicurectoR']
         return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
 
 
