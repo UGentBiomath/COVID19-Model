@@ -98,6 +98,10 @@ class BaseModel:
                 "{0} vs {1}".format(integrate_params, specified_params)
             )
 
+        # compliance parameters are added to specified_params after the above check
+        if self.parameters_compliance_names:
+            specified_params += self.parameters_compliance_names
+
         # Validate the params
         if set(self.parameters.keys()) != set(specified_params):
             raise ValueError(
@@ -106,8 +110,10 @@ class BaseModel:
                 set(self.parameters.keys()).difference(set(specified_params)),
                 set(specified_params).difference(set(self.parameters.keys())))
             )
-
+        
         self.parameters = {param: self.parameters[param] for param in specified_params}
+        # parameter dictionary excluding compliance parameters --> [v for k,v in self.parameters.items() if k not in self.parameters_compliance_names]
+        # compliance parameters --> [v for k,v in self.parameters.items() if k in self.parameters_compliance_names]
 
         # Validate the initial_states / stratified params having the correct length
 
