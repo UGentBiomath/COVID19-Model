@@ -187,7 +187,6 @@ class BaseModel:
                 model_pars[-1] = self.compliance(t-self.time_of_lst_chk, self.Nc_old, self.Nc_new, *compliance_pars)
             else:
                 model_pars[-1] = self.compliance(t, self.Nc_old, self.Nc_new, *compliance_pars)
-            #print(self.Nc_old[0,0],self.Nc_new[0,0],model_pars[-1][0,0],compliance_pars)
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
             dstates = self.integrate(t, *y_reshaped, *model_pars)
@@ -205,7 +204,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
-                           args=self.parameters, t_eval=t_eval)
+                           args=[self.parameters], t_eval=t_eval)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
