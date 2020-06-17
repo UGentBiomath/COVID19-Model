@@ -306,9 +306,12 @@ class BaseModel:
                 self.time_of_lst_chk = time_points[i + 1]
 
                 output = self._sim_single(
-                    [time_points[i + 1], time_points[i + 2] - 1]
+                    [time_points[i + 1], time_points[i + 2] ]
                 )
-                results.append(output)
+
+                #print(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]-1))])
+                results.append(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]))])
+                #results.append(output)
         except:
             # reset parameters and initial states to original value
             self.parameters = original_parameters
