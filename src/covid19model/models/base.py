@@ -297,9 +297,10 @@ class BaseModel:
                 self.initial_states = initial_states
 
                 # continue simulation
+                self.time_of_lst_chk = time_points[i + 1]
+
                 output = self._sim_single(
-                    [time_points[i + 1], time_points[i + 2] - 1],
-                    interaction_matrix_function=interaction_matrix_function
+                    [time_points[i + 1], time_points[i + 2] - 1]
                 )
                 results.append(output)
         except:
