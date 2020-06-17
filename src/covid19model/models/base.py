@@ -162,7 +162,12 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self, interaction_matrix_function=None):
+    @staticmethod
+    def compliance():
+        """to overwrite in subclasses"""
+        raise NotImplementedError
+
+    def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, *pars):
