@@ -164,11 +164,11 @@ class COVID19_SEIRD(BaseModel):
         dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
 
-        H_in=(M+MQ)*(h/dhospital)
-        H_out =  C*(1/dc) + (m0/dICU)*ICU + C_icurec*(1/dICUrec)
+        dH_in = (M+MQ)*(h/dhospital) - H_in
+        dH_out =  C*(1/dc) + (m0/dICU)*ICU + C_icurec*(1/dICUrec) - H_out
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec,
-                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ, H_in, H_out)
+                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ, dH_in, dH_out)
 
 
 class COVID19_SEIRD_sto(DiscreteTimeModel):
