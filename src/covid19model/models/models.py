@@ -51,7 +51,6 @@ plt.rcParams["lines.linewidth"] = 3
 
 
 from .base import BaseModel
-from .discrete_time import DiscreteTimeModel
 
 class COVID19_SEIRD(BaseModel):
     """
@@ -171,7 +170,7 @@ class COVID19_SEIRD(BaseModel):
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ, dH_in, dH_out)
 
 
-class COVID19_SEIRD_sto(DiscreteTimeModel):
+class COVID19_SEIRD_sto(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19
 
@@ -191,21 +190,21 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital', 'theta']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, l, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
-                  dhospital, theta, h, c, m0, icu, Nc):
+                  dhospital, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
 
         *Antwerp University stochastic implementation*
         """
-
+        l = 1.0
         # m0 goes above 1 making the probability of transitioning negative
         m0 = 0.50
         # calculate total population per age bin using 2D array
@@ -233,10 +232,14 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         for i in range(len(keys)):
             prop=[]
             for j in range(S.size):
-                if states[i][j]<0:
+                if states[i][j]<=0:
                     prop.append(0)
                 else:
-                    prop.append( np.random.binomial(states[i][j],probabilities[i][j]) )
+                    draw=np.array([])
+                    for k in range(30):
+                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
+                    draw = np.mean(draw)
+                    prop.append( draw )
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
@@ -254,7 +257,14 @@ class COVID19_SEIRD_sto(DiscreteTimeModel):
         # derived variables
         H_in_new = propensity['MtoC'] + propensity['MtoICU']
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
-        return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
+
+        # protection against states < 0
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        output = (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
+        for i in range(len(output)):
+            output[i][output[i]<0] = 0
+
+        return output
 
 
 class SEIRSAgeModel():
