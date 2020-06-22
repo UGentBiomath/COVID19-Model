@@ -15,8 +15,6 @@ dependencies:
   - pandas
   - ipywidgets
   - xlrd
-  - pyMC3
-  - theano
   - scikit-learn
   - openpyxl
   - emcee
