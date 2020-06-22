@@ -132,3 +132,5 @@ notebooks/templates/test\.svg
 data/raw/sciensano/COVID19BE_HOSP.csv
 
 docs/.Rhistory
+
+notebooks/scratch/\.Rhistory
