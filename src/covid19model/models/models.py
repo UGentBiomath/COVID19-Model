@@ -18,9 +18,6 @@ import matplotlib.dates as mdates
 import datetime
 import copy
 import multiprocessing
-import pymc3 as pm
-import theano.tensor as tt
-from theano.compile.ops import as_op
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
