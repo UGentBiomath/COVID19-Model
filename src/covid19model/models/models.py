@@ -110,7 +110,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec',
-                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out']
+                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
@@ -152,7 +152,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
         """
@@ -198,8 +198,9 @@ class COVID19_SEIRD(BaseModel):
         dRQ = theta_R*psi_FP*R - RQ/dq
         dH_in = (M+MQ)*(h/dhospital) - H_in
         dH_out =  C*(1/dc) + (m0/dICU)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = (M+MQ)*(h/dhospital) - C*(1/dc) - (m0/dICU)*ICU - C_icurec*(1/dICUrec)
         return (dS, dE, dI, dA, dM, dC, dC_icurec,
-                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ,dH_in,dH_out)
+                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ,dH_in,dH_out,dH_tot)
 
 
 class COVID19_SEIRD_sto(BaseModel):
