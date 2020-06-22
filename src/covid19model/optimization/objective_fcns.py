@@ -1,4 +1,5 @@
 import numpy as np
+from covid19model.data import polymod
 
 def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
@@ -107,12 +108,15 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
     # by defenition, if N is the number of data timeseries then the first N parameters are the estimated variances of these timeseries!
     i = 0
     sigma=[]
     for param in parNames:
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
+        elif param == 'prevention':
+            checkpoints.update({'Nc': [0.2*Nc_home + thetas[i]*((1-0.70)*Nc_work + (1-0.80)*Nc_transport)]})
         else:
             if i < len(data):
                 sigma.append(thetas[i])
