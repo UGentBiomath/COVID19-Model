@@ -112,40 +112,7 @@ class COVID19_SEIRD(BaseModel):
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
-
-    # logistic compliance model
-    parameters_compliance_names = ['k','t0']
-    #apply_compliance_to = 'Nc' --> abstract further?
-    @staticmethod
-    def compliance(t,Nc_old,Nc_new,k,t0):
-        """
-        A function to simulate tardiness in compliance to social measures
-
-        Parameters
-        ----------
-        t : float or int
-            time since last checkpoint
-        Nc_old : np.array
-            interaction matrix Nc before checkpoint
-        Nc_new : np.array
-            interaction matrix Nc after checkpoint
-        k : float
-            logistic growth steepness of curve
-        t0 : float
-            time after checkpoint at which the logistic curve reaches its sigmoid point
-
-        Returns
-        -------
-        Nc_out : np.array
-            interpolation between Nc_old and Nc_new based on logistic interpolation of each matrix element
-
-        """
-        Nc_out = np.zeros([Nc_old.shape[0],Nc_old.shape[1]])
-        for i in range(Nc_old.shape[0]):
-            for j in range(Nc_old.shape[1]):
-                f = 1/(1+np.exp(-k*(t-t0)))
-                Nc_out[i,j] = Nc_old[i,j] + f*(Nc_new[i,j]-Nc_old[i,j])
-        return Nc_out
+    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -223,40 +190,7 @@ class COVID19_SEIRD_sto(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
-
-    # logistic compliance model
-    parameters_compliance_names = ['k','t0']
-    #apply_compliance_to = 'Nc' --> abstract further?
-    @staticmethod
-    def compliance(t,Nc_old,Nc_new,k,t0):
-        """
-        A function to simulate tardiness in compliance to social measures
-
-        Parameters
-        ----------
-        t : float or int
-            time since last checkpoint
-        Nc_old : np.array
-            interaction matrix Nc before checkpoint
-        Nc_new : np.array
-            interaction matrix Nc after checkpoint
-        k : float
-            logistic growth steepness of curve
-        t0 : float
-            time after checkpoint at which the logistic curve reaches its sigmoid point
-
-        Returns
-        -------
-        Nc_out : np.array
-            interpolation between Nc_old and Nc_new based on logistic interpolation of each matrix element
-
-        """
-        Nc_out = np.zeros([Nc_old.shape[0],Nc_old.shape[1]])
-        for i in range(Nc_old.shape[0]):
-            for j in range(Nc_old.shape[1]):
-                f = 1/(1+np.exp(-k*(t-t0)))
-                Nc_out[i,j] = Nc_old[i,j] + f*(Nc_new[i,j]-Nc_old[i,j])
-        return Nc_out
+    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod

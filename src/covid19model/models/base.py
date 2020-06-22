@@ -27,12 +27,12 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
-    solver = None
-    parameters_compliance_names = None
+    apply_compliance_to = None
 
-    def __init__(self, states, parameters,discrete=False):
+    def __init__(self, states, parameters,compliance=None,discrete=False):
         self.parameters = parameters
         self.initial_states = states
+        self.compliance = compliance
         self.discrete = discrete
 
         if self.stratification:
@@ -45,6 +45,12 @@ class BaseModel:
         else:
             self.stratification_size = 1
 
+        if compliance:
+            self._validate_compliance()
+        else:
+            self.apply_compliance_to = None
+            self.parameters_compliance_names=[]
+
         self._validate()
 
     def _fill_initial_state_with_zero(self):
@@ -52,6 +58,29 @@ class BaseModel:
             if state in self.initial_states:
                 state_values = self.initial_states[state]
 
+    def _validate_compliance(self):
+        # Validate arguments of compliance definition 
+        sig = inspect.signature(self.compliance)
+        keywords = list(sig.parameters.keys())
+        if keywords[0] != "t":
+            raise ValueError(
+                "The first parameter of the compliance function should be 't'"
+            ) 
+        if keywords[1] != "old":
+            raise ValueError(
+                "The second parameter of the compliance function is the parameter value before reaching the checkpoint and should be named 'old'"
+            )
+        if keywords[2] != "new":
+            raise ValueError(
+                "The third parameter of the compliance function is the parameter value desired after the checkpoint and should be named 'new'"
+            )
+        if not self.apply_compliance_to:
+            raise ValueError(
+                "You have not defined the name of the parameter to apply compliance to in your model definition.\n"
+                "Add a variable 'apply_compliance_to = parameter_name' in your model class defenition."
+            )
+        # Extract names of compliance parameters
+        self.parameters_compliance_names = keywords[3:]
 
     def _validate(self):
         """
@@ -101,6 +130,15 @@ class BaseModel:
         # compliance parameters are added to specified_params after the above check
         if self.parameters_compliance_names:
             specified_params += self.parameters_compliance_names
+
+        # confirm that apply_compliance_to is a model parameter
+        # extract position of parameter to apply compliance to
+        if self.apply_compliance_to and self.compliance:
+            if self.apply_compliance_to not in specified_params:
+                raise ValueError(
+                    "The parameter you want me to apply compliance to is not a model parameter "
+                )
+            self.compliance_position = [index for index in range(len(specified_params)) if specified_params[index] == self.apply_compliance_to][0]
 
         # Validate the params
         if set(self.parameters.keys()) != set(specified_params):
@@ -169,24 +207,18 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    @staticmethod
-    def compliance():
-        """to overwrite in subclasses"""
-        raise NotImplementedError
-
     def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
+
             compliance_pars = [v for k,v in pars.items() if k in self.parameters_compliance_names]
             model_pars = [v for k,v in pars.items() if k not in self.parameters_compliance_names]
 
-            # TODO check that output is correct
-            if self.time_of_lst_chk > 0:
-                model_pars[-1] = self.compliance(t-self.time_of_lst_chk, self.Nc_old, self.Nc_new, *compliance_pars)
-            else:
-                model_pars[-1] = self.compliance(t, self.Nc_old, self.Nc_new, *compliance_pars)
+            if self.compliance and self.time_of_lst_chk > 0:
+                model_pars[self.compliance_position] = self.compliance(t-self.time_of_lst_chk, self.old, self.new, *compliance_pars)
+
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
             dstates = self.integrate(t, *y_reshaped, *model_pars)
@@ -259,10 +291,6 @@ class BaseModel:
 
         original_parameters = self.parameters.copy()
         original_initial_states = self.initial_states.copy()
-
-        # if before-after compliance parameters are equal, no compliance is applied
-        self.Nc_old = self.parameters['Nc']
-        self.Nc_new = self.parameters['Nc']
         self.time_of_lst_chk= 0
 
         if checkpoints is None:
@@ -286,12 +314,12 @@ class BaseModel:
             for i in range(0, len(checkpoints["time"])):
                 # update parameters
                 for param in checkpoints.keys():
-                    if param != "time" and param != "Nc":
+                    if param != "time" and param != self.apply_compliance_to:
                         self.parameters[param] = checkpoints[param][i]
-                    elif param != "time" and param == "Nc":
+                    elif param != "time" and param == self.apply_compliance_to:
                         # assign old and new Nc to class
-                        self.Nc_old = self.parameters[param]
-                        self.Nc_new = checkpoints[param][i]
+                        self.old = self.parameters[param]
+                        self.new = checkpoints[param][i]
                 self._validate()
 
                 # update initial states with states of last result
@@ -309,7 +337,6 @@ class BaseModel:
                     [time_points[i + 1], time_points[i + 2] ]
                 )
 
-                #print(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]-1))])
                 results.append(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]))])
                 #results.append(output)
         except:
