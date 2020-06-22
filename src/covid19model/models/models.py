@@ -202,7 +202,10 @@ class COVID19_SEIRD_sto(BaseModel):
 
         *Antwerp University stochastic implementation*
         """
+        # length of discrete timestep
         l = 1.0
+        # number of binominals draws averaged per day
+        n = 10
         # m0 goes above 1 making the probability of transitioning negative --> recalculate
         m0 = 0.50
         # calculate total population per age bin using 2D array
@@ -234,7 +237,7 @@ class COVID19_SEIRD_sto(BaseModel):
                     prop.append(0)
                 else:
                     draw=np.array([])
-                    for k in range(10):
+                    for k in range(n):
                         draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
                     draw = np.mean(draw)
                     prop.append( draw )    
