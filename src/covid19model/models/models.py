@@ -154,8 +154,8 @@ class COVID19_SEIRD(BaseModel):
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
         dC_icurec = ((1-m0)/dICU)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(M+MQ)*(h/dhospital) - ICU/dICU
-        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
-        dD  = (m0/dICU)*ICU
+        dR  = A/da + ((1-h)/dm)*M + (1-m0)*C*(1/dc) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
+        dD  = (m0/dICU)*ICU + (m0/dc)*C
         dSQ = theta_S*psi_FP*S - SQ/dq
         dEQ = theta_E*psi_PP*E - EQ/sigma
         dIQ = theta_I*psi_PP*I + (1/sigma)*EQ - (1/omega)*IQ
