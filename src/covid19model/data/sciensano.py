@@ -81,4 +81,4 @@ def get_sciensano_COVID19_data(update=True):
     df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE').sum()
     df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE').sum()
 
-    return df
+    return df.fillna(0)
