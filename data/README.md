@@ -29,10 +29,15 @@
 #### Sciensano
 
 + `COVID19BE_HOSP.csv` contains a copy of the "HOSP" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
++ `ObsInf.txt` contains cumulative observed infections from 1 March on
+ (note that this is an underestimation since especially in the beginning, only sick people
+   were tested)
++ `ObsDeceased.txt` contains cumulative observed deaths from 1 March on
++ `ObsRecovered.txt` contains cumulative observed recovered (from hospital) from 1 March on
 
 #### Model parameters
 
-+ `verity_etal.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the case fatality ratio. Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
++ `verity_etal.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the case fatality ratio (the percentage of individuals with symptomatic or confirmed disease who die from the disease). Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
 + `wu_etal.csv` contains age-stratified estimates of the fraction of asymptomatic cases. Data were obtained from https://www.nature.com/articles/s41591-020-0822-7
 + `others.csv` contains all other parameters used to run the model. Obtained from various sources, detailed in the report.
 + `split_mortality.csv` contains age-stratified probability to die after infection,

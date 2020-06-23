@@ -209,13 +209,13 @@ class COVID19_SEIRD_sto(BaseModel):
         # m0 goes above 1 making the probability of transitioning negative --> recalculate
         m0 = 0.50
         # calculate total population per age bin using 2D array
-        N = S + E + I + A + M + C + C_icurec + ICU + R 
+        N = S + E + I + A + M + C + C_icurec + ICU + R
 
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS']
         probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) ),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size), 
+                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
                         1 - np.exp(- l * a * (1/omega) ),
                         1 - np.exp(- l * m * (1/omega) ),
                         (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
@@ -240,13 +240,13 @@ class COVID19_SEIRD_sto(BaseModel):
                     for k in range(n):
                         draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
                     draw = np.mean(draw)
-                    prop.append( draw )    
+                    prop.append( draw )
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         S_new  = S - propensity['StoE'] + propensity['RtoS']
-        E_new  =  E + propensity['StoE'] - propensity['EtoI'] 
+        E_new  =  E + propensity['StoE'] - propensity['EtoI']
         I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
         A_new =  A + propensity['ItoA'] - propensity['AtoR']
         M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoC'] - propensity['MtoICU']
@@ -257,14 +257,14 @@ class COVID19_SEIRD_sto(BaseModel):
         D_new  = D +  propensity['ICUtoD']
         # derived variables
         H_in_new = propensity['MtoC'] + propensity['MtoICU']
-        H_out_new = propensity['CtoR'] + propensity['CicurectoR'] 
+        H_out_new = propensity['CtoR'] + propensity['CicurectoR']
 
         # protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         output = (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
         for i in range(len(output)):
             output[i][output[i]<0] = 0
-            
+
         return output
 
 
