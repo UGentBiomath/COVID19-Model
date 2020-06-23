@@ -29,6 +29,8 @@ def get_sciensano_COVID19_data(update=True):
         - H_out : total number of patients discharged from hospital on given data
         - H_tot_cumsum : calculated total number of patients in hospital,
               calculated as by taking the cumulative sum of H_net = H_in - H_out
+        - D_tot : total number of deaths
+        - D_xx_yy: total number of deaths in the age group xx to yy years old
 
     Notes
     ----------
@@ -66,5 +68,17 @@ def get_sciensano_COVID19_data(update=True):
     df = df.rename(columns=variable_mapping)
     df = df[list(variable_mapping.values())]
     df["H_tot_cumsum"] = (df["H_in"] - df["H_out"]).cumsum().values
+
+    # Extract total reported deaths per day
+    df_mort = pd.read_excel(url, sheet_name='MORT')
+    df_mort.DATE = pd.to_datetime(df_mort.DATE)
+    df["D_tot"] = df_mort.resample('D', on='DATE').sum()
+
+    # Extract total reported deaths per day and per age group
+    df["D_25_44"] = df_mort.loc[(df_mort['AGEGROUP'] == '25-44')].resample('D', on='DATE').sum()
+    df["D_45_64"] = df_mort.loc[(df_mort['AGEGROUP'] == '45-64')].resample('D', on='DATE').sum()
+    df["D_65_74"] = df_mort.loc[(df_mort['AGEGROUP'] == '65-74')].resample('D', on='DATE').sum()
+    df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE').sum()
+    df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE').sum()
 
     return df
