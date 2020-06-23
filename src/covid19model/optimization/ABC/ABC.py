@@ -59,7 +59,7 @@ class SMC_MCMC():
         generative model to be used for generating simulations.
     priors : function or container,
         Prior distributions from which the initial particle distribution is drawn.
-        This can bne specified as:
+        This can be specified as:
             - a function that can draw samples from priors of the n_param parameters.
             - or a container (list, tuple) that unpacks to two ndarrays
             param_dist_0 and weights_0 of length n_param.
