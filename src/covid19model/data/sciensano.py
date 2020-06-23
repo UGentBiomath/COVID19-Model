@@ -29,6 +29,8 @@ def get_sciensano_COVID19_data(update=True):
         - H_out : total number of patients discharged from hospital on given data
         - H_tot_cumsum : calculated total number of patients in hospital,
               calculated as by taking the cumulative sum of H_net = H_in - H_out
+        - D_tot : total number of deaths
+        - D_xx_yy: total number of deaths in the age group xx to yy years old
 
     Notes
     ----------
@@ -78,5 +80,5 @@ def get_sciensano_COVID19_data(update=True):
     df["D_65_74"] = df_mort.loc[(df_mort['AGEGROUP'] == '65-74')].resample('D', on='DATE').sum()
     df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE').sum()
     df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE').sum()
-    
+
     return df
