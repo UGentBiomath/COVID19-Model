@@ -68,11 +68,11 @@ class BaseModel:
             ) 
         if keywords[1] != "old":
             raise ValueError(
-                "The second parameter of the compliance function is the parameter value before reaching the checkpoint and should be named 'old'"
+                "The second parameter of the compliance function should be named 'old'"
             )
         if keywords[2] != "new":
             raise ValueError(
-                "The third parameter of the compliance function is the parameter value desired after the checkpoint and should be named 'new'"
+                "The third parameter of the compliance function should be named 'new'"
             )
         if not self.apply_compliance_to:
             raise ValueError(
