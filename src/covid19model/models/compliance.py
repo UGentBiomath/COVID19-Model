@@ -26,19 +26,10 @@ def logistic(t,old,new,k,t0):
 
     """
 
-    if isinstance(old,int) or isinstance(old,int) or isinstance(new,int) or isinstance(old,int):
-        n1 = 1
-        n2 = 1
-    else:
-        n1 = old.shape[0]
-        n2 = old.shape[1]
     # perform interpolation
     f = 1/(1+np.exp(-k*(t-t0)))
-    out = np.zeros([n1,n2])
-    for i in range(n1):
-        for j in range(n2):
-            out[i,j] = old[i,j] + f*(new[i,j]-old[i,j])
-    return out
+
+    return old + f*(new-old)
 
 def ramp_1(t,old,new,l):
     """
@@ -63,22 +54,13 @@ def ramp_1(t,old,new,l):
         interpolation between old and new parameter value
     """
 
-    if isinstance(old,int) or isinstance(old,int) or isinstance(new,int) or isinstance(old,int):
-        n1 = 1
-        n2 = 1
-    else:
-        n1 = old.shape[0]
-        n2 = old.shape[1]
     # perform interpolation
     if t <= l:
         f = (1/l)*t
     else:
         f = 1.0
-    out = np.zeros([n1,n2])
-    for i in range(n1):
-        for j in range(n2):
-            out[i,j] = old[i,j] + f*(new[i,j]-old[i,j])
-    return out
+    
+    return old + f*(new-old)
 
 def ramp_2(t,old,new,l,tau):
     """
@@ -106,12 +88,6 @@ def ramp_2(t,old,new,l,tau):
 
     """
 
-    if isinstance(old,int) or isinstance(old,int) or isinstance(new,int) or isinstance(old,int):
-        n1 = 1
-        n2 = 1
-    else:
-        n1 = old.shape[0]
-        n2 = old.shape[1]
     # perform interpolation
     if t <= tau:
         f = 0.0
@@ -119,8 +95,5 @@ def ramp_2(t,old,new,l,tau):
         f = (1/l)*t - (1/l)*tau
     else:
         f = 1.0
-    out = np.zeros([n1,n2])
-    for i in range(n1):
-        for j in range(n2):
-            out[i,j] = old[i,j] + f*(new[i,j]-old[i,j])
-    return out
+   
+    return old + f*(new-old)
