@@ -27,12 +27,13 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
-    solver = None
+    apply_compliance_to = None
 
-    def __init__(self, states, parameters,solver):
+    def __init__(self, states, parameters,compliance=None,discrete=False):
         self.parameters = parameters
         self.initial_states = states
-        self.solver = solver
+        self.compliance = compliance
+        self.discrete = discrete
 
         if self.stratification:
             if not self.stratification in parameters:
@@ -44,6 +45,12 @@ class BaseModel:
         else:
             self.stratification_size = 1
 
+        if compliance:
+            self._validate_compliance()
+        else:
+            self.apply_compliance_to = None
+            self.parameters_compliance_names=[]
+
         self._validate()
 
     def _fill_initial_state_with_zero(self):
@@ -51,6 +58,29 @@ class BaseModel:
             if state in self.initial_states:
                 state_values = self.initial_states[state]
 
+    def _validate_compliance(self):
+        # Validate arguments of compliance definition 
+        sig = inspect.signature(self.compliance)
+        keywords = list(sig.parameters.keys())
+        if keywords[0] != "t":
+            raise ValueError(
+                "The first parameter of the compliance function should be 't'"
+            ) 
+        if keywords[1] != "old":
+            raise ValueError(
+                "The second parameter of the compliance function should be named 'old'"
+            )
+        if keywords[2] != "new":
+            raise ValueError(
+                "The third parameter of the compliance function should be named 'new'"
+            )
+        if not self.apply_compliance_to:
+            raise ValueError(
+                "You have not defined the name of the parameter to apply compliance to in your model definition.\n"
+                "Add a variable 'apply_compliance_to = parameter_name' in your model class defenition."
+            )
+        # Extract names of compliance parameters
+        self.parameters_compliance_names = keywords[3:]
 
     def _validate(self):
         """
@@ -97,6 +127,19 @@ class BaseModel:
                 "{0} vs {1}".format(integrate_params, specified_params)
             )
 
+        # compliance parameters are added to specified_params after the above check
+        if self.parameters_compliance_names:
+            specified_params += self.parameters_compliance_names
+
+        # confirm that apply_compliance_to is a model parameter
+        # extract position of parameter to apply compliance to
+        if self.apply_compliance_to and self.compliance:
+            if self.apply_compliance_to not in specified_params:
+                raise ValueError(
+                    "The parameter you want me to apply compliance to is not a model parameter "
+                )
+            self.compliance_position = [index for index in range(len(specified_params)) if specified_params[index] == self.apply_compliance_to][0]
+
         # Validate the params
         if set(self.parameters.keys()) != set(specified_params):
             raise ValueError(
@@ -105,8 +148,10 @@ class BaseModel:
                 set(self.parameters.keys()).difference(set(specified_params)),
                 set(specified_params).difference(set(self.parameters.keys())))
             )
-
+        
         self.parameters = {param: self.parameters[param] for param in specified_params}
+        # parameter dictionary excluding compliance parameters --> [v for k,v in self.parameters.items() if k not in self.parameters_compliance_names]
+        # compliance parameters --> [v for k,v in self.parameters.items() if k in self.parameters_compliance_names]
 
         # Validate the initial_states / stratified params having the correct length
 
@@ -162,43 +207,40 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self, interaction_matrix_function=None):
+    def _create_fun(self):
         """Convert integrate statement to scipy-compatible function"""
 
-        def func(t, y, *pars):
+        def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
-            if interaction_matrix_function is not None:
-                if self.stratification is None:
-                    raise Exception(
-                        "Cannot specify a interaction matrix function for a "
-                        "non-stratified model"
-                    )
-                pars = list(pars)
-                # TODO check that output is correct
-                pars[-1] = interaction_matrix_function(t)
+            compliance_pars = [v for k,v in pars.items() if k in self.parameters_compliance_names]
+            model_pars = [v for k,v in pars.items() if k not in self.parameters_compliance_names]
+
+            if self.compliance and self.time_of_lst_chk > 0:
+                model_pars[self.compliance_position] = self.compliance(t-self.time_of_lst_chk, self.old, self.new, *compliance_pars)
 
             # for the moment assume sequence of parameters, vars,... is correct
             y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
-            dstates = self.integrate(t, *y_reshaped, *pars)
+            dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
         return func
 
-    def _sim_single(self, time, interaction_matrix_function=None):
+    def _sim_single(self, time):
         """"""
-        fun = self._create_fun(interaction_matrix_function=interaction_matrix_function)
+        fun = self._create_fun()
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
 
-        if self.solver == 'solve_ivp':
+        if self.discrete == False:
             output = solve_ivp(fun, time,
                            list(itertools.chain(*self.initial_states.values())),
-                           args=list(self.parameters.values()), t_eval=t_eval)
-        elif self.solver == 'discrete':
+                           args=[self.parameters], t_eval=t_eval)
+        else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
-                            args=list(self.parameters.values()))
+                            args=self.parameters)
+        
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
@@ -211,7 +253,7 @@ class BaseModel:
         t_lst=[time[0]]
         t = time[0]
         while t < time[1]:
-            out = fun(time,y_prev,*args)
+            out = fun(t,y_prev,args)
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
@@ -224,7 +266,7 @@ class BaseModel:
         }
         return output
 
-    def sim(self, time, checkpoints=None, interaction_matrix_function=None):
+    def sim(self, time, checkpoints=None):
         """
         Run a model simulation for the given time period.
 
@@ -247,24 +289,24 @@ class BaseModel:
         if isinstance(time, int):
             time = [0, time]
 
+        original_parameters = self.parameters.copy()
+        original_initial_states = self.initial_states.copy()
+        self.time_of_lst_chk= 0
+
         if checkpoints is None:
             return self._sim_single(
-                time, interaction_matrix_function=interaction_matrix_function
-            )
+                time
+                )
 
         # checkpoints dictionary has the form of
         #   {"time": [t1, t2], "param": [param1, param2]}
 
         time_points = [time[0], *checkpoints["time"], time[1]]
         results = []
-
-        original_parameters = self.parameters.copy()
-        original_initial_states = self.initial_states.copy()
-
-        # first part of the simulation with original parameter
+        
+        # first part of the simulation with original parameters
         output = self._sim_single(
-            [time_points[0], time_points[1]],
-            interaction_matrix_function=interaction_matrix_function
+            [time_points[0], time_points[1]]
         )
         results.append(output)
         try:
@@ -272,8 +314,12 @@ class BaseModel:
             for i in range(0, len(checkpoints["time"])):
                 # update parameters
                 for param in checkpoints.keys():
-                    if param != "time":
+                    if param != self.apply_compliance_to:
                         self.parameters[param] = checkpoints[param][i]
+                    elif param == self.apply_compliance_to:
+                        # assign old and new Nc to class
+                        self.old = self.parameters[param]
+                        self.new = checkpoints[param][i]
                 self._validate()
 
                 # update initial states with states of last result
@@ -285,11 +331,14 @@ class BaseModel:
                 self.initial_states = initial_states
 
                 # continue simulation
+                self.time_of_lst_chk = time_points[i + 1]
+
                 output = self._sim_single(
-                    [time_points[i + 1], time_points[i + 2] - 1],
-                    interaction_matrix_function=interaction_matrix_function
+                    [time_points[i + 1], time_points[i + 2] ]
                 )
-                results.append(output)
+
+                results.append(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]))])
+                #results.append(output)
         except:
             # reset parameters and initial states to original value
             self.parameters = original_parameters

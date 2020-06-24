@@ -18,9 +18,6 @@ import matplotlib.dates as mdates
 import datetime
 import copy
 import multiprocessing
-import pymc3 as pm
-import theano.tensor as tt
-from theano.compile.ops import as_op
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
@@ -110,15 +107,16 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec',
-                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ', 'H_in', 'H_out']
+                   'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
+    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ, H_in, H_out,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
         """
@@ -162,12 +160,11 @@ class COVID19_SEIRD(BaseModel):
         dAQ = theta_A*psi_PP*A + (a/omega)*IQ - AQ/dq
         dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
-
         dH_in = (M+MQ)*(h/dhospital) - H_in
         dH_out =  C*(1/dc) + (m0/dICU)*ICU + C_icurec*(1/dICUrec) - H_out
-
+        dH_tot = (M+MQ)*(h/dhospital) - C*(1/dc) - (m0/dICU)*ICU - C_icurec*(1/dICUrec)
         return (dS, dE, dI, dA, dM, dC, dC_icurec,
-                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ, dH_in, dH_out)
+                dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ,dH_in,dH_out,dH_tot)
 
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -193,6 +190,7 @@ class COVID19_SEIRD_sto(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
     parameters_stratified_names = ['h', 'c', 'm0', 'icu']
     stratification = 'Nc'
+    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -204,7 +202,10 @@ class COVID19_SEIRD_sto(BaseModel):
 
         *Antwerp University stochastic implementation*
         """
+        # length of discrete timestep
         l = 1.0
+        # number of draws to average
+        n = 10
         # calculate total population per age bin using 2D array
         N = S + E + I + A + M + C + C_icurec + ICU + R
 
@@ -235,7 +236,7 @@ class COVID19_SEIRD_sto(BaseModel):
                     prop.append(0)
                 else:
                     draw=np.array([])
-                    for k in range(30):
+                    for k in range(n):
                         draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
                     draw = np.mean(draw)
                     prop.append( draw )
