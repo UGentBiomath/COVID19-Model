@@ -71,10 +71,10 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
+def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
 
     """
-    A function to return the maximum likelihood estimator given a model prediction and a dataset
+    A function to return the maximum likelihood estimator given a model object and a dataset
 
     Parameters
     -----------
@@ -134,6 +134,10 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     for i in range(n):
         data_length.append(data[i].size)
     T = max(data_length)+BaseModel.extraTime-1
+    # Use previous samples
+    if samples:
+        for param in samples:
+            BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
     out=BaseModel.sim(T,checkpoints=checkpoints)
 
@@ -193,7 +197,7 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
-def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None):
+def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -231,5 +235,5 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints) # must be negative for emcee
+        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints,samples=samples) # must be negative for emcee
 
