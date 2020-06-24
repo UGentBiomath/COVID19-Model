@@ -314,9 +314,9 @@ class BaseModel:
             for i in range(0, len(checkpoints["time"])):
                 # update parameters
                 for param in checkpoints.keys():
-                    if param != "time" and param != self.apply_compliance_to:
+                    if param != self.apply_compliance_to:
                         self.parameters[param] = checkpoints[param][i]
-                    elif param != "time" and param == self.apply_compliance_to:
+                    elif param == self.apply_compliance_to:
                         # assign old and new Nc to class
                         self.old = self.parameters[param]
                         self.new = checkpoints[param][i]
