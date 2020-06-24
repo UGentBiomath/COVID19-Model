@@ -45,7 +45,7 @@ def traceplot(samples,labels,plt_kwargs={}):
 
     return ax
 
-def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
+def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','*','^'],clr=['green','orange','red','black','blue'],
                 legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
 
     """Plot model fit to user provided data 
@@ -93,7 +93,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','
         #fig, ax = plt.subplots()
         ax = plt.gca()
     # Create shifted index vector 
-    idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time) - datetime.timedelta(days=lag_time)
+    idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time + T) - datetime.timedelta(days=lag_time)
 
     # Plot model prediction
     y_model = y_model.sum(dim="stratification")
@@ -102,7 +102,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,data_mkr=['o','v','s','*','
         lines = ax.plot(idx,data2plot,color=clr[i],**plt_kwargs)    
     # Plot data
     for i in range(len(data)):
-        lines=ax.scatter(idx[lag_time:],data[i],color="black",marker=data_mkr[i],**sct_kwargs)
+        lines=ax.scatter(idx[lag_time:-T],data[i],color="black",marker=data_mkr[i],**sct_kwargs)
 
     # Attributes
     if legend_text is not None:
