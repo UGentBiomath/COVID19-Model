@@ -78,7 +78,10 @@ def get_COVID19_SEIRD_parameters(stratified=True):
         df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
         pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
-        pars_dict['m0'] = np.array(df.loc[:,'CFR'].astype(float).tolist())/100/pars_dict['h']/pars_dict['icu']
+
+        # Molenberghs_etal
+        df = pd.read_csv(os.path.join(par_path,"molenberghs_etal.csv"), sep=',',header='infer')
+        pars_dict['m0'] = np.array(df.loc[:,'IFR_general_population'].astype(float).tolist())/100/pars_dict['h']
 
         # Wu_etal
         df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')

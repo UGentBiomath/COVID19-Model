@@ -152,8 +152,8 @@ class COVID19_SEIRD(BaseModel):
         dC = c*(M+MQ)*(h/dhospital) - C*(1/dc)
         dC_icurec = ((1-m0)/dICU)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(M+MQ)*(h/dhospital) - ICU/dICU
-        dR  = A/da + ((1-h)/dm)*M + C*(1/dc) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
-        dD  = (m0/dICU)*ICU
+        dR  = A/da + ((1-h)/dm)*M + (1-m0)*C*(1/dc) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
+        dD  = (m0/dICU)*ICU + (m0/dc)*C
         dSQ = theta_S*psi_FP*S - SQ/dq
         dEQ = theta_E*psi_PP*E - EQ/sigma
         dIQ = theta_I*psi_PP*I + (1/sigma)*EQ - (1/omega)*IQ
@@ -204,16 +204,12 @@ class COVID19_SEIRD_sto(BaseModel):
         """
         # length of discrete timestep
         l = 1.0
-        # number of binominals draws averaged per day
-        n = 10
-        # m0 goes above 1 making the probability of transitioning negative --> recalculate
-        m0 = 0.50
         # calculate total population per age bin using 2D array
         N = S + E + I + A + M + C + C_icurec + ICU + R
 
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','ICUtoD','RtoS']
+        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
         probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) ),
                         (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
                         1 - np.exp(- l * a * (1/omega) ),
@@ -222,13 +218,14 @@ class COVID19_SEIRD_sto(BaseModel):
                         (1 - np.exp(- l * (1/dm) ))*np.ones(S.size),
                         1 - np.exp(- l * h * c * (1/dhospital) ),
                         1 - np.exp(- l * h * (1-c) * (1/dhospital) ),
-                        (1 - np.exp(- l * (1/dc) ))*np.ones(S.size),
+                        (1 - np.exp(- l * (1-m0) * (1/dc) ))*np.ones(S.size),
                         (1 - np.exp(- l * (1-m0) * (1/dICU) ))*np.ones(S.size),
                         (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
+                        (1 - np.exp(- l * m0 * (1/dc) ))*np.ones(S.size),
                         (1 - np.exp(- l * m0 * (1/dICU) ))*np.ones(S.size),
                         (1 - np.exp(- l * zeta ))*np.ones(S.size),
                         ]
-        states = [S,E,I,I,A,M,M,M,C,ICU,C_icurec,ICU,R]
+        states = [S,E,I,I,A,M,M,M,C,ICU,C_icurec,C,ICU,R]
         propensity={}
         for i in range(len(keys)):
             prop=[]
@@ -250,11 +247,11 @@ class COVID19_SEIRD_sto(BaseModel):
         I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
         A_new =  A + propensity['ItoA'] - propensity['AtoR']
         M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoC'] - propensity['MtoICU']
-        C_new =  C + propensity['MtoC'] - propensity['CtoR']
+        C_new =  C + propensity['MtoC'] - propensity['CtoR'] - propensity['CtoD']
         C_icurec_new =  C_icurec + propensity['ICUtoCicurec'] - propensity['CicurectoR']
         ICU_new =  ICU +  propensity['MtoICU'] - propensity['ICUtoCicurec'] - propensity['ICUtoD']
         R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
-        D_new  = D +  propensity['ICUtoD']
+        D_new  = D +  propensity['ICUtoD'] +  propensity['CtoD']
         # derived variables
         H_in_new = propensity['MtoC'] + propensity['MtoICU']
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
