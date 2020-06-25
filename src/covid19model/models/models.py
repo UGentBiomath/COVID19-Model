@@ -205,7 +205,7 @@ class COVID19_SEIRD_sto(BaseModel):
         # length of discrete timestep
         l = 1.0
         # number of draws to average
-        n = 10
+        n = 12
         # calculate total population per age bin using 2D array
         N = S + E + I + A + M + C + C_icurec + ICU + R
 
