@@ -54,9 +54,19 @@ def get_sciensano_COVID19_data(update=True):
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
         df.to_csv(rel_dir, index=False)
+
+        # Extract total reported deaths per day
+        df_mort = pd.read_excel(url, sheet_name='MORT')
+        # save a copy in the raw folder
+        rel_dir_M = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_MORT.csv')
+        df_mort.to_csv(rel_dir_M, index=False)
+
     else:
         df = pd.read_csv(os.path.join(abs_dir,
         '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
+
+        df_mort = pd.read_csv(os.path.join(abs_dir,
+        '../../../data/raw/sciensano/COVID19BE_MORT.csv'), parse_dates=['DATE'])
 
     # Resample data from all regions and sum all values for each date
     df = df.resample('D', on='DATE').sum()
@@ -69,16 +79,13 @@ def get_sciensano_COVID19_data(update=True):
     df = df[list(variable_mapping.values())]
     df["H_tot_cumsum"] = (df["H_in"] - df["H_out"]).cumsum().values
 
-    # Extract total reported deaths per day
-    df_mort = pd.read_excel(url, sheet_name='MORT')
-    df_mort.DATE = pd.to_datetime(df_mort.DATE)
-    df["D_tot"] = df_mort.resample('D', on='DATE').sum()
+    df["D_tot"] = df_mort.resample('D', on='DATE')['DEATHS'].sum()
 
     # Extract total reported deaths per day and per age group
-    df["D_25_44"] = df_mort.loc[(df_mort['AGEGROUP'] == '25-44')].resample('D', on='DATE').sum()
-    df["D_45_64"] = df_mort.loc[(df_mort['AGEGROUP'] == '45-64')].resample('D', on='DATE').sum()
-    df["D_65_74"] = df_mort.loc[(df_mort['AGEGROUP'] == '65-74')].resample('D', on='DATE').sum()
-    df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE').sum()
-    df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE').sum()
+    df["D_25_44"] = df_mort.loc[(df_mort['AGEGROUP'] == '25-44')].resample('D', on='DATE')['DEATHS'].sum()
+    df["D_45_64"] = df_mort.loc[(df_mort['AGEGROUP'] == '45-64')].resample('D', on='DATE')['DEATHS'].sum()
+    df["D_65_74"] = df_mort.loc[(df_mort['AGEGROUP'] == '65-74')].resample('D', on='DATE')['DEATHS'].sum()
+    df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE')['DEATHS'].sum()
+    df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE')['DEATHS'].sum()
 
     return df.fillna(0)
