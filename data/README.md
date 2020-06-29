@@ -38,7 +38,7 @@
 #### Model parameters
 
 + `verity_etal.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the case fatality ratio (the percentage of individuals with symptomatic or confirmed disease who die from the disease). Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
-+ `wu_etal.csv` contains age-stratified estimates of the fraction of asymptomatic cases. Data were obtained from https://www.nature.com/articles/s41591-020-0822-7
++ `davies_etal.csv` contains age-stratified estimates of the fraction of asymptomatic cases and relative susceptibility. Data were copied from https://www.nature.com/articles/s41591-020-0962-9
 + `others.csv` contains all other parameters used to run the model. Obtained from various sources, detailed in the report.
 + `split_mortality.csv` contains age-stratified probability to die after infection,
 split between general population and elderly homes. Data from https://m.standaard.be/cnt/dmf20200609_04985767.

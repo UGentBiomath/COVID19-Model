@@ -24,6 +24,8 @@ def get_COVID19_SEIRD_parameters(stratified=True):
     Nc: np.array
         9x9 social interaction matrix; by default, the total interaction
         matrix Nc_total from the Polymod study is assigned to the parameters dictionary
+    s : np.array
+        relative susceptibility per age group (-)
     h : np.array
         fraction of the cases that require hospitalisation (-)
     icu: np.array
@@ -74,18 +76,19 @@ def get_COVID19_SEIRD_parameters(stratified=True):
         Nc_total = polymod.get_interaction_matrices()[-1]
         pars_dict['Nc'] = Nc_total
 
-        # Verity_etal
+        # verity_etal
         df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
         pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
 
-        # Molenberghs_etal
+        # molenberghs_etal
         df = pd.read_csv(os.path.join(par_path,"molenberghs_etal.csv"), sep=',',header='infer')
         pars_dict['m0'] = np.array(df.loc[:,'IFR_general_population'].astype(float).tolist())/100/pars_dict['h']
 
-        # Wu_etal
-        df_asymp = pd.read_csv(os.path.join(par_path,"wu_etal.csv"), sep=',',header='infer')
+        # davies_etal
+        df_asymp = pd.read_csv(os.path.join(par_path,"davies_etal.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
+        pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
     else:
         pars_dict['Nc'] = np.array([11.2])
