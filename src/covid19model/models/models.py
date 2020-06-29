@@ -189,7 +189,7 @@ class COVID19_SEIRD_sto(BaseModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
-    parameters_stratified_names = ['h', 'c', 'm0', 'icu']
+    parameters_stratified_names = ['s','h', 'c', 'm0', 'icu']
     stratification = 'Nc'
     apply_compliance_to = 'Nc'
 
@@ -197,7 +197,7 @@ class COVID19_SEIRD_sto(BaseModel):
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
-                  dhospital, h, c, m0, icu, Nc):
+                  dhospital, s, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
 
@@ -213,7 +213,7 @@ class COVID19_SEIRD_sto(BaseModel):
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoC','MtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
-        probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,((I+A)/N)) ),
+        probabilities = [1 - np.exp( - l*s*beta*np.matmul(Nc,((I+A)/N)) ),
                         (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
                         1 - np.exp(- l * a * (1/omega) ),
                         1 - np.exp(- l * m * (1/omega) ),
