@@ -98,6 +98,7 @@ class COVID19_SEIRD(BaseModel):
 
         Stratified parameters
         --------------------
+        s: relative susceptibility to infection
         h : probability of hospitalisation for a mild infection
         c : probability of hospitalisation in cohort (non-ICU) (c=1-icu)
         m0 : mortality in ICU
@@ -110,7 +111,7 @@ class COVID19_SEIRD(BaseModel):
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
-    parameters_stratified_names = ['h', 'c', 'm0', 'icu']
+    parameters_stratified_names = ['s','h', 'c', 'm0', 'icu']
     stratification = 'Nc'
     apply_compliance_to = 'Nc'
 
@@ -118,7 +119,7 @@ class COVID19_SEIRD(BaseModel):
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
                   beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
-                  dhospital, totalTests, psi_FP, psi_PP, dq, h, c, m0, icu, Nc):
+                  dhospital, totalTests, psi_FP, psi_PP, dq, s, h, c, m0, icu, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -144,8 +145,8 @@ class COVID19_SEIRD(BaseModel):
         theta_R = totalTests/nT
         theta_R[theta_R > 1] = 1
         # calculate rates of change using the 2D arrays
-        dS  = - beta*np.matmul(Nc,((I+A)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
-        dE  = beta*np.matmul(Nc,((I+A)/N)*S) - E/sigma - theta_E*psi_PP*E
+        dS  = - beta*s*np.matmul(Nc,((I+A)/N)*S) - theta_S*psi_FP*S + SQ/dq + zeta*R
+        dE  = beta*s*np.matmul(Nc,((I+A)/N)*S) - E/sigma - theta_E*psi_PP*E
         dI = (1/sigma)*E - (1/omega)*I - theta_I*psi_PP*I
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
         dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
