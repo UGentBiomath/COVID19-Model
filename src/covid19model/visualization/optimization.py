@@ -51,7 +51,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     return ax
 
-def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','*','^'],
+def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
                 legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
 
     """Plot model fit to user provided data 
@@ -104,15 +104,19 @@ def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','
     # Plot model prediction
     y_model = y_model.sum(dim="stratification")
     for i in range(len(data)):
+        # dummy lines for legend
+        lines = ax.plot([],[],plt_clr[i],alpha=1) 
+
+    for i in range(len(data)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
-        lines = ax.plot(idx,data2plot,**plt_kwargs)    
+        lines = ax.plot(idx,data2plot,plt_clr[i],**plt_kwargs)    
     # Plot data
     for i in range(len(data)):
-        lines=ax.scatter(idx[lag_time:-T],data[i],color="black",**sct_kwargs)
+        lines=ax.scatter(idx[lag_time:-T],data[i],color="black",facecolors='none',**sct_kwargs)
 
     # Attributes
     if legend_text is not None:
-        ax.legend(legend_text, loc="upper left", bbox_to_anchor=(1,1))
+        leg=ax.legend(legend_text, loc="upper left", bbox_to_anchor=(1,1))
     if titleText is not None:
         ax.set_title(titleText,{'fontsize':18})
 
