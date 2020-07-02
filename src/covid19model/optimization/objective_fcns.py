@@ -116,7 +116,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
         elif param == 'prevention':
-            checkpoints.update({'Nc':  [0.2*Nc_home + thetas[i]*((1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
+            checkpoints.update({'Nc':  [thetas[i]*(1.3*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
         else:
             if i < len(data):
                 sigma.append(thetas[i])
@@ -138,7 +138,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
     if samples:
         for param in samples:
             if param == 'prevention':
-                checkpoints.update({'Nc':  [0.2*Nc_home + thetas[i]*((1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
+                checkpoints.update({'Nc':  [thetas[i]*(1.3*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
             else:
                 BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
