@@ -21,6 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
+from .utils import sample_beta_binomial
 from ..optimization import pso
 
 # set color schemes
@@ -188,7 +189,7 @@ class COVID19_SEIRD_sto(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
+    parameter_names = ['beta', 'd', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc', 'dICU', 'dICUrec','dhospital']
     parameters_stratified_names = ['s','h', 'c', 'm0', 'icu']
     stratification = 'Nc'
     apply_compliance_to = 'Nc'
@@ -196,7 +197,7 @@ class COVID19_SEIRD_sto(BaseModel):
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out,
-                  beta, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
+                  beta, d, sigma, omega, zeta, a, m, da, dm, dc, dICU, dICUrec,
                   dhospital, s, h, c, m0, icu, Nc):
         """
         BIOMATH extended SEIRD model for COVID-19
@@ -237,9 +238,12 @@ class COVID19_SEIRD_sto(BaseModel):
                     prop.append(0)
                 else:
                     draw=np.array([])
-                    for k in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
-                    draw = np.mean(draw)
+                    for l in range(n):
+                        if i == 1:
+                            draw = np.append(draw,sample_beta_binomial(states[i][j],probabilities[i][j],d))
+                        else:
+                            draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
+                    draw = np.rint(np.mean(draw))
                     prop.append( draw )
             propensity.update({keys[i]: np.asarray(prop)})
 
