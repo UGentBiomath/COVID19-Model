@@ -13,9 +13,11 @@
 
 #### Hospital data
 
-+ `symptomOnsetHospitalization.xlsx` contains: 1) the date at which patients first reported having symptoms, 2) the data at which patients were hospitalized and 3) the age of the patient. Received from Ghent University hospital, contact: Pascal Coorevits.
++ `symptomOnsetHospitalization.xlsx` contains: 1) the date at which patients first reported having symptoms, 2) the data at which patients were hospitalized and 3) the age of the patient. Received from Ghent University hospital, contact: pascal.coorevits@uzgent.be .
 
 + `AZmariaMiddelares.xlsx` contains: 1) patient ID, 2) per patient: in chronological order, from bottom to top (!), the amount of time spent in the emergency room, cohort or intensive care unit, 3) the age of the patient, 4) the sex of the patient, 5) if the patient recovered or died. 'cohortafdeling D601' is a geriatric cohort ward, 'cohortafdeling D501' is a regular cohort ward. Received from AZ Maria Middelares, contact: Leen Van Hoeymissen.
+
++ `UZGent_full.xlsx` contains: 1) patient ID, 2) per patient: in chronological order, from bottom to top (!), the amount of time spent in the emergency room, cohort or intensive care unit, 3) the age of the patient, 4) the sex of the patient, 5) if the patient recovered or died. 'cohortafdeling D601' is a geriatric cohort ward, 'cohortafdeling D501' is a regular cohort ward. Received 05/07/2020 from the Ghent University Hospital, contact: Ernst Nietzschel.
 
 #### Polymod
 
