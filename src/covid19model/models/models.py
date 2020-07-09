@@ -110,17 +110,17 @@ class COVID19_SEIRD(BaseModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec',
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'a', 'm', 'da', 'dm', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec',
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
-    parameters_stratified_names = ['s','h', 'c', 'm0_C','m0_ICU','icu']
+    parameters_stratified_names = ['s','a','h', 'c', 'm0_C','m0_ICU']
     stratification = 'Nc'
     apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
-                  beta, sigma, omega, zeta, a, m, da, dm,dc_R,dc_D,dICU_R, dICU_D, dICUrec,
-                  dhospital, totalTests, psi_FP, psi_PP, dq, s, h, c, m0_C,m0_ICU, icu, Nc):
+                  beta, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+                  dhospital, totalTests, psi_FP, psi_PP, dq, s, a, h, c, m0_C, m0_ICU, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -150,7 +150,7 @@ class COVID19_SEIRD(BaseModel):
         dE  = beta*s*np.matmul(Nc,((I+A)/N)*S) - E/sigma - theta_E*psi_PP*E
         dI = (1/sigma)*E - (1/omega)*I - theta_I*psi_PP*I
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
-        dM = (m/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
         dC = c*(M+MQ)*(h/dhospital) - (1-m0_C)*C*(1/dc_R) - m0_C*C*(1/dc_D)
         dC_icurec = ((1-m0_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(M+MQ)*(h/dhospital) - (1-m0_ICU)*ICU/dICU_R - m0_ICU*ICU/dICU_D
@@ -160,7 +160,7 @@ class COVID19_SEIRD(BaseModel):
         dEQ = theta_E*psi_PP*E - EQ/sigma
         dIQ = theta_I*psi_PP*I + (1/sigma)*EQ - (1/omega)*IQ
         dAQ = theta_A*psi_PP*A + (a/omega)*IQ - AQ/dq
-        dMQ = theta_M*psi_PP*M + (m/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
+        dMQ = theta_M*psi_PP*M + ((1-a)/omega)*IQ - ((1-h)/dm)*MQ - (h/dhospital)*MQ
         dRQ = theta_R*psi_FP*R - RQ/dq
         dH_in = (M+MQ)*(h/dhospital) - H_in
         dH_out =  (1-m0_C)*C*(1/dc_R) +  m0_C*C*(1/dc_D) + (m0_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
