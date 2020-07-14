@@ -108,9 +108,9 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C_common', 'C', 'C_icurec',
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec',
                    'ICU', 'R', 'D', 'SQ', 'EQ', 'IQ', 'AQ', 'MQ', 'RQ','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec',
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec',
                        'dhospital', 'totalTests', 'psi_FP', 'psi_PP', 'dq']
     parameters_stratified_names = ['s','a','h', 'c', 'm0_C','m0_ICU']
     stratification = 'Nc'
@@ -118,8 +118,8 @@ class COVID19_SEIRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, C_common, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
-                  beta, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, SQ, EQ, IQ, AQ, MQ, RQ,H_in,H_out,H_tot,
+                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, totalTests, psi_FP, psi_PP, dq, s, a, h, c, m0_C,m0_ICU, Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -130,7 +130,7 @@ class COVID19_SEIRD(BaseModel):
         # Model equations
         Ctot = C + C_icurec
         # calculate total population per age bin using 2D array
-        N = S + E + I + A + M + Ctot + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
+        N = S + E + I + A + M + ER + Ctot + ICU + R + SQ + EQ + IQ + AQ + MQ + RQ
         # calculate the test rates for each pool using the total number of available tests
         nT = S + E + I + A + M + R
         theta_S = totalTests/nT
@@ -151,10 +151,10 @@ class COVID19_SEIRD(BaseModel):
         dI = (1/sigma)*E - (1/omega)*I - theta_I*psi_PP*I
         dA = (a/omega)*I - A/da - theta_A*psi_PP*A
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital - theta_M*psi_PP*M
-        dC_common = (M+MQ)*(h/dhospital) - (1/3)*C_common
-        dC = c*(1/3)*C_common - (1-m0_C)*C*(1/dc_R) - m0_C*C*(1/dc_D)
+        dER = (M+MQ)*(h/dhospital) - (1/der)*ER
+        dC = c*(1/der)*ER - (1-m0_C)*C*(1/dc_R) - m0_C*C*(1/dc_D)
         dC_icurec = ((1-m0_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
-        dICUstar = (1-c)*(1/3)*C_common - (1-m0_ICU)*ICU/dICU_R - m0_ICU*ICU/dICU_D
+        dICUstar = (1-c)*(1/der)*ER - (1-m0_ICU)*ICU/dICU_R - m0_ICU*ICU/dICU_D
         dR  = A/da + ((1-h)/dm)*M + (1-m0_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) + AQ/dq + MQ*((1-h)/dm) + RQ/dq - zeta*R
         dD  = (m0_ICU/dICU_D)*ICU + (m0_C/dc_D)*C
         dSQ = theta_S*psi_FP*S - SQ/dq
@@ -166,7 +166,7 @@ class COVID19_SEIRD(BaseModel):
         dH_in = (M+MQ)*(h/dhospital) - H_in
         dH_out =  (1-m0_C)*C*(1/dc_R) +  m0_C*C*(1/dc_D) + (m0_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = (M+MQ)*(h/dhospital) - (1-m0_C)*C*(1/dc_R) -  m0_C*C*(1/dc_D) - (m0_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        return (dS, dE, dI, dA, dM, dC_common, dC, dC_icurec,
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec,
                 dICUstar, dR, dD, dSQ, dEQ, dIQ, dAQ, dMQ, dRQ,dH_in,dH_out,dH_tot)
 
 class COVID19_SEIRD_sto(BaseModel):
