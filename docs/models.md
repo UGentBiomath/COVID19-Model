@@ -4,8 +4,6 @@
 
 We use an extended version of the SEIR model to model the disease at a higher resolution. This classic SEIR model splits the population into different categories, i.e. susceptible, exposed, infected and removed. We break down the latter two categories in super mild (asymptotic), mild, heavy and critical for the infected part of the population, whereas the removed population indicates the immune and dead fraction. Parameters values are (for now) based on Chinese covid-19 literature but we are seeking to closer collaborate with Belgian hospitals as more data becomes available. The dynamics are modeled using two frameworks: 1) deterministic and 2) stochastic. The deterministic model can fluently run age-structured (metapopulation) simulations naturally by changing the initial conditions.  The stochastic model class is under construction but will be updated soon.
 
-<img src="_static/figs/flowchart_full.png" alt="drawing" width="400"/>
-
 ## General
 
 The SEIR model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population in four types of people :
@@ -23,7 +21,7 @@ Despite being a simple and idealised reality, the SEIR model is used extensively
 
  The pool of *recovered* individuals from the classical SEIR model is split into an recovered and dead pool. People from the susceptible, exposed, pre-symptomatic infectious, asymptomatic infectious, mild infectious and recovered pool can be quarantined after having tested positive for Covid-19. Note that for individuals in the susceptible and recovered pools, this corresponds to a *false positive* test. The dynamics of our extended SEIR model are presented in the flowchart below.
 
-<img src="_static/figs/flowchartAll.jpg" alt="drawing" width="700"/>
+<img src="_static/figs/flowchart_full.jpg" alt="drawing" width="700"/>
 
 We make the following assumptions with regard to the SEIRS dynamics:
 
