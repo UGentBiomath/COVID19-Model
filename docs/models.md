@@ -32,7 +32,7 @@ We make the following assumptions with regard to the SEIRS dynamics:
 5. Recovered patients are assumed to be immune
 6. Seasonality is deemed out of scope of this work.
 
-## Hospital subystem (preliminary)
+## Hospital subsystem (preliminary)
 
 The hospital subsystem is a simplification of actual hospital dynamics. The dynamics and estimated parameters were obtained by interviewing Ghent University Hospital staff and presenting the resulting meeting notes to the remaining three Ghent hospitals for verification.
 
