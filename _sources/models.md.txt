@@ -21,7 +21,7 @@ Despite being a simple and idealised reality, the SEIR model is used extensively
 
  The pool of *recovered* individuals from the classical SEIR model is split into an recovered and dead pool. People from the susceptible, exposed, pre-symptomatic infectious, asymptomatic infectious, mild infectious and recovered pool can be quarantined after having tested positive for Covid-19. Note that for individuals in the susceptible and recovered pools, this corresponds to a *false positive* test. The dynamics of our extended SEIR model are presented in the flowchart below.
 
-<img src="_static/figs/flowchart_full.jpg" alt="drawing" width="700"/>
+<img src="_static/figs/flowchart_full.png" alt="drawing" width="700"/>
 
 We make the following assumptions with regard to the SEIRS dynamics:
 
