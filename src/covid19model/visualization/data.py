@@ -41,7 +41,9 @@ def google_mobility(data):
             ax[i,j].xaxis.set_major_locator(mdates.MonthLocator())
             ax[i,j].xaxis.set_major_formatter(mdates.DateFormatter('%d-%m-%Y'))
             ax[i,j].autoscale(enable=True)
-
+            # Maximum number of ticks should be four
+            ax[i,j].xaxis.set_major_locator(plt.MaxNLocator(4))
+            
     plt.tight_layout()
 
     return fig, ax
