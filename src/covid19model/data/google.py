@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 from ..visualization.data import google_mobility
 
-
 def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     """Download Google Community mobility report data
 
@@ -95,7 +94,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 
     if plot:
         fig, ax = google_mobility(data)
-
+        
         if filename_plot:
             plt.savefig(filename_plot, dpi=600, bbox_inches='tight',
                         orientation='portrait', papertype='a4')
