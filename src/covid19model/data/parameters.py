@@ -65,7 +65,8 @@ def get_COVID19_SEIRD_parameters(stratified=True):
     """
 
     abs_dir = os.path.dirname(__file__)
-    par_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
+    par_raw_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/")
 
     # Initialize parameters dictionary
     pars_dict = {}
@@ -76,33 +77,38 @@ def get_COVID19_SEIRD_parameters(stratified=True):
         Nc_total = polymod.get_interaction_matrices()[-1]
         pars_dict['Nc'] = Nc_total
 
+        # Assign AZMM and UZG estimates to correct variables
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        pars_dict['c'] = np.array(df['c'].values[:-1])
+        pars_dict['m0_C'] = np.array(df['m0_{C}'].values[:-1])
+        pars_dict['m0_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+
         # verity_etal
-        df = pd.read_csv(os.path.join(par_path,"verity_etal.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
-        pars_dict['icu'] = np.array(df.loc[:,'hospitalized_ICU'].astype(float).tolist())/100
 
         # molenberghs_etal
-        df = pd.read_csv(os.path.join(par_path,"molenberghs_etal.csv"), sep=',',header='infer')
-        pars_dict['m0'] = np.array(df.loc[:,'IFR_general_population'].astype(float).tolist())/100/pars_dict['h']
+        #df = pd.read_csv(os.path.join(par_raw_path,"molenberghs_etal.csv"), sep=',',header='infer')
+        #pars_dict['m0'] = np.array(df.loc[:,'IFR_general_population'].astype(float).tolist())/100/pars_dict['h']
 
         # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_path,"davies_etal.csv"), sep=',',header='infer')
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
         pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
     else:
         pars_dict['Nc'] = np.array([11.2])
 
-        non_strat = pd.read_csv(os.path.join(par_path,"non_stratified.csv"), sep=',',header='infer')
+        non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
 
-
-    # deduced parameters
-    pars_dict['c'] = 1-pars_dict['icu']
-    pars_dict['m'] = 1-pars_dict['a']
-
     # Other parameters
-    df_other_pars = pd.read_csv(os.path.join(par_path,"others.csv"), sep=',',header='infer')
+    df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters

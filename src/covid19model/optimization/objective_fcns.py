@@ -71,10 +71,10 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
+def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
 
     """
-    A function to return the maximum likelihood estimator given a model prediction and a dataset
+    A function to return the maximum likelihood estimator given a model object and a dataset
 
     Parameters
     -----------
@@ -116,7 +116,21 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
             setattr(BaseModel,param,int(round(thetas[i])))
         elif param == 'prevention':
-            checkpoints.update({'Nc': [0.2*Nc_home + thetas[i]*((1-0.70)*Nc_work + (1-0.80)*Nc_transport)]})
+            checkpoints.update({'Nc':  [thetas[i]*(1.0*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
+        elif param == 'beta':
+            estimate_beta = thetas[i]
+            checkpoints.update(
+                {'beta': 
+                [
+                np.random.choice(samples[param]),
+                thetas[i],
+                thetas[i],
+                thetas[i],
+                thetas[i],
+                thetas[i],
+                thetas[i]
+                ]
+                })
         else:
             if i < len(data):
                 sigma.append(thetas[i])
@@ -134,6 +148,23 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None):
     for i in range(n):
         data_length.append(data[i].size)
     T = max(data_length)+BaseModel.extraTime-1
+    # Use previous samples
+    if samples:
+        for param in samples:
+            if param == 'prevention':
+                prevention = np.random.choice(samples[param])
+                checkpoints.update(
+                    {'Nc': [prevention*(1.0*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.50)*Nc_work + (1-0.60)*Nc_transport + (1-0.30)*Nc_others + (1-0.70)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.40)*Nc_work + (1-0.55)*Nc_transport + (1-0.25)*Nc_others + (1-0.65)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.30)*Nc_work + (1-0.50)*Nc_transport + (1-0.20)*Nc_others + (1-0.60)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.30)*Nc_work + (1-0.45)*Nc_transport + (1-0.85)*Nc_schools + (1-0.15)*Nc_others + (1-0.50)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.25)*Nc_work + (1-0.35)*Nc_transport + (1-0.35)*Nc_schools + (1-0.10)*Nc_others + (1-0.30)*Nc_leisure),
+                            prevention*(1.0*Nc_home + (1-0.20)*Nc_work + (1-0.15)*Nc_transport + (1-0.00)*Nc_others + (1-0.00)*Nc_leisure)]
+                    })
+                #checkpoints.update({'Nc':  [prevention*(1.3*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
+            else:
+                BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
     out=BaseModel.sim(T,checkpoints=checkpoints)
 
@@ -193,7 +224,7 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
-def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None):
+def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -231,5 +262,5 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints) # must be negative for emcee
+        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints,samples=samples) # must be negative for emcee
 
