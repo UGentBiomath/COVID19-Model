@@ -56,7 +56,7 @@ def get_sciensano_COVID19_data(update=True):
         df.to_csv(rel_dir, index=False)
 
         # Extract total reported deaths per day
-        df_mort = pd.read_excel(url, sheet_name='MORT')
+        df_mort = pd.read_excel(url, sheet_name='MORT', parse_dates=['DATE'])
         # save a copy in the raw folder
         rel_dir_M = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_MORT.csv')
         df_mort.to_csv(rel_dir_M, index=False)
