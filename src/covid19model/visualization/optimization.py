@@ -14,7 +14,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     Parameters
     ----------
     samples: np.array
-        A 3-D numpy array containing the sampled parameters. 
+        A 3-D numpy array containing the sampled parameters.
         The x-dimension must be the number of samples, the y-dimension the number of parallel chains and the z-dimension the number of sampled parameters.
     labels: list
         A list containing the names of the sampled parameters. Must be the same length as the z-dimension of the samples np.array.
@@ -27,7 +27,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     """
     # extract dimensions of sampler output
     nsamples,nwalkers, ndim = samples.shape
-    # input check    
+    # input check
     if len(labels) != ndim:
         raise ValueError(
         "The length of label list is not equal to the length of the z-dimension of the samples.\n"
@@ -51,10 +51,11 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     return ax
 
-def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
-                legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
+def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=True,T=1,
+                    data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
+                    legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
 
-    """Plot model fit to user provided data 
+    """Plot model fit to user provided data
 
     Parameters
     -----------
@@ -98,21 +99,31 @@ def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','
     if ax is None:
         #fig, ax = plt.subplots()
         ax = plt.gca()
-    # Create shifted index vector 
-    idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time + T) - datetime.timedelta(days=lag_time)
+    # Create shifted index vector
+    if with_ints==True:
+        idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time + T) - datetime.timedelta(days=lag_time)
+    else:
+        idx_model = pd.date_range(pd.to_datetime(start_date)-pd.to_timedelta(lag_time, unit='days'),
+                                  pd.to_datetime(end_date))
+
+        idx_data = pd.date_range(pd.to_datetime(start_date),
+                                  pd.to_datetime(end_date))
 
     # Plot model prediction
     y_model = y_model.sum(dim="stratification")
     for i in range(len(data)):
         # dummy lines for legend
-        lines = ax.plot([],[],plt_clr[i],alpha=1) 
+        lines = ax.plot([],[],plt_clr[i],alpha=1)
 
     for i in range(len(data)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
-        lines = ax.plot(idx,data2plot,plt_clr[i],**plt_kwargs)    
+        lines = ax.plot(idx_model,data2plot,plt_clr[i],**plt_kwargs)
     # Plot data
     for i in range(len(data)):
-        lines=ax.scatter(idx[lag_time:-T],data[i],color="black",facecolors='none',**sct_kwargs)
+        if len(data[i]) < len(idx_data):
+            idx_data = pd.date_range(pd.to_datetime(start_date),
+                                     pd.to_datetime(start_date)+pd.to_timedelta(len(data[i])-1, unit='days'))
+        lines=ax.scatter(idx_data,data[i],color="black",facecolors='none',**sct_kwargs)
 
     # Attributes
     if legend_text is not None:
@@ -126,7 +137,8 @@ def plot_fit(y_model,data,start_date,lag_time,states,T=1,data_mkr=['o','v','s','
     plt.setp(plt.gca().xaxis.get_majorticklabels(),
         'rotation', 90)
     #fig.autofmt_xdate(rotation=90)
-    ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
+    #ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
+    ax.set_xlim('2020-03-12', end_date)
     ax.set_ylabel('number of patients')
 
     # limit the number of ticks on the axis
