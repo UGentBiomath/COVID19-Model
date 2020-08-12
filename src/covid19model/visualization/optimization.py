@@ -53,7 +53,8 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
 def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=True,T=1,
                     data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
-                    legend_text=None,titleText=None,ax=None,plt_kwargs={},sct_kwargs={}):
+                    legend_text=None,titleText=None,ax=None,ylabel='number of patients',
+                    plt_kwargs={},sct_kwargs={}):
 
     """Plot model fit to user provided data
 
@@ -117,13 +118,20 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
 
     for i in range(len(data)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
-        lines = ax.plot(idx_model,data2plot,plt_clr[i],**plt_kwargs)
+        if with_ints==True:
+            lines = ax.plot(idx,data2plot,plt_clr[i],**plt_kwargs)
+        else:
+            lines = ax.plot(idx_model,data2plot,plt_clr[i],**plt_kwargs)
     # Plot data
     for i in range(len(data)):
-        if len(data[i]) < len(idx_data):
-            idx_data = pd.date_range(pd.to_datetime(start_date),
-                                     pd.to_datetime(start_date)+pd.to_timedelta(len(data[i])-1, unit='days'))
-        lines=ax.scatter(idx_data,data[i],color="black",facecolors='none',**sct_kwargs)
+        if with_ints==True:
+            lines=ax.scatter(idx[lag_time:-T],data[i],color="black",facecolors='none',**sct_kwargs)
+        else:
+            if len(data[i]) < len(idx_data):
+                idx_data = pd.date_range(pd.to_datetime(start_date),
+                                         pd.to_datetime(start_date)+pd.to_timedelta(len(data[i])-1, unit='days'))
+                lines=ax.scatter(idx_data,data[i],color="black",facecolors='none',**sct_kwargs)
+
 
     # Attributes
     if legend_text is not None:
@@ -137,9 +145,11 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
     plt.setp(plt.gca().xaxis.get_majorticklabels(),
         'rotation', 90)
     #fig.autofmt_xdate(rotation=90)
-    #ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
-    ax.set_xlim('2020-03-12', end_date)
-    ax.set_ylabel('number of patients')
+    if with_ints==True:
+        ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
+    else:
+        ax.set_xlim('2020-03-12', end_date)
+    ax.set_ylabel(ylabel)
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
