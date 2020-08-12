@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 from scipy.integrate import solve_ivp
 import xarray
+import pandas as pd
 
 
 class BaseModel:
@@ -59,13 +60,13 @@ class BaseModel:
                 state_values = self.initial_states[state]
 
     def _validate_compliance(self):
-        # Validate arguments of compliance definition 
+        # Validate arguments of compliance definition
         sig = inspect.signature(self.compliance)
         keywords = list(sig.parameters.keys())
         if keywords[0] != "t":
             raise ValueError(
                 "The first parameter of the compliance function should be 't'"
-            ) 
+            )
         if keywords[1] != "old":
             raise ValueError(
                 "The second parameter of the compliance function should be named 'old'"
@@ -148,7 +149,7 @@ class BaseModel:
                 set(self.parameters.keys()).difference(set(specified_params)),
                 set(specified_params).difference(set(self.parameters.keys())))
             )
-        
+
         self.parameters = {param: self.parameters[param] for param in specified_params}
         # parameter dictionary excluding compliance parameters --> [v for k,v in self.parameters.items() if k not in self.parameters_compliance_names]
         # compliance parameters --> [v for k,v in self.parameters.items() if k in self.parameters_compliance_names]
@@ -240,7 +241,7 @@ class BaseModel:
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
-        
+
         # map to variable names
         return self._output_to_xarray_dataset(output)
 
@@ -266,7 +267,7 @@ class BaseModel:
         }
         return output
 
-    def sim(self, time, checkpoints=None):
+    def sim(self, time, excess_time=None, checkpoints=None, start_date='2020-03-15'):
         """
         Run a model simulation for the given time period.
 
@@ -286,8 +287,19 @@ class BaseModel:
         xarray.Dataset
 
         """
+
+        def date_to_diff(start_date, date):
+            return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))
+
         if isinstance(time, int):
             time = [0, time]
+
+        if isinstance(time, str):
+            time = [0, date_to_diff(start_date, time)+excess_time]
+
+        for i in range(len(checkpoints["time"])):
+            if isinstance(checkpoints["time"][i],str):
+                checkpoints["time"][i] = date_to_diff(start_date, checkpoints["time"][i])
 
         original_parameters = self.parameters.copy()
         original_initial_states = self.initial_states.copy()
@@ -303,7 +315,7 @@ class BaseModel:
 
         time_points = [time[0], *checkpoints["time"], time[1]]
         results = []
-        
+
         # first part of the simulation with original parameters
         output = self._sim_single(
             [time_points[0], time_points[1]]
