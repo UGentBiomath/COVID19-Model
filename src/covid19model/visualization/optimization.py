@@ -101,6 +101,8 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
         ax = plot_fit(y_model,data,start_date,lag_time,states,ax=ax)
 
     """
+    # Make sure to use pandas plot settings
+    pd.plotting.register_matplotlib_converters()
 
     # check if ax object is provided by user
     if ax is None:
@@ -154,6 +156,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
     if with_ints==True:
         ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     else:
+        #breakpoint()
         ax.set_xlim('2020-03-12', end_date)
     ax.set_ylabel(ylabel)
 
