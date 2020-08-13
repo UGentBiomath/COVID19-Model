@@ -267,6 +267,9 @@ class BaseModel:
         }
         return output
 
+    def date_to_diff(self, start_date, date, excess_time):
+        return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
+
     def sim(self, time, excess_time=None, checkpoints=None, start_date='2020-03-15'):
         """
         Run a model simulation for the given time period.
@@ -288,18 +291,15 @@ class BaseModel:
 
         """
 
-        def date_to_diff(start_date, date):
-            return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))
-
         if isinstance(time, int):
             time = [0, time]
 
         if isinstance(time, str):
-            time = [0, date_to_diff(start_date, time)+excess_time]
+            time = [0, self.date_to_diff(start_date, time, excess_time)]
 
         for i in range(len(checkpoints["time"])):
             if isinstance(checkpoints["time"][i],str):
-                checkpoints["time"][i] = date_to_diff(start_date, checkpoints["time"][i])
+                checkpoints["time"][i] = self.date_to_diff(start_date, checkpoints["time"][i], excess_time)
 
         original_parameters = self.parameters.copy()
         original_initial_states = self.initial_states.copy()
