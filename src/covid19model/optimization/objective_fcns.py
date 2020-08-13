@@ -117,20 +117,21 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
             setattr(BaseModel,param,int(round(thetas[i])))
         elif param == 'prevention':
             checkpoints.update({'Nc':  [thetas[i]*(1.0*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
-        elif param == 'beta':
-            estimate_beta = thetas[i]
-            checkpoints.update(
-                {'beta': 
-                [
-                np.random.choice(samples[param]),
-                thetas[i],
-                thetas[i],
-                thetas[i],
-                thetas[i],
-                thetas[i],
-                thetas[i]
-                ]
-                })
+        # The following section is needed to perform a recalibration of beta
+        #elif param == 'beta':
+        #    estimate_beta = thetas[i]
+        #    checkpoints.update(
+        #        {'beta': 
+        #        [
+        #        np.random.choice(samples[param]),
+        #        thetas[i],
+        #        thetas[i],
+        #        thetas[i],
+        #        thetas[i],
+        #        thetas[i],
+        #        thetas[i]
+        #        ]
+        #        })
         else:
             if i < len(data):
                 sigma.append(thetas[i])
