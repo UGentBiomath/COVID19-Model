@@ -60,20 +60,26 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
 
     Parameters
     -----------
-    y_model: xarray
+    y_model : xarray
         model output to be visualised
-    data: array
+    data : array
         list containing dataseries
-    start_date: string, format DD-MM-YYY
+    start_date : string, format YYYY-MM-DD
         date corresponding to first entry of dataseries
-    lag_time: float or int
+    lag_time : float or int
         time between start of simulation and start of data recording
-    states: array
+    states : array
         list containg the names of the model states that correspond to the data
-    filename: string, optional
+    end_date : string, format YYYY-MM-DD, optional
+        end date of simulation
+    with_ints : boolean, optional
+        if True: use ints; if False: use datetime strings
+    filename : string, optional
         Filename + extension to save a copy of the plot_fit
     ax : matplotlib.axes.Axes, optional
         If provided, will use the axis to add the lines.
+    ylabel : string, optional
+        label for y-axis, default 'number of patients'
 
     Returns
     -----------

@@ -268,6 +268,10 @@ class BaseModel:
         return output
 
     def date_to_diff(self, start_date, date, excess_time):
+        """
+        Convert date string to int (i.e. number of days since day 0 of simulation,
+        which is excess_time days before start_date)
+        """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
     def sim(self, time, excess_time=None, checkpoints=None, start_date='2020-03-15'):
