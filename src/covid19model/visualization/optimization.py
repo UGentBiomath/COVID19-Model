@@ -124,7 +124,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
         # dummy lines for legend
         lines = ax.plot([],[],plt_clr[i],alpha=1)
 
-    for i in range(len(data)):
+    for i in range(len(states)):
         data2plot = y_model[states[i]].to_array(dim="states").values.ravel()
         if with_ints==True:
             lines = ax.plot(idx,data2plot,plt_clr[i],**plt_kwargs)
@@ -136,8 +136,10 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
             lines=ax.scatter(idx[lag_time:-T],data[i],color="black",facecolors='none',**sct_kwargs)
         else:
             if len(data[i]) < len(idx_data):
-                idx_data = pd.date_range(pd.to_datetime(start_date),
-                                         pd.to_datetime(start_date)+pd.to_timedelta(len(data[i])-1, unit='days'))
+                idx_data_short = pd.date_range(pd.to_datetime(start_date),
+                                               pd.to_datetime(start_date)+pd.to_timedelta(len(data[i])-1, unit='days'))
+                lines=ax.scatter(idx_data_short,data[i],color="black",facecolors='none',**sct_kwargs)
+            else:
                 lines=ax.scatter(idx_data,data[i],color="black",facecolors='none',**sct_kwargs)
 
 
