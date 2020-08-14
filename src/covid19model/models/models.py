@@ -265,7 +265,7 @@ class COVID19_SEIRD_sto(BaseModel):
         R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
         D_new  = D +  propensity['ICUtoD'] +  propensity['CtoD']
         # derived variables
-        H_in_new = propensity['MtoC'] + propensity['MtoICU']
+        H_in_new = propensity['ERtoC'] + propensity['ERtoICU']
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
 
         # protection against states < 0
