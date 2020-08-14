@@ -300,10 +300,11 @@ class BaseModel:
 
         if isinstance(time, str):
             time = [0, self.date_to_diff(start_date, time, excess_time)]
-
-        for i in range(len(checkpoints["time"])):
-            if isinstance(checkpoints["time"][i],str):
-                checkpoints["time"][i] = self.date_to_diff(start_date, checkpoints["time"][i], excess_time)
+        
+        if checkpoints:
+            for i in range(len(checkpoints["time"])):
+                if isinstance(checkpoints["time"][i],str):
+                    checkpoints["time"][i] = self.date_to_diff(start_date, checkpoints["time"][i], excess_time)
 
         original_parameters = self.parameters.copy()
         original_initial_states = self.initial_states.copy()
