@@ -189,7 +189,7 @@ class COVID19_SEIRD_sto(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'd', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = ['s','a','h', 'c', 'm0_C','m0_ICU']
     stratification = 'Nc'
@@ -198,7 +198,7 @@ class COVID19_SEIRD_sto(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out,H_tot,
                   beta, d, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, s, a, h, c, m0_C,m0_ICU, Nc):
 
@@ -210,7 +210,7 @@ class COVID19_SEIRD_sto(BaseModel):
         # length of discrete timestep
         l = 1.0
         # number of draws to average (chosen as average number of contacts per day)
-        n = 17
+        n = 1
         # calculate total population per age bin using 2D array
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R
 
@@ -267,10 +267,11 @@ class COVID19_SEIRD_sto(BaseModel):
         # derived variables
         H_in_new = propensity['ERtoC'] + propensity['ERtoICU']
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
+        H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
 
         # protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new)
+        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new,H_tot_new)
         for i in range(len(output)):
             output[i][output[i]<0] = 0
 
