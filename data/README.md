@@ -47,6 +47,10 @@
 split between general population and elderly homes. Data from https://m.standaard.be/cnt/dmf20200609_04985767. Paper: https://www.medrxiv.org/content/10.1101/2020.06.20.20136234v1.
 + `non_stratified.csv` contains non-stratified estimates of asymptomatic cases, symptomatic cases which result in hospitalization, hospitalized patients in need of intensive care and the case fatality ratio
 
+#### Belgian Census 2011
+
++ `Pop_LPW_NL_25FEB15.xlsx` contains the working population per sex, place of residence and place of work. From these data a recurrent mobility matrix is computed.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
+
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
