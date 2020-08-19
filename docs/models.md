@@ -1,35 +1,10 @@
 ## Introduction
 
-After an initial outbreak in early 2020 in Wuhan, China, Severe acute respiratory syndrome coronavirus 2
-(SARS-CoV-2) has spread globally [22]. SARS-CoV-2 is capable of sustained human-to-human trans-
-mission [34], and may cause severe disease, especially in older individuals. The COVID-19 pandemic
-has, in general, shown a remarkedly low incidence among children and young adults [29, 40]. Chil-
-dren have a lower susceptibility to infection and a lower propensity to show clinical symptoms [9].
-Furthermore, pre-symptomatic transmission is a major contributor to SARS-CoV-2 spread [26, 42].
-Unfortunately, pharmaceutical interventions such as vaccination and antiviral drugs are not yet avail-
-able. On March 13th, 2020, the Belgian governments imposed strict social restrictions after tracing
-methods had failed to prevent large-scale spread of SARS-CoV-2. One and a half months later, the
-curve was succesfully flattened and social restrictions were gradually relaxed during the months of
-May, June and the beginning of July. In spite of these relaxations, hospitalizations kept declining. It
-is expected that during the coming year(s), preventing COVID-19 outbreaks will depend mostly on
-the successful implementation of non-pharmaceutical interventions such as social distancing, testing,
-contact tracing and quarantine. Hence the need for well-informed models that can assist policymak-
-ers in choosing the best non-pharmaceutical interventions in case of another large-scale SARS-CoV-2
-outbreak. Currently, two other models exist to make predictions for Belgium, the agent-based model
-of Willem et al. [44] and the discrete-time, stochastic metapopulation model of Coletti et al. [8].
-We built a deterministic, continuous-time, age-stratified, extended SEIRD model and calibrated it to
-national Belgian hospitalization data. The model accounts for pre-symptomatic and asymptomatic
-transmission. Furthermore, the susceptibility to SARS-CoV-2, the severity of the disease and the
-susceptibility to a subclinical infection depend on the age of the individual. We used social contact
-rates from a 2012 study by Willem [45] to model age-specific social mixing. Because detailed hos-
-pitalization data are not made publicly available by the Belgian Scientific Institute of Public Health
-(Sciensano), we derived age-stratified hospitalization parameters from data of 370 patients treated in
-two Ghent (Belgium) hospitals. To overcome this unconstructive data policy, we used the computed
-hospitalization parameters as temporary proxies to fit the model to the total number of patients in
-Belgian hospitals and ICU units. Using the model, we computed the basic reproduction number (R 0 )
-during the March 2020 epidemic. Because the model systematically overestimates the hospitaliza-
-tions during lockdown relaxation, we re-estimated the basic reproduction using data from May 2020
-until July 2020.
+After an initial outbreak in early 2020 in Wuhan, China, Severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) has spread globally. SARS-CoV-2 is capable of sustained human-to-human trans-
+mission, and may cause severe disease, especially in older individuals. The COVID-19 pandemic has, in general, shown a remarkedly low incidence among children and young adults. Children have a lower susceptibility to infection and a lower propensity to show clinical symptoms. Furthermore, pre-symptomatic transmission is a major contributor to SARS-CoV-2 spread.
+Unfortunately, pharmaceutical interventions such as vaccination and antiviral drugs are not yet available. On March 13th, 2020, the Belgian governments imposed strict social restrictions after tracing methods had failed to prevent large-scale spread of SARS-CoV-2. One and a half months later, the curve was succesfully flattened and social restrictions were gradually relaxed during the months of May, June and the beginning of July. In spite of these relaxations, hospitalizations kept declining. It is expected that during the coming year(s), preventing COVID-19 outbreaks will depend mostly on the successful implementation of non-pharmaceutical interventions such as social distancing, testing, contact tracing and quarantine. Hence the need for well-informed models that can assist policymakers in choosing the best non-pharmaceutical interventions in case of another large-scale SARS-CoV-2 outbreak. Currently, two other models exist to make predictions for Belgium, the agent-based model of Willem et al. and the discrete-time, stochastic metapopulation model of Coletti et al.
+
+We built a deterministic, continuous-time, age-stratified, extended SEIRD model and calibrated it to national Belgian hospitalization data. The model accounts for pre-symptomatic and asymptomatic transmission. Furthermore, the susceptibility to SARS-CoV-2, the severity of the disease and the susceptibility to a subclinical infection depend on the age of the individual. We used social contact rates from a 2012 study by Willem to model age-specific social mixing. Because detailed hospitalization data are not made publicly available by the Belgian Scientific Institute of Public Health (Sciensano), we derived age-stratified hospitalization parameters from data of 370 patients treated in two Ghent (Belgium) hospitals. To overcome this unconstructive data policy, we used the computed hospitalization parameters as temporary proxies to fit the model to the total number of patients in Belgian hospitals and ICU units. Using the model, we computed the basic reproduction number ($R_0$) during the March 2020 epidemic. Because the model systematically overestimates the hospitalizations during lockdown relaxation, we re-estimated the basic reproduction using data from May 2020 until July 2020.
 
 ## The model
 
@@ -55,7 +30,8 @@ Our extended SEIRD model is implemented using two frameworks: a deterministic an
 `rate of change = in - out`,
 
 for every of the 11 population compartments. This results in the following system of coupled ordinary differential equations,
-$
+
+$$
 \begin{eqnarray}
 \dot{S_i} &=& - \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
 \dot{E_i} &=& \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
@@ -71,7 +47,8 @@ $
 \dot{R_i} &=&  (1/d_a) A_i + ((1-h_i)/d_m) M_i + ((1-m_{C,i})/d_{c,R}) C_i \\
 && + (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}} - \zeta R_i,
 \end{eqnarray}
-$
+$$
+
 for $i = 1,2,...,9$. Here, $T_i$ stands for total population, $S_i$ stands for susceptible, $E_i$ for exposed, $I_i$ for pre-symptomatic and infectious, $A_i$ for asymptomatic and infectious, $M_i$ for mildly symptomatic and infectious, $ER_i$ for emergency room and/or buffer ward, $C_i$ for cohort, $C_{\text{ICU,rec,i}}$ for a recovery stay in Cohort coming from Intensive Care, $ICU_i$ for Intensive Care Unit, $D_i$ for dead and $R_i$ for recovered. Using the above notation, all model states are 9x1 vectors,
 
 \begin{equation}
@@ -91,12 +68,15 @@ P(ICU_i \rightarrow C_{\text{ICU,rec,i}}) = 1 - \text{exp} \Bigg[ - \frac{1-m_{\
 
 If a transitioning between states is defined as "succes", we can regard the number of individuals transitioning from ICU to a Cohort recovery ward as a binomial experiment. On a given day, the number of individuals transitioning is,
 
+$$
 \begin{equation}
 (\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg). 
 \end{equation}
+$$
 
 For a discrete stepsize $l$, there are 15 possible transitions,
 
+$$
 \begin{eqnarray}
 (S_i \rightarrow E_i) (k) &\sim& \text{Binomial}\Bigg(S_i(k), 1 - \text{exp}\Bigg[- l \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) \Bigg]\Bigg)\\
 (E_i \rightarrow I_i) (k) &\sim& \text{Binomial}\Bigg(E_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1}{\sigma}\Bigg]\Bigg)\\
@@ -114,9 +94,11 @@ For a discrete stepsize $l$, there are 15 possible transitions,
 (ICU_i \rightarrow D_i) (k) &\sim& \text{Binomial}\Bigg(ICU_i(k), 1 - \text{exp}\Bigg[- l\ \frac{m_{\text{ICU,i}}}{d_{\text{ICU,D}}}\Bigg]\Bigg)\\
 (R_i \rightarrow S_i) (k) &\sim& \text{Binomial}\Bigg(R_i(k), 1 - \text{exp}\Bigg[- l\ \zeta \Bigg]\Bigg)\\
 \end{eqnarray}
+$$
 
 And the system of equations becomes,
 
+$$
 \begin{eqnarray}
 S_i(k+1) &=& S_i(k) + (R_i \rightarrow S_i) (k) - (S_i \rightarrow E_i) (k) \\
 E_i(k+1) &=& E_i(k) + (S_i \rightarrow E_i) (k) - (E_i \rightarrow I_i) (k) \\
@@ -126,9 +108,11 @@ M_i(k+1) &=& M_i(k) + (I_i \rightarrow M_i) (k) - (M_i \rightarrow R_i) (k) - (M
 ER_i(k+1) &=& ER_i(k) + (M_i \rightarrow ER_i) (k) - (ER_i \rightarrow C_i) (k) - (ER_i \rightarrow ICU_i) (k) \\
 C_i(k+1) &=& C_i(k) + (ER_i \rightarrow C_i) (k) - (C_i \rightarrow R_i) (k) - (C_i \rightarrow D_i) (k) \\
 C_{\text{ICU,rec,i}}(k+1) &=& C_{\text{ICU,rec,i}}(k)  + (ICU_i \rightarrow C_{\text{ICU,rec,i}}) (k) - (C_{\text{ICU,rec,i}} \rightarrow R_i) (k) \\
-R_i(k+1) &=& R_i(k) + (A_i \rightarrow R_i) (k)  + (M_i \rightarrow R_i) (k) + (C_i \rightarrow R_i) (k) + (C_{\text{ICU,rec,i}} \rightarrow R_i) (k)  - (R_i \rightarrow S_i) (k) \\
+R_i(k+1) &=& R_i(k) + (A_i \rightarrow R_i) (k)  + (M_i \rightarrow R_i) (k) + (C_i \rightarrow R_i) (k)\\
+&& + (C_{\text{ICU,rec,i}} \rightarrow R_i) (k)  - (R_i \rightarrow S_i) (k) \\
 D_i(k+1) &=& D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i) (k) \\
 \end{eqnarray}
+$$
 
 These equations are implemented in the function `COVID19_SEIRD_sto` located in `src/covid19model/models.py`. The computation itself is performed in the function `solve_discrete` located in `src/covid19model/base.py`. Please note that the deterministic model uses **differentials** in the model defenition and must be integrated, while the stochastic model uses **differences** and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.
 
@@ -152,6 +136,7 @@ The model takes into account the effect of *social inertia* when measures are ta
 
 where,
 
+$$
 \begin{equation}
     f^k= 
 \begin{cases}
@@ -160,6 +145,7 @@ where,
     1.0,              & \text{otherwise}
 \end{cases}
 \end{equation}
+$$
 
 where $\tau$ is the number of days before measures start having an effect and $l$ is the number of additional days after the time delay until full compliance is reached. Both parameters were calibrated to the daily number of hospitalizations in Belgium (notebooks `notebooks/0.1-twallema-calibration-deterministic.ipynb` and `notebooks/0.1-twallema-calibration-stochastic.ipynb`). $k$ denotes the number of days since a change in social policy.
 
@@ -173,6 +159,6 @@ and the population basic reproduction number is calculated as the weighted avera
 
 ### Model parameters
 
-An in-depth motivation of the model parameters is provided in our preprint (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).
+An in-depth motivation of the model parameters is provided in our preprint (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).
 
 <img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
