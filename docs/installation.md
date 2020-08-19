@@ -18,7 +18,7 @@ To use the code, make sure you have Python (conda) and the required dependency p
      conda env create -f environment.yml
      conda activate COVID_MODEL
      ```
-     or when the environment was already created,
+     or when the environment was previously created,
      ```
      conda activate COVID_MODEL
      conda env update environment.yml
