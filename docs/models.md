@@ -1,139 +1,178 @@
-# Model
-
 ## Introduction
 
-We use an extended version of the SEIR model to model the disease at a higher resolution. This classic SEIR model splits the population into different categories, i.e. susceptible, exposed, infected and removed. We break down the latter two categories in super mild (asymptotic), mild, heavy and critical for the infected part of the population, whereas the removed population indicates the immune and dead fraction. Parameters values are (for now) based on Chinese covid-19 literature but we are seeking to closer collaborate with Belgian hospitals as more data becomes available. The dynamics are modeled using two frameworks: 1) deterministic and 2) stochastic. The deterministic model can fluently run age-structured (metapopulation) simulations naturally by changing the initial conditions.  The stochastic model class is under construction but will be updated soon.
+After an initial outbreak in early 2020 in Wuhan, China, Severe acute respiratory syndrome coronavirus 2
+(SARS-CoV-2) has spread globally [22]. SARS-CoV-2 is capable of sustained human-to-human trans-
+mission [34], and may cause severe disease, especially in older individuals. The COVID-19 pandemic
+has, in general, shown a remarkedly low incidence among children and young adults [29, 40]. Chil-
+dren have a lower susceptibility to infection and a lower propensity to show clinical symptoms [9].
+Furthermore, pre-symptomatic transmission is a major contributor to SARS-CoV-2 spread [26, 42].
+Unfortunately, pharmaceutical interventions such as vaccination and antiviral drugs are not yet avail-
+able. On March 13th, 2020, the Belgian governments imposed strict social restrictions after tracing
+methods had failed to prevent large-scale spread of SARS-CoV-2. One and a half months later, the
+curve was succesfully flattened and social restrictions were gradually relaxed during the months of
+May, June and the beginning of July. In spite of these relaxations, hospitalizations kept declining. It
+is expected that during the coming year(s), preventing COVID-19 outbreaks will depend mostly on
+the successful implementation of non-pharmaceutical interventions such as social distancing, testing,
+contact tracing and quarantine. Hence the need for well-informed models that can assist policymak-
+ers in choosing the best non-pharmaceutical interventions in case of another large-scale SARS-CoV-2
+outbreak. Currently, two other models exist to make predictions for Belgium, the agent-based model
+of Willem et al. [44] and the discrete-time, stochastic metapopulation model of Coletti et al. [8].
+We built a deterministic, continuous-time, age-stratified, extended SEIRD model and calibrated it to
+national Belgian hospitalization data. The model accounts for pre-symptomatic and asymptomatic
+transmission. Furthermore, the susceptibility to SARS-CoV-2, the severity of the disease and the
+susceptibility to a subclinical infection depend on the age of the individual. We used social contact
+rates from a 2012 study by Willem [45] to model age-specific social mixing. Because detailed hos-
+pitalization data are not made publicly available by the Belgian Scientific Institute of Public Health
+(Sciensano), we derived age-stratified hospitalization parameters from data of 370 patients treated in
+two Ghent (Belgium) hospitals. To overcome this unconstructive data policy, we used the computed
+hospitalization parameters as temporary proxies to fit the model to the total number of patients in
+Belgian hospitals and ICU units. Using the model, we computed the basic reproduction number (R 0 )
+during the March 2020 epidemic. Because the model systematically overestimates the hospitaliza-
+tions during lockdown relaxation, we re-estimated the basic reproduction using data from May 2020
+until July 2020.
 
-## General
+## The model
 
-The SEIR model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population in four types of people :
+### Model dynamics
 
-1. healthy individuals susceptible to the infectious disease,
-2. exposed individuals in a latent phase (partially the incubation period),
-3. infectious individuals able to transmit the disease
-4. individuals removed from the population either through immunisation or death.
+The SEIR(D) model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population into four groups: 1) susceptible individuals, 2) exposed individuals in the latent phase 1, 3) infectious individuals capable of transmitting the disease and 4) individuals removed from the population either through immunization or death. Despite being a simple and idealized reality, the SEIR(D) dynamics are used extensively to predict the outbreak of infectious diseases and this was no different during the SARS-CoV-2 outbreak earlier this year.
 
-Despite being a simple and idealised reality, the SEIR model is used extensively to predict the outbreak of infectious diseases and this was no different during the outbreak in China earlier this year. In this work, we extended the SEIR model to incorporate more expert knowledge on SARS-Cov-2 into the model. The infectious pool is split into four parts. The first is a period of pre-symptomatic infectiousness. Several studies have shown that pre-symptomatic transmission is a dominant transmission mechanism of SARS-Cov-2. After the period of pre-symptomatic transmission, three possible infectious outcomes are modelled.
+In this work, we extend the SEIRD model to incorporate more expert knowledge on SARS-CoV-2. For that purpose, the infectious compartment is split into four parts. The first is a period of presymptomatic infectiousness because several studies have shown that pre-symptomatic transmission is a dominant transmission mechanism of SARS-CoV-2. After the period of pre-symptomatic transmission, three possible infectious outcomes are modeled: (1) Asymptomatic outcome, for individuals who show no symptoms at all, (2) Mild outcome, for individuals with mild symptoms who recover at home, and (3) Hospitalization, when mild symptoms worsen. Children and young adults have a high propensity to experience an asymptomatic or mild outcome, while older individual have a high propensity to be hospitalized.
 
-1. asymptomatic outcome, for patients who show no symptoms at all
-2. mild outcome, for patients with mild symptoms, these patients recover at home
-3. a mild infection can degress to the point where a hospitalision is needed.
+In general, Belgian hospitals have two wards for COVID-19 patients: 1) Cohort, where patients are not monitored permanently and 2) Intensive care, for patients with the most severe symptoms. Intensive care includes permanent monitoring, the use of ventilators or the use of extracorporeal membrane oxygenation (ECMO). Patients generally spend limited time in the emergency room and/or in a buffer ward before going to Cohort. After spending limited time in Cohort, some patients are transferred to ICU. Patients can perish in both wards, but mortalities are generally lower in Cohort. After a stay in an ICU, patients return to Cohort for recovery in the hospital. During the recovery stay, mortality is limited. The above is a short summary of hospital dynamics based on interviewing Ghent University hospital staff and examining the hospital data.
 
- The pool of *recovered* individuals from the classical SEIR model is split into an recovered and dead pool. People from the susceptible, exposed, pre-symptomatic infectious, asymptomatic infectious, mild infectious and recovered pool can be quarantined after having tested positive for Covid-19. Note that for individuals in the susceptible and recovered pools, this corresponds to a *false positive* test. The dynamics of our extended SEIR model are presented in the flowchart below.
+<img src="_static/figs/flowchart_full.png" alt="drawing" width="600"/>
 
-<img src="_static/figs/flowchart_full.png" alt="drawing" width="700"/>
+### Model framework and equations
 
-We make the following assumptions with regard to the SEIRS dynamics:
+#### Age-stratification
+We introduced heterogeneity in the deterministic implementation by means of age-stratification. Every population compartment is split into a number of age classes, the age-groups have different contact rates with other age-groups and the disease progresses differently for each age-group, making the model behaviour more realistic. Our age-stratified model consists of 9 age classes, i.e., [0-10[, [10-20[, [20-30[, [30-40[, [40-50[, [50-60[, [60-70[, [70-80[, [80- $\infty$[. The age-stratified implementation provides a good balance between added complexity and computational resources.
 
-1. There is no connection between the severity of the disease and the infectiousness of an individual. Only the duration of infectiousness can differ.
-2. All patients experience a brief pre-symptomatic, infectious period.
-3. All deaths come from intensive care units in hospitals, meaning no patients die outside a hospital. Of the 7703 diseased (01/05/2020), 46\% died in a hospital while 53\% died in an elderly home. All hospital deaths are confirmed Covid-19 cases while only 16\% of elderly home deaths were confirmed. When taking the elderly homes out of the model scope, the assumption that deaths only arise in hospitals is true due to the fact that only 0.3\% died at home and 0.4\% died someplace else. Asymptomatic and mild cases automatically lead to recovery and in no case to death (https://www.info-coronavirus.be/nl/news/trends-laatste-dagen-zetten-zich-door/).
-4. We implement no testing and quarantining in the hospital. Hospitalised persons are assumed to be incapable of infecting susceptibles, so the implementation of a quarantine would not change the dynamics but slow down calculations.
-5. Recovered patients are assumed to be immune
-6. Seasonality is deemed out of scope of this work.
+#### Deterministic framework
 
-## Hospital subsystem (preliminary)
+Our extended SEIRD model is implemented using two frameworks: a deterministic and a stochastic framework. The deterministic equations are obtained by writing down the following equation,
 
-The hospital subsystem is a simplification of actual hospital dynamics. The dynamics and estimated parameters were obtained by interviewing Ghent University Hospital staff and presenting the resulting meeting notes to the remaining three Ghent hospitals for verification.
+`rate of change = in - out`,
 
-At the time of writing (30/04/2020) every admitted patient is tested for Covid-19. Roughly 10% of all Covid-19 patients at UZ Ghent originally came to the hospital for some other medical condition. The remaining 90% of all Covid-19 arrives in the emergency room or comes from hospitals in heavily struck regions. The fraction of people the hospital when getting infected with Covid-19 are reported to authorities as ‘new hospitalisations’. There are three hospital wards for Covid-19 patients: 1) Cohort, which should be seen like a regular hospital ward with Covid-19 patients. Patients are not monitored permanently in this ward. 2) Midcare, a ward where more severe cases are monitored more cosely than in Cohort. Midcare is more closely related to ICU than to Cohort and is usually lumped with the number of ICU patients when reporting to the officials. 3) Intensive care, for patients with the most severe symptoms. Intensive care needs can include the use of a ventilator to supply the patient with oxygen. It was noted that the fraction Cohort vs. Midcare and ICU is roughly 50-50%.
-
-<img src="_static/figs/hospitalRealLife.jpg" alt="drawing" width="400"/>
-
-Generally, patients can switch between any of the wards depending on how the disease progresses. However, some dominant *flows* exist. Usually, it is apparent upon a patients arrival to which ward he or she will be assigned. On average patients who don’t degress stay in Cohort for 6 days, with values spread between 3 and 8 days. The average ICU stay is 14 days when a patient doesn’t need ventilation. If the patient needs ventilation the stay is slightly longer. After being in ICU, patients return to Cohort for an another 6 to 7 days of recovery. Based on these dominant *flows*, the hospital subsystem was simplified by making the following assumptions:
-
-1. Assume people arriving at the hospital are instantly distributed between Cohort, Midcare or ICU.
-2. Merge ventilator and non-ventilator ICU.
-3. Assume deaths can only arise in ICU.
-4. Assume all patients in midcare and ICU pass via Cohort on their way to recovery.
-5. Assume that the 10\% of the patients that come from hospital actually come from the population.
-
-## Model description
-
-The dynamics of the deterministic system are mathematically formulated as the rate of change of each population pool shown in the above flowchart. This results in the following system of ordinary differential equations (the parameters are explained in the next section):
-
-### Equations
-
-$$
+for every of the 11 population compartments. This results in the following system of coupled ordinary differential equations,
+$
 \begin{eqnarray}
-\dot{S} &=& - \beta N_c \cdot S \cdot \Big( \frac{I+A}{N} \Big) - \theta_{\text{S}} \psi_{\text{FP}} \cdot S + SQ/d_{\text{q,FP}} + \zeta \cdot R,\\
-\dot{E} &=&  \beta \cdot N_c \cdot S \Big( \frac{I+A}{N} \Big) - (1/\sigma) \cdot E - \theta_{\text{E}} \psi_{\text{PP}} \cdot E,\\
-\dot{I} &=& (1/\sigma) \cdot E - (1/\omega) \cdot I - \theta_I \psi_{PP} \cdot I,\\
-\dot{A} &=& (\text{a}/\omega) \cdot I - A/d_{\text{a}} - \theta_{\text{A}} \psi_{\text{PP}} \cdot A,\\
-\dot{M} &=&  (\text{m} / \omega ) \cdot I - M \cdot ((1-h)/d_m) - M \cdot h/d_{\text{hospital}} - \theta_{\text{M}} \psi_{\text{PP}} \cdot M,\\
-\dot{C} &=& c \cdot (M+MQ) \cdot (h/d_{\text{hospital}}) - c \cdot(1/d_c)\cdot C,\\
-\dot{C}_{\text{mi,rec}} &=& Mi/d_{\text{mi}} - C_{\text{mi,rec}} \cdot (1/d_{\text{mi,rec}}),\\
-\dot{C}_{\text{ICU,rec}} &=& (1-m_0)/d_{\text{ICU}} \cdot \text{ICU} - C_{\text{ICU,rec}} \cdot (1/d_{\text{ICU,rec}}),\\
-C_{\text{tot}} &=& C + C_{\text{mi,rec}} + C_{\text{ICU,rec}}, \\
-\dot{\text{Mi}} &=&  mi \cdot (M+MQ) \cdot (h/d_{\text{hospital}}) - \text{Mi} / d_{\text{mi}}\\
-\dot{\text{ICU}} &=& (1-c-mi) \cdot (M+MQ) \cdot (h/d_{\text{hospital}}) - \text{ICU}/d_{\text{ICU}},\\
-H &=& C_{\text{tot}} + \text{Mi} + \text{ICU},\\
-\dot{D} &=& m_0 \cdot \text{ICU}/d_{\text{ICU}},\\
-\dot{R} &=&  A/d_a + M \cdot ((1-h)/d_m) + (1/d_c) \cdot c \cdot M \cdot (h/d_{\text{hospital}}) \\ && + (M_i/d_{mi}) \cdot (1/d_{\tiny{\text{mi,recovery}}})+ ((1-m_0)/ d_{\text{ICU}}) \cdot (1/d_{\text{\tiny{ICU,recovery}}}) \cdot ICU  \\
-&& + AQ/d_a + MQ \cdot ((1-h)/d_m)+ RQ/d_{\text{q,FP}} - \zeta \cdot R, \\
-\dot{SQ} &=& \theta_{\text{S}} \psi_{\text{FP}} \cdot S - (1/d_{\text{q,FP}}) \cdot SQ, \\
-\dot{EQ} &=& \theta_{\text{E}} \psi_{\text{PP}} \cdot E - (1/\sigma) \cdot EQ, \\
-\dot{IQ} &=& \theta_{\text{I}} \psi_{\text{PP}} \cdot I + (1/\sigma) \cdot EQ - (1/\omega) \cdot IQ, \\
-\dot{AQ} &=& \theta_{\text{A}} \psi_{\text{PP}} \cdot A + (a/\omega) \cdot EQ - AQ/d_a, \\
-\dot{MQ} &=& \theta_{\text{M}} \psi_{\text{PP}} \cdot M + (m/\omega) \cdot EQ - MQ \cdot ((1-h)/d_m) - MQ \cdot h/d_{\text{hospital}}, \\
-\dot{RQ} &=& \theta_{\text{R}} \psi_{\text{FP}} - (1/d_{\text{q,FP}}) \cdot RQ,
+\dot{S_i} &=& - \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
+\dot{E_i} &=& \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
+\dot{I_i} &=& (1/\sigma) E_i - (1/\omega) I_i, \\
+\dot{A_i} &=& (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\ 
+\dot{M_i} &=&  ((1-\text{a}_i) / \omega ) I_i - ( (1-h_i)/d_m + h_i/d_{\text{hospital}} ) M_i, \\
+\dot{ER_i} &=& (h_i/d_{\text{hospital}}) M_i - (1/d_{\text{ER}}) ER_i, \\
+\dot{C_i} &=& c_i (1/d_{\text{ER}}) ER_i  - (m_{C, i}/d_{c,D}) C_i - ((1 - m_{C, i})/d_{c,R}) C_i, \\
+\dot{ICU_i} &=& (1-c_i) (1/d_{\text{ER}}) ER_i - (m_{ICU,i}/d_{\text{ICU},D}) ICU_i  \\
+&& - ((1-m_{ICU,i})/d_{\text{ICU},R}) ICU_i,\\
+\dot{C}_{\text{ICU,rec,i}} &=& ((1-m_{ICU,i})/d_{\text{ICU},R}) ICU_i - (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}}, \\
+\dot{D_i} &=&  (m_{ICU,i}/d_{\text{ICU},D}) ICU_i +  (m_{C,i}/d_{\text{c},D}) C_i , \\
+\dot{R_i} &=&  (1/d_a) A_i + ((1-h_i)/d_m) M_i + ((1-m_{C,i})/d_{c,R}) C_i \\
+&& + (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}} - \zeta R_i,
 \end{eqnarray}
-$$
+$
+for $i = 1,2,...,9$. Here, $T_i$ stands for total population, $S_i$ stands for susceptible, $E_i$ for exposed, $I_i$ for pre-symptomatic and infectious, $A_i$ for asymptomatic and infectious, $M_i$ for mildly symptomatic and infectious, $ER_i$ for emergency room and/or buffer ward, $C_i$ for cohort, $C_{\text{ICU,rec,i}}$ for a recovery stay in Cohort coming from Intensive Care, $ICU_i$ for Intensive Care Unit, $D_i$ for dead and $R_i$ for recovered. Using the above notation, all model states are 9x1 vectors,
 
-In the above equations: `S` stands for susceptible, `E` for exposed (infected, but not yet infectious), `I` for infectious, `A` for asymptomatic, `M` for mild, `H` for hospitalised, `C` for cohort, `Mi` for midcare, `ICU` for intensive care unit, `D` for dead, `R` for recovered. The quarantined states are denoted with a `Q` suffix, for example `AQ` stands for asymptomatic and quarantined. The states `S`, `E`, `A`, `M` and `R` can be quarantined. The disease dynamics when quarantined are identical to the non quarantined dynamics. For instance, `EQ` will evolve into `AQ` or `MQ` with the same probability as `E` evolves into `A` or `M`. Individuals from the `MQ` pool can end up in the hospital. `N` stands for the total population.
+\begin{equation}
+     \mathbf{S} = [S_1(t)\ S_2(t)\ ...\ S_i(t)]^T,
+\end{equation}
+where $S_i(t)$ denotes the number of susceptibles in age-class i at time t after the introduction of the virus in the population.
 
-### Parameters
+These equations are implemented in the function `COVID19_SEIRD` located in `src/covid19model/models.py`. The integration is performed in `_sim_single` located in `src/covid19model/base.py` by using Scipy's `solve_ivp`. The integrator timestep depends on the rate of change of the system and the solver method is thus referred to as a 'continuous-time' solver. The implementation uses non-integer individuals.
 
-The clinical parameters are:
+#### Stochastic framework
 
-- `a`, `m`: the chance of having an asymptomatic or mild infection.
-- `h`: the fraction of mildly infected which require hospitalisation.
-- `c`: fraction of the hospitalised which remain in Cohort
-- `mi`: fraction of hospitalised which end up in midcare.
+By defining the probabilities of transitioning (propensities) from one state to another, a system of coupled stochastic difference equations (SDEs) can be obtained. The probability to transition from one state to another is assumed to be exponentially distributed. As an example, consider the average time a patient spends in an ICU when recovering, which is $d_{\text{ICU,R}} = 9.9$ days. The chances of survival in ICU are $(1-m_{\text{ICU,i}})$, where $m_{\text{ICU,i}}$ is the mortality in ICU for an individual in age group $i$. The probability of transitioning from state ICU to state $C_{\text{ICU,rec}}$ on any given day and for an individual in age group $i$ is,
 
-Based on reported cases in China and travel data, Li et al. (2020b) estimated that 86\% of coronavirus infections in the country were "undocumented" in the weeks before officials instituted stringent quarantines. This figure thus includes the asymptomatic cases and an unknown number of mildly symptomatic cases and is thus an overestimation of the asymptotic fraction. In Iceland, citizens were invited for testing regardless of symptoms. Of all people with positive test results, 43% were asymptomatic (Gudbjartsson et al., 2020). The actual number of asymptomatic infections might be even higher since it seemed that symptomatic persons were more likely to respond to the invitation (Sciensano, 2020). In this work it is assumed that 43\% of all infected cases are asymptomatic. This figure can later be corrected in light of large scale immunity testing in the Belgian population. Hence, `a = 0.43`.
+\begin{equation}
+P(ICU_i \rightarrow C_{\text{ICU,rec,i}}) = 1 - \text{exp} \Bigg[ - \frac{1-m_{\text{ICU},i}}{d_{\text{ICU,R}}}\Bigg].
+\end{equation}
 
-Wu and McGoogan (2020) estimated that the distribution between mild, severe and critical cases is equal to 81%, 15% and 4% respectively. As a rule of thumb, one can assume that one third of all hospitalised patients ends up in an ICU. Based on interviews with Ghent University hospital staff, midcare is merged with ICU in the offical numbers. For now, it is assumed that the distribution between midcare and ICU is 50-50 %. The sum of both pools is one third of the hospitalisations. Since the average time a patient spends in midcare is equal to ICU, this corresponds to seeing midcare and ICU as 'ICU'.
+If a transitioning between states is defined as "succes", we can regard the number of individuals transitioning from ICU to a Cohort recovery ward as a binomial experiment. On a given day, the number of individuals transitioning is,
 
-- $\sigma$: length of the latent period. Assumed four days based on a modeling study by Davies et al. (2020)
-- $\omega$: length of the pre-symptomatic infectious period, assumed 1.5 days (Davies et al. 2020). The sum of $\omega$ and $\sigma$ is the total incubation period, and is equal to 5.5 days. Several estimates of the incubation period have been published and range from 3.6 to 6.4 days, with the majority of estimates around 5 days (Park et. al 2020).
-- $d_{a}$ , $d_{m}$ , $d_{h}$ : the duration of infection in case of a asymptomatic or mild infection. Assumed to be 6.5 days. Toghether with the length of the pre-symptomatic infectious period, this accounts to a total of 8 days of infectiousness.
-- $d_{c}$ , $d_{\text{mi}}$ , $d_{\text{ICU}}$: average length of a Cohort, Midcare and ICU stay. Equal to one week, two weeks and two weeks respectively.
-- $d_{\text{mi,recovery}}$ , $d_{\text{ICU,recovery}}$: lengths of recovery stays in Cohort after being in Midcare or IC. Equal to one week.
+\begin{equation}
+(\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg). 
+\end{equation}
 
-Zhou et al. (2020) performed a retrospective study on 191 Chinese hospital patients and determined that the time from illness onset to discharge or death was 22.0 days (18.0-25.0, IQR) and 18.5 days (15.0-22.0, IQR) for survivors and victims respectively. Using available preliminary data, the World Health Organisation estimated the median time from onset to clinical recovery for mild cases to be approximately 2 weeks and to be 3-6 weeks for patients with severe or critical disease (WHO, 2020). Based on this report, we assume a recovery time of three weeks for heavy infections.
+For a discrete stepsize $l$, there are 15 possible transitions,
 
-- $d_{hospital}$ : the time before heavily or critically infected patients reach the hospital. Assumed 5-9 days (Linton et al. 2020). Still waiting on hospital input here.
-- $m_0$ : the mortality in ICU, which is roughly 50\% (Wu and McGoogan, 2020).
-- $\zeta$: can be used to model the effect of re-susceptibility and seasonality of a disease. Throughout this demo, we assume $\zeta = 0$ because data on seasonality is not yet available at the moment. We thus assume permanent immunity after recovering from the infection.
+\begin{eqnarray}
+(S_i \rightarrow E_i) (k) &\sim& \text{Binomial}\Bigg(S_i(k), 1 - \text{exp}\Bigg[- l \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) \Bigg]\Bigg)\\
+(E_i \rightarrow I_i) (k) &\sim& \text{Binomial}\Bigg(E_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1}{\sigma}\Bigg]\Bigg)\\
+(I_i \rightarrow A_i) (k) &\sim& \text{Binomial}\Bigg(I_i(k), 1 - \text{exp}\Bigg[- l\ \frac{a_i}{\omega}\Bigg]\Bigg)\\
+(I_i \rightarrow M_i) (k) &\sim& \text{Binomial}\Bigg(I_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-a_i}{\omega}\Bigg]\Bigg)\\
+(A_i \rightarrow R_i) (k) &\sim& \text{Binomial}\Bigg(A_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1}{d_a}\Bigg]\Bigg)\\
+(M_i \rightarrow R_i) (k) &\sim& \text{Binomial}\Bigg(M_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-h_i}{d_m}\Bigg]\Bigg)\\
+(M_i \rightarrow ER_i) (k) &\sim& \text{Binomial}\Bigg(M_i(k), 1 - \text{exp}\Bigg[- l\ \frac{h_i}{d_{\text{hospital}}}\Bigg]\Bigg)\\
+(ER_i \rightarrow C_i) (k) &\sim& \text{Binomial}\Bigg(ER_i(k), 1 - \text{exp}\Bigg[- l\ \frac{c_i}{d_{\text{ER}}}\Bigg]\Bigg)\\
+(ER_i \rightarrow ICU_i) (k) &\sim& \text{Binomial}\Bigg(ER_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-c_i}{d_{\text{ER}}}\Bigg]\Bigg)\\
+(C_i \rightarrow R_i) (k) &\sim& \text{Binomial}\Bigg(C_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-m_{C,i}}{d_{C,R}}\Bigg]\Bigg)\\
+(ICU_i \rightarrow C_{\text{ICU,rec,i}}) (k) &\sim& \text{Binomial}\Bigg(ICU_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-m_{\text{ICU,i}}}{d_{ICU,R}}\Bigg]\Bigg)\\
+(C_{\text{ICU,rec,i}} \rightarrow R_i) (k) &\sim& \text{Binomial}\Bigg(C_{\text{ICU,rec,i}}(k), 1 - \text{exp}\Bigg[- l\ \frac{1}{d_{\text{ICU,rec}}}\Bigg]\Bigg)\\
+(C_i \rightarrow D_i) (k) &\sim& \text{Binomial}\Bigg(C_i(k), 1 - \text{exp}\Bigg[- l\ \frac{m_{C,i}}{d_{C,D}}\Bigg]\Bigg)\\
+(ICU_i \rightarrow D_i) (k) &\sim& \text{Binomial}\Bigg(ICU_i(k), 1 - \text{exp}\Bigg[- l\ \frac{m_{\text{ICU,i}}}{d_{\text{ICU,D}}}\Bigg]\Bigg)\\
+(R_i \rightarrow S_i) (k) &\sim& \text{Binomial}\Bigg(R_i(k), 1 - \text{exp}\Bigg[- l\ \zeta \Bigg]\Bigg)\\
+\end{eqnarray}
 
+And the system of equations becomes,
 
-## Implementation
+\begin{eqnarray}
+S_i(k+1) &=& S_i(k) + (R_i \rightarrow S_i) (k) - (S_i \rightarrow E_i) (k) \\
+E_i(k+1) &=& E_i(k) + (S_i \rightarrow E_i) (k) - (E_i \rightarrow I_i) (k) \\
+I_i(k+1) &=& I_i(k) + (E_i \rightarrow I_i) (k) - (I_i \rightarrow A_i) - (I_i \rightarrow M_i) (k) \\
+A_i(k+1) &=& A_i(k) + (I_i \rightarrow A_i) (k) - (A_i \rightarrow R_i) (k) \\
+M_i(k+1) &=& M_i(k) + (I_i \rightarrow M_i) (k) - (M_i \rightarrow R_i) (k) - (M_i \rightarrow ER_i) (k) \\
+ER_i(k+1) &=& ER_i(k) + (M_i \rightarrow ER_i) (k) - (ER_i \rightarrow C_i) (k) - (ER_i \rightarrow ICU_i) (k) \\
+C_i(k+1) &=& C_i(k) + (ER_i \rightarrow C_i) (k) - (C_i \rightarrow R_i) (k) - (C_i \rightarrow D_i) (k) \\
+C_{\text{ICU,rec,i}}(k+1) &=& C_{\text{ICU,rec,i}}(k)  + (ICU_i \rightarrow C_{\text{ICU,rec,i}}) (k) - (C_{\text{ICU,rec,i}} \rightarrow R_i) (k) \\
+R_i(k+1) &=& R_i(k) + (A_i \rightarrow R_i) (k)  + (M_i \rightarrow R_i) (k) + (C_i \rightarrow R_i) (k) + (C_{\text{ICU,rec,i}} \rightarrow R_i) (k)  - (R_i \rightarrow S_i) (k) \\
+D_i(k+1) &=& D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i) (k) \\
+\end{eqnarray}
 
-As of now (20/04/2020), the *SEIRSAgeModel* (deterministic model implementation with inherent age-structuring) contains 7 functions which can be grouped into three parts: 1) functions to run and visualise simulations, 2) functions to perform parameter estimations and visualise the results and 3) functions to optimize future policies using model predictive control (MPC).  Also, scenario specific functions will be added over the course of next week.
-<img src="_static/figs/SEIRSAgeModel.jpg"
-     alt="class"
-     width="700"
-     style="float: left; margin-right: 500px;" />
+These equations are implemented in the function `COVID19_SEIRD_sto` located in `src/covid19model/models.py`. The computation itself is performed in the function `solve_discrete` located in `src/covid19model/base.py`. Please note that the deterministic model uses **differentials** in the model defenition and must be integrated, while the stochastic model uses **differences** and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.
 
-As of now (20/04/2020), the *SEIRSNetworkModel* contains 5 functions which can be grouped into two parts: 1) functions to run and visualise simulations and 2) functions to perform parameter estimations and visualise the results. Implementing the model predictive controller is straightforward and can easily be done. However, the optimisation problem is really difficult and requires thousands of function evaluations. Given the large amount of computational resources required to run just one stochastic simulation, it is highly unlikely that the model predictive controller will ever be used to optimize government policy. The MPC functions will be implemented and their usefullness assessed after a calibration is performed. Also, scenario specific functions will be added over the course of next week.
+### Transmission rates and social contact data
 
+In our model, the transmission rate of the disease depends on the product of four contributions. The first contribution, $(I+A)/T$, is the fraction of contagious individuals in the population. The second contribution, $\mathbf{N}_c$, is the average number of human-to-human interactions per day. The third contribution, $s_i$, is the relative susceptiblity to SARS-CoV-2 infection in age group $i$, and the fourth contribution, $\beta$, is the probability of contracting COVID-19 when encountering a contagious individual under the assumption of 100 \% susceptibility to SARS-CoV-2 infection. We assume that the per contact transmission probability $\beta$ is independent of age and we will infer its distribution by calibrating the model to national Belgian hospitalization data. The number of human-human interactions, $\mathbf{N}_c$, are both place and age-dependent. These matrices assume the form of a 9x9 *interaction matrix* where an entry X, Y denotes the number of social contacts age group X has with age group Y per day. These matrices are available for homes, schools, workplaces, in public transport, and leisure activities, from a survey study by Lander Willem (2012). The total number of social interactions is given by the sum of the contributions in different places,
 
-$\sigma$: length of the latent period. Assumed four days based on a modeling study by Davies et al. (2020) .
+\begin{equation}\label{eq:interaction_matrices}
+\mathbf{N_{\text{c}}} = \mathbf{N_{\text{c, home}}} + \mathbf{N_{\text{c, schools}}} + \mathbf{N_{\text{c, work}}} + \mathbf{N_{\text{c, transport}}} + \mathbf{N_{\text{c, leisure}}} + \mathbf{N_{\text{c, others}}}.
+\end{equation}
 
-$\omega$: length of the pre-symptomatic infectious period, assumed 1.5 days (Davies et al. 2020). The sum of $\omega$ and $\sigma$ is the total incubation period, and is equal to 5.5 days. Several estimates of the incubation period have been published and range from 3.6 to 6.4 days, with the majority of estimates around 5 days (Park et. al 2020).
+Coefficients can be added to the contributing contact matrices to model a goverment policy. For instance, to model the Belgian lockdown, the mobility reductions deduced from the Google community mobility reports were used as coefficients for the different interaction matrices. We assumed workplace interactions were down to only 40 % of their prepandemic values before the lockdown.
 
-$d_{a}$ , $d_{m}$ , $d_{h}$ : the duration of infection in case of a asymptomatic or mild infection. Assumed to be 6.5 days. Toghether with the length of the pre-symptomatic infectious period, this accounts to a total of 8 days of infectiousness.
+### Modeling social intertia
 
-$d_{c}$ , $d_{\text{mi}}$ , $d_{\text{ICU}}$: average length of a Cohort, Midcare and ICU stay. Equal to one week, two weeks and two weeks respectively.
+The model takes into account the effect of *social inertia* when measures are taken. In reality, social restrictions or relaxations represent a change in behaviour which is gradual and cannot be modeled using a step-wise change of the social interaction matrix $\mathbf{N_c}$. This can be seen when closely inspecting the *Google community mobility report* above. Multiple functions can be used to model the effects of social compliance, e.g. a delayed or non-delayed ramp, or a logistic function. In our model, we use a delayed ramp to model compliance, 
 
-$d_{\text{mi,recovery}}$ , $d_{\text{ICU,recovery}}$: lengths of recovery stays in Cohort after being in Midcare or IC. Equal to one week.
+\begin{equation}
+\mathbf{N_{c}}^{k} = \mathbf{N_{\text{c, old}}} + f^{k} (\mathbf{N_{\text{c, new}}} - \mathbf{N_{\text{c, old}}})
+\end{equation}
 
-Zhou et al. (2020) performed a retrospective study on 191 Chinese hospital patients and determined that the time from illness onset to discharge or death was 22.0 days (18.0-25.0, IQR) and 18.5 days (15.0-22.0, IQR) for survivors and victims respectively. Using available preliminary data, the World Health Organisation estimated the median time from onset to clinical recovery for mild cases to be approximately 2 weeks and to be 3-6 weeks for patients with severe or critical disease (WHO, 2020). Based on this report, we assume a recovery time of three weeks for heavy infections.
+where,
 
-$d_{hospital}$ : the time before heavily or critically infected patients reach the hospital. Assumed 5-9 days (Linton et al. 2020). Still waiting on hospital input here.
+\begin{equation}
+    f^k= 
+\begin{cases}
+	0.0,& \text{if } k\leq \tau\\
+    \frac{k}{l} - \frac{\tau}{l},& \text{if } \tau < k\leq \tau + l\\
+    1.0,              & \text{otherwise}
+\end{cases}
+\end{equation}
 
-$m_0$ : the mortality in ICU, which is roughly 50\% (Wu and McGoogan, 2020).
+where $\tau$ is the number of days before measures start having an effect and $l$ is the number of additional days after the time delay until full compliance is reached. Both parameters were calibrated to the daily number of hospitalizations in Belgium (notebooks `notebooks/0.1-twallema-calibration-deterministic.ipynb` and `notebooks/0.1-twallema-calibration-stochastic.ipynb`). $k$ denotes the number of days since a change in social policy.
 
-$\zeta$: can be used to model the effect of re-susceptibility and seasonality of a disease. Throughout this demo, we assume $\zeta = 0$ because data on seasonality is not yet available at the moment. We thus assume permanent immunity after recovering from the infection.
+### Basic reproduction number
 
+The basic reproduction number $R_0$, defined as the expected number of secondary cases directly generated by one case in a population where all individuals are susceptible to infection, is computed using the next generation matrix (NGM) approach introducted by Diekmann. For our model, the basic reproduction number of age group $i$ is,
+\begin{equation}\label{eq:reproduction_number}
+R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
+\end{equation}
+and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).
+
+### Model parameters
+
+An in-depth motivation of the model parameters is provided in our preprint (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).
+
+<img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
