@@ -31,6 +31,7 @@
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/x-mathjax-config">MathJax.Hub.Config({"tex2jax": {"inlineMath": [["\\(", "\\)"]], "displayMath": [["\\[", "\\]"]], "processRefs": false, "processEnvironments": false}})</script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -91,11 +92,12 @@
 </ul>
 <p class="caption"><span class="caption-text">User guide</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="models.html">Model background</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html#the-model">The model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="application.html">Run the model</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Future work</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#model-dynamics">Model dynamics</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#scenario-specific-functions">Scenario-specific functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#economic-network-model">Economic network model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spatial-extension">Spatial extension</a></li>
 </ul>
 </li>
 </ul>
@@ -170,15 +172,19 @@
             
   <div class="section" id="future-work">
 <h1>Future work<a class="headerlink" href="#future-work" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="model-dynamics">
-<h2>Model dynamics<a class="headerlink" href="#model-dynamics" title="Permalink to this headline">¶</a></h2>
-<p>Future work will include a modification of the model dynamics most likely according to the flowchart below, this will be done in collaboration with hospitals. We believe these will allow to simulate the disease spread even more realisticly.</p>
-<img src="_static/figs/flowchart3_1.jpg" alt="drawing" width="800"/>
-<img src="_static/figs/flowchart3_2.jpg" alt="drawing" width="600"/>
+<div class="section" id="economic-network-model">
+<h2>Economic network model<a class="headerlink" href="#economic-network-model" title="Permalink to this headline">¶</a></h2>
+<p>The effects of the virus-related demand shock (consumption) and supply shock (labor) will be used to calculate the effect of COVID-19 spread and of the economic lockdown on the Belgian GDP. The network model computes the maximum sectoral output under demand, stock, and labor constraints. A Leontief production function will be used to constraint sectoral output under the given limitations. However, inspired by the work of Oxford University [1], we will consider if the input is essential for production when constraining sectoral output. As an example, consider a restaurant visit to close a construction deal. In an input-output table, the amount of output from the construction sector will partly depend on restaurants. In times of crisis, the construction sector can attain the same output without restaurants. Next, when output is smaller than demand, rationing will be performed. In the next step, the inventories of every economic sector will be updated and workers will be hired or fired. After this step feedback can be given to the epidemiological model. Even without considering model predictive control, the implementation of the economic network model can be used to 1) compute the approximate costs of the March-May 2020 lockdown as a retrospective analysis, 2) compute the effect of closing certain sectors on both virus spread and the Belgian GDP.</p>
+<img src="_static/figs/economic_model.png" alt="drawing" width="700"/>
 </div>
-<div class="section" id="scenario-specific-functions">
-<h2>Scenario-specific functions<a class="headerlink" href="#scenario-specific-functions" title="Permalink to this headline">¶</a></h2>
-<p>We will implement a function which uses the past policies to quickly recreate the Belgian ICU and hospitalisation curves up-to-date. This function will be used to quickly propose MPC optimal policies and to perform scenario analysis about the future.</p>
+<div class="section" id="spatial-extension">
+<h2>Spatial extension<a class="headerlink" href="#spatial-extension" title="Permalink to this headline">¶</a></h2>
+<p>Stringent lockdown measures from March 15th to May 4th 2020 resulted in a succesfull flattening of the Belgian hospitalization curve. From July 2020 onwards, clusters of COVID-19 infections in Belgium have become very local in nature, making it hard to make long term predictions on how the number of hospitalizations will evolve in the future. After succesfully analyzing the first (March 2020) COVID-19 wave with our deterministic and stochastic national model, we must now shift our attention to spatially explicit models. To this end, the national model with its extended SEIRD dynamics and hospitalization parameters will be used in conjunction with recurrent commuting data from the 2011 Belgian census [2]. Such <em>patch model</em>, inspired by the work of Arenas and Costa [3,4] can be used to make more accurate predictions for Belgium and can be used in conjunction with the MPC controller algorithm to study spatially-explicit containment strategies.</p>
+<img src="_static/figs/map_cases_dynamic.gif" alt="drawing" width="500"/>
+<p>[1] https://arxiv.org/abs/2005.10585</p>
+<p>[2] https://census2011.fgov.be/download/downloads_nl.html</p>
+<p>[3] https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1</p>
+<p>[4] https://www.medrxiv.org/content/10.1101/2020.05.06.20093492v2</p>
 </div>
 </div>
 
