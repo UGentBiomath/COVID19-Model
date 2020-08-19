@@ -10,6 +10,8 @@ The effects of the virus-related demand shock (consumption) and supply shock (la
 
 Stringent lockdown measures from March 15th to May 4th 2020 resulted in a succesfull flattening of the Belgian hospitalization curve. From July 2020 onwards, clusters of COVID-19 infections in Belgium have become very local in nature, making it hard to make long term predictions on how the number of hospitalizations will evolve in the future. After succesfully analyzing the first (March 2020) COVID-19 wave with our deterministic and stochastic national model, we must now shift our attention to spatially explicit models. To this end, the national model with its extended SEIRD dynamics and hospitalization parameters will be used in conjunction with recurrent commuting data from the 2011 Belgian census [2]. Such *patch model*, inspired by the work of Arenas and Costa [3,4] can be used to make more accurate predictions for Belgium and can be used in conjunction with the MPC controller algorithm to study spatially-explicit containment strategies. 
 
+<img src="_static/figs/map_cases_dynamic.gif" alt="drawing" width="500"/>
+
 [1] https://arxiv.org/abs/2005.10585
 
 [2] https://census2011.fgov.be/download/downloads_nl.html
