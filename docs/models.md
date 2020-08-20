@@ -16,7 +16,11 @@ In this work, we extend the SEIRD model to incorporate more expert knowledge on 
 
 In general, Belgian hospitals have two wards for COVID-19 patients: 1) Cohort, where patients are not monitored permanently and 2) Intensive care, for patients with the most severe symptoms. Intensive care includes permanent monitoring, the use of ventilators or the use of extracorporeal membrane oxygenation (ECMO). Patients generally spend limited time in the emergency room and/or in a buffer ward before going to Cohort. After spending limited time in Cohort, some patients are transferred to ICU. Patients can perish in both wards, but mortalities are generally lower in Cohort. After a stay in an ICU, patients return to Cohort for recovery in the hospital. During the recovery stay, mortality is limited. The above is a short summary of hospital dynamics based on interviewing Ghent University hospital staff and examining the hospital data.
 
+<p align="center">
 <img src="_static/figs/flowchart_full.png" alt="drawing" width="600"/>
+
+<em> Extended SEIRD dynamics of the BIOMATH COVID-19 model. Nodes represent model states, edges denote transfers. An overview of the model parameters can be found on the bottom of this page.</em>
+</p>
 
 ### Model framework and equations
 
@@ -168,10 +172,13 @@ R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
 \end{equation}
 $$
 
-and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).
+and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (see section *Previous work*).
 
 ### Model parameters
 
-An in-depth motivation of the model parameters is provided in our preprint (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).
+An in-depth motivation of the model parameters is provided in our manuscript (see section *Previous work*). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).
 
+<p align="center">
 <img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
+<em> Overview of BIOMATH COVID-19 model parameters. </em>
+</p>
