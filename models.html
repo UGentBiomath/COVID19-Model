@@ -225,18 +225,24 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 \end{eqnarray}
 \end{split}\]</div>
 <p>for <span class="math notranslate nohighlight">\(i = 1,2,...,9\)</span>. Here, <span class="math notranslate nohighlight">\(T_i\)</span> stands for total population, <span class="math notranslate nohighlight">\(S_i\)</span> stands for susceptible, <span class="math notranslate nohighlight">\(E_i\)</span> for exposed, <span class="math notranslate nohighlight">\(I_i\)</span> for pre-symptomatic and infectious, <span class="math notranslate nohighlight">\(A_i\)</span> for asymptomatic and infectious, <span class="math notranslate nohighlight">\(M_i\)</span> for mildly symptomatic and infectious, <span class="math notranslate nohighlight">\(ER_i\)</span> for emergency room and/or buffer ward, <span class="math notranslate nohighlight">\(C_i\)</span> for cohort, <span class="math notranslate nohighlight">\(C_{\text{ICU,rec,i}}\)</span> for a recovery stay in Cohort coming from Intensive Care, <span class="math notranslate nohighlight">\(ICU_i\)</span> for Intensive Care Unit, <span class="math notranslate nohighlight">\(D_i\)</span> for dead and <span class="math notranslate nohighlight">\(R_i\)</span> for recovered. Using the above notation, all model states are 9x1 vectors,</p>
-<p>\begin{equation}
-\mathbf{S} = [S_1(t)\ S_2(t)\ …\ S_i(t)]^T,
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+     \mathbf{S} = [S_1(t)\ S_2(t)\ ...\ S_i(t)]^T,
 \end{equation}
-where <span class="math notranslate nohighlight">\(S_i(t)\)</span> denotes the number of susceptibles in age-class i at time t after the introduction of the virus in the population.</p>
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(S_i(t)\)</span> denotes the number of susceptibles in age-class i at time t after the introduction of the virus in the population.</p>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The integration is performed in <code class="docutils literal notranslate"><span class="pre">_sim_single</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code> by using Scipy’s <code class="docutils literal notranslate"><span class="pre">solve_ivp</span></code>. The integrator timestep depends on the rate of change of the system and the solver method is thus referred to as a ‘continuous-time’ solver. The implementation uses non-integer individuals.</p>
 </div>
 <div class="section" id="stochastic-framework">
 <h3>Stochastic framework<a class="headerlink" href="#stochastic-framework" title="Permalink to this headline">¶</a></h3>
 <p>By defining the probabilities of transitioning (propensities) from one state to another, a system of coupled stochastic difference equations (SDEs) can be obtained. The probability to transition from one state to another is assumed to be exponentially distributed. As an example, consider the average time a patient spends in an ICU when recovering, which is <span class="math notranslate nohighlight">\(d_{\text{ICU,R}} = 9.9\)</span> days. The chances of survival in ICU are <span class="math notranslate nohighlight">\((1-m_{\text{ICU,i}})\)</span>, where <span class="math notranslate nohighlight">\(m_{\text{ICU,i}}\)</span> is the mortality in ICU for an individual in age group <span class="math notranslate nohighlight">\(i\)</span>. The probability of transitioning from state ICU to state <span class="math notranslate nohighlight">\(C_{\text{ICU,rec}}\)</span> on any given day and for an individual in age group <span class="math notranslate nohighlight">\(i\)</span> is,</p>
-<p>\begin{equation}
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
 P(ICU_i \rightarrow C_{\text{ICU,rec,i}}) = 1 - \text{exp} \Bigg[ - \frac{1-m_{\text{ICU},i}}{d_{\text{ICU,R}}}\Bigg].
-\end{equation}</p>
+\end{equation}
+\]</div>
 <p>If a transitioning between states is defined as “succes”, we can regard the number of individuals transitioning from ICU to a Cohort recovery ward as a binomial experiment. On a given day, the number of individuals transitioning is,</p>
 <div class="math notranslate nohighlight">
 \[
@@ -288,17 +294,23 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 <div class="section" id="transmission-rates-and-social-contact-data">
 <h2>Transmission rates and social contact data<a class="headerlink" href="#transmission-rates-and-social-contact-data" title="Permalink to this headline">¶</a></h2>
 <p>In our model, the transmission rate of the disease depends on the product of four contributions. The first contribution, <span class="math notranslate nohighlight">\((I+A)/T\)</span>, is the fraction of contagious individuals in the population. The second contribution, <span class="math notranslate nohighlight">\(\mathbf{N}_c\)</span>, is the average number of human-to-human interactions per day. The third contribution, <span class="math notranslate nohighlight">\(s_i\)</span>, is the relative susceptiblity to SARS-CoV-2 infection in age group <span class="math notranslate nohighlight">\(i\)</span>, and the fourth contribution, <span class="math notranslate nohighlight">\(\beta\)</span>, is the probability of contracting COVID-19 when encountering a contagious individual under the assumption of 100 % susceptibility to SARS-CoV-2 infection. We assume that the per contact transmission probability <span class="math notranslate nohighlight">\(\beta\)</span> is independent of age and we will infer its distribution by calibrating the model to national Belgian hospitalization data. The number of human-human interactions, <span class="math notranslate nohighlight">\(\mathbf{N}_c\)</span>, are both place and age-dependent. These matrices assume the form of a 9x9 <em>interaction matrix</em> where an entry X, Y denotes the number of social contacts age group X has with age group Y per day. These matrices are available for homes, schools, workplaces, in public transport, and leisure activities, from a survey study by Lander Willem (2012). The total number of social interactions is given by the sum of the contributions in different places,</p>
-<p>\begin{equation}\label{eq:interaction_matrices}
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}\label{eq:interaction_matrices}
 \mathbf{N_{\text{c}}} = \mathbf{N_{\text{c, home}}} + \mathbf{N_{\text{c, schools}}} + \mathbf{N_{\text{c, work}}} + \mathbf{N_{\text{c, transport}}} + \mathbf{N_{\text{c, leisure}}} + \mathbf{N_{\text{c, others}}}.
-\end{equation}</p>
+\end{equation}
+\]</div>
 <p>Coefficients can be added to the contributing contact matrices to model a goverment policy. For instance, to model the Belgian lockdown, the mobility reductions deduced from the Google community mobility reports were used as coefficients for the different interaction matrices. We assumed workplace interactions were down to only 40 % of their prepandemic values before the lockdown.</p>
 </div>
 <div class="section" id="modeling-social-intertia">
 <h2>Modeling social intertia<a class="headerlink" href="#modeling-social-intertia" title="Permalink to this headline">¶</a></h2>
 <p>The model takes into account the effect of <em>social inertia</em> when measures are taken. In reality, social restrictions or relaxations represent a change in behaviour which is gradual and cannot be modeled using a step-wise change of the social interaction matrix <span class="math notranslate nohighlight">\(\mathbf{N_c}\)</span>. This can be seen when closely inspecting the <em>Google community mobility report</em> above. Multiple functions can be used to model the effects of social compliance, e.g. a delayed or non-delayed ramp, or a logistic function. In our model, we use a delayed ramp to model compliance,</p>
-<p>\begin{equation}
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
 \mathbf{N_{c}}^{k} = \mathbf{N_{\text{c, old}}} + f^{k} (\mathbf{N_{\text{c, new}}} - \mathbf{N_{\text{c, old}}})
-\end{equation}</p>
+\end{equation}
+\]</div>
 <p>where,</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
@@ -315,11 +327,14 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 </div>
 <div class="section" id="basic-reproduction-number">
 <h2>Basic reproduction number<a class="headerlink" href="#basic-reproduction-number" title="Permalink to this headline">¶</a></h2>
-<p>The basic reproduction number <span class="math notranslate nohighlight">\(R_0\)</span>, defined as the expected number of secondary cases directly generated by one case in a population where all individuals are susceptible to infection, is computed using the next generation matrix (NGM) approach introducted by Diekmann. For our model, the basic reproduction number of age group <span class="math notranslate nohighlight">\(i\)</span> is,
+<p>The basic reproduction number <span class="math notranslate nohighlight">\(R_0\)</span>, defined as the expected number of secondary cases directly generated by one case in a population where all individuals are susceptible to infection, is computed using the next generation matrix (NGM) approach introducted by Diekmann. For our model, the basic reproduction number of age group <span class="math notranslate nohighlight">\(i\)</span> is,</p>
+<div class="math notranslate nohighlight">
+\[
 \begin{equation}\label{eq:reproduction_number}
 R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
 \end{equation}
-and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).</p>
+\]</div>
+<p>and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).</p>
 </div>
 <div class="section" id="model-parameters">
 <h2>Model parameters<a class="headerlink" href="#model-parameters" title="Permalink to this headline">¶</a></h2>
