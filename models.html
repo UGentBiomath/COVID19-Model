@@ -108,6 +108,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="application.html">Run the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="previous_work.html">Previous work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="roadmap.html">Future work</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Developer guide</span></p>
@@ -193,7 +194,10 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 <p>The SEIR(D) model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population into four groups: 1) susceptible individuals, 2) exposed individuals in the latent phase 1, 3) infectious individuals capable of transmitting the disease and 4) individuals removed from the population either through immunization or death. Despite being a simple and idealized reality, the SEIR(D) dynamics are used extensively to predict the outbreak of infectious diseases and this was no different during the SARS-CoV-2 outbreak earlier this year.</p>
 <p>In this work, we extend the SEIRD model to incorporate more expert knowledge on SARS-CoV-2. For that purpose, the infectious compartment is split into four parts. The first is a period of presymptomatic infectiousness because several studies have shown that pre-symptomatic transmission is a dominant transmission mechanism of SARS-CoV-2. After the period of pre-symptomatic transmission, three possible infectious outcomes are modeled: (1) Asymptomatic outcome, for individuals who show no symptoms at all, (2) Mild outcome, for individuals with mild symptoms who recover at home, and (3) Hospitalization, when mild symptoms worsen. Children and young adults have a high propensity to experience an asymptomatic or mild outcome, while older individual have a high propensity to be hospitalized.</p>
 <p>In general, Belgian hospitals have two wards for COVID-19 patients: 1) Cohort, where patients are not monitored permanently and 2) Intensive care, for patients with the most severe symptoms. Intensive care includes permanent monitoring, the use of ventilators or the use of extracorporeal membrane oxygenation (ECMO). Patients generally spend limited time in the emergency room and/or in a buffer ward before going to Cohort. After spending limited time in Cohort, some patients are transferred to ICU. Patients can perish in both wards, but mortalities are generally lower in Cohort. After a stay in an ICU, patients return to Cohort for recovery in the hospital. During the recovery stay, mortality is limited. The above is a short summary of hospital dynamics based on interviewing Ghent University hospital staff and examining the hospital data.</p>
+<p align="center">
 <img src="_static/figs/flowchart_full.png" alt="drawing" width="600"/>
+<p><em> Extended SEIRD dynamics of the BIOMATH COVID-19 model. Nodes represent model states, edges denote transfers. An overview of the model parameters can be found on the bottom of this page.</em></p>
+</p>
 </div>
 <div class="section" id="model-framework-and-equations">
 <h2>Model framework and equations<a class="headerlink" href="#model-framework-and-equations" title="Permalink to this headline">¶</a></h2>
@@ -334,12 +338,15 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
 \end{equation}
 \]</div>
-<p>and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2).</p>
+<p>and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (see section <em>Previous work</em>).</p>
 </div>
 <div class="section" id="model-parameters">
 <h2>Model parameters<a class="headerlink" href="#model-parameters" title="Permalink to this headline">¶</a></h2>
-<p>An in-depth motivation of the model parameters is provided in our preprint (https://www.medrxiv.org/content/10.1101/2020.07.17.20156034v2). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).</p>
-<img src="_static/figs/parameters.png" alt="parameters" width="1200"/></div>
+<p>An in-depth motivation of the model parameters is provided in our manuscript (see section <em>Previous work</em>). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).</p>
+<p align="center">
+<img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
+<em> Overview of BIOMATH COVID-19 model parameters. </em>
+</p></div>
 </div>
 
 
