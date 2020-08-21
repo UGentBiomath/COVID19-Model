@@ -50,6 +50,7 @@ split between general population and elderly homes. Data from https://m.standaar
 #### Belgian Census 2011
 
 + `Pop_LPW_NL_25FEB15.xlsx` contains the working population per sex, place of residence and place of work. From these data a recurrent mobility matrix is computed.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
++ `census_demo_nl_04nov14.xlsx` contains all demographic data from the 2011 Belgian census. Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 
 ### Interim data sets conversion scripts
 

@@ -20,3 +20,4 @@ dependencies:
   - emcee
   - corner
   - geopandas
+  - descartes
