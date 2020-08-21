@@ -69,7 +69,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
     bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
     # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
+    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize, processes=1)
 
     lag_time = int(round(theta[1]))
     # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
@@ -123,7 +123,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
     # run optimisation
     theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                         checkpoints=chk_beta_pso, samples=samples_beta, maxiter=maxiter,popsize=popsize)
+                         checkpoints=chk_beta_pso, samples=samples_beta, maxiter=maxiter,popsize=popsize, processes=1)
 
     model.parameters.update({'l': theta[1], 'tau': theta[2]})
     prevention = theta[2]

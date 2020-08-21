@@ -3,7 +3,7 @@ import multiprocessing as mp
 from covid19model.optimization import objective_fcns
 from covid19model.optimization import pso
 
-def fit_pso(model,data,parNames,states,bounds,checkpoints=None,samples=None,disp=True,maxiter=30,popsize=10):
+def fit_pso(model,data,parNames,states,bounds,checkpoints=None,samples=None,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
@@ -49,7 +49,7 @@ def fit_pso(model,data,parNames,states,bounds,checkpoints=None,samples=None,disp
     # Run pso algorithm on SSE objective function
     # -------------------------------------------
     p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,checkpoints,samples), swarmsize=popsize, maxiter=maxiter,
-                                                                                processes=mp.cpu_count()-1,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
+                                                                                processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True)
     theta_hat = p_hat
 
     return theta_hat
