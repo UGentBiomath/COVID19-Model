@@ -139,3 +139,6 @@ docs/.Rhistory
 notebooks/scratch/\.Rhistory
 
 *.xlsx#
+
+
+notebooks/scratch/dask-worker-space/
