@@ -96,7 +96,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
 
     # Add recurrent mobility matrix to parameter dictionary
     if spatial == True:
-        mobility_df=pd.read_pickle('../../data/interim/census_2011/recurrent_mobility_arrondissements.pkl')
+        mobility_df=pd.read_pickle('../../data/interim/census_2011/recurrent_mobility.pkl')
         NIS=mobility_df.values
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
