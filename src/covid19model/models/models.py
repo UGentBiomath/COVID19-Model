@@ -342,7 +342,11 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                     if states[i][j][k]<=0:
                         prop[j,k]=0
                 else:
-                    prop[j,k] = np.random.binomial(states[i][j][k],probabilities[i][j][k])
+                    draw=np.array([])
+                    for l in range(n):
+                        draw = np.append(draw,np.random.binomial(states[i][j][k],probabilities[i][j][k]))
+                    draw = np.rint(np.mean(draw))
+                    prop[j,k] = draw
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
