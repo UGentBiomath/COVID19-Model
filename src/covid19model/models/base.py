@@ -406,7 +406,11 @@ class BaseModel:
             "time": output["t"],
         }
         for i in range(len(self.stratification)):
-            coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+            if self.coordinates[i] is None:
+                coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+            else:
+                coords.update({self.stratification[i]: self.coordinates[i]})
+
 
         size_lst=[len(self.state_names)]
         for size in self.stratification_size:

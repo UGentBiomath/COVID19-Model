@@ -282,6 +282,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['NIS','Nc']
+    initN_df=pd.read_pickle('../../data/interim/census_2011/initN_arrondissements.pkl')
+    coordinates=[initN_df.index.values,None]
     apply_compliance_to = 'Nc'
     
     # ..transitions/equations
