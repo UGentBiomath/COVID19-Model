@@ -49,8 +49,8 @@ split between general population and elderly homes. Data from https://m.standaar
 
 #### Belgian Census 2011
 
-+ `Pop_LPW_NL_25FEB15.xlsx` contains the working population per sex, place of residence and place of work. From these data a recurrent mobility matrix is computed.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
-+ `census_demo_nl_04nov14.xlsx` contains all demographic data from the 2011 Belgian census. Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
++ `Pop_LPW_NL_25FEB15.xlsx` contains the working population per sex, place of residence and place of work. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel and placed in the data/interim folder under the name `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
++ `census_demo_nl_04nov14.xlsx` contains all demographic data from the 2011 Belgian census. From these data, the number of individuals in 10 year age-bins per Belgian arrondissement are calculated. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 
 ### Interim data sets conversion scripts
 
@@ -64,3 +64,15 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 + `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
 
 + `deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`.
+
+#### Belgian Census 2011
++ `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
+- rows: municipality of residence
+- columns: municipality of work
+The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
+
++ `initN.pkl` contains a pandas dataframe with the following columns: index (NIS code of arrondissement), name, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
+
++ `NIS_name.pkl` is a two way NIS-name table used for the function name2nis located in `src/models/utils.py`. It is a pandas dataframe with two columns: the first are the Belgian NIS codes, the second is the name corresponding to that NIS code. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
+
++ `recurrent_mobility.pkl` contains a pandas dataframe with a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
