@@ -135,7 +135,7 @@ These equations are implemented in the function `COVID19_SEIRD_sto` located in `
 <em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em>
 </p>
 
-We built upon the stochastic national-level model to take spatial heterogeneousity into account. The Belgian terrority is divided in 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, NIS, extracted from the 2011 Belgian census. The system of equations is indentical to the national level model, for a resident of age group i in patch g,
+We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, NIS, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,
 
 $$
 \begin{eqnarray}
