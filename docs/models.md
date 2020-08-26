@@ -127,7 +127,7 @@ These equations are implemented in the function `COVID19_SEIRD_sto` located in `
 
 ### Stochastic spatial framework
 
-*Disclaimer: subject to changes*
+*Disclaimer: preliminary and subject to changes*
 
 <p align="center">
 <img src="_static/figs/mild_cases_cluster_aarlen.gif" alt="drawing" width="400"/>
@@ -135,7 +135,7 @@ These equations are implemented in the function `COVID19_SEIRD_sto` located in `
 <em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em>
 </p>
 
-We built upon the stochastic national-level model to take spatial heterogeneousity into account. The Belgian terrority is divided in 43 arrondissements, which are from hereon referred to as *patches*. A patch-model boils down to a simulation of our extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, NIS. The system of equations is indentical to the national level model, for a resident of age group i in patch g,
+We built upon the stochastic national-level model to take spatial heterogeneousity into account. The Belgian terrority is divided in 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, NIS, extracted from the 2011 Belgian census. The system of equations is indentical to the national level model, for a resident of age group i in patch g,
 
 $$
 \begin{eqnarray}
@@ -153,7 +153,7 @@ D_{i,g}(k+1) &=& D_{i,g}(k) + (ICU_{i,g} \rightarrow D_{i,g}) (k) + (C_{i,g} \ri
 \end{eqnarray}
 $$
 
-Differing only in the chance of infection $(S_{i,g} \rightarrow E_{i,g}) (k)$. All other possible transitions are dependent on the disease dynamics and not on the spatial coordinate of the individual. If the individual works within his own patch, the individual is assumed to have contacts with people from within his home patch only. The interaction matrix for individuals working in their residence patch is the sum of home, school, work, leisure and other human-to-human interactions per day. On the other hand, if the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperated,
+Differing only in the chance of infection $(S_{i,g} \rightarrow E_{i,g}) (k)$. All other possible transitions are dependent on the disease dynamics and not on the spatial coordinate of the individual. If the individual works within his own patch, the individual is assumed to have contacts with people from within his home patch only. The interaction matrix for individuals working in their residence patch is the sum of home, school, work, leisure and other human-to-human interactions per day. If the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperated,
 
 $$
 \begin{eqnarray}
