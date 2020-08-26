@@ -29,6 +29,7 @@ class BaseModel:
     parameters_stratified_names = None
     stratification = None
     apply_compliance_to = None
+    coordinates = None
 
     def __init__(self, states, parameters,compliance=None,discrete=False):
         self.parameters = parameters
@@ -405,11 +406,15 @@ class BaseModel:
         coords = {
             "time": output["t"],
         }
+
         for i in range(len(self.stratification)):
-            if self.coordinates[i] is None:
-                coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+            if self.coordinates:
+                if self.coordinates[i] is None:
+                    coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+                else:
+                    coords.update({self.stratification[i]: self.coordinates[i]})
             else:
-                coords.update({self.stratification[i]: self.coordinates[i]})
+                coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 
 
         size_lst=[len(self.state_names)]
