@@ -135,7 +135,7 @@ These equations are implemented in the function `COVID19_SEIRD_sto` located in `
 <em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em>
 </p>
 
-We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, NIS, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,
+We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, `place`, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,
 
 $$
 \begin{eqnarray}
@@ -157,8 +157,8 @@ Differing only in the chance of infection $(S_{i,g} \rightarrow E_{i,g}) (k)$. A
 
 $$
 \begin{eqnarray}
-    P(S_{i,g} \rightarrow E_{i,g}) (k) &=& 1 - \text{exp} \Bigg[ \underbrace{\text{NIS}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
-    &+& \sum_{l=1\\ l \neq g}^{G} \text{NIS}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} S_{j,l} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
+    P(S_{i,g} \rightarrow E_{i,g}) (k) &=& 1 - \text{exp} \Bigg[ \underbrace{\text{place}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
+    &+& \sum_{l=1\\ l \neq g}^{G} \text{place}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} S_{j,l} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
      &-& \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
 \end{eqnarray}
 $$
