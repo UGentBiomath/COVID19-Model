@@ -22,7 +22,7 @@ def name2nis(name):
 
     """
     # Load the list of name-NIS couples
-    name_df=pd.read_pickle('../../data/interim/census_2011/NIS_name.pkl')
+    name_df=pd.read_csv('../../data/interim/census_2011/NIS_name.csv')
     pos_name = name_df['name'].values
     # Convert list of possible names to lowercase only
     pos_name_lower = [string.lower() for string in pos_name]

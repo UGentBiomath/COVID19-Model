@@ -1,0 +1,648 @@
+NIS,name
+1000,België
+2000,Vlaams Gewest
+3000,Waals Gewest
+4000,Brussels Hoofdstedelijk Gewest
+3001,Duitstalige Gemeenschap
+10000,Provincie Antwerpen
+11000,Arrondissement Antwerpen
+11001,Aartselaar
+11002,Antwerpen
+11004,Boechout
+11005,Boom
+11007,Borsbeek
+11008,Brasschaat
+11009,Brecht
+11013,Edegem
+11016,Essen
+11018,Hemiksem
+11021,Hove (Antwerpen)
+11022,Kalmthout
+11023,Kapellen (Antwerpen)
+11024,Kontich
+11025,Lint
+11029,Mortsel
+11030,Niel
+11035,Ranst
+11037,Rumst
+11038,Schelle
+11039,Schilde
+11040,Schoten
+11044,Stabroek
+11050,Wijnegem
+11052,Wommelgem
+11053,Wuustwezel
+11054,Zandhoven
+11055,Zoersel
+11056,Zwijndrecht
+11057,Malle
+12000,Arrondissement Mechelen
+12002,Berlaar
+12005,Bonheiden
+12007,Bornem
+12009,Duffel
+12014,Heist-op-den-Berg
+12021,Lier
+12025,Mechelen
+12026,Nijlen
+12029,Putte
+12030,Puurs
+12034,Sint-Amands
+12035,Sint-Katelijne-Waver
+12040,Willebroek
+13000,Arrondissement Turnhout
+13001,Arendonk
+13002,Baarle-Hertog
+13003,Balen
+13004,Beerse
+13006,Dessel
+13008,Geel
+13010,Grobbendonk
+13011,Herentals
+13012,Herenthout
+13013,Herselt
+13014,Hoogstraten
+13016,Hulshout
+13017,Kasterlee
+13019,Lille
+13021,Meerhout
+13023,Merksplas
+13025,Mol
+13029,Olen
+13031,Oud-Turnhout
+13035,Ravels
+13036,Retie
+13037,Rijkevorsel
+13040,Turnhout
+13044,Vorselaar
+13046,Vosselaar
+13049,Westerlo
+13053,Laakdal
+21000,Arrondissement Brussel-Hoofdstad
+21001,Anderlecht
+21002,Oudergem
+21003,Sint-Agatha-Berchem
+21004,Brussel
+21005,Etterbeek
+21006,Evere
+21007,Vorst (Brussel-Hoofdstad)
+21008,Ganshoren
+21009,Elsene
+21010,Jette
+21011,Koekelberg
+21012,Sint-Jans-Molenbeek
+21013,Sint-Gillis
+21014,Sint-Joost-ten-Node
+21015,Schaarbeek
+21016,Ukkel
+21017,Watermaal-Bosvoorde
+21018,Sint-Lambrechts-Woluwe
+21019,Sint-Pieters-Woluwe
+20001,Provincie Vlaams-Brabant
+23000,Arrondissement Halle-Vilvoorde
+23002,Asse
+23003,Beersel
+23009,Bever
+23016,Dilbeek
+23023,Galmaarden
+23024,Gooik
+23025,Grimbergen
+23027,Halle (Halle-Vilvoorde)
+23032,Herne
+23033,Hoeilaart
+23038,Kampenhout
+23039,Kapelle-op-den-Bos
+23044,Liedekerke
+23045,Londerzeel
+23047,Machelen (Halle-Vilvoorde)
+23050,Meise
+23052,Merchtem
+23060,Opwijk
+23062,Overijse
+23064,Pepingen
+23077,Sint-Pieters-Leeuw
+23081,Steenokkerzeel
+23086,Ternat
+23088,Vilvoorde
+23094,Zaventem
+23096,Zemst
+23097,Roosdaal
+23098,Drogenbos
+23099,Kraainem
+23100,Linkebeek
+23101,Sint-Genesius-Rode
+23102,Wemmel
+23103,Wezembeek-Oppem
+23104,Lennik
+23105,Affligem
+24000,Arrondissement Leuven
+24001,Aarschot
+24007,Begijnendijk
+24008,Bekkevoort
+24009,Bertem
+24011,Bierbeek
+24014,Boortmeerbeek
+24016,Boutersem
+24020,Diest
+24028,Geetbets
+24033,Haacht
+24038,Herent
+24041,Hoegaarden
+24043,Holsbeek
+24045,Huldenberg
+24048,Keerbergen
+24054,Kortenaken
+24055,Kortenberg
+24059,Landen
+24062,Leuven
+24066,Lubbeek
+24086,Oud-Heverlee
+24094,Rotselaar
+24104,Tervuren
+24107,Tienen
+24109,Tremelo
+24130,Zoutleeuw
+24133,Linter
+24134,Scherpenheuvel-Zichem
+24135,Tielt-Winge
+24137,Glabbeek
+20002,Provincie Waals-Brabant
+25000,Arrondissement Nijvel
+25005,Bevekom
+25014,Eigenbrakel
+25015,Kasteelbrakel
+25018,Chaumont-Gistoux
+25023,Court-Saint-Etienne
+25031,Genepiën
+25037,Graven
+25043,Incourt
+25044,Itter
+25048,Geldenaken
+25050,Terhulpen
+25068,Mont-Saint-Guibert
+25072,Nijvel
+25084,Perwijs (Nijvel)
+25091,Rixensart
+25105,Tubeke
+25107,Villers-la-Ville
+25110,Waterloo
+25112,Waver
+25117,Chastre
+25118,Hélécine
+25119,Lasne
+25120,Orp-Jauche
+25121,Ottignies-Louvain-la-Neuve
+25122,Ramillies
+25123,Rebecq
+25124,Walhain
+30000,Provincie West-Vlaanderen
+31000,Arrondissement Brugge
+31003,Beernem
+31004,Blankenberge
+31005,Brugge
+31006,Damme
+31012,Jabbeke
+31022,Oostkamp
+31033,Torhout
+31040,Zedelgem
+31042,Zuienkerke
+31043,Knokke-Heist
+32000,Arrondissement Diksmuide
+32003,Diksmuide
+32006,Houthulst
+32010,Koekelare
+32011,Kortemark
+32030,Lo-Reninge
+33000,Arrondissement Ieper
+33011,Ieper
+33016,Mesen
+33021,Poperinge
+33029,Wervik
+33037,Zonnebeke
+33039,Heuvelland
+33040,Langemark-Poelkapelle
+33041,Vleteren
+34000,Arrondissement Kortrijk
+34002,Anzegem
+34003,Avelgem
+34009,Deerlijk
+34013,Harelbeke
+34022,Kortrijk
+34023,Kuurne
+34025,Lendelede
+34027,Menen
+34040,Waregem
+34041,Wevelgem
+34042,Zwevegem
+34043,Spiere-Helkijn
+35000,Arrondissement Oostende
+35002,Bredene
+35005,Gistel
+35006,Ichtegem
+35011,Middelkerke
+35013,Oostende
+35014,Oudenburg
+35029,De Haan
+36000,Arrondissement Roeselare
+36006,Hooglede
+36007,Ingelmunster
+36008,Izegem
+36010,Ledegem
+36011,Lichtervelde
+36012,Moorslede
+36015,Roeselare
+36019,Staden
+37000,Arrondissement Tielt
+37002,Dentergem
+37007,Meulebeke
+37010,Oostrozebeke
+37011,Pittem
+37012,Ruiselede
+37015,Tielt (Tielt)
+37017,Wielsbeke
+37018,Wingene
+37020,Ardooie
+38000,Arrondissement Veurne
+38002,Alveringem
+38008,De Panne
+38014,Koksijde
+38016,Nieuwpoort
+38025,Veurne
+40000,Provincie Oost-Vlaanderen
+41000,Arrondissement Aalst
+41002,Aalst (Aalst)
+41011,Denderleeuw
+41018,Geraardsbergen
+41024,Haaltert
+41027,Herzele
+41034,Lede
+41048,Ninove
+41063,Sint-Lievens-Houtem
+41081,Zottegem
+41082,Erpe-Mere
+42000,Arrondissement Dendermonde
+42003,Berlare
+42004,Buggenhout
+42006,Dendermonde
+42008,Hamme (Dendermonde)
+42010,Laarne
+42011,Lebbeke
+42023,Waasmunster
+42025,Wetteren
+42026,Wichelen
+42028,Zele
+43000,Arrondissement Eeklo
+43002,Assenede
+43005,Eeklo
+43007,Kaprijke
+43010,Maldegem
+43014,Sint-Laureins
+43018,Zelzate
+44000,Arrondissement Gent
+44001,Aalter
+44011,Deinze
+44012,De Pinte
+44013,Destelbergen
+44019,Evergem
+44020,Gavere
+44021,Gent
+44029,Knesselare
+44034,Lochristi
+44036,Lovendegem
+44040,Melle
+44043,Merelbeke
+44045,Moerbeke (Gent)
+44048,Nazareth
+44049,Nevele
+44052,Oosterzele
+44064,Sint-Martens-Latem
+44072,Waarschoot
+44073,Wachtebeke
+44080,Zomergem
+44081,Zulte
+45000,Arrondissement Oudenaarde
+45017,Kruishoutem
+45035,Oudenaarde
+45041,Ronse
+45057,Zingem
+45059,Brakel
+45060,Kluisbergen
+45061,Wortegem-Petegem
+45062,Horebeke
+45063,Lierde
+45064,Maarkedal
+45065,Zwalm
+46000,Arrondissement Sint-Niklaas
+46003,Beveren (Sint-Niklaas)
+46013,Kruibeke
+46014,Lokeren
+46020,Sint-Gillis-Waas
+46021,Sint-Niklaas (Sint-Niklaas)
+46024,Stekene
+46025,Temse
+50000,Provincie Henegouwen
+51000,Arrondissement Aat
+51004,Aat
+51008,Beloeil
+51009,Bernissart
+51012,Brugelette
+51014,Chièvres
+51017,Elzele
+51019,Vloesberg
+51065,Frasnes-lez-Anvaing
+52000,Arrondissement Charleroi
+52010,Chapelle-lez-Herlaimont
+52011,Charleroi
+52012,Châtelet
+52015,Courcelles
+52018,Farciennes
+52021,Fleurus
+52022,Fontaine-l’Evêque
+52025,Gerpinnes
+52043,Manage
+52048,Montigny-le-Tilleul
+52055,Pont-à-Celles
+52063,Seneffe
+52074,Aiseau-Presles
+52075,Les Bons Villers
+53000,Arrondissement Bergen
+53014,Boussu
+53020,Dour
+53028,Frameries
+53039,Hensies
+53044,Jurbeke
+53046,Lens
+53053,Bergen
+53065,Quaregnon
+53068,Quiévrain
+53070,Saint-Ghislain
+53082,Colfontaine
+53083,Honnelles
+53084,Quévy
+54000,Arrondissement Moeskroen
+54007,Moeskroen
+54010,Komen-Waasten
+55000,Arrondissement Zinnik
+55004,’s Gravenbrakel
+55010,Edingen
+55022,La Louvière
+55023,Lessen
+55035,Le Roeulx
+55039,Opzullik
+55040,Zinnik
+55050,Ecaussinnes
+56000,Arrondissement Thuin
+56001,Anderlues
+56005,Beaumont
+56011,Binche
+56016,Chimay
+56022,Erquelinnes
+56029,Froidchapelle
+56044,Lobbes
+56049,Merbes-le-Château
+56051,Momignies
+56078,Thuin
+56085,Estinnes
+56086,Ham-sur-Heure-Nalinnes
+56087,Morlanwelz
+56088,Sivry-Rance
+57000,Arrondissement Doornik
+57003,Antoing
+57018,Celles (Doornik)
+57027,Estaimpuis
+57062,Pecq
+57064,Péruwelz
+57072,Rumes
+57081,Doornik
+57093,Brunehaut
+57094,Leuze-en-Hainaut
+57095,Mont-de-l’Enclus
+60000,Provincie Luik
+61000,Arrondissement Hoei
+61003,Amay
+61010,Burdinne
+61012,Clavier
+61019,Ferrières
+61024,Hamoir
+61028,Héron
+61031,Hoei
+61039,Marchin
+61041,Modave
+61043,Nandrin
+61048,Ouffet
+61063,Verlaine
+61068,Villers-Le-Bouillet
+61072,Wanze
+61079,Anthisnes
+61080,Engis
+61081,Tinlot
+62000,Arrondissement Luik
+62003,Ans
+62006,Awans
+62009,Aywaille
+62011,Bitsingen
+62015,Beyne-Heusay
+62022,Chaudfontaine
+62026,Comblain-au-Pont
+62027,Dalhem
+62032,Esneux
+62038,Fléron
+62051,Herstal
+62060,Juprelle
+62063,Luik
+62079,Oupeye
+62093,Saint-Nicolas (Luik)
+62096,Seraing
+62099,Soumagne
+62100,Sprimont
+62108,Wezet
+62118,Grâce-Hollogne
+62119,Blégny
+62120,Flémalle
+62121,Neupré
+62122,Trooz
+63000,Arrondissement Verviers
+63001,Amel
+63003,Aubel
+63004,Baelen
+63012,Büllingen
+63013,Bütgenbach
+63020,Dison
+63023,Eupen
+63035,Herve
+63038,Jalhay
+63040,Kelmis
+63045,Lierneux
+63046,Limburg
+63048,Lontzen
+63049,Malmedy
+63057,Olne
+63058,Pepinster
+63061,Raeren
+63067,Sankt Vith
+63072,Spa
+63073,Stavelot
+63075,Stoumont
+63076,Theux
+63079,Verviers
+63080,Weismes
+63084,Welkenraedt
+63086,Trois-Ponts
+63087,Burg-Reuland
+63088,Plombières
+63089,Thimister-Clermont
+64000,Arrondissement Borgworm
+64008,Berloz
+64015,Braives
+64021,Crisnée
+64023,Donceel
+64025,Fexhe-le-Haut-Clocher
+64029,Geer
+64034,Hannuit
+64047,Lijsem
+64056,Oerle
+64063,Remicourt
+64065,Saint-Georges-sur-Meuse
+64074,Borgworm
+64075,Wasseiges
+64076,Faimes
+70000,Provincie Limburg
+71000,Arrondissement Hasselt
+71002,As
+71004,Beringen
+71011,Diepenbeek
+71016,Genk
+71017,Gingelom
+71020,Halen
+71022,Hasselt
+71024,Herk-de-Stad
+71034,Leopoldsburg
+71037,Lummen
+71045,Nieuwerkerken (Hasselt)
+71047,Opglabbeek
+71053,Sint-Truiden
+71057,Tessenderlo
+71066,Zonhoven
+71067,Zutendaal
+71069,Ham
+71070,Heusden-Zolder
+72000,Arrondissement Maaseik
+72003,Bocholt
+72004,Bree
+72018,Kinrooi
+72020,Lommel
+72021,Maaseik
+72025,Neerpelt
+72029,Overpelt
+72030,Peer
+72037,Hamont-Achel
+72038,Hechtel-Eksel
+72039,Houthalen-Helchteren
+72040,Meeuwen-Gruitrode
+72041,Dilsen-Stokkem
+73000,Arrondissement Tongeren
+73001,Alken
+73006,Bilzen
+73009,Borgloon
+73022,Heers
+73028,Herstappe
+73032,Hoeselt
+73040,Kortessem
+73042,Lanaken
+73066,Riemst
+73083,Tongeren
+73098,Wellen
+73107,Maasmechelen
+73109,Voeren
+80000,Provincie Luxemburg
+81000,Arrondissement Aarlen
+81001,Aarlen
+81003,Attert
+81004,Aubange
+81013,Martelange
+81015,Messancy
+82000,Arrondissement Bastenaken
+82003,Bastenaken
+82005,Bertogne
+82009,Fauvillers
+82014,Houffalize
+82032,Vielsalm
+82036,Vaux-sur-Sûre
+82037,Gouvy
+82038,Sainte-Ode
+83000,Arrondissement Marche-en-Famenne
+83012,Durbuy
+83013,Erezée
+83028,Hotton
+83031,La Roche-en-Ardenne
+83034,Marche-en-Famenne
+83040,Nassogne
+83044,Rendeux
+83049,Tenneville
+83055,Manhay
+84000,Arrondissement Neufchâteau
+84009,Bertrix
+84010,Bouillon
+84016,Daverdisse
+84029,Herbeumont
+84033,Léglise
+84035,Libin
+84043,Neufchâteau (Neufchâteau)
+84050,Paliseul
+84059,Saint-Hubert
+84068,Tellin
+84075,Wellin
+84077,Libramont-Chevigny
+85000,Arrondissement Virton
+85007,Chiny
+85009,Etalle
+85011,Florenville
+85024,Meix-devant-Virton
+85026,Musson
+85034,Saint-Léger (Virton)
+85039,Tintigny
+85045,Virton
+85046,Habay
+85047,Rouvroy
+90000,Provincie Namen
+91000,Arrondissement Dinant
+91005,Anhée
+91013,Beauraing
+91015,Bièvre
+91030,Ciney
+91034,Dinant
+91054,Gedinne
+91059,Hamois
+91064,Havelange
+91072,Houyet
+91103,Onhaye
+91114,Rochefort
+91120,Somme-Leuze
+91141,Yvoir
+91142,Hastière
+91143,Vresse-sur-Semois
+92000,Arrondissement Namen
+92003,Andenne
+92006,Assesse
+92035,Eghezée
+92045,Floreffe
+92048,Fosses-la-Ville
+92054,Gesves
+92087,Mettet
+92094,Namen
+92097,Ohey
+92101,Profondeville
+92114,Sombreffe
+92137,Sambreville
+92138,Fernelmont
+92140,Jemeppe-sur-Sambre
+92141,La Bruyère
+92142,Gembloux
+93000,Arrondissement Philippeville
+93010,Cerfontaine
+93014,Couvin
+93018,Doische
+93022,Florennes
+93056,Philippeville
+93088,Walcourt
+93090,Viroinval
