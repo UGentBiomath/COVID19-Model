@@ -21,7 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-from .utils import sample_beta_binomial
+from .utils import read_coordinates_nis
 from ..optimization import pso
 
 # set color schemes
@@ -282,14 +282,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['place','Nc']
-    # initN_df=pd.read_pickle('../../data/interim/census_2011/initN.pkl')
-    # path depends on where the notebook is located, how to fix this?
-    # coordinates are hardcoded!
-    coordinates=[[11000, 12000, 13000, 21000, 23000, 24000, 25000, 31000, 32000,
-       33000, 34000, 35000, 36000, 37000, 38000, 41000, 42000, 43000,
-       44000, 45000, 46000, 51000, 52000, 53000, 54000, 55000, 56000,
-       57000, 61000, 62000, 63000, 64000, 71000, 72000, 73000, 81000,
-       82000, 83000, 84000, 85000, 91000, 92000, 93000],None]
+    coordinates = [read_coordinates_nis()]
+    coordinates.append(None)
     apply_compliance_to = 'Nc'
     
     # ..transitions/equations
