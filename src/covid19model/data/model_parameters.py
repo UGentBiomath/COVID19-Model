@@ -101,7 +101,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
-        pars_dict.update({'NIS': NIS})
+        pars_dict.update({'place': NIS})
 
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
