@@ -41,3 +41,19 @@ def name2nis(name):
             )
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
+
+def read_coordinates_nis():
+    """
+    A function to extract from /data/interim/census_2011/initN.csv the list of arrondissement NIS codes
+
+    Returns
+    -------
+     NIS: list
+        a list containing the NIS codes of the 43 Belgian arrondissements
+
+    """
+
+    initN_df=pd.read_csv('../../data/interim/census_2011/initN.csv', index_col=[0])
+    NIS = initN_df.index.values
+    
+    return NIS

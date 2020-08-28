@@ -21,7 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-from .utils import sample_beta_binomial
+from .utils import read_coordinates_nis
 from ..optimization import pso
 
 # set color schemes
@@ -281,15 +281,9 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU']]
-    stratification = ['NIS','Nc']
-    # initN_df=pd.read_pickle('../../data/interim/census_2011/initN.pkl')
-    # path depends on where the notebook is located, how to fix this?
-    # coordinates are hardcoded!
-    coordinates=[[11000, 12000, 13000, 21000, 23000, 24000, 25000, 31000, 32000,
-       33000, 34000, 35000, 36000, 37000, 38000, 41000, 42000, 43000,
-       44000, 45000, 46000, 51000, 52000, 53000, 54000, 55000, 56000,
-       57000, 61000, 62000, 63000, 64000, 71000, 72000, 73000, 81000,
-       82000, 83000, 84000, 85000, 91000, 92000, 93000],None]
+    stratification = ['place','Nc']
+    coordinates = [read_coordinates_nis()]
+    coordinates.append(None)
     apply_compliance_to = 'Nc'
     
     # ..transitions/equations
@@ -297,7 +291,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, NIS, Nc):
+                  dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
 
         """
         BIOMATH extended SEIRD model for COVID-19
@@ -317,33 +311,33 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
 
-        matrix_1 = np.zeros([NIS.shape[0],Nc.shape[0]])
-        for i in range(NIS.shape[0]):
+        matrix_1 = np.zeros([place.shape[0],Nc.shape[0]])
+        for i in range(place.shape[0]):
             matrix_1[i,:] = -l*s*beta*np.matmul(Nc,((I[i,:]+A[i,:])/T[i,:]))
-        matrix_2 = np.matmul(NIS,matrix_1)
+        matrix_2 = np.matmul(place,matrix_1)
 
         probabilities = [1 - np.exp(matrix_2),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * a * (1/omega) )*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * (1-a)* (1/omega) )*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1/da) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * h * (1/dhospital) )*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * c * (1/der) )*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * (1-c) * (1/der) )*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([NIS.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * zeta ))*np.ones([NIS.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1/sigma) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        1 - np.exp(- l * a * (1/omega) )*np.ones([place.shape[0],Nc.shape[0]]),
+                        1 - np.exp(- l * (1-a)* (1/omega) )*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1/da) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        1 - np.exp(- l * h * (1/dhospital) )*np.ones([place.shape[0],Nc.shape[0]]),
+                        1 - np.exp(- l * c * (1/der) )*np.ones([place.shape[0],Nc.shape[0]]),
+                        1 - np.exp(- l * (1-c) * (1/der) )*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([place.shape[0],Nc.shape[0]]),
+                        (1 - np.exp(- l * zeta ))*np.ones([place.shape[0],Nc.shape[0]]),
                         ]
 
         states = [S,E,I,I,A,M,M,ER,ER,C,ICU,C_icurec,C,ICU,R]
         propensity={}
         for i in range(len(keys)):
-            prop=np.zeros([NIS.shape[0],Nc.shape[0]])
-            for j in range(NIS.shape[0]):
+            prop=np.zeros([place.shape[0],Nc.shape[0]])
+            for j in range(place.shape[0]):
                 for k in range(Nc.shape[0]):
                     if states[i][j][k]<=0:
                         prop[j,k]=0

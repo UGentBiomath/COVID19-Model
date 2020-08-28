@@ -139,3 +139,7 @@ docs/.Rhistory
 notebooks/scratch/\.Rhistory
 
 *.xlsx#
+
+
+notebooks/scratch/dask-worker-space/
+data/interim/non_public
