@@ -408,11 +408,8 @@ class BaseModel:
         }
 
         for i in range(len(self.stratification)):
-            if self.coordinates:
-                if self.coordinates[i] is None:
-                    coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
-                else:
-                    coords.update({self.stratification[i]: self.coordinates[i]})
+            if self.coordinates and self.coordinates[i] is not None:
+                coords.update({self.stratification[i]: self.coordinates[i]})
             else:
                 coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 
