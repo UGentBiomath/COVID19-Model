@@ -19,3 +19,6 @@ dependencies:
   - openpyxl
   - emcee
   - corner
+  - geopandas
+  - descartes
+  - pyarrow
