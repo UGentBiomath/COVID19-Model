@@ -101,6 +101,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#stochastic-framework">Stochastic framework</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#stochastic-spatial-framework">Stochastic spatial framework</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#transmission-rates-and-social-contact-data">Transmission rates and social contact data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#modeling-social-intertia">Modeling social intertia</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#basic-reproduction-number">Basic reproduction number</a></li>
@@ -294,6 +295,45 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 \end{split}\]</div>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model defenition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
 </div>
+</div>
+<div class="section" id="stochastic-spatial-framework">
+<h2>Stochastic spatial framework<a class="headerlink" href="#stochastic-spatial-framework" title="Permalink to this headline">¶</a></h2>
+<p><em>Disclaimer: preliminary and subject to changes</em></p>
+<p align="center">
+<img src="_static/figs/mild_cases_cluster_aarlen.gif" alt="drawing" width="400"/>
+<p><em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em></p>
+</p>
+<p>We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as <em>patches</em>. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, <code class="docutils literal notranslate"><span class="pre">place</span></code>, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{eqnarray}
+S_{i,g}(k+1) &amp;=&amp; S_{i,g}(k) + (R_{i,g} \rightarrow S_{i,g}) (k) - (S_{i,g} \rightarrow E_{i,g}) (k) \\
+E_{i,g}(k+1) &amp;=&amp; E_{i,g}(k) + (S_{i,g} \rightarrow E_{i,g}) (k) - (E_{i,g} \rightarrow I_{i,g}) (k) \\
+I_{i,g}(k+1) &amp;=&amp; I_{i,g}(k) + (E_{i,g} \rightarrow I_{i,g}) (k) - (I_{i,g} \rightarrow A_{i,g}) - (I_{i,g} \rightarrow M_{i,g}) (k) \\
+A_{i,g}(k+1) &amp;=&amp; A_{i,g}(k) + (I_{i,g} \rightarrow A_{i,g}) (k) - (A_{i,g} \rightarrow R_{i,g}) (k) \\
+M_{i,g}(k+1) &amp;=&amp; M_{i,g}(k) + (I_{i,g} \rightarrow M_{i,g}) (k) - (M_{i,g} \rightarrow R_{i,g}) (k) - (M_{i,g} \rightarrow ER_{i,g}) (k) \\
+ER_{i,g}(k+1) &amp;=&amp; ER_{i,g}(k) + (M_{i,g} \rightarrow ER_{i,g}) (k) - (ER_{i,g} \rightarrow C_{i,g}) (k) - (ER_{i,g} \rightarrow ICU_{i,g}) (k) \\
+C_{i,g}(k+1) &amp;=&amp; C_{i,g}(k) + (ER_{i,g} \rightarrow C_{i,g}) (k) - (C_{i,g} \rightarrow R_{i,g}) (k) - (C_{i,g} \rightarrow D_{i,g}) (k) \\
+C_{\text{ICU,rec,i,g}}(k+1) &amp;=&amp; C_{\text{ICU,rec,i,g}}(k)  + (ICU_{i,g} \rightarrow C_{\text{ICU,rec,i,g}}) (k) - (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k) \\
+R_{i,g}(k+1) &amp;=&amp; R_{i,g}(k) + (A_{i,g} \rightarrow R_{i,g}) (k)  + (M_{i,g} \rightarrow R_{i,g}) (k) + (C_{i,g} \rightarrow R_{i,g}) (k)\\
+&amp;&amp; + (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k)  - (R_{i,g} \rightarrow S_{i,g}) (k) \\
+D_{i,g}(k+1) &amp;=&amp; D_{i,g}(k) + (ICU_{i,g} \rightarrow D_{i,g}) (k) + (C_{i,g} \rightarrow D_{i,g}) (k) \\
+\end{eqnarray}
+\end{split}\]</div>
+<p>Differing only in the chance of infection <span class="math notranslate nohighlight">\((S_{i,g} \rightarrow E_{i,g}) (k)\)</span>. All other possible transitions are dependent on the disease dynamics and not on the spatial coordinate of the individual. If the individual works within his own patch, the individual is assumed to have contacts with people from within his home patch only. The interaction matrix for individuals working in their residence patch is the sum of home, school, work, leisure and other human-to-human interactions per day. If the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperated,</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{eqnarray}
+    P(S_{i,g} \rightarrow E_{i,g}) (k) &amp;=&amp; 1 - \text{exp} \Bigg[ \underbrace{\text{place}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
+    &amp;+&amp; \sum_{l=1\\ l \neq g}^{G} \text{place}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} S_{j,l} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
+     &amp;-&amp; \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
+\end{eqnarray}
+\end{split}\]</div>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(i \in \big\{0, 1, ..., N\big\}\)</span> where N is the number of age groups (9).</p></li>
+<li><p><span class="math notranslate nohighlight">\(g \in \big\{0, 1, ..., G\big\}\)</span> where G is the number of arrondissements (43).</p></li>
+</ul>
+<p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model defenition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
 </div>
 <div class="section" id="transmission-rates-and-social-contact-data">
 <h2>Transmission rates and social contact data<a class="headerlink" href="#transmission-rates-and-social-contact-data" title="Permalink to this headline">¶</a></h2>

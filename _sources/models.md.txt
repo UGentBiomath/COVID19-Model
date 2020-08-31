@@ -125,6 +125,49 @@ $$
 
 These equations are implemented in the function `COVID19_SEIRD_sto` located in `src/covid19model/models.py`. The computation itself is performed in the function `solve_discrete` located in `src/covid19model/base.py`. Please note that the deterministic model uses **differentials** in the model defenition and must be integrated, while the stochastic model uses **differences** and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.
 
+### Stochastic spatial framework
+
+*Disclaimer: preliminary and subject to changes*
+
+<p align="center">
+<img src="_static/figs/mild_cases_cluster_aarlen.gif" alt="drawing" width="400"/>
+
+<em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em>
+</p>
+
+We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as *patches*. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, `place`, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,
+
+$$
+\begin{eqnarray}
+S_{i,g}(k+1) &=& S_{i,g}(k) + (R_{i,g} \rightarrow S_{i,g}) (k) - (S_{i,g} \rightarrow E_{i,g}) (k) \\
+E_{i,g}(k+1) &=& E_{i,g}(k) + (S_{i,g} \rightarrow E_{i,g}) (k) - (E_{i,g} \rightarrow I_{i,g}) (k) \\
+I_{i,g}(k+1) &=& I_{i,g}(k) + (E_{i,g} \rightarrow I_{i,g}) (k) - (I_{i,g} \rightarrow A_{i,g}) - (I_{i,g} \rightarrow M_{i,g}) (k) \\
+A_{i,g}(k+1) &=& A_{i,g}(k) + (I_{i,g} \rightarrow A_{i,g}) (k) - (A_{i,g} \rightarrow R_{i,g}) (k) \\
+M_{i,g}(k+1) &=& M_{i,g}(k) + (I_{i,g} \rightarrow M_{i,g}) (k) - (M_{i,g} \rightarrow R_{i,g}) (k) - (M_{i,g} \rightarrow ER_{i,g}) (k) \\
+ER_{i,g}(k+1) &=& ER_{i,g}(k) + (M_{i,g} \rightarrow ER_{i,g}) (k) - (ER_{i,g} \rightarrow C_{i,g}) (k) - (ER_{i,g} \rightarrow ICU_{i,g}) (k) \\
+C_{i,g}(k+1) &=& C_{i,g}(k) + (ER_{i,g} \rightarrow C_{i,g}) (k) - (C_{i,g} \rightarrow R_{i,g}) (k) - (C_{i,g} \rightarrow D_{i,g}) (k) \\
+C_{\text{ICU,rec,i,g}}(k+1) &=& C_{\text{ICU,rec,i,g}}(k)  + (ICU_{i,g} \rightarrow C_{\text{ICU,rec,i,g}}) (k) - (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k) \\
+R_{i,g}(k+1) &=& R_{i,g}(k) + (A_{i,g} \rightarrow R_{i,g}) (k)  + (M_{i,g} \rightarrow R_{i,g}) (k) + (C_{i,g} \rightarrow R_{i,g}) (k)\\
+&& + (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k)  - (R_{i,g} \rightarrow S_{i,g}) (k) \\
+D_{i,g}(k+1) &=& D_{i,g}(k) + (ICU_{i,g} \rightarrow D_{i,g}) (k) + (C_{i,g} \rightarrow D_{i,g}) (k) \\
+\end{eqnarray}
+$$
+
+Differing only in the chance of infection $(S_{i,g} \rightarrow E_{i,g}) (k)$. All other possible transitions are dependent on the disease dynamics and not on the spatial coordinate of the individual. If the individual works within his own patch, the individual is assumed to have contacts with people from within his home patch only. The interaction matrix for individuals working in their residence patch is the sum of home, school, work, leisure and other human-to-human interactions per day. If the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperated,
+
+$$
+\begin{eqnarray}
+    P(S_{i,g} \rightarrow E_{i,g}) (k) &=& 1 - \text{exp} \Bigg[ \underbrace{\text{place}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
+    &+& \sum_{l=1\\ l \neq g}^{G} \text{place}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} S_{j,l} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
+     &-& \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) S_{j,g} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
+\end{eqnarray}
+$$
+
+- $i \in \big\{0, 1, ..., N\big\}$ where N is the number of age groups (9).
+- $g \in \big\{0, 1, ..., G\big\}$ where G is the number of arrondissements (43).
+
+These equations are implemented in the function `COVID19_SEIRD_sto_spatial` located in `src/covid19model/models.py`. The computation itself is performed in the function `solve_discrete` located in `src/covid19model/base.py`. Please note that the deterministic model uses **differentials** in the model defenition and must be integrated, while the stochastic model uses **differences** and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.
+
 ### Transmission rates and social contact data
 
 In our model, the transmission rate of the disease depends on the product of four contributions. The first contribution, $(I+A)/T$, is the fraction of contagious individuals in the population. The second contribution, $\mathbf{N}_c$, is the average number of human-to-human interactions per day. The third contribution, $s_i$, is the relative susceptiblity to SARS-CoV-2 infection in age group $i$, and the fourth contribution, $\beta$, is the probability of contracting COVID-19 when encountering a contagious individual under the assumption of 100 \% susceptibility to SARS-CoV-2 infection. We assume that the per contact transmission probability $\beta$ is independent of age and we will infer its distribution by calibrating the model to national Belgian hospitalization data. The number of human-human interactions, $\mathbf{N}_c$, are both place and age-dependent. These matrices assume the form of a 9x9 *interaction matrix* where an entry X, Y denotes the number of social contacts age group X has with age group Y per day. These matrices are available for homes, schools, workplaces, in public transport, and leisure activities, from a survey study by Lander Willem (2012). The total number of social interactions is given by the sum of the contributions in different places,
