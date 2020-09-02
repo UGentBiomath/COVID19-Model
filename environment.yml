@@ -22,4 +22,3 @@ dependencies:
   - geopandas
   - descartes
   - pyarrow
-  - xlswriter
