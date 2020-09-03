@@ -1,5 +1,9 @@
-import numpy as np 
-import pandas as pd 
+import numpy as np
+import pandas as pd
+import os
+
+abs_dir = os.path.dirname(__file__)
+data_path = os.path.join(abs_dir, "../../../data/")
 
 def sample_beta_binomial(n, p, k, size=None):
     p = np.random.beta(k/(1-p), k/p, size=size)
@@ -22,7 +26,7 @@ def name2nis(name):
 
     """
     # Load the list of name-NIS couples
-    name_df=pd.read_csv('../../data/raw/GIS/NIS_name.csv')
+    name_df=pd.read_csv(os.path.join(data_path, 'raw/GIS/NIS_name.csv'))
     pos_name = name_df['name'].values
     # Convert list of possible names to lowercase only
     pos_name_lower = [string.lower() for string in pos_name]
@@ -53,7 +57,7 @@ def read_coordinates_nis():
 
     """
 
-    initN_df=pd.read_csv('../../data/interim/census_2011/initN.csv', index_col=[0])
+    initN_df=pd.read_csv(os.path.join(data_path, 'interim/census_2011/initN.csv'), index_col=[0])
     NIS = initN_df.index.values
-    
+
     return NIS
