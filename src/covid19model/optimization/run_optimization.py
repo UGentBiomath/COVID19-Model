@@ -22,7 +22,7 @@ from covid19model.models import models
 from covid19model.data import google
 from covid19model.data import sciensano
 from covid19model.data import polymod
-from covid19model.data import parameters
+from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()

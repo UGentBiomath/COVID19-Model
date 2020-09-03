@@ -1,0 +1,57 @@
+"wiod_code","wiod_name","ratio_all_inv_go_monthly","ratio_input_inv_go_monthly"
+"A01","Crop and animal production, hunting and related service activities",4.29596896316276,1.06797245871258
+"A02","Forestry and logging",4.29596896316276,0.446629270246363
+"A03","Fishing and aquaculture",4.29596896316276,0.446629270356593
+"B","Mining and quarrying",0.534858626025404,0.0809028284164387
+"C10-C12","Manufacture of food products, beverages and tobacco products",1.18344237870052,2.14036864866987
+"C13-C15","Manufacture of textiles, wearing apparel and leather products",3.80828739107238,2.4150554141564
+"C16","Manufacture of wood and of products of wood and cork, except furniture; manufacture of articles of straw and plaiting materials",1.49692544196772,1.55029858995664
+"C17","Manufacture of paper and paper products",1.5196942569894,1.30007073263224
+"C18","Printing and reproduction of recorded media",1.11007171811662,0.847513775573097
+"C19","Manufacture of coke and refined petroleum products ",0.838323075136453,0.674615052013612
+"C20","Manufacture of chemicals and chemical products ",1.92296632738086,1.40940692502246
+"C21","Manufacture of basic pharmaceutical products and pharmaceutical preparations",1.92296632738086,1.40940692503181
+"C22","Manufacture of rubber and plastic products",1.83470275495408,1.392885380151
+"C23","Manufacture of other non-metallic mineral products",1.81177365048333,1.12383226872262
+"C24","Manufacture of basic metals",2.06081989247312,1.67692152380446
+"C25","Manufacture of fabricated metal products, except machinery and equipment",2.34323346265445,1.77398949630326
+"C26","Manufacture of computer, electronic and optical products",2.18354792560801,1.67688472127221
+"C27","Manufacture of electrical equipment",2.37077733381765,1.93397221289454
+"C28","Manufacture of machinery and equipment n.e.c.",2.33298301522189,1.92817940802968
+"C29","Manufacture of motor vehicles, trailers and semi-trailers",1.92213051725022,1.94271816010919
+"C30","Manufacture of other transport equipment",1.92213051725022,1.88590599472891
+"C31_C32","Manufacture of furniture; other manufacturing",2.3343578130055,1.60968726878412
+"C33","Repair and installation of machinery and equipment",2.3343578130055,1.40621508332021
+"D35","Electricity, gas, steam and air conditioning supply",0.534858626025404,0.0709155879742324
+"E36","Water collection, treatment and supply",0.534858626025404,0.0709155879803531
+"E37-E39","Sewerage; waste collection, treatment and disposal activities; materials recovery; remediation activities and other waste management services ",0.534858626025404,0.14898036486297
+"F","Construction",0.534858626025404,0.68461082417571
+"G45","Wholesale and retail trade and repair of motor vehicles and motorcycles",7.69144632463243,7.72545064835514
+"G46","Wholesale trade, except of motor vehicles and motorcycles",5.29530329784612,5.32022989148053
+"G47","Retail trade, except of motor vehicles and motorcycles",3.37290026335337,3.40529947809478
+"H49","Land transport and transport via pipelines",0.110790533663977,0.206470406483721
+"H50","Water transport",0.110790533663977,0.242854788117701
+"H51","Air transport",0.110790533663977,0.217386581440476
+"H52","Warehousing and support activities for transportation",0.110790533663977,0.165260080750948
+"H53","Postal and courier activities",0.110790533663977,0.178207016384
+"I","Accommodation and food service activities",0.110790533663977,0.236012226215112
+"J58","Publishing activities",0.110790533663977,0.128918411100532
+"J59_J60","Motion picture, video and television programme production, sound recording and music publishing activities; programming and broadcasting activities",0.110790533663977,0.136338813514633
+"J61","Telecommunications",0.110790533663977,0.153032809299974
+"J62_J63","Computer programming, consultancy and related activities; information service activities",0.110790533663977,0.141874222721989
+"K64","Financial service activities, except insurance and pension funding",0.110790533663977,0.11700012357866
+"K65","Insurance, reinsurance and pension funding, except compulsory social security",0.110790533663977,0.115689051691695
+"K66","Activities auxiliary to financial services and insurance activities",0.110790533663977,0.119882822538395
+"L68","Real estate activities",0.110790533663977,0.129570054759659
+"M69_M70","Legal and accounting activities; activities of head offices; management consultancy activities",0.110790533663977,0.134046884696708
+"M71","Architectural and engineering activities; technical testing and analysis",0.110790533663977,0.153099827343039
+"M72","Scientific research and development",0.110790533663977,0.153099827341196
+"M73","Advertising and market research",0.110790533663977,0.153099827338027
+"M74_M75","Other professional, scientific and technical activities; veterinary activities",0.110790533663977,0.153099827341715
+"N","Administrative and support service activities",0.110790533663977,0.147515260345986
+"O84","Public administration and defence; compulsory social security",0.110790533663977,0.169869896276807
+"P85","Education",0.110790533663977,0.172885692675819
+"Q","Human health and social work activities",0.110790533663977,0.164351354435667
+"R_S","Other service activities",0.110790533663977,0.163691643639931
+"T","Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use",0.110790533663977,0.169071790443513
+"U","Activities of extraterritorial organizations and bodies",NA,NA

@@ -143,3 +143,6 @@ notebooks/scratch/\.Rhistory
 
 notebooks/scratch/dask-worker-space/
 data/interim/non_public
+
+results/ABC
+results/predictions_FAGG
