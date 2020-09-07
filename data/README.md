@@ -12,6 +12,17 @@
 + `WIOD_shockdata.csv` contains estimated household and other demand shocks during an economic crisis. Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
 + `IHS_Markit_results_compact.csv` Criticality scores of IHS Markit analysts. The exact formulation of the question was as follows: “For each industry in WIOD 55, please rate whether each of its inputs are essential. We will present you with an industry X and ask you to rate each input Y. The key question is: Can production continue in industry X if input Y is not available for two months?” UK data, WIOD 55 classification. Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
 
+#### GIS
+
++ `NIS_name.csv` is a two way NIS-name table used for the function name2nis located in `src/models/utils.py`. It is a pandas dataframe with two columns: the first are the Belgian NIS codes, the second is the name corresponding to that NIS code.
+
++ `NIS_arrondissement.csv` : NIS-code of each arrondissement
+
++ `NIS_Province.csv` : NIS-code of each province
+
++ `arrondissements_per_province.csv` : province to which each arrondissement belongs   
+
+
 #### Hospital data
 
 + `symptomOnsetHospitalization.xlsx` contains: 1) the date at which patients first reported having symptoms, 2) the data at which patients were hospitalized and 3) the age of the patient. Received from Ghent University hospital, contact: pascal.coorevits@uzgent.be .
@@ -69,13 +80,11 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 #### Belgian Census 2011
 + `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
-- rows: municipality of residence
-- columns: municipality of work
+    - rows: municipality of residence
+    - columns: municipality of work   
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
 + `initN.csv` contains a pandas dataframe with the following columns: index (NIS code of arrondissement), name, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
-
-+ `NIS_name.csv` is a two way NIS-name table used for the function name2nis located in `src/models/utils.py`. It is a pandas dataframe with two columns: the first are the Belgian NIS codes, the second is the name corresponding to that NIS code. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
 + `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
