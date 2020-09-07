@@ -41,8 +41,8 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
                        data["A"] + data["M"] + data["C_total"])
 
     # stratified models are summarized over stratification dimension
-    if "stratification" in data.dims:
-        data = data.sum(dim="stratification")
+    if "Nc" in data.dims:
+        data = data.sum(dim="Nc")
 
     # check if ax object is provided by user
     if ax is None:
@@ -127,8 +127,8 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
     data["H"] = data["C_total"] + data["ICU"]
 
     # stratified models are summarized over stratification dimension
-    if "stratification" in data.dims:
-        data = data.sum(dim="stratification")
+    if "Nc" in data.dims:
+        data = data.sum(dim="Nc")
 
     # check if ax object is provided by user
     if ax is None:
