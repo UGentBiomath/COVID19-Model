@@ -119,7 +119,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
                                   pd.to_datetime(end_date))
 
     # Plot model prediction
-    y_model = y_model.sum(dim="stratification")
+    y_model = y_model.sum(dim="Nc")
     for i in range(len(data)):
         # dummy lines for legend
         lines = ax.plot([],[],plt_clr[i],alpha=1)
