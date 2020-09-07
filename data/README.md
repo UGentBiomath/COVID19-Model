@@ -22,9 +22,9 @@
 
 + `arrondissements_per_province.csv` : province to which each arrondissement belongs
 
-+ `inhabitants.csv` : number of inhabitants for each municipality, arrondissement and region   
++ `inhabitants.csv` : number of inhabitants for each municipality, arrondissement and region  
 
-
++ `shapefiles/BE/...` :  shapefiles of Belgian municipalities, district, provinces, regions, arronddissements
 
 #### Hospital data
 
