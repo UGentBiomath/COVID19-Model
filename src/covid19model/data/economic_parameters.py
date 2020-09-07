@@ -40,22 +40,43 @@ def get_economic_parameters():
 
     # IO_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"IO_NACE64.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['IO'] = df.values
+    pars_dict['IO'] = df.values/365
 
     # Others.csv
     df = pd.read_csv(os.path.join(par_interim_path,"others.csv"), sep=',',header=[1],index_col=[0])
-    pars_dict['x_0'] = np.expand_dims(np.array(df['Sectoral output (M€)'].values), axis=1)
-    pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€)'].values), axis=1)
-    pars_dict['f_0'] = np.expand_dims(np.array(df['Other demand (M€)'].values), axis=1)
+    pars_dict['x_0'] = np.expand_dims(np.array(df['Sectoral output (M€/y)'].values), axis=1)/365
+    pars_dict['l_0'] = np.expand_dims(np.array(df['Labor compensation (M€/y)'].values), axis=1)/365
+    pars_dict['l_s'] = 1-np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
+    pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€/y)'].values), axis=1)/365
+    pars_dict['f_0'] = np.expand_dims(np.array(df['Other demand (M€/y)'].values), axis=1)/365
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
-    pars_dict['c_s'] = np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)
-    pars_dict['f_s'] = np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)
-    pars_dict['l_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
-    pars_dict['l_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
+    pars_dict['c_s'] = np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)/100
+    pars_dict['f_s'] = np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
+    pars_dict['n_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
+    pars_dict['n_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
+    pars_dict['on_site'] = np.expand_dims(np.array(df['On-site consumption (-)'].values), axis=1)
 
     # IHS_critical_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"IHS_critical_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['C'] = df.values
+
+    # Derived variables
+    # ~~~~~~~~~~~~~~~~~
+
+    # Matrix of technical coefficients
+    A = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
+    for i in range(pars_dict['IO'].shape[0]):
+        A[i,:] = pars_dict['IO'][i,:]/pars_dict['x_0'][i]
+    pars_dict['A'] = A
+
+    # Stock matrix under business as usual
+    S_0 = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
+    for i in range(pars_dict['IO'].shape[0]):
+        S_0[i,:] = pars_dict['IO'][i,:]*pars_dict['n'][i]
+    pars_dict['S_0'] = S_0
+
+    # Consumer preference vector
+    pars_dict['theta_0'] = pars_dict['c_0']/sum(pars_dict['c_0'])
 
     return pars_dict
 
