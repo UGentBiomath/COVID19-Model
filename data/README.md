@@ -20,7 +20,10 @@
 
 + `NIS_Province.csv` : NIS-code of each province
 
-+ `arrondissements_per_province.csv` : province to which each arrondissement belongs   
++ `arrondissements_per_province.csv` : province to which each arrondissement belongs
+
++ `inhabitants.csv` : number of inhabitants for each municipality, arrondissement and region   
+
 
 
 #### Hospital data
