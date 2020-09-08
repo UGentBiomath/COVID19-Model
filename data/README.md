@@ -87,8 +87,6 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
     - columns: municipality of work   
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
-+ `initN.csv` contains a pandas dataframe with the following columns: index (NIS code of arrondissement), name, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
-
 + `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
 #### Demographic data
@@ -99,6 +97,11 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 + `age_structure_per_province.csv` : population of each age per province
 
++ `initN_arrond.csv` contains a pandas dataframe with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_province.csv` contains a pandas dataframe with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_municip.csv` contains a pandas dataframe with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
 #### Economic data
 
