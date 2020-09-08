@@ -50,8 +50,8 @@ def get_economic_parameters():
     pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€/y)'].values), axis=1)/365
     pars_dict['f_0'] = np.expand_dims(np.array(df['Other demand (M€/y)'].values), axis=1)/365
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
-    pars_dict['c_s'] = np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)/100
-    pars_dict['f_s'] = np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
+    pars_dict['c_s'] = -np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)/100
+    pars_dict['f_s'] = -np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
     pars_dict['n_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
     pars_dict['n_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
     pars_dict['on_site'] = np.expand_dims(np.array(df['On-site consumption (-)'].values), axis=1)
