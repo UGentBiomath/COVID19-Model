@@ -48,7 +48,7 @@ def name2nis(name):
 
 def read_coordinates_nis():
     """
-    A function to extract from /data/interim/census_2011/initN.csv the list of arrondissement NIS codes
+    A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
 
     Returns
     -------
@@ -57,7 +57,7 @@ def read_coordinates_nis():
 
     """
 
-    initN_df=pd.read_csv(os.path.join(data_path, 'interim/census_2011/initN.csv'), index_col=[0])
-    NIS = initN_df.index.values
+    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_arrond.csv'))
+    NIS = initN_df.NIS.values
 
     return NIS

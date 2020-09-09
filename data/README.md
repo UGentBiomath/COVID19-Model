@@ -20,8 +20,11 @@
 
 + `NIS_Province.csv` : NIS-code of each province
 
-+ `arrondissements_per_province.csv` : province to which each arrondissement belongs   
++ `arrondissements_per_province.csv` : province to which each arrondissement belongs
 
++ `inhabitants.csv` : number of inhabitants for each municipality, arrondissement and region  
+
++ `shapefiles/BE/...` :  shapefiles of Belgian municipalities, district, provinces, regions, arronddissements
 
 #### Hospital data
 
@@ -65,7 +68,7 @@ split between general population and elderly homes. Data from https://m.standaar
 + `census_demo_nl_04nov14.xlsx` contains all demographic data from the 2011 Belgian census. From these data, the number of individuals in 10 year age-bins per Belgian arrondissement are calculated. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 + `census_arbeidsmarkt_nl_24oct14.xlsx` contains all work related data from the 2011 Belgian census. Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 
-### Interim data sets conversion scripts
+### Interim data sets
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
 
@@ -84,9 +87,21 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
     - columns: municipality of work   
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
-+ `initN.csv` contains a pandas dataframe with the following columns: index (NIS code of arrondissement), name, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. The data were extracted from `census_demo_nl_04nov14.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
-
 + `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
+
+#### Demographic data
+
++ `age_structure_per_arrondissement.csv` : population of each age per arrondissement
+
++ `age_structure_per_municipality.csv` : population of each age per municipality
+
++ `age_structure_per_province.csv` : population of each age per province
+
++ `initN_arrond.csv` contains a pandas dataframe with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_province.csv` contains a pandas dataframe with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_municip.csv` contains a pandas dataframe with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
 #### Economic data
 
