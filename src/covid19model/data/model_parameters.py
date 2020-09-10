@@ -31,7 +31,6 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
-        a : probability of an asymptomatic cases
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
