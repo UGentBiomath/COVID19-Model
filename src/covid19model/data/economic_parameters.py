@@ -107,7 +107,7 @@ def get_conversion_matrix(from_to):
 
     # Load dataframe containing matrices
     if from_to == 'NACE21_NACE10':
-        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), shee_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).values)
+        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).values)
     elif from_to == 'NACE38_NACE21':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 38 to NACE 21', header=[0], index_col=[0]).values)
     elif from_to == 'NACE64_NACE38':
