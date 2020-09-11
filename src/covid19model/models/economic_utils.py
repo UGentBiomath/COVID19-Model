@@ -20,21 +20,18 @@ def calc_labor_restriction(x_0,l_0,l_t):
     x_t : np.array
         sector output at time t (in M€/d)
     """
-
     return (l_t/l_0)*x_0
 
-def calc_input_restriction(IO,A,S_t,C):
+def calc_input_restriction(S_t,A,C):
     """
     A function to compute sector output under supply bottlenecks.
 
     Parameters
     ----------
-    IO : np.array
-        input-output matrix
+    S_t : np.array
+        stock matrix at time t    
     A : np.array
         matrix of technical coefficients
-    S_t : np.array
-        stock matrix at time t
     C : np.array
         matrix of critical inputs
 
@@ -45,11 +42,10 @@ def calc_input_restriction(IO,A,S_t,C):
     """
 
     # Pre-allocate sector output at time t
-    x_t = np.zeros(IO.shape[0])
+    x_t = np.zeros(A.shape[0])
     # Loop over all sectors
-    for i in range(IO.shape[0]):
-        tmp = S_t[i,:]/A[i,:]
-        x_t[i] = np.nanmin(tmp[np.where(C[i,:] == 1)])
+    for i in range(A.shape[0]):
+        x_t[i] = np.nanmin(S_t[np.where(C[i,:] == 1),i]/A[np.where(C[i,:] == 1),i])
         if np.isnan(x_t[i]): # Q for Koen Schoors: sectors with no input dependencies, is this realistic?
             x_t[i]=np.inf
     return np.expand_dims(x_t,axis=1)
@@ -172,7 +168,7 @@ def household_income_expectations(t,zeta_previous,t_start_lockdown,t_end_lockdow
 
     return zeta
 
-def calc_household_demand(c_t_previous,l_t,l_p,epsilon_t,rho,m):
+def calc_household_demand(c_total_previous,l_t,l_p,epsilon_t,rho,m):
     """
     A function to calculate the total household consumption demand.
     Based on the consumption function of Muellbauer (2020).
@@ -182,9 +178,9 @@ def calc_household_demand(c_t_previous,l_t,l_p,epsilon_t,rho,m):
     c_t_previous : float
         total household consumption demand at time t -1
     l_t : float
-        current labor income
+        current labor income (per sector)
     l_p : float
-        estimation of permanent income
+        consumer expectations of permanent income (total)
     epsilon_t : float
         aggregate demand shock
     rho : float
@@ -197,7 +193,7 @@ def calc_household_demand(c_t_previous,l_t,l_p,epsilon_t,rho,m):
     c_t : float
         total household consumption demand at time t
     """
-    return 10**((rho*np.log10(c_t_previous) + 0.5*(1-rho)*np.log10(m*l_t) + 0.5*(1-rho)*np.log10(m*l_p) + epsilon_t))
+    return 10**((rho*np.log10(c_total_previous) + 0.5*(1-rho)*np.log10(m*sum(l_t)) + 0.5*(1-rho)*np.log10(m*l_p) + epsilon_t))
 
 def calc_intermediate_demand(d_previous,S,A,S_0,tau):
     """
@@ -224,7 +220,8 @@ def calc_intermediate_demand(d_previous,S,A,S_0,tau):
     """
     O = np.zeros([A.shape[0],A.shape[0]])
     for i in range(A.shape[0]):
-        O[i,:] = A[i,:]*d_previous[i] + (1/tau)*(S_0[i,:] - S[i,:])
+        for j in range(A.shape[0]):
+            O[i,j] = A[i,j]*d_previous[j] + (1/tau)*(S_0[i,j] - S[i,j])
     return O
 
 def calc_total_demand(O,c_t,f_t):
@@ -245,7 +242,7 @@ def calc_total_demand(O,c_t,f_t):
     d_t : np.array
         total demand
     """
-    return np.sum(O,axis=1) + c_t + f_t
+    return np.expand_dims(np.sum(O,axis=1),axis=1) + c_t + f_t
 
 def rationing(x_t,d_t,O,c_t,f_t):
     """
@@ -301,7 +298,11 @@ def inventory_updating(S_old,Z_t,x_t,A):
     S_new : np.array
         
     """
-    S_new = S_old + Z_t - np.matmul(A,x_t)
+    S_new = np.zeros([S_old.shape[0],S_old.shape[0]])
+    for i in range(S_old.shape[0]):
+        for j in range(S_old.shape[0]):
+            S_new[i,j] = S_old[i,j] + Z_t[i,j] - A[i,j]*x_t[j]
+    #S_new = np.minimum(S_new,0)
     S_new[np.where(S_new < 0)] = 0
     return S_new
 
@@ -344,8 +345,9 @@ def hiring_firing(l_old, l_0, x_0, x_t_input, x_t_labor, d_t, gamma_F, gamma_H, 
             l_new[i] = l_old[i] + gamma_H*delta_l[i]
         elif delta_l[i] <= 0:
             l_new[i] = l_old[i] + gamma_F*delta_l[i]
+    l_new=np.expand_dims(l_new,axis=1)
     # Labor force reduction due to lockdown
-    l_new[np.where(l_new > (1-epsilon_S)*l_0)] =  (1-epsilon_S)*l_0)
+    l_new[np.greater(l_new,(1-epsilon_S)*l_0)] =  ((1-epsilon_S)*l_0)[np.greater(l_new,(1-epsilon_S)*l_0)]
 
     return l_new
 
@@ -371,13 +373,37 @@ def labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s):
         
     """
     if t < t_start_lockdown:
-        return np.zeros(l_s.shape[0])
+        return np.zeros([l_s.shape[0],1])
     elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
         return l_s
     else:
-        return np.zeros(l_s.shape[0])
+        return np.zeros([l_s.shape[0],1])
 
 def labor_compensation_intervention(t, t_start_compensation, t_end_compensation, l_t, l_0, b):
+    """
+    A function to simulate reimbursement of a fraction b of the income loss by policymakers (f.i. as social benefits, or "tijdelijke werkloosheid")
+
+    Parameters
+    ----------
+    t : int
+        current time
+    t_start_compensation : int
+        start of compensation
+    t_end_lockdown : int
+        end of compensation
+    l_t : np.array
+        labor compensation of workers at time t
+    l_0 : np.array
+        labour compensation under business-as-usual
+    b : np.array
+        reimbursed fraction of lost income
+   
+    Returns
+    -------
+    l_t_star : np.array
+        labor compensation of workers after government intervention
+        
+    """
     if t < t_start_compensation:
         return l_t
     elif ((t >= t_start_compensation) & (t < t_end_compensation)):
@@ -404,5 +430,4 @@ def leontief(x_t_labor, x_t_input, d_t):
     x_t : np.array
         sector output at time t (in M€)
     """
-
     return np.amin([x_t_labor, x_t_input, d_t],axis = 0)
