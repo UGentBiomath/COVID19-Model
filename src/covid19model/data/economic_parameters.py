@@ -45,6 +45,7 @@ def get_economic_parameters():
     # Others.csv
     df = pd.read_csv(os.path.join(par_interim_path,"others.csv"), sep=',',header=[1],index_col=[0])
     pars_dict['x_0'] = np.expand_dims(np.array(df['Sectoral output (M€/y)'].values), axis=1)/365
+    pars_dict['O_j'] = np.expand_dims(np.array(df['Intermediate demand (M€/y)'].values), axis=1)/365
     pars_dict['l_0'] = np.expand_dims(np.array(df['Labor compensation (M€/y)'].values), axis=1)/365
     pars_dict['l_s'] = 1-np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
     pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€/y)'].values), axis=1)/365
