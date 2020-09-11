@@ -67,13 +67,15 @@ def get_economic_parameters():
     # Matrix of technical coefficients
     A = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
     for i in range(pars_dict['IO'].shape[0]):
-        A[i,:] = pars_dict['IO'][i,:]/pars_dict['x_0'][i]
+        for j in range(pars_dict['IO'].shape[0]):
+            A[i,j] = pars_dict['IO'][i,j]/pars_dict['x_0'][j]
     pars_dict['A'] = A
 
     # Stock matrix under business as usual
     S_0 = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
     for i in range(pars_dict['IO'].shape[0]):
-        S_0[i,:] = pars_dict['IO'][i,:]*pars_dict['n'][i]
+        for j in range(pars_dict['IO'].shape[0]):
+            S_0[i,j] = pars_dict['IO'][i,j]*pars_dict['n'][j]
     pars_dict['S_0'] = S_0
 
     # Consumer preference vector
