@@ -23,6 +23,7 @@ register_matplotlib_converters()
 
 from .utils import read_coordinates_nis
 from ..optimization import pso
+from ..data.economic_parameters import read_economic_labels
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -374,6 +375,61 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         return output
 
+from .economic_utils import labor_supply_shock, household_demand_shock, labor_compensation_intervention, calc_labor_restriction, calc_input_restriction, household_preference_shock,aggregate_demand_shock,household_income_expectations,calc_household_demand
+
+class Economic_Model(BaseModel):
+
+    # ...state variables and parameters
+
+    state_names = ['x', 'c', 'f', 'd', 'l', 'O', 'S']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'l_s', 'n', 'c_s', 'f_s', 'on_site', 'C', 'S_0', 'theta_0']
+    parameters_stratified_names = [None]
+    stratification = ['A']
+    coordinates = [read_economic_labels('NACE64')]
+    # To do: change the stratification name, make this not depend on a parameter
+
+     # ..transitions/equations
+    @staticmethod
+
+    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, l_s, n, c_s, f_s, on_site, C, S_0, theta_0, A):
+        """
+        BIOMATH production network model for Belgium
+
+        *Based on the Oxford INET implementation*
+        """
+
+        # Demand and supply shocks
+        # ------------------------
+        # These should all be made into time-dependent parameters!
+        t_start_lockdown = 20
+        t_end_lockdown = 20 + 60
+        t_end_pandemic = 20 + 60 + 365
+        # Labor
+        epsilon_S = labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s)
+        # Household demand
+        epsilon_D = household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,on_site)
+        # Other demand (should be time dependent parameter)
+        if t < t_start_lockdown:
+            f = f_0
+        elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+            f = f_0*(1-f_s)
+        else:
+            f = f_0
+
+        # Government intervention
+        # -----------------------
+        # Also time-dependent
+        l_t_star = labor_compensation_intervention(t, t_start_lockdown, t_end_pandemic, l, l_0, b)
+
+        # Productive capacity
+        # -------------------
+        x_t_cap = calc_labor_restriction(x_0,l_0,l)
+
+        # Input bottlenecks
+        # -----------------
+        x_t_inp = calc_input_restriction(self.S_mat,A,C)
+
+        return (x_new, c_new, f_new, d_new, l_new, O_new, S_new)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
