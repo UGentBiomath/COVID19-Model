@@ -119,3 +119,42 @@ def get_conversion_matrix(from_to):
                         "conversion matrix '{0}' not recognized \n"
                         "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
                     )
+
+def read_economic_labels(class_name):
+    """
+    Returns conversion matrices to more easily aggregate data from different sector classifications. F.i. converting from NACE 64 to WIOD 55 classification.
+
+    Parameters
+    ----------
+    from_to : string
+        Desired conversion matrix. Valid options are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'
+
+    Returns
+    -------
+    conversion matrix : np.array
+
+    Example use
+    -----------
+    mat = get_conversion_matrix('WIOD55_NACE64')
+    """
+    
+     # Define path to conversion matrices
+    abs_dir = os.path.dirname(__file__)
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+
+    # Load dataframe containing matrices
+    if class_name == 'NACE64':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).columns.values
+    elif class_name == 'NACE38':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).index.values
+    elif class_name == 'NACE21':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).columns.values
+    elif class_name == 'NACE10':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).index.values
+    elif class_name == 'WIOD55':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).columns.values
+    else:
+        raise ValueError(
+                        "conversion matrix '{0}' not recognized \n"
+                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10', 'WIOD55".format(from_to)
+                    )
