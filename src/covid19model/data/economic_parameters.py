@@ -56,6 +56,12 @@ def get_economic_parameters():
     pars_dict['n_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
     pars_dict['n_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
     pars_dict['on_site'] = np.expand_dims(np.array(df['On-site consumption (-)'].values), axis=1)
+    pars_dict['TS_0'] = np.expand_dims(np.array(df['Taxes minus subsidies (M€/y)'].values), axis=1)
+    pars_dict['FC_0'] = np.expand_dims(np.array(df['Consumption fixed capital (M€/y)'].values), axis=1)
+    pars_dict['I_0'] = np.expand_dims(np.array(df['Imports (M€/y)'].values), axis=1)
+    pars_dict['OS_0'] = np.expand_dims(np.array(df['Operating surplus and mixed income (M€/y)'].values), axis=1)
+    pars_dict['GVA_0'] = np.expand_dims(np.array(df['Gross value added (M€/y)'].values), axis=1)
+    pars_dict['GDPi_0'] = np.expand_dims(np.array(df['Gross domestic product i (M€/y)'].values), axis=1)
 
     # IHS_critical_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"IHS_critical_NACE64.csv"), sep=',',header=[0],index_col=[0])
