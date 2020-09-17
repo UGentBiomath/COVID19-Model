@@ -49,7 +49,7 @@ def get_economic_parameters():
     pars_dict['l_0'] = np.expand_dims(np.array(df['Labor compensation (M€/y)'].values), axis=1)/365
     pars_dict['l_s'] = 1-np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
     pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€/y)'].values), axis=1)/365
-    pars_dict['f_0'] = np.expand_dims(np.array(df['Other demand (M€/y)'].values), axis=1)/365
+    pars_dict['f_0'] = np.expand_dims(np.array(df['Total other demand (M€/y)'].values), axis=1)/365
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
     pars_dict['c_s'] = -np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)/100
     pars_dict['f_s'] = -np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
@@ -119,7 +119,7 @@ def get_conversion_matrix(from_to):
     elif from_to == 'NACE64_NACE38':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).values)
     elif from_to == 'WIOD55_NACE64':
-        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).values)
+        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to WIOD 55', header=[0], index_col=[0]).values)
     else:
         raise ValueError(
                         "conversion matrix '{0}' not recognized \n"

@@ -82,7 +82,7 @@ def household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,
     elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
         return c_s
     elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
-        epsilon = c_s/np.log10(100)*np.log10(100 - 99*t/t_end_pandemic)
+        epsilon = c_s/np.log(100)*np.log(100 - 99*t/t_end_pandemic)
         epsilon[np.where(on_site == 0)] = 0
         return epsilon
     else:
@@ -193,7 +193,7 @@ def calc_household_demand(c_total_previous,l_t,l_p,epsilon_t,rho,m):
     c_t : float
         total household consumption demand at time t
     """
-    return 10**((rho*np.log10(c_total_previous) + 0.5*(1-rho)*np.log10(m*sum(l_t)) + 0.5*(1-rho)*np.log10(m*l_p) + epsilon_t))
+    return np.exp((rho*np.log(c_total_previous) + 0.5*(1-rho)*np.log(m*sum(l_t)) + 0.5*(1-rho)*np.log(m*l_p) + epsilon_t))
 
 def calc_intermediate_demand(d_previous,S,A,S_0,tau):
     """
