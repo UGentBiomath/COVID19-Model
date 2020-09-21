@@ -22,7 +22,7 @@ from covid19model.models import models
 from covid19model.data import google
 from covid19model.data import sciensano
 from covid19model.data import polymod
-from covid19model.data import parameters
+from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
@@ -97,12 +97,12 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
 
 
     traceplot(samples_beta,labels=['$\sigma_{data}$','$\\beta$'],plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/beta_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'traceplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
     fig = corner.corner(flat_samples_beta,labels=['$\sigma_{data}$','$\\beta$'])
     fig.set_size_inches(8, 8)
-    plt.savefig(fig_path+'cornerplots/beta_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'cornerplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
     #############################################
@@ -153,12 +153,12 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
 
     traceplot(samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","prevention"],
               plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/ramp_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'traceplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
     fig = corner.corner(flat_samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","$\Omega$"])
     fig.set_size_inches(9, 9)
-    plt.savefig(fig_path+'cornerplots/ramp_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'cornerplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
     #############################################
@@ -181,7 +181,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
                   'l': flat_samples_ramp[:,1].tolist(),'tau':flat_samples_ramp[:,2].tolist(),
                   'prevention':flat_samples_ramp[:,3].tolist()}
 
-    with open(samples_path+spatial_unit+'_'+str(datetime.date.today())+'.json', 'w') as fp:
+    with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     plt.ion()
