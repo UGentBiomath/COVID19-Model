@@ -66,8 +66,6 @@ def create_life_table(input_table,input_QoL,SMR,qCM,r):
         #Quality adjusted years lived between x and (x+1) per 100000 hab    
         life_table.loc[i,'QAL_x']=life_table.loc[i,'L_x']*QoL_x*qCM
         
-    
-    
     for i in range(len(life_table['l_x'])):
         #Quality adjusted life expectancy
         life_table.loc[i,'QALE_x']=np.sum(life_table.loc[i:len(life_table['L_x'])-1,'QAL_x'])/life_table.loc[i,'l_x']
@@ -79,5 +77,5 @@ def create_life_table(input_table,input_QoL,SMR,qCM,r):
         #QALYs 
         life_table.loc[i,'QALY_x']=np.sum(dQAL_x[i:])/life_table.loc[i,'l_x']
         life_table=life_table.copy()
-        
+
     return life_table
