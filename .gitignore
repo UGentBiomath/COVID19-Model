@@ -146,3 +146,4 @@ data/interim/non_public
 
 results/ABC
 results/predictions_FAGG
+notebooks/dask-worker-space/
