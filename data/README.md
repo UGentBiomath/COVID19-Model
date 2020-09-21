@@ -54,6 +54,11 @@ split between general population and elderly homes. Data from https://m.standaar
 + `census_demo_nl_04nov14.xlsx` contains all demographic data from the 2011 Belgian census. From these data, the number of individuals in 10 year age-bins per Belgian arrondissement are calculated. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.  Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 + `census_arbeidsmarkt_nl_24oct14.xlsx` contains all work related data from the 2011 Belgian census. Data free for download at https://census2011.fgov.be/download/downloads_nl.html .
 
+#### QALY model
+
++ `Life_table_Belgium_2018.csv` @JPPG: What are these data? Where did they come from? Currently they have been placed under data/raw, however, if you have made any modifications to the original files, you must place the downloaded file in the raw folder and the modified file in the interim folder.
++ `QoL_scores_Belgium_2018_v3.csv` @JPPG: What are these data? Where did they come from? Currently they have been placed under data/raw, however, if you have made any modifications to the original files, you must place the downloaded file in the raw folder and the modified file in the interim folder.
+
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
