@@ -71,7 +71,7 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
+def MLE(thetas,BaseModel,data,states,parNames,samples=None):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
@@ -108,35 +108,15 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
-    # by defenition, if N is the number of data timeseries then the first N parameters are the estimated variances of these timeseries!
     i = 0
     sigma=[]
     for param in parNames:
-        if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
+        if param == 'extraTime':
             setattr(BaseModel,param,int(round(thetas[i])))
-        elif param == 'prevention':
-            checkpoints.update({'Nc':  [thetas[i]*(1.0*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
-        # The following section is needed to perform a recalibration of beta
-        #elif param == 'beta':
-        #    estimate_beta = thetas[i]
-        #    checkpoints.update(
-        #        {'beta':
-        #        [
-        #        np.random.choice(samples[param]),
-        #        thetas[i],
-        #        thetas[i],
-        #        thetas[i],
-        #        thetas[i],
-        #        thetas[i],
-        #        thetas[i]
-        #        ]
-        #        })
+        elif i < len(data):
+            sigma.append(thetas[i])
         else:
-            if i < len(data):
-                sigma.append(thetas[i])
-            else:
-                BaseModel.parameters.update({param:thetas[i]})
+            BaseModel.parameters.update({param:thetas[i]})
         i = i + 1
 
     # ~~~~~~~~~~~~~~
@@ -152,23 +132,10 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
     # Use previous samples
     if samples:
         for param in samples:
-            if param == 'prevention':
-                prevention = np.random.choice(samples[param])
-                checkpoints.update(
-                    {'Nc': [prevention*(1.0*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.50)*Nc_work + (1-0.60)*Nc_transport + (1-0.30)*Nc_others + (1-0.70)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.40)*Nc_work + (1-0.55)*Nc_transport + (1-0.25)*Nc_others + (1-0.65)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.30)*Nc_work + (1-0.50)*Nc_transport + (1-0.20)*Nc_others + (1-0.60)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.30)*Nc_work + (1-0.45)*Nc_transport + (1-0.85)*Nc_schools + (1-0.15)*Nc_others + (1-0.50)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.25)*Nc_work + (1-0.35)*Nc_transport + (1-0.35)*Nc_schools + (1-0.10)*Nc_others + (1-0.30)*Nc_leisure),
-                            prevention*(1.0*Nc_home + (1-0.20)*Nc_work + (1-0.15)*Nc_transport + (1-0.00)*Nc_others + (1-0.00)*Nc_leisure)]
-                    })
-                #checkpoints.update({'Nc':  [prevention*(1.3*Nc_home + (1-0.60)*Nc_work + (1-0.70)*Nc_transport + (1-0.30)*Nc_others + (1-0.80)*Nc_leisure)]})
-            else:
-                BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
+            BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
-    out=BaseModel.sim(T,checkpoints=checkpoints)
-
+    out=BaseModel.sim(T)
+ 
     # -------------
     # calculate MLE
     # -------------
@@ -263,4 +230,4 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints,samples=samples) # must be negative for emcee
+        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples) # must be negative for emcee

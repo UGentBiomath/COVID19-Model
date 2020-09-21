@@ -89,7 +89,7 @@ class BaseModel:
 
         for param, func in self.time_dependent_parameters.items():
             if (param not in (
-                self.parameter_names + self.parameters_stratified_names + [self.stratification])
+                self.parameter_names + self.parameters_stratified_names + self.stratification)
             ):
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
