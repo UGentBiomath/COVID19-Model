@@ -209,16 +209,32 @@ def test_model_interaction_matrix_function():
     parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
     initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
 
-    model = SIRstratified(initial_states, parameters)
-
-    def compliance_func(t):
-        if t < 10:
-            return nc
-        else:
-            return nc / 3
-
     time = [0, 50]
-    output = model.sim(time, interaction_matrix_function=compliance_func)
+    model_without = SIRstratified(initial_states, parameters)
+    output_without = model_without.sim(time)
+
+    def compliance_func(t, param):
+        if t < 10:
+            return param
+        else:
+            return param / 3
+
+    model = SIRstratified(initial_states, parameters,
+                          time_dependent_parameters={'nc': compliance_func})
+    output = model.sim(time)
     # without the reduction in contact, the recovered/dead pool will always be larger
-    output_without = model.sim(time)
     assert (output['R'] <= output_without['R']).all()
+
+    # using a function with additional parameter
+
+    def compliance_func(t, param, prevention):
+        if t < 10:
+            return param
+        else:
+            return param * prevention
+
+    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc, "prevention": 0.2}
+    model2 = SIRstratified(initial_states, parameters,
+                           time_dependent_parameters={'nc': compliance_func})
+    output2 = model2.sim(time)
+    assert (output2['R'] <= output['R']).all()
