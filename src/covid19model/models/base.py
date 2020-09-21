@@ -34,6 +34,7 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
+    coordinates = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
                  discrete=False):
@@ -43,12 +44,14 @@ class BaseModel:
         self.discrete = discrete
 
         if self.stratification:
-            if not self.stratification in parameters:
-                raise ValueError(
-                    "stratification parameter '{0}' is missing from the specified "
-                    "parameters dictionary".format(self.stratification)
-                )
-            self.stratification_size = parameters[self.stratification].shape[0]
+            self.stratification_size=[]
+            for axis in self.stratification:
+                if not axis in parameters:
+                    raise ValueError(
+                        "stratification parameter '{0}' is missing from the specified "
+                        "parameters dictionary".format(self.stratification)
+                    )
+                self.stratification_size.append(parameters[axis].shape[0])
         else:
             self.stratification_size = 1
 
@@ -127,12 +130,16 @@ class BaseModel:
                 "The states in the 'integrate' function definition do not match "
                 "the state_names: {0} vs {1}".format(integrate_states, self.state_names)
             )
+
         integrate_params = keywords[1 + N_states :]
         specified_params = self.parameter_names.copy()
+        
         if self.parameters_stratified_names:
-            specified_params += self.parameters_stratified_names
+            for stratified_names in self.parameters_stratified_names:
+                if stratified_names:
+                    specified_params += stratified_names
         if self.stratification:
-            specified_params += [self.stratification]
+            specified_params += self.stratification
 
         if integrate_params != specified_params:
             raise ValueError(
@@ -164,7 +171,7 @@ class BaseModel:
 
         # Validate the initial_states / stratified params having the correct length
 
-        def validate_values(values, name, object_name):
+        def validate_stratified_parameters(values, name, object_name,i):
             values = np.asarray(values)
             if values.ndim != 1:
                 raise ValueError(
@@ -173,35 +180,51 @@ class BaseModel:
                         obj=object_name, name=name, val=values.ndim
                     )
                 )
-            if len(values) != self.stratification_size:
+            if len(values) != self.stratification_size[i]:
                 raise ValueError(
                     "The stratification parameter '{strat}' indicates a "
                     "stratification size of {strat_size}, but {obj} '{name}' "
                     "has length {val}".format(
-                        strat=self.stratification, strat_size=self.stratification_size,
+                        strat=self.stratification[i], strat_size=self.stratification_size[i],
                         obj=object_name, name=name, val=len(values)
+                    )
+                )
+
+        def validate_initial_states(values, name, object_name):
+            values = np.asarray(values)
+            if list(values.shape) != self.stratification_size:
+                raise ValueError(
+                    "The stratification parameters '{strat}' indicates a "
+                    "stratification size of {strat_size}, but {obj} '{name}' "
+                    "has length {val}".format(
+                        strat=self.stratification, strat_size=self.stratification_size,
+                        obj=object_name, name=name, val=list(values.shape)
                     )
                 )
 
         # the size of the stratified parameters
         if self.parameters_stratified_names:
-            for param in self.parameters_stratified_names:
-                validate_values(
-                    self.parameters[param], param, "stratified parameter"
-                )
+            i = 0
+            for stratified_names in self.parameters_stratified_names:
+                if stratified_names:
+                    for param in stratified_names:
+                        validate_stratified_parameters(
+                            self.parameters[param], param, "stratified parameter",i
+                        )
+                i = i + 1
 
         # the size of the initial states + fill in defaults
         for state in self.state_names:
             if state in self.initial_states:
                 # if present, check that the length is correct
-                validate_values(
+                validate_initial_states(
                     self.initial_states[state], state, "initial state"
                 )
 
             else:
                 # otherwise add default of 0
                 self.initial_states[state] = np.zeros(self.stratification_size)
-
+        
         # validate the states (using `set` to ignore order)
         if set(self.initial_states.keys()) != set(self.state_names):
             raise ValueError(
@@ -235,7 +258,11 @@ class BaseModel:
                 model_pars = list(params.values())
 
             # for the moment assume sequence of parameters, vars,... is correct
-            y_reshaped = y.reshape((len(self.state_names), self.stratification_size))
+            size_lst=[len(self.state_names)]
+            for size in self.stratification_size:
+                size_lst.append(size)
+            y_reshaped = y.reshape(tuple(size_lst))
+
             dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
@@ -387,15 +414,26 @@ class BaseModel:
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
         """
-        dims = ['stratification', 'time']
+        dims=self.stratification.copy()
+        dims.append('time')
+
         coords = {
             "time": output["t"],
-            "stratification": np.arange(self.stratification_size)
         }
 
-        y_reshaped = output["y"].reshape(
-            len(self.state_names), self.stratification_size, len(output["t"])
-        )
+        for i in range(len(self.stratification)):
+            if self.coordinates and self.coordinates[i] is not None:
+                coords.update({self.stratification[i]: self.coordinates[i]})
+            else:
+                coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+
+
+        size_lst=[len(self.state_names)]
+        for size in self.stratification_size:
+            size_lst.append(size)
+        size_lst.append(len(output["t"]))
+        y_reshaped = output["y"].reshape(tuple(size_lst))
+
         data = {}
         for var, arr in zip(self.state_names, y_reshaped):
             xarr = xarray.DataArray(arr, coords=coords, dims=dims)
