@@ -214,8 +214,8 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \begin{eqnarray}
-\dot{S_i} &amp;=&amp; - \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
-\dot{E_i} &amp;=&amp; \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
+\dot{S_i} &amp;=&amp; - \beta s_i S_i \sum_{j=1}^{N} N_{c,ij}  \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
+\dot{E_i} &amp;=&amp; \beta s_i  S_i \sum_{j=1}^{N} N_{c,ij} \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
 \dot{I_i} &amp;=&amp; (1/\sigma) E_i - (1/\omega) I_i, \\
 \dot{A_i} &amp;=&amp; (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\ 
 \dot{M_i} &amp;=&amp;  ((1-\text{a}_i) / \omega ) I_i - ( (1-h_i)/d_m + h_i/d_{\text{hospital}} ) M_i, \\
@@ -259,7 +259,7 @@ P(ICU_i \rightarrow C_{\text{ICU,rec,i}}) = 1 - \text{exp} \Bigg[ - \frac{1-m_{\
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \begin{eqnarray}
-(S_i \rightarrow E_i) (k) &amp;\sim&amp; \text{Binomial}\Bigg(S_i(k), 1 - \text{exp}\Bigg[- l \beta s_i \sum_{j=1}^{N} N_{c,ij} S_j \Big( \frac{I_j+A_j}{T_j} \Big) \Bigg]\Bigg)\\
+(S_i \rightarrow E_i) (k) &amp;\sim&amp; \text{Binomial}\Bigg(S_i(k), 1 - \text{exp}\Bigg[- l \beta s_i S_i \sum_{j=1}^{N} N_{c,ij}  \Big( \frac{I_j+A_j}{T_j} \Big) \Bigg]\Bigg)\\
 (E_i \rightarrow I_i) (k) &amp;\sim&amp; \text{Binomial}\Bigg(E_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1}{\sigma}\Bigg]\Bigg)\\
 (I_i \rightarrow A_i) (k) &amp;\sim&amp; \text{Binomial}\Bigg(I_i(k), 1 - \text{exp}\Bigg[- l\ \frac{a_i}{\omega}\Bigg]\Bigg)\\
 (I_i \rightarrow M_i) (k) &amp;\sim&amp; \text{Binomial}\Bigg(I_i(k), 1 - \text{exp}\Bigg[- l\ \frac{1-a_i}{\omega}\Bigg]\Bigg)\\
