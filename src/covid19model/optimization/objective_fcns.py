@@ -31,7 +31,7 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
     -----------
     SSE = SSE(model,thetas,data,parNames,positions,weights)
     """
-    
+
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,7 +47,7 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
     # Run simulation
     # ~~~~~~~~~~~~~~
     # number of dataseries
-    n = len(data) 
+    n = len(data)
     # Compute simulation time
     data_length =[]
     for i in range(n):
@@ -65,7 +65,7 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         som = 0
         # sum required states
         for j in range(len(states[i])):
-            som = som + out[states[i][j]].sum(dim="stratification").values
+            som = som + out[states[i][j]].sum(dim="Nc").values
         ymodel.append(som[BaseModel.extraTime:])
         # calculate quadratic error
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
@@ -121,7 +121,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
         #elif param == 'beta':
         #    estimate_beta = thetas[i]
         #    checkpoints.update(
-        #        {'beta': 
+        #        {'beta':
         #        [
         #        np.random.choice(samples[param]),
         #        thetas[i],
@@ -143,7 +143,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
     # Run simulation
     # ~~~~~~~~~~~~~~
     # number of dataseries
-    n = len(data) 
+    n = len(data)
     # Compute simulation time
     data_length =[]
     for i in range(n):
@@ -178,7 +178,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
         som = 0
         # sum required states
         for j in range(len(states[i])):
-            som = som + out[states[i][j]].sum(dim="stratification").values
+            som = som + out[states[i][j]].sum(dim="Nc").values
         ymodel.append(som[BaseModel.extraTime:])
         # calculate simga2 and log-likelihood function
         MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
@@ -264,4 +264,3 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
         return - np.inf
     else:
         return lp - MLE(thetas,BaseModel,data,states,parNames,checkpoints=checkpoints,samples=samples) # must be negative for emcee
-
