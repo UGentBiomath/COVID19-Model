@@ -279,8 +279,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
-    parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
+    parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']]
     stratification = ['place','Nc']
     coordinates = [read_coordinates_nis()]
     coordinates.append(None)
