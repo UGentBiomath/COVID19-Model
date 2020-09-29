@@ -57,3 +57,21 @@ def read_coordinates_nis():
     NIS = initN_df.index.values
     
     return NIS
+
+def dens_dep(rho, xi=0.01):
+    """
+    A function used by Arenas et al. (2020) and justified by Hu et al. (2013) (https://pubmed.ncbi.nlm.nih.gov/23665296/)
+    
+    Parameters
+    ----------
+    rho : population density
+    xi : scale parameter. Default value is 0.01 square kilometer
+    
+    Returns
+    -------
+    f : density dependence value, ranges between 1 and 2
+    """
+    
+    f = 1 + ( 1 - np.exp(-xi * rho) )
+    
+    return f

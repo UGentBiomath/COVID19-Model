@@ -21,7 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-from .utils import read_coordinates_nis
+from .utils import read_coordinates_nis, dens_dep
 from ..optimization import pso
 
 # set color schemes
@@ -289,9 +289,13 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, 
+                  beta, sigma, omega, zeta, da, dm, der, dhospital,
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+                  place, Nc):
+#     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+#                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+#                   dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
 
         """
         BIOMATH extended SEIRD model for COVID-19
@@ -313,6 +317,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         matrix_1 = np.zeros([place.shape[0],Nc.shape[0]])
         for i in range(place.shape[0]):
+            # matrix_1[i,:] = 
             matrix_1[i,:] = -l*s*beta*np.matmul(Nc,((I[i,:]+A[i,:])/T[i,:]))
         matrix_2 = np.matmul(place,matrix_1)
 

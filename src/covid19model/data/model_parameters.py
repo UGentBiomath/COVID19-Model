@@ -69,7 +69,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer').fillna(0)
         pars_dict['c'] = np.array(df['c'].values[:-1])
         #pars_dict['m0'] = np.array(df['m0']).values[:-1]
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
