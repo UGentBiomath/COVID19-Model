@@ -1,5 +1,9 @@
-import numpy as np 
-import pandas as pd 
+import numpy as np
+import pandas as pd
+import os
+
+abs_dir = os.path.dirname(__file__)
+data_path = os.path.join(abs_dir, "../../../data/")
 
 def sample_beta_binomial(n, p, k, size=None):
     p = np.random.beta(k/(1-p), k/p, size=size)
@@ -22,7 +26,7 @@ def name2nis(name):
 
     """
     # Load the list of name-NIS couples
-    name_df=pd.read_csv('../../data/interim/census_2011/NIS_name.csv')
+    name_df=pd.read_csv(os.path.join(data_path, 'raw/GIS/NIS_name.csv'))
     pos_name = name_df['name'].values
     # Convert list of possible names to lowercase only
     pos_name_lower = [string.lower() for string in pos_name]
@@ -44,7 +48,7 @@ def name2nis(name):
 
 def read_coordinates_nis():
     """
-    A function to extract from /data/interim/census_2011/initN.csv the list of arrondissement NIS codes
+    A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
 
     Returns
     -------
@@ -55,23 +59,23 @@ def read_coordinates_nis():
 
     initN_df=pd.read_csv('../../data/interim/census_2011/initN.csv', index_col=[0])
     NIS = initN_df.index.values
-    
+
     return NIS
 
 def dens_dep(rho, xi=0.01):
     """
     A function used by Arenas et al. (2020) and justified by Hu et al. (2013) (https://pubmed.ncbi.nlm.nih.gov/23665296/)
-    
+
     Parameters
     ----------
     rho : population density
     xi : scale parameter. Default value is 0.01 square kilometer
-    
+
     Returns
     -------
     f : density dependence value, ranges between 1 and 2
     """
-    
+
     f = 1 + ( 1 - np.exp(-xi * rho) )
-    
+
     return f

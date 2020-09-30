@@ -31,7 +31,6 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
-        a : probability of an asymptomatic cases
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
@@ -69,65 +68,41 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer').fillna(0)
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
         pars_dict['c'] = np.array(df['c'].values[:-1])
-        #pars_dict['m0'] = np.array(df['m0']).values[:-1]
-        pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
-        #pars_dict['dc'] = np.array(df['dC'].values[:-1])
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[:-1])
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[:-1])
-        #pars_dict['dICU'] = np.array(df['dICU'].values[:-1])
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[:-1])
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[:-1])
-        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[:-1])
+        pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
-        # verity_etal: probability of being hospitalised per age
-        df_verity = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
-        pars_dict['h'] =  np.array(df_verity.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        # verity_etal
+        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
 
-        # davies_etal: a: probabilty of being asymptomatic per age; s: relative susceptibility per age
-        df_davies = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
-        pars_dict['a'] =  np.array(df_davies.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        pars_dict['s'] =  np.array(df_davies.loc[:,'relative susceptibility'].astype(float).tolist())
+        # davies_etal
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
+        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
+        pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
     else:
-        # Assign the total average number of contacts for any age
-        # Note: this is the averaged weighed for ages, not sure if that is correct
         pars_dict['Nc'] = np.array([11.2])
-        
-        # Assign AZMM and UZG estimates to correct variables for any age (final datum)
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
-        pars_dict['c'] = np.array([df['c'].values[-1]])
-        #pars_dict['m0'] = np.array([df['m0']).values[-1]])
-        pars_dict['m_ICU'] = np.array([df['m0_{ICU}'].values[-1]])
-        pars_dict['m_C'] = np.array([df['m0_{C}'].values[-1]])
-        #pars_dict['dc'] = np.array([df['dC'].values[-1]])
-        pars_dict['dc_R'] = np.array([df['dC_R'].values[-1]])
-        pars_dict['dc_D'] = np.array([df['dC_D'].values[-1]])
-        #pars_dict['dICU'] = np.array([df['dICU'].values[-1]])
-        pars_dict['dICU_R'] = np.array([df['dICU_R'].values[-1]])
-        pars_dict['dICU_D'] = np.array([df['dICU_D'].values[-1]])
-        pars_dict['dICUrec'] = np.array([df['dICUrec'].values[-1]])
 
-        # Assign hospitalisation and asymptomatic probability.
         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
-        pars_dict['h'] = np.array([non_strat['h'].values[0]])
-        pars_dict['a'] = np.array([non_strat['a'].values[0]])
-        pars_dict['s'] = np.array([1])
-
+        pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
 
     # Add recurrent mobility matrix to parameter dictionary
     if spatial == True:
-        mobility_df=pd.read_csv('../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_arrondissements.csv',
-                                index_col=['NIS'])
-        NIS=mobility_df.values.astype(float)
+        mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/recurrent_mobility.csv'), index_col=[0])
+        NIS=mobility_df.values
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
         pars_dict.update({'place': NIS})
 
-    # Other parameters: da, dm, der, dhospital, sigma, omega, zeta
+    # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
     pars_dict.update(df_other_pars.T.to_dict()[0])
 

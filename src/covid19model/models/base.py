@@ -22,6 +22,12 @@ class BaseModel:
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+    time_dependent_parameters : dictionary, optional
+        Optionally specify a function for time-dependent parameters. The
+        signature of the function should be ``fun(t, param, ...)`` taking
+        the time, the initial parameter value, and potentially additional
+        keyword argument, and should return the new parameter value for
+        time `t`.
     """
 
     state_names = None
@@ -31,10 +37,11 @@ class BaseModel:
     apply_compliance_to = None
     coordinates = None
 
-    def __init__(self, states, parameters,compliance=None,discrete=False):
+    def __init__(self, states, parameters, time_dependent_parameters=None,
+                 discrete=False):
         self.parameters = parameters
         self.initial_states = states
-        self.compliance = compliance
+        self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
 
         if self.stratification:
@@ -49,11 +56,10 @@ class BaseModel:
         else:
             self.stratification_size = 1
 
-        if compliance:
-            self._validate_compliance()
+        if time_dependent_parameters:
+            self._validate_time_dependent_parameters()
         else:
-            self.apply_compliance_to = None
-            self.parameters_compliance_names=[]
+            self._function_parameters = []
 
         self._validate()
 
@@ -62,29 +68,37 @@ class BaseModel:
             if state in self.initial_states:
                 state_values = self.initial_states[state]
 
-    def _validate_compliance(self):
-        # Validate arguments of compliance definition
-        sig = inspect.signature(self.compliance)
+    def _validate_parameter_function(self, func):
+        # Validate the function passed to time_dependent_parameters
+        sig = inspect.signature(func)
         keywords = list(sig.parameters.keys())
         if keywords[0] != "t":
             raise ValueError(
-                "The first parameter of the compliance function should be 't'"
+                "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "old":
+        if keywords[1] != "param":
             raise ValueError(
-                "The second parameter of the compliance function should be named 'old'"
+                "The second parameter of the parameter function should be named 'param'"
             )
-        if keywords[2] != "new":
-            raise ValueError(
-                "The third parameter of the compliance function should be named 'new'"
-            )
-        if not self.apply_compliance_to:
-            raise ValueError(
-                "You have not defined the name of the parameter to apply compliance to in your model definition.\n"
-                "Add a variable 'apply_compliance_to = parameter_name' in your model class defenition."
-            )
-        # Extract names of compliance parameters
-        self.parameters_compliance_names = keywords[3:]
+        # return additional keywords of the function
+        return keywords[2:]
+
+    def _validate_time_dependent_parameters(self):
+        # Validate arguments of compliance definition
+
+        extra_params = []
+
+        for param, func in self.time_dependent_parameters.items():
+            if (param not in (
+                self.parameter_names + self.parameters_stratified_names + [self.stratification])
+            ):
+                raise ValueError(
+                    "The specified time-dependent parameter '{0}' is not an "
+                    "existing model parameter".format(param))
+            kwds = self._validate_parameter_function(func)
+            extra_params.append(kwds)
+
+        self._function_parameters = extra_params
 
     def _validate(self):
         """
@@ -120,7 +134,7 @@ class BaseModel:
 
         integrate_params = keywords[1 + N_states :]
         specified_params = self.parameter_names.copy()
-        
+
         if self.parameters_stratified_names:
             for stratified_names in self.parameters_stratified_names:
                 if stratified_names:
@@ -135,18 +149,15 @@ class BaseModel:
                 "{0} vs {1}".format(integrate_params, specified_params)
             )
 
-        # compliance parameters are added to specified_params after the above check
-        if self.parameters_compliance_names:
-            specified_params += self.parameters_compliance_names
-
-        # confirm that apply_compliance_to is a model parameter
-        # extract position of parameter to apply compliance to
-        if self.apply_compliance_to and self.compliance:
-            if self.apply_compliance_to not in specified_params:
-                raise ValueError(
-                    "The parameter you want me to apply compliance to is not a model parameter "
-                )
-            self.compliance_position = [index for index in range(len(specified_params)) if specified_params[index] == self.apply_compliance_to][0]
+        # additional parameters from time-dependent parameter functions
+        # are added to specified_params after the above check
+        # TODO check that it doesn't duplicate any existing parameter
+        if self._function_parameters:
+            extra_params = [item for sublist in self._function_parameters for item in sublist]
+            specified_params += extra_params
+            self._n_function_params = len(extra_params)
+        else:
+            self._n_function_params = 0
 
         # Validate the params
         if set(self.parameters.keys()) != set(specified_params):
@@ -158,8 +169,6 @@ class BaseModel:
             )
 
         self.parameters = {param: self.parameters[param] for param in specified_params}
-        # parameter dictionary excluding compliance parameters --> [v for k,v in self.parameters.items() if k not in self.parameters_compliance_names]
-        # compliance parameters --> [v for k,v in self.parameters.items() if k in self.parameters_compliance_names]
 
         # Validate the initial_states / stratified params having the correct length
 
@@ -216,7 +225,7 @@ class BaseModel:
             else:
                 # otherwise add default of 0
                 self.initial_states[state] = np.zeros(self.stratification_size)
-        
+
         # validate the states (using `set` to ignore order)
         if set(self.initial_states.keys()) != set(self.state_names):
             raise ValueError(
@@ -224,7 +233,6 @@ class BaseModel:
             )
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
-
 
     @staticmethod
     def integrate():
@@ -237,11 +245,18 @@ class BaseModel:
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
-            compliance_pars = [v for k,v in pars.items() if k in self.parameters_compliance_names]
-            model_pars = [v for k,v in pars.items() if k not in self.parameters_compliance_names]
+            # update time-dependent parameter values
+            params = pars.copy()
 
-            if self.compliance and self.time_of_lst_chk > 0:
-                model_pars[self.compliance_position] = self.compliance(t-self.time_of_lst_chk, self.old, self.new, *compliance_pars)
+            if self.time_dependent_parameters:
+                for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
+                    func_params = {key: params[key] for key in self._function_parameters[i]}
+                    params[param] = func(t, pars[param], **func_params)
+
+            if self._n_function_params > 0:
+                model_pars = list(params.values())[:-self._n_function_params]
+            else:
+                model_pars = list(params.values())
 
             # for the moment assume sequence of parameters, vars,... is correct
             size_lst=[len(self.state_names)]
@@ -327,7 +342,7 @@ class BaseModel:
 
         if isinstance(time, str):
             time = [0, self.date_to_diff(start_date, time, excess_time)]
-        
+
         if checkpoints:
             for i in range(len(checkpoints["time"])):
                 if isinstance(checkpoints["time"][i],str):
