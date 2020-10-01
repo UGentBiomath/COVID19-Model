@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices():
+def get_interaction_matrices(spatial=False):
     """Extract interaction matrices and demographic data from `data/raw/polymod` folder
 
     This function returns the total number of individuals in ten year age bins in the Belgian population and the interaction matrices Nc at home, at work, in schools, on public transport, during leisure activities and during other activities.
@@ -48,6 +48,12 @@ def get_interaction_matrices():
     Nc_leisure = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELleisure.txt"), dtype='f', delimiter='\t')
     Nc_others = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELothers.txt"), dtype='f', delimiter='\t')
     Nc_total = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELtotal.txt"), dtype='f', delimiter='\t')
-    initN = np.loadtxt(os.path.join(polymod_path, "demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+    
+    # Total population per age class, and per NIS code
+    initN_df = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/initN_arrond.csv'), index_col='NIS')
+    if spatial == False:
+        initN = initN_df[['total']].values
+    if spatial == True:
+        initN = initN_df.drop(columns='total').values
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total

@@ -107,6 +107,20 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['place'] = NIS
         
         # Read areas per region, ordered in ascending NIS values
+        area_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/area_arrond.csv'), index_col='NIS')
+        # Make sure the regions are ordered well
+        area_df=area_df.sort_index(axis=0)
+        area=area_df.values
+        pars_dict['area'] = area
+        
+        # Load mobility parameter, which is age-stratified and 1 by default
+        pi = np.ones(pars_dict['Nc'].shape[0])
+        pars_dict['pi'] = pi
+        
+        # Load average household size sigma_g per region. Set default to average 2.3 for now.
+        sg = np.ones(pars_dict['place'].shape[0]) * 2.3
+        pars_dict['sg'] = sg
+        
 
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')

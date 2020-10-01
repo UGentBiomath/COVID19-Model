@@ -85,9 +85,14 @@ def dens_dep(rho, xi=0.01):
 
     return f
 
-def read_areas():
+def read_areas(name='arrond'):
     """
     Reads full CSV with area per NIS code
+    
+    Parameters
+    ----------
+    name : str
+        Choose between municipalities ('municip'), arrondissements ('arrond') or provinces ('province'). Defaults is 'arrond'
     
     Returns
     -------
@@ -95,7 +100,7 @@ def read_areas():
         NIS codes are keys, values are population in square meters
     """
     
-    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_NIS.csv'), index_col='NIS')
+    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + name + '.csv'), index_col='NIS')
     areas = areas_df['area'].to_dict()
     
     return areas
