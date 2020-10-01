@@ -95,12 +95,18 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
 
     # Add recurrent mobility matrix to parameter dictionary
     if spatial == True:
+        # Read recurrent mobility matrix, ordered in ascending NIS values
         mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/recurrent_mobility.csv'), index_col=[0])
+        # Make sure the regions are ordered well
+        mobility_df=mobility_df.sort_index(axis=0).sort_index(axis=1)
+        # Take only the values (matrix) and save in NIS
         NIS=mobility_df.values
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
-        pars_dict.update({'place': NIS})
+        pars_dict['place'] = NIS
+        
+        # Read areas per region, ordered in ascending NIS values
 
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')

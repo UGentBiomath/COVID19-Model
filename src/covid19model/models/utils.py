@@ -84,3 +84,40 @@ def dens_dep(rho, xi=0.01):
     f = 1 + ( 1 - np.exp(-xi * rho) )
 
     return f
+
+def read_areas():
+    """
+    Reads full CSV with area per NIS code
+    
+    Returns
+    -------
+    areas : dictionary
+        NIS codes are keys, values are population in square meters
+    """
+    
+    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_NIS.csv'), index_col='NIS')
+    areas = areas_df['area'].to_dict()
+    
+    return areas
+
+def read_pops(name='arrond'):
+    """
+    Reads initial population per age and per area
+    
+    Parameters
+    ----------
+    name : str
+        choose geographical aggregation. Pick between 'arrond', 'municip', 'province'. Default is 'arrond'.
+        
+    Returns
+    -------
+    pops : dictionary
+        NIS codes are keys, values are dictionaries. The inner dictionary has population classes as keys and
+        population per age class and per NIS code as values.
+        Age classes are [0,10), [10,20), ... , [80, 110)
+    """
+    
+    pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + name + '.csv'), index_col='NIS')
+    pops = pops_df.T.to_dict()
+    
+    return pops
