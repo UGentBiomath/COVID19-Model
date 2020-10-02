@@ -88,10 +88,12 @@ class BaseModel:
 
         extra_params = []
 
+        all_param_names = self.parameter_names + self.parameters_stratified_names
+        if self.stratification:
+            all_param_names.extend(self.stratification)
+        
         for param, func in self.time_dependent_parameters.items():
-            if (param not in (
-                self.parameter_names + self.parameters_stratified_names + self.stratification)
-            ):
+            if param not in all_param_names:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
@@ -415,26 +417,29 @@ class BaseModel:
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
         """
-        dims=self.stratification.copy()
+
+        if self.stratification:
+            dims = self.stratification.copy()
+        else:
+            dims = []
         dims.append('time')
 
         coords = {
             "time": output["t"],
         }
 
-        for i in range(len(self.stratification)):
-            if self.coordinates:
-                if self.coordinates[i] is None:
-                    coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
-                else:
+        if self.stratification:
+            for i in range(len(self.stratification)):
+                if self.coordinates and self.coordinates[i] is not None:
                     coords.update({self.stratification[i]: self.coordinates[i]})
-            else:
-                coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
+                else:
+                    coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 
 
-        size_lst=[len(self.state_names)]
-        for size in self.stratification_size:
-            size_lst.append(size)
+        size_lst = [len(self.state_names)]
+        if self.stratification:
+            for size in self.stratification_size:
+                size_lst.append(size)
         size_lst.append(len(output["t"]))
         y_reshaped = output["y"].reshape(tuple(size_lst))
 

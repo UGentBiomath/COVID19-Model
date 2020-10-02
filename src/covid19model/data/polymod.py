@@ -51,6 +51,8 @@ def get_interaction_matrices(spatial=False):
     
     # Total population per age class, and per NIS code
     initN_df = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/initN_arrond.csv'), index_col='NIS')
+    # Sort indices from low to high (just to be sure)
+    initN_df = initN_df.sort_index()
     if spatial == False:
         initN = initN_df[['total']].values
     if spatial == True:
