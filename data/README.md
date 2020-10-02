@@ -87,7 +87,13 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
     - columns: municipality of work   
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
-+ `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
++ `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`. This data is deprecated since 2019.
+
++ `census-2011-updated_row-commutes-to-column_arrondissements.csv` contains a square (but non-symmetric) mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
+
++ `census-2011-updated_row-commutes-to-column_municipalities.csv` contains a square (but non-symmetric) mobility matrix of the Belgian municipalities (581x581). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
+
++ `census-2011-updated_row-commutes-to-column_provinces.csv` contains a square (but non-symmetric) mobility matrix of the Belgian provinces *and* arrondissement Brussels-Capital (NIS 21000) (11x11). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
 
 #### Demographic data
 
@@ -96,6 +102,12 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 + `age_structure_per_municipality.csv` : population of each age per municipality
 
 + `age_structure_per_province.csv` : population of each age per province
+
++ `area_arrond.csv` contains the area of Belgian arrondissements per NIS code in square meters
+
++ `area_municip.csv` contains the area of Belgian municipalities per NIS code in square meters
+
++ `area_province.csv` contains the area of Belgian provinces per NIS code in square meters
 
 + `initN_arrond.csv` contains a pandas dataframe with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
