@@ -72,11 +72,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['c'] = np.array(df['c'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
-        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[:-1])
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[:-1])
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[:-1])
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[:-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[:-1])
 
         # verity_etal
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
@@ -110,8 +110,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         area_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/area_arrond.csv'), index_col='NIS')
         # Make sure the regions are ordered well
         area_df=area_df.sort_index(axis=0)
-        area=area_df.values
-        pars_dict['area'] = area
+        area=area_df.values[:,0]
+        pars_dict['area'] = area * 1e-6 # in square kilometer
         
         # Load mobility parameter, which is age-stratified and 1 by default
         pi = np.ones(pars_dict['Nc'].shape[0])

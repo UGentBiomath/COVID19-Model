@@ -280,7 +280,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
-    parameters_stratified_names = [None, ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']]
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'pi']]
     stratification = ['place','Nc']
     coordinates = [read_coordinates_nis()]
     coordinates.append(None)
@@ -289,10 +289,11 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dhospital,
-                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  place, Nc):
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, # SEIRD parameters
+                  area, sg,  # spatially stratified parameters
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec, pi, # age-stratified parameters
+                  place, Nc): # not really sure?
 #     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
 #                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
 #                   dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
@@ -310,11 +311,83 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
 
+        
+        # Define all the parameters needed to calculate the probability for an agent to get infected (following Arenas 2020)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
+        # For total population and for the relevant compartments I and A
+        G = P.shape[0] # spatial stratification
+        N = Nc.shape[0] # age stratification
+        T_eff = np.zeros(initN.shape) # initialise
+        A_eff = np.zeros(initN.shape)
+        I_eff = np.zeros(initN.shape)
+        for g in range(G):
+            for h in range(G):
+                # total population
+                sum1 = (1 - pi) * np.identity(G)[h][g]
+                sum2 = pi * P[h][g]
+                T_eff[g] += ( sum1 + sum2 ) * initN[h]
+                A_eff[g] += ( sum1 + sum2 ) * A[h]
+                I_eff[g] += ( sum1 + sum2 ) * A[h]
+                
+        # Density dependence parameter per patch: f[patch]
+        def dens_dep(rho, xi):
+            f = 1 + (1 - np.exp(-xi*rho))
+            return f
+        # xi is hard-coded for now
+        xi = 0.01 # km^-2
+        T_eff_total = T_eff.sum(axis=1)
+        rho = T_eff_total / area
+        f = 1 + (1 - np.exp(-xi * rho))
+        
+        # Normalisation factor per age class: zi[age]
+        Ti = T.sum(axis=0)
+        f = dens_dep(T_eff.sum(axis=1) / area, xi)
+        denom = np.zeros(N)
+        for h in range(G):
+            value = f[h] * T_eff[h]
+            denom += value
+        zi = Ti / denom
+        
+        # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
+        # initialisation for the summation over all ages below
+        T_eff_temp = np.zeros(Nc.shape)
+        A_eff_temp = np.zeros(Nc.shape)
+        I_eff_temp = np.zeros(Nc.shape)
+        s_temp = np.array([s]*43)
+        Nc_temp = np.array([Nc]*43)
+        for h in range(G):
+            for j in range(N):
+                T_eff_temp[h,j] = T_eff[h]
+                A_eff_temp[h,j] = A_eff[h]
+                I_eff_temp[h,j] = I_eff[h]
+
+        argument = np.zeros([G,N])
+        for j in range(N):
+            argument += - beta * s * zi * f * Nc[:,:,j] * ( I_eff_temp[:,:,j] + A_eff_temp[:,:,j] ) / T_eff_temp[:,:,j]
+
+        P = 1 - np.exp(argument)
+        
+        # the probability to get infected in any patch when in a particular age class: Pbis[patch][age]
+        Pbis = np.zeros(P.shape) # initialise
+        for j in range(N):
+            Pbis[:,j] = np.matmul(np.transpose(place), P[:,j])
+            
+        # the combined probability, depending on the overall mobility
+        bigP = np.zeros(P.shape) # initialise
+        for h in range(G):
+            bigP[h] = (1 - pi) * P[h] + pi * Pbis[h]
+            
+        # To be added: effect of average family size (sigma^g or sg)
+        
+        
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
-
+ 
+        
         matrix_1 = np.zeros([place.shape[0],Nc.shape[0]])
         for i in range(place.shape[0]):
             # matrix_1[i,:] =
