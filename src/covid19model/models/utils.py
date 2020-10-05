@@ -46,23 +46,23 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
-def read_coordinates_nis(name='arrond'):
+def read_coordinates_nis(spatial='arr'):
     """
     A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
     
     Parameters
     ----------
-    name : str
-        choose geographical aggregation. Pick between 'arrond', 'municip', 'province'. Default is 'arrond'.
+    spatial : str
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov'. Default is 'arr'.
 
     Returns
     -------
      NIS: list
-        a list containing the NIS codes of the 43 Belgian arrondissements
+        a list containing the NIS codes of the 43 Belgian arrondissements, 581 municipalities, or 10 provinces (+ Brussels-Capital)
 
     """
     
-    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + name + '.csv'), index_col=[0])
+    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col=[0])
     NIS = initN_df.index.values
 
     return NIS
@@ -85,13 +85,13 @@ def dens_dep(rho, xi=0.01):
 
     return f
 
-def read_areas(name='arr'):
+def read_areas(spatial='arr'):
     """
     Reads full CSV with area per NIS code
     
     Parameters
     ----------
-    name : str
+    spatial : str
         Choose between municipalities ('mun'), arrondissements ('arr') or provinces ('prov'). Defaults is 'arr'
     
     Returns
@@ -100,18 +100,18 @@ def read_areas(name='arr'):
         NIS codes are keys, values are population in square meters
     """
     
-    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + name + '.csv'), index_col='NIS')
+    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + spatial + '.csv'), index_col='NIS')
     areas = areas_df['area'].to_dict()
     
     return areas
 
-def read_pops(name='arr'):
+def read_pops(spatial='arr'):
     """
     Reads initial population per age and per area
     
     Parameters
     ----------
-    name : str
+    spatial : str
         choose geographical aggregation. Pick between 'arr', 'mun', 'prov'. Default is 'arr'.
         
     Returns
@@ -122,7 +122,7 @@ def read_pops(name='arr'):
         Age classes are [0,10), [10,20), ... , [80, 110)
     """
     
-    pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + name + '.csv'), index_col='NIS')
+    pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col='NIS')
     pops = pops_df.T.to_dict()
     
     return pops

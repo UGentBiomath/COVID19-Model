@@ -282,7 +282,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'pi']]
     stratification = ['place','Nc']
-    coordinates = [read_coordinates_nis()]
+    coordinates = [read_coordinates_nis(spatial='arr')] # hardcoded for now -- to be generalised later
     coordinates.append(None)
     apply_compliance_to = 'Nc'
 
@@ -291,12 +291,9 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta, sigma, omega, zeta, da, dm, der, dhospital, # SEIRD parameters
-                  area, sg,  # spatially stratified parameters
+                  area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec, pi, # age-stratified parameters
-                  place, Nc): # not really sure?
-#     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-#                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-#                   dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
+                  place, Nc): # stratified parameters that determine stratification dimensions
 
         """
         BIOMATH extended SEIRD model for COVID-19
