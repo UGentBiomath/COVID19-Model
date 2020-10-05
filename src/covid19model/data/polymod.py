@@ -3,15 +3,22 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(spatial=False):
+def get_interaction_matrices(spatial=None):
     """Extract interaction matrices and demographic data from `data/raw/polymod` folder
 
     This function returns the total number of individuals in ten year age bins in the Belgian population and the interaction matrices Nc at home, at work, in schools, on public transport, during leisure activities and during other activities.
+    
+    The total number of individuals may be spatially stratified per municipality, per arrondissement, or per province (including Brussels-Capital). The final value in the list is the total.
+    
+    Parameters
+    ----------
+    spatial : string
+        either 'mun', 'arr', or 'prov'
 
     Returns
     -----------
-    initN : np.array
-        number of Belgian individuals, regardless of sex, in ten year age bins
+    initN : np.array (10)
+        number of Belgian individuals, regardless of sex, in ten year age bins, including the total number
     Nc_home :  np.array (9x9)
         number of daily contacts at home of individuals in age group X with individuals in age group Y
     Nc_work :  np.array (9x9)
@@ -50,12 +57,20 @@ def get_interaction_matrices(spatial=False):
     Nc_total = np.loadtxt(os.path.join(polymod_path, "interaction_matrices/Belgium/BELtotal.txt"), dtype='f', delimiter='\t')
     
     # Total population per age class, and per NIS code
-    initN_df = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/initN_arrond.csv'), index_col='NIS')
-    # Sort indices from low to high (just to be sure)
-    initN_df = initN_df.sort_index()
-    if spatial == False:
-        initN = initN_df[['total']].values
-    if spatial == True:
-        initN = initN_df.drop(columns='total').values
+    if not spatial:
+        # Sum over all municipalities
+        initN_df = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/initN_mun.csv'), index_col='NIS')
+        initN = initN_df.sum().values.astype(float)
+    
+    else:
+        if spatial not in ['mun', 'arr', 'prov']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov'".format(spatial)
+                    )
+        initN_data = '../../../data/interim/demographic/initN_' + spatial + '.csv'
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN_df = initN_df.sort_index()
+        initN = initN_df.values.astype(float)
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total

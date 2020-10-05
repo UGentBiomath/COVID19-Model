@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from covid19model.data import polymod
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -64,7 +64,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
     if age_stratified == True:
 
         # Assign Nc_total from the Polymod study to the parameters dictionary
-        Nc_total = polymod.get_interaction_matrices()[-1]
+        Nc_total = polymod.get_interaction_matrices(spatial)[-1]
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
@@ -94,9 +94,16 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
 
     # Add spatial parameters to dictionary
-    if spatial == True:
-        # Read recurrent mobility matrix for arrondissements
-        mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_arrondissements.csv'), index_col='NIS')
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov'".format(spatial)
+                    )
+
+        # Read recurrent mobility matrix per region
+        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
+        mobility_df=pd.read_csv(os.path.join(abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
         mobility_df=mobility_df.sort_index(axis=0).sort_index(axis=1)
         # Take only the values (matrix) and save in NIS as floating points
@@ -107,17 +114,18 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['place'] = NIS
         
         # Read areas per region, ordered in ascending NIS values
-        area_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/demographic/area_arrond.csv'), index_col='NIS')
+        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
+        area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
         # Make sure the regions are ordered well
         area_df=area_df.sort_index(axis=0)
         area=area_df.values[:,0]
         pars_dict['area'] = area * 1e-6 # in square kilometer
         
-        # Load mobility parameter, which is age-stratified and 1 by default
+        # Load mobility parameter, which is age-stratified and 1 by default (no measures)
         pi = np.ones(pars_dict['Nc'].shape[0])
         pars_dict['pi'] = pi
         
-        # Load average household size sigma_g per region. Set default to average 2.3 for now.
+        # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
         
