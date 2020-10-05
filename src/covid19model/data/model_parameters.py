@@ -93,14 +93,14 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
 
-    # Add recurrent mobility matrix to parameter dictionary
+    # Add spatial parameters to dictionary
     if spatial == True:
-        # Read recurrent mobility matrix, ordered in ascending NIS values
-        mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/recurrent_mobility.csv'), index_col=[0])
-        # Make sure the regions are ordered well
+        # Read recurrent mobility matrix for arrondissements
+        mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_arrondissements.csv'), index_col='NIS')
+        # Make sure the regions are ordered according to ascending NIS values
         mobility_df=mobility_df.sort_index(axis=0).sort_index(axis=1)
-        # Take only the values (matrix) and save in NIS
-        NIS=mobility_df.values
+        # Take only the values (matrix) and save in NIS as floating points
+        NIS=mobility_df.values.astype(float)
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
