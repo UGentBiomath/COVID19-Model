@@ -85,14 +85,14 @@ def dens_dep(rho, xi=0.01):
 
     return f
 
-def read_areas(name='arrond'):
+def read_areas(name='arr'):
     """
     Reads full CSV with area per NIS code
     
     Parameters
     ----------
     name : str
-        Choose between municipalities ('municip'), arrondissements ('arrond') or provinces ('province'). Defaults is 'arrond'
+        Choose between municipalities ('mun'), arrondissements ('arr') or provinces ('prov'). Defaults is 'arr'
     
     Returns
     -------
@@ -105,14 +105,14 @@ def read_areas(name='arrond'):
     
     return areas
 
-def read_pops(name='arrond'):
+def read_pops(name='arr'):
     """
     Reads initial population per age and per area
     
     Parameters
     ----------
     name : str
-        choose geographical aggregation. Pick between 'arrond', 'municip', 'province'. Default is 'arrond'.
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov'. Default is 'arr'.
         
     Returns
     -------

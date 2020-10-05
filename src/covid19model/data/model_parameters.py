@@ -8,15 +8,19 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
-    This function returns all parameters needed to run the age-stratified model.
+    This function returns all parameters needed to run the age-stratified and/or spatially stratified model.
     This function was created to group all parameters in one centralised location.
 
     Parameters
     ----------
 
-    stratified : boolean
-        If True: returns parameters stratified by age, for agestructured model
+    age-stratified : boolean
+        If True (default): returns parameters stratified by age, for agestructured model
         If False: returns parameters for non-agestructured model
+        
+    spatial : string
+        If None (default): returns national parameters (not stratified by region)
+        If 'mun', 'arr' or 'prov': returns parameters stratified by resp. municipality, arrondissement, or province
 
     Returns
     -------

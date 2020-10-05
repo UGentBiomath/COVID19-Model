@@ -13,7 +13,7 @@ def get_interaction_matrices(spatial=None):
     Parameters
     ----------
     spatial : string
-        either 'mun', 'arr', or 'prov'
+        either 'mun', 'arr', or 'prov'. Default is None
 
     Returns
     -----------
