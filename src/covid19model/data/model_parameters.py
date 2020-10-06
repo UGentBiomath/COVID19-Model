@@ -88,7 +88,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
         pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
     else:
-        pars_dict['Nc'] = np.array([11.2])
+        pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
