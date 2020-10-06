@@ -282,6 +282,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     stratification = ['place','Nc']
     coordinates = [read_coordinates_nis()]
     coordinates.append(None)
+    apply_compliance_to = 'Nc'
     
     # ..transitions/equations
     @staticmethod
