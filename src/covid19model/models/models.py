@@ -279,8 +279,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'pi']]
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction
     coordinates = [read_coordinates_nis(spatial='arr')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
@@ -290,9 +290,9 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, # SEIRD parameters
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec, pi, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
@@ -316,17 +316,23 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
-        T_eff = np.zeros(initN.shape) # initialise
-        A_eff = np.zeros(initN.shape)
-        I_eff = np.zeros(initN.shape)
+        T_eff = np.zeros([G,N]) # initialise
+        A_eff = np.zeros([G,N])
+        I_eff = np.zeros([G,N])
         for g in range(G):
-            for h in range(G):
-                # total population
-                sum1 = (1 - pi) * np.identity(G)[h][g]
-                sum2 = pi * place[h][g]
-                T_eff[g] += ( sum1 + sum2 ) * initN[h]
-                A_eff[g] += ( sum1 + sum2 ) * A[h]
-                I_eff[g] += ( sum1 + sum2 ) * A[h]
+            for i in range(N):
+                sumT = 0
+                sumA = 0
+                sumI = 0
+                for h in range(G):
+                    term1 = (1 - pi[i]) * np.identity(G)[h][g]
+                    term2 = pi[i] * place[h][g]
+                    sumT += (term1 + term2) * T[h][i]
+                    sumA += (term1 + term2) * A[h][i]
+                    sumI += (term1 + term2) * I[h][i]
+                T_eff[g][i] = sumT
+                A_eff[g][i] = sumA
+                I_eff[g][i] = sumI
         
         # Density dependence per patch: f[patch]
         xi = 0.01 # km^-2
@@ -350,7 +356,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             for g in range(G):
                 summ = 0
                 for j in range(N):
-                    term = - beta * s[i] * z[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j]
+                    term = - beta * s[i] * zi[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j]
                     summ += term
                 argument[g,i] = summ
         P = 1 - np.exp(l*argument) # multiplied by length of timestep
@@ -370,7 +376,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         bigP = np.zeros([G,N])
         for i in range(N):
             for g in range(G):
-                bigP[g,i] = (1 - pi[i]) * place[g,i] + pi[i] * Pbis[g,i]
+                bigP[g,i] = (1 - pi[i]) * P[g,i] + pi[i] * Pbis[g,i]
             
             
         # To be added: effect of average family size (sigma^g or sg)

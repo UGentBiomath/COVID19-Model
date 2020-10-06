@@ -76,11 +76,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
         pars_dict['c'] = np.array(df['c'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[:-1])
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[:-1])
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[:-1])
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[:-1])
-        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[:-1])
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1]) # Better is .values[:-1], but there is no sufficient data
 
         # verity_etal
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
