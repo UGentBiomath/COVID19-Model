@@ -1,5 +1,5 @@
 import numpy as np
-from covid19model.data import polymod
+from covid19model.data import model_parameters
 
 def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
@@ -108,7 +108,7 @@ def MLE(thetas,BaseModel,data,states,parNames,checkpoints=None,samples=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices()
     # by defenition, if N is the number of data timeseries then the first N parameters are the estimated variances of these timeseries!
     i = 0
     sigma=[]
