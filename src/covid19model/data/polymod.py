@@ -71,6 +71,6 @@ def get_interaction_matrices(spatial=None):
         initN_data = '../../../data/interim/demographic/initN_' + spatial + '.csv'
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN_df = initN_df.sort_index()
-        initN = initN_df.values.astype(float)
+        initN = initN_df.values.astype(float)[:,:-1]
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
