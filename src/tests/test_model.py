@@ -89,8 +89,8 @@ class SIRstratified(BaseModel):
     # state variables and parameters
     state_names = ['S', 'I', 'R']
     parameter_names = ['gamma']
-    parameters_stratified_names = ['beta']
-    stratification = 'nc'
+    parameters_stratified_names = [['beta']]
+    stratification = ['nc']
 
     @staticmethod
     def integrate(t, S, I, R, gamma, beta, nc):
@@ -117,7 +117,7 @@ def test_model_stratified_simple_sir():
 
     np.testing.assert_allclose(output["time"], np.arange(0, 51))
     np.testing.assert_allclose(
-        output.coords['stratification'].values, np.array([0, 1])
+        output.coords['nc'].values, np.array([0, 1])
     )
 
 
@@ -133,8 +133,8 @@ def test_model_stratified_init_validation():
     # model state/parameter names didn't change
     assert model.state_names == ['S', 'I', 'R']
     assert model.parameter_names == ['gamma']
-    assert model.parameters_stratified_names == ['beta']
-    assert model.stratification == 'nc'
+    assert model.parameters_stratified_names == [['beta']]
+    assert model.stratification == ['nc']
 
     # wrong initial states
     initial_states2 = {"S": [1_000_000 - 10]*2, "II": [10]*2}
@@ -163,12 +163,12 @@ def test_model_stratified_init_validation():
 
     # initial state of the wrong length
     initial_states2 = {"S": 600_000 - 20, "I": [20, 10], "R": [0, 0]}
-    msg = "A initial state value should be a 1D array"
+    msg = r"The stratification parameters '\['nc'\]' indicates a stratification size of \[2\], but"
     with pytest.raises(ValueError, match=msg):
         SIRstratified(initial_states2, parameters)
 
     initial_states2 = {"S": [0] * 3, "I": [20, 10], "R": [0, 0]}
-    msg = "The stratification parameter 'nc' indicates a stratification size of 2, but"
+    msg = r"The stratification parameters '\['nc'\]' indicates a stratification size of \[2\], but"
     with pytest.raises(ValueError, match=msg):
         SIRstratified(initial_states2, parameters)
 
@@ -179,15 +179,15 @@ def test_model_stratified_init_validation():
         SIRstratified(initial_states, parameters)
 
     SIRstratified.parameter_names = ["gamma"]
-    SIRstratified.parameters_stratified_names = ["beta", "alpha"]
+    SIRstratified.parameters_stratified_names = [["beta", "alpha"]]
     with pytest.raises(ValueError, match=msg):
         SIRstratified(initial_states, parameters)
 
     # ensure to set back to correct ones
     SIRstratified.state_names = ["S", "I", "R"]
     SIRstratified.parameter_names = ["gamma"]
-    SIRstratified.parameters_stratified_names = ["beta"]
-    SIRstratified.stratification = "nc"
+    SIRstratified.parameters_stratified_names = [["beta"]]
+    SIRstratified.stratification = ["nc"]
 
 
 def test_model_stratified_default_initial_state():
