@@ -281,8 +281,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'pi']]
-    stratification = ['place','Nc']
-    coordinates = [read_coordinates_nis(spatial='arr')] # hardcoded for now -- to be generalised later
+    stratification = ['place','Nc'] # mobility and social interaction
+    coordinates = [read_coordinates_nis(spatial='arr')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
     apply_compliance_to = 'Nc'
 
@@ -314,7 +314,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         
         # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
         # For total population and for the relevant compartments I and A
-        G = P.shape[0] # spatial stratification
+        G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
         T_eff = np.zeros(initN.shape) # initialise
         A_eff = np.zeros(initN.shape)
@@ -323,24 +323,20 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             for h in range(G):
                 # total population
                 sum1 = (1 - pi) * np.identity(G)[h][g]
-                sum2 = pi * P[h][g]
+                sum2 = pi * place[h][g]
                 T_eff[g] += ( sum1 + sum2 ) * initN[h]
                 A_eff[g] += ( sum1 + sum2 ) * A[h]
                 I_eff[g] += ( sum1 + sum2 ) * A[h]
-                
-        # Density dependence parameter per patch: f[patch]
-        def dens_dep(rho, xi):
-            f = 1 + (1 - np.exp(-xi*rho))
-            return f
-        # xi is hard-coded for now
+        
+        # Density dependence per patch: f[patch]
         xi = 0.01 # km^-2
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
         
         # Normalisation factor per age class: zi[age]
+        # Population per age class
         Ti = T.sum(axis=0)
-        f = dens_dep(T_eff.sum(axis=1) / area, xi)
         denom = np.zeros(N)
         for h in range(G):
             value = f[h] * T_eff[h]
@@ -349,32 +345,27 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         
         # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
         # initialisation for the summation over all ages below
-        T_eff_temp = np.zeros(Nc.shape)
-        A_eff_temp = np.zeros(Nc.shape)
-        I_eff_temp = np.zeros(Nc.shape)
-        s_temp = np.array([s]*43)
-        Nc_temp = np.array([Nc]*43)
-        for h in range(G):
-            for j in range(N):
-                T_eff_temp[h,j] = T_eff[h]
-                A_eff_temp[h,j] = A_eff[h]
-                I_eff_temp[h,j] = I_eff[h]
-
         argument = np.zeros([G,N])
-        for j in range(N):
-            argument += - beta * s * zi * f * Nc[:,:,j] * ( I_eff_temp[:,:,j] + A_eff_temp[:,:,j] ) / T_eff_temp[:,:,j]
-
+        for i in range(N):
+            for g in range(G):
+                summ = 0
+                for j in range(N):
+                    term = - beta * s[i] * z[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j]
+                    summ += term
+                argument[g,i] = summ
         P = 1 - np.exp(argument)
         
         # the probability to get infected in any patch when in a particular age class: Pbis[patch][age]
-        Pbis = np.zeros(P.shape) # initialise
-        for j in range(N):
-            Pbis[:,j] = np.matmul(np.transpose(place), P[:,j])
+        Pbis = np.zeros([G,N]) # initialise
+        # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
+        for i in range(N):
+            for g in range(G):
+                summ = 0
+                for h in range(G):
+                    term = place[g,h] * P[h,i]
+                    summ += term
+                Pbis[g,i] = summ
             
-        # the combined probability, depending on the overall mobility
-        bigP = np.zeros(P.shape) # initialise
-        for h in range(G):
-            bigP[h] = (1 - pi) * P[h] + pi * Pbis[h]
             
         # To be added: effect of average family size (sigma^g or sg)
         
