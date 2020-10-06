@@ -67,7 +67,7 @@ def get_interaction_matrices(intensity='all'):
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -77,9 +77,19 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
     Parameters
     ----------
 
-    stratified : boolean
+    age_stratified : boolean
         If True: returns parameters stratified by age, for agestructured model
         If False: returns parameters for non-agestructured model
+    
+    spatial : boolean
+        If True: returns parameters for the age-stratified spatially explicit model
+        If False: returns parameters for the age-stratified national-level model
+
+    intensity : string
+        the extracted interaction matrix can be altered based on the nature or duration of the social contacts
+		this is necessary because a contact is defined as any conversation longer than 3 sentences
+		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
+		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
 
     Returns
     -------
@@ -127,7 +137,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
     if age_stratified == True:
 
         # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
-        Nc_total = get_interaction_matrices()[-1]
+        Nc_total = get_interaction_matrices(intensity=intensity)[-1]
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
