@@ -6,6 +6,14 @@ import numpy as np
 def get_interaction_matrices(intensity='all'):
     """Extracts and returns interaction matrices for given contact intensity (Willem 2012) and extracts and returns demographic data for Belgium (2020)
 
+	Parameters
+	-----------
+	intensity : string
+		the extracted interaction matrix can be altered based on the nature or duration of the social contacts
+		this is necessary because a contact is defined as any conversation longer than 3 sentences
+		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
+		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
+
     Returns
     -----------
     initN : np.array
