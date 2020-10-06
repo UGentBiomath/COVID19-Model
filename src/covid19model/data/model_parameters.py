@@ -2,7 +2,62 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from covid19model.data import polymod
+
+def get_interaction_matrices(intensity='all'):
+    """Extracts and returns interaction matrices for given contact intensity (Willem 2012) and extracts and returns demographic data for Belgium (2020)
+
+    Returns
+    -----------
+    initN : np.array
+        number of Belgian individuals, regardless of sex, in ten year age bins
+    Nc_home :  np.array (9x9)
+        number of daily contacts at home of individuals in age group X with individuals in age group Y
+    Nc_work :  np.array (9x9)
+        number of daily contacts in the workplace of individuals in age group X with individuals in age group Y
+    Nc_schools :  np.array (9x9)
+        number of daily contacts in schools of individuals in age group X with individuals in age group Y
+    Nc_transport :  np.array (9x9)
+        number of daily contacts on public transport of individuals in age group X with individuals in age group Y
+    Nc_leisure :  np.array (9x9)
+        number of daily contacts during leisure activities of individuals in age group X with individuals in age group Y
+    Nc_others :  np.array (9x9)
+        number of daily contacts in other places of individuals in age group X with individuals in age group Y
+    Nc_total :  np.array (9x9)
+        total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
+
+    Notes
+    ----------
+    The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
+    During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled.
+    The demographic data was retreived from https://statbel.fgov.be/en/themes/population/structure-population
+
+    Example use
+    -----------
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
+    """
+
+    # Define data path
+    abs_dir = os.path.dirname(__file__)
+    matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/willem_2012")
+
+    # Input check on user-defined intensity
+    if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
+        raise ValueError(
+            "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
+
+    # Extract interaction matrices
+    Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+
+    # Extract demographic data
+    initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+
+    return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
 def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
     """
