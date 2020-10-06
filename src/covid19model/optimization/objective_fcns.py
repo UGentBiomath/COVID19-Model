@@ -1,5 +1,5 @@
 import numpy as np
-from covid19model.data import polymod
+from covid19model.data import model_parameters
 
 def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
