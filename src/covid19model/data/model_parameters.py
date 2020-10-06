@@ -118,8 +118,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False):
 
     if age_stratified == True:
 
-        # Assign Nc_total from the Polymod study to the parameters dictionary
-        Nc_total = polymod.get_interaction_matrices()[-1]
+        # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
+        Nc_total = get_interaction_matrices()[-1]
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
