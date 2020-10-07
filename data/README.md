@@ -44,6 +44,8 @@
 
 + `Age pyramid of Belgium.csv` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per gender and per 5 year age bins. Retreived from https://statbel.fgov.be/en/themes/population/structure-population
 
++ `TF_SOC_POP_STRUCT_2020.xlsx` contains the most recent (January 1st, 2020) structure of the Belgian population, per age and per municipality. This is used to extract the spatially and age-stratified population `initN`. Retrieved from https://statbel.fgov.be/nl/open-data/bevolking-naar-woonplaats-nationaliteit-burgerlijke-staat-leeftijd-en-geslacht-10
+
 #### Google
 
 + `community_mobility_data.csv` contains a copy of the Google Community Mobility Report dataset downloaded by the function `get_google_mobility_data()`. Mobility data is extracted from https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a

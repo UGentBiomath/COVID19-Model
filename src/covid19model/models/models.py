@@ -280,7 +280,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction
-    coordinates = [read_coordinates_nis(spatial='prov')] # arr hardcoded for now -- to be generalised later
+    coordinates = [read_coordinates_nis(spatial='arr')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
 
     # ..transitions/equations
@@ -358,7 +358,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                     summ += term
                 argument[g,i] = summ
         P = 1 - np.exp(l*argument) # multiplied by length of timestep
-
+        
         # The probability to get infected in any patch when in a particular age class: Pbis[patch][age]
         Pbis = np.zeros([G,N]) # initialise
         # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
@@ -403,7 +403,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                         (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
                         (1 - np.exp(- l * zeta ))*np.ones([G,N]),
                         ]
-
+        
         states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
         propensity={}
         # Calculate propensity for each migration (listed in keys)
