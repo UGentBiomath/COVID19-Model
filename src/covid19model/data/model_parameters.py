@@ -2,9 +2,72 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from covid19model.data import polymod
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
+def get_interaction_matrices(intensity='all'):
+    """Extracts and returns interaction matrices for given contact intensity (Willem 2012) and extracts and returns demographic data for Belgium (2020)
+
+	Parameters
+	-----------
+	intensity : string
+		the extracted interaction matrix can be altered based on the nature or duration of the social contacts
+		this is necessary because a contact is defined as any conversation longer than 3 sentences
+		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
+		valid options include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'
+
+    Returns
+    -----------
+    initN : np.array
+        number of Belgian individuals, regardless of sex, in ten year age bins
+    Nc_home :  np.array (9x9)
+        number of daily contacts at home of individuals in age group X with individuals in age group Y
+    Nc_work :  np.array (9x9)
+        number of daily contacts in the workplace of individuals in age group X with individuals in age group Y
+    Nc_schools :  np.array (9x9)
+        number of daily contacts in schools of individuals in age group X with individuals in age group Y
+    Nc_transport :  np.array (9x9)
+        number of daily contacts on public transport of individuals in age group X with individuals in age group Y
+    Nc_leisure :  np.array (9x9)
+        number of daily contacts during leisure activities of individuals in age group X with individuals in age group Y
+    Nc_others :  np.array (9x9)
+        number of daily contacts in other places of individuals in age group X with individuals in age group Y
+    Nc_total :  np.array (9x9)
+        total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
+
+    Notes
+    ----------
+    The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
+    During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled.
+    The demographic data was retreived from https://statbel.fgov.be/en/themes/population/structure-population
+
+    Example use
+    -----------
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
+    """
+
+    # Define data path
+    abs_dir = os.path.dirname(__file__)
+    matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
+
+    # Input check on user-defined intensity
+    if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
+        raise ValueError(
+            "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
+
+    # Extract interaction matrices
+    Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+
+    # Extract demographic data
+    initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+
+    return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
+
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -14,13 +77,19 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
     Parameters
     ----------
 
-    age-stratified : boolean
-        If True (default): returns parameters stratified by age, for agestructured model
+    age_stratified : boolean
+        If True: returns parameters stratified by age, for agestructured model
         If False: returns parameters for non-agestructured model
-        
-    spatial : string
-        If None (default): returns national parameters (not stratified by region)
-        If 'mun', 'arr' or 'prov': returns parameters stratified by resp. municipality, arrondissement, or province
+
+    spatial : boolean
+        If True: returns parameters for the age-stratified spatially explicit model
+        If False: returns parameters for the age-stratified national-level model
+
+    intensity : string
+        the extracted interaction matrix can be altered based on the nature or duration of the social contacts
+		this is necessary because a contact is defined as any conversation longer than 3 sentences
+		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
+		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
 
     Returns
     -------
@@ -67,8 +136,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
 
     if age_stratified == True:
 
-        # Assign Nc_total from the Polymod study to the parameters dictionary
-        Nc_total = polymod.get_interaction_matrices(spatial)[-1]
+        # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
+        Nc_total = get_interaction_matrices(intensity=intensity)[-1]
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
@@ -92,7 +161,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
         pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
     else:
-        pars_dict['Nc'] = np.array([11.2])
+        pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
@@ -116,7 +185,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
         pars_dict['place'] = NIS
-        
+
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
         area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
@@ -124,15 +193,15 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None):
         area_df=area_df.sort_index(axis=0)
         area=area_df.values[:,0]
         pars_dict['area'] = area * 1e-6 # in square kilometer
-        
+
         # Load mobility parameter, which is age-stratified and 1 by default (no measures)
         pi = np.ones(pars_dict['Nc'].shape[0])
         pars_dict['pi'] = pi
-        
+
         # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
-        
+
 
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')

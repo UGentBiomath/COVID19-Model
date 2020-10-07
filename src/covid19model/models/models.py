@@ -116,7 +116,6 @@ class COVID19_SEIRD(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -176,7 +175,6 @@ class COVID19_SEIRD_sto(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -284,7 +282,6 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     stratification = ['place','Nc'] # mobility and social interaction
     coordinates = [read_coordinates_nis(spatial='prov')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -303,15 +300,15 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         l = 1.0 # length of discrete timestep
         n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
 
-        
+
         # Define all the parameters needed to calculate the probability for an agent to get infected (following Arenas 2020)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
@@ -334,13 +331,13 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 T_eff[g][i] = sumT
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
-        
+
         # Density dependence per patch: f[patch]
         xi = 0.01 # km^-2
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
-        
+
         # Normalisation factor per age class: zi[age]
         # Population per age class
         Ti = T.sum(axis=0)
@@ -349,7 +346,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             value = f[gg] * T_eff[gg]
             denom += value
         zi = Ti / denom
-        
+
         # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
         # initialisation for the summation over all ages below
         argument = np.zeros([G,N])
@@ -361,7 +358,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                     summ += term
                 argument[g,i] = summ
         P = 1 - np.exp(l*argument) # multiplied by length of timestep
-        
+
         # The probability to get infected in any patch when in a particular age class: Pbis[patch][age]
         Pbis = np.zeros([G,N]) # initialise
         # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
@@ -378,16 +375,16 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         for i in range(N):
             for g in range(G):
                 bigP[g,i] = (1 - pi[i]) * P[g,i] + pi[i] * Pbis[g,i]
-            
-            
+
+
         # To be added: effect of average family size (sigma^g or sg)
-        
-        
+
+
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
- 
+
 
         # Probabilities for a single agent to migrate between SEIR compartments in one unit of the timestep (typically days)
         probabilities = [bigP,
@@ -406,7 +403,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                         (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
                         (1 - np.exp(- l * zeta ))*np.ones([G,N]),
                         ]
-        
+
         states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
         propensity={}
         # Calculate propensity for each migration (listed in keys)
@@ -429,7 +426,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # Add and subtract the ins and outs calculated binomially above
         S_new  = S - propensity['StoE'] + propensity['RtoS']
         E_new  =  E + propensity['StoE'] - propensity['EtoI']
@@ -446,7 +443,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
         H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
 
-        
+
         # Add protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new, ICU_new, R_new, D_new, H_in_new, H_out_new, H_tot_new)
