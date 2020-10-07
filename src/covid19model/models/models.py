@@ -116,7 +116,6 @@ class COVID19_SEIRD(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -176,7 +175,6 @@ class COVID19_SEIRD_sto(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -284,7 +282,6 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     stratification = ['place','Nc']
     coordinates = [read_coordinates_nis()]
     coordinates.append(None)
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -311,10 +308,10 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
 
-        
+
         # Define all the parameters needed to calculate the probability for an agent to get infected (following Arenas 2020)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
         # For total population and for the relevant compartments I and A
         G = P.shape[0] # spatial stratification
@@ -330,7 +327,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 T_eff[g] += ( sum1 + sum2 ) * initN[h]
                 A_eff[g] += ( sum1 + sum2 ) * A[h]
                 I_eff[g] += ( sum1 + sum2 ) * A[h]
-                
+
         # Density dependence parameter per patch: f[patch]
         def dens_dep(rho, xi):
             f = 1 + (1 - np.exp(-xi*rho))
@@ -340,7 +337,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
-        
+
         # Normalisation factor per age class: zi[age]
         Ti = T.sum(axis=0)
         f = dens_dep(T_eff.sum(axis=1) / area, xi)
@@ -349,7 +346,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             value = f[h] * T_eff[h]
             denom += value
         zi = Ti / denom
-        
+
         # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
         # initialisation for the summation over all ages below
         T_eff_temp = np.zeros(Nc.shape)
@@ -368,26 +365,26 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             argument += - beta * s * zi * f * Nc[:,:,j] * ( I_eff_temp[:,:,j] + A_eff_temp[:,:,j] ) / T_eff_temp[:,:,j]
 
         P = 1 - np.exp(argument)
-        
+
         # the probability to get infected in any patch when in a particular age class: Pbis[patch][age]
         Pbis = np.zeros(P.shape) # initialise
         for j in range(N):
             Pbis[:,j] = np.matmul(np.transpose(place), P[:,j])
-            
+
         # the combined probability, depending on the overall mobility
         bigP = np.zeros(P.shape) # initialise
         for h in range(G):
             bigP[h] = (1 - pi) * P[h] + pi * Pbis[h]
-            
+
         # To be added: effect of average family size (sigma^g or sg)
-        
-        
+
+
         # Make a dictionary containing the propensities of the system
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
- 
-        
+
+
         matrix_1 = np.zeros([place.shape[0],Nc.shape[0]])
         for i in range(place.shape[0]):
             # matrix_1[i,:] =

@@ -45,16 +45,16 @@ class BaseModel:
         self.discrete = discrete
 
         if self.stratification:
-            self.stratification_size=[]
+            self.stratification_size = []
             for axis in self.stratification:
                 if not axis in parameters:
                     raise ValueError(
                         "stratification parameter '{0}' is missing from the specified "
-                        "parameters dictionary".format(self.stratification)
+                        "parameters dictionary".format(axis)
                     )
                 self.stratification_size.append(parameters[axis].shape[0])
         else:
-            self.stratification_size = 1
+            self.stratification_size = [1]
 
         if time_dependent_parameters:
             self._validate_time_dependent_parameters()
@@ -91,7 +91,7 @@ class BaseModel:
         all_param_names = self.parameter_names + self.parameters_stratified_names
         if self.stratification:
             all_param_names.extend(self.stratification)
-        
+
         for param, func in self.time_dependent_parameters.items():
             if param not in all_param_names:
                 raise ValueError(
@@ -434,7 +434,6 @@ class BaseModel:
                     coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
-
 
         size_lst = [len(self.state_names)]
         if self.stratification:
