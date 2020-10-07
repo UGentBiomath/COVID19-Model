@@ -12,7 +12,7 @@ def get_interaction_matrices(intensity='all'):
 		the extracted interaction matrix can be altered based on the nature or duration of the social contacts
 		this is necessary because a contact is defined as any conversation longer than 3 sentences
 		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
-		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
+		valid options include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'
 
     Returns
     -----------
@@ -46,7 +46,7 @@ def get_interaction_matrices(intensity='all'):
 
     # Define data path
     abs_dir = os.path.dirname(__file__)
-    matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/willem_2012")
+    matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
 
     # Input check on user-defined intensity
     if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
