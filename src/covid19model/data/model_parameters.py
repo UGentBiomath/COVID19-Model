@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(intensity='all'):
+def get_interaction_matrices(intensity='all', spatial=None):
     """Extracts and returns interaction matrices for given contact intensity (Willem 2012) and extracts and returns demographic data for Belgium (2020)
 
 	Parameters
@@ -13,6 +13,10 @@ def get_interaction_matrices(intensity='all'):
 		this is necessary because a contact is defined as any conversation longer than 3 sentences
 		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
 		valid options include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'
+        
+    spatial : string
+        Takes either None (default), 'mun', 'arr' or 'prov', and influences the geographical stratification of the Belgian population
+        in the first return (initN). 
 
     Returns
     -----------
@@ -63,11 +67,25 @@ def get_interaction_matrices(intensity='all'):
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
 
     # Extract demographic data
-    initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov'".format(spatial)
+                    )
+        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1]
+    if not spatial:
+        initN_data = "../../../data/interim/demographic/initN_arr.csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1].sum(axis=0)
+    # Below is more recent population data but not spatially stratified
+    # initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -81,9 +99,9 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
         If True: returns parameters stratified by age, for agestructured model
         If False: returns parameters for non-agestructured model
 
-    spatial : boolean
-        If True: returns parameters for the age-stratified spatially explicit model
-        If False: returns parameters for the age-stratified national-level model
+    spatial : string
+        Can be either None (default), 'mun', 'arr', 'prov' for various levels of geographical stratification. Note that
+        'prov' contains the arrondissement Brussels-Capital.
 
     intensity : string
         the extracted interaction matrix can be altered based on the nature or duration of the social contacts
@@ -145,6 +163,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
         pars_dict['c'] = np.array(df['c'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
+        
         pars_dict['dc_R'] = np.array(df['dC_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
         pars_dict['dc_D'] = np.array(df['dC_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
         pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
