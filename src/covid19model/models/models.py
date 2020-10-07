@@ -23,6 +23,7 @@ register_matplotlib_converters()
 
 from .utils import read_coordinates_nis
 from ..optimization import pso
+from .QALY import create_life_table 
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -79,6 +80,7 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
+        QALYs_lost: Quality averaged life years lost
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -108,21 +110,22 @@ class COVID19_SEIRD(BaseModel):
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        lost_QALY_pp: Quality averaged life years lost per person 
 
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','QALYs_lost']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU','lost_QALY_pp']]
     stratification = ['Nc']
     apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,QALYs_lost,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, Nc):
+                  dhospital, s, a, h, c, m_C, m_ICU, lost_QALY_pp, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -149,8 +152,13 @@ class COVID19_SEIRD(BaseModel):
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        
+        # Calculate lost QALYs
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        QALYs_lost=dD*lost_QALY_pp
+        
+        
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot,QALYs_lost)
 
 class COVID19_SEIRD_sto(BaseModel):
     """

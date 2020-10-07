@@ -70,8 +70,10 @@ split between general population and elderly homes. Data from https://m.standaar
 
 #### QALY model
 
-+ `Life_table_Belgium_2018.csv` @JPPG: What are these data? Where did they come from? Currently they have been placed under data/raw, however, if you have made any modifications to the original files, you must place the downloaded file in the raw folder and the modified file in the interim folder.
-+ `QoL_scores_Belgium_2018_v3.csv` @JPPG: What are these data? Where did they come from? Currently they have been placed under data/raw, however, if you have made any modifications to the original files, you must place the downloaded file in the raw folder and the modified file in the interim folder.
++ `Life_tables_Belgium.csv` contains belgiam life tables for different years and each gender. A copy containing only the necessary information for the most recent year (2019) was placed in the data/interim folder under the name: 'Life_table_Belgium_2019.csv'.  Data obtained from: https://statbel.fgov.be/nl/themas/bevolking/sterfte-en-levensverwachting/sterftetafels-en-levensverwachting .
++ `QoL_scores_Belgium_2018.csv` contains quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale. The data was interpoletad to fit the main model's age bins and was placed in the data/interim under the name: 'QoL_scores_Belgium_2018_v1.cs'. Data obtained from: https://hisia.wiv-isp.be/SitePages/Home.aspx .
++ `costs_hospital_belgium.csv` contains the reported total costs of medical treatment per disease category in Belgium for 2018. The data was corrected for inflation, combined with cost per QALY information and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'.  Data obtained from: https://tct.fgov.be/webetct/etct-web/html/fr/index.jsp .
++ `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
 
 ### Interim data sets conversion scripts
 
@@ -93,6 +95,12 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
 
 + `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`.
+
+#### QALY model
+
++ `Life_table_Belgium_2019.csv` contains the probability of dying at a given age for the Belgian population as of 2019.  
++ `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
++ `hospital_data_qaly.xlsx` contains the total reported costs of hospital healthcare in Belgium per disease group as well as the estimated cost per QALY gained for the same groups.
 
 #### Demographic data
 
