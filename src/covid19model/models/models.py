@@ -282,7 +282,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction
-    coordinates = [read_coordinates_nis(spatial='arr')] # arr hardcoded for now -- to be generalised later
+    coordinates = [read_coordinates_nis(spatial='prov')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
     apply_compliance_to = 'Nc'
 
@@ -303,7 +303,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
-
+        
         l = 1.0 # length of discrete timestep
         n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
@@ -324,12 +324,13 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 sumT = 0
                 sumA = 0
                 sumI = 0
-                for h in range(G):
-                    term1 = (1 - pi[i]) * np.identity(G)[h][g]
-                    term2 = pi[i] * place[h][g]
-                    sumT += (term1 + term2) * T[h][i]
-                    sumA += (term1 + term2) * A[h][i]
-                    sumI += (term1 + term2) * I[h][i]
+                # h is taken, so iterator for a sum is gg
+                for gg in range(G):
+                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
+                    term2 = pi[i] * place[gg][g]
+                    sumT += (term1 + term2) * T[gg][i]
+                    sumA += (term1 + term2) * A[gg][i]
+                    sumI += (term1 + term2) * I[gg][i]
                 T_eff[g][i] = sumT
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
@@ -344,8 +345,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         # Population per age class
         Ti = T.sum(axis=0)
         denom = np.zeros(N)
-        for h in range(G):
-            value = f[h] * T_eff[h]
+        for gg in range(G):
+            value = f[gg] * T_eff[gg]
             denom += value
         zi = Ti / denom
         
@@ -367,8 +368,8 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         for i in range(N):
             for g in range(G):
                 summ = 0
-                for h in range(G):
-                    term = place[g,h] * P[h,i]
+                for gg in range(G):
+                    term = place[g,gg] * P[gg,i]
                     summ += term
                 Pbis[g,i] = summ
 
@@ -405,7 +406,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                         (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
                         (1 - np.exp(- l * zeta ))*np.ones([G,N]),
                         ]
-
+        
         states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
         propensity={}
         # Calculate propensity for each migration (listed in keys)
