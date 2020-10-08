@@ -379,8 +379,8 @@ class Economic_Model(BaseModel):
     # ...state variables and parameters
 
     state_names = ['x', 'c', 'f', 'd', 'l', 'O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'l_s', 'n', 'c_s', 'f_s', 'on_site', 'C', 'S_0', 'theta_0']
-    parameters_stratified_names = [None]
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'c_s', 'f_s', 'on_site', 'C', 'S_0', 'theta_0']
+    parameters_stratified_names = ['epsilon_S','epsilon_Dh','epsilon_Df']
     stratification = ['A']
     coordinates = [read_economic_labels('NACE64')]
     # To do: change the stratification name, make this not depend on a parameter
@@ -397,24 +397,17 @@ class Economic_Model(BaseModel):
 
         # Demand and supply shocks
         # ------------------------
-        # These should all be made into time-dependent parameters!
-        t_start_lockdown = 20
-        t_end_lockdown = 20 + 60
-        t_end_pandemic = 20 + 60 + 365
+
         # Labor
-        epsilon_S = labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s)
+        epsilon_S
         # Household demand
-        epsilon_D = household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,on_site)
-        # Other demand (should be time dependent parameter)
-        if t < t_start_lockdown:
-            f = f_0
-        elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
-            f = f_0*(1-f_s)
-        else:
-            f = f_0
+        epsilon_Dh
+        # Other demand
+        epsilon_Df
 
         # Government intervention
         # -----------------------
+        
         # Also time-dependent
         l_t_star = labor_compensation_intervention(t, t_start_lockdown, t_end_pandemic, l, l_0, b)
 
