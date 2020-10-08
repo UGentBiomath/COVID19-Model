@@ -76,9 +76,9 @@ class BaseModel:
                 "The first parameter of the parameter function should be 't'"
             )
         if keywords[1] == "param":
-            return keywords[2:],False
+            return keywords[2:],True
         else:
-            return keywords[1:],True
+            return keywords[1:],False
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
@@ -255,7 +255,7 @@ class BaseModel:
             if self.time_dependent_parameters:
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    if self._relative_time_dependent_value[i] == False:
+                    if self._relative_time_dependent_value[i] == True:
                         params[param] = func(t, pars[param], **func_params)
                     else:
                         params[param] = func(t, **func_params)
