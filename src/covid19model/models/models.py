@@ -354,7 +354,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
             for g in range(G):
                 summ = 0
                 for j in range(N):
-                    term = - beta * s[i] * zi[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j]
+                    term = - beta * s[i] * zi[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,i]
                     summ += term
                 argument[g,i] = summ
         P = 1 - np.exp(l*argument) # multiplied by length of timestep
