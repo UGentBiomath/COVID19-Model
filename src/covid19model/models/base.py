@@ -75,17 +75,16 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "param":
-            raise ValueError(
-                "The second parameter of the parameter function should be named 'param'"
-            )
-        # return additional keywords of the function
-        return keywords[2:]
+        if keywords[1] == "param":
+            return keywords[2:],False
+        else:
+            return keywords[1:],True
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
 
         extra_params = []
+        self._relative_time_dependent_value = []
 
         all_param_names = self.parameter_names + self.parameters_stratified_names
         if self.stratification:
@@ -96,8 +95,9 @@ class BaseModel:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
-            kwds = self._validate_parameter_function(func)
+            kwds,relative = self._validate_parameter_function(func)
             extra_params.append(kwds)
+            self._relative_time_dependent_value.append(relative)
 
         self._function_parameters = extra_params
 
@@ -252,8 +252,11 @@ class BaseModel:
             if self.time_dependent_parameters:
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = func(t, pars[param], **func_params)
-
+                    if self._relative_time_dependent_value[i] == False:
+                        params[param] = func(t, pars[param], **func_params)
+                    else:
+                        params[param] = func(t, **func_params)
+            
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
