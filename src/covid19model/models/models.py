@@ -117,7 +117,6 @@ class COVID19_SEIRD(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -177,7 +176,6 @@ class COVID19_SEIRD_sto(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
-    apply_compliance_to = 'Nc'
 
     # ..transitions/equations
     @staticmethod
@@ -285,7 +283,6 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     stratification = ['place','Nc']
     coordinates = [read_coordinates_nis()]
     coordinates.append(None)
-    apply_compliance_to = 'Nc'
     
     # ..transitions/equations
     @staticmethod
