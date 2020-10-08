@@ -239,15 +239,15 @@ def test_model_interaction_matrix_function():
     assert (output2['R'] <= output['R']).all()
 
 	# using a compliance function with an absolute change in parameter value
-    def compliance_func(t, old, new, l):
+    def compliance_func(t, nc_old, nc_new, l):
         if t <= 10:
-            return old
+            return nc_old
         elif 10 < t < 10 + l:
-            return old + (old-new)/l*(t-10)
+            return nc_old + (nc_new-nc_old)/l*(t-10)
         else:
-            return new
+            return nc_new
 
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc, "old": nc, "new" : 0.2*nc, "l" : 5}
+    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc, "nc_old": nc, "nc_new" : 0.2*nc, "l" : 5}
     model2 = SIRstratified(initial_states, parameters,
                            time_dependent_parameters={'nc': compliance_func})
     output2 = model2.sim(time)
