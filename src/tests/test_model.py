@@ -251,4 +251,4 @@ def test_model_interaction_matrix_function():
     model2 = SIRstratified(initial_states, parameters,
                            time_dependent_parameters={'nc': compliance_func})
     output2 = model2.sim(time)
-    assert (output2['R'] <= output['R']).all()
+    assert (output2['R'] <= output_without['R']).all()
