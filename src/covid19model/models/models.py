@@ -380,44 +380,19 @@ class Economic_Model(BaseModel):
 
     state_names = ['x', 'c', 'f', 'd', 'l', 'O', 'S']
     parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'c_s', 'f_s', 'on_site', 'C', 'S_0', 'theta_0']
-    parameters_stratified_names = ['epsilon_S','epsilon_Dh','epsilon_Df']
+    parameters_stratified_names = [['epsilon_S','epsilon_Dh','epsilon_Df']]
     stratification = ['A']
     coordinates = [read_economic_labels('NACE64')]
-    # To do: change the stratification name, make this not depend on a parameter
 
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, l_s, n, c_s, f_s, on_site, C, S_0, theta_0, A):
+    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, l_s, n, c_s, f_s, on_site, C, S_0, theta_0, epsilon_S, epsilon_Dh, epsilon_Df, A):
         """
         BIOMATH production network model for Belgium
 
         *Based on the Oxford INET implementation*
         """
-
-        # Demand and supply shocks
-        # ------------------------
-
-        # Labor
-        epsilon_S
-        # Household demand
-        epsilon_Dh
-        # Other demand
-        epsilon_Df
-
-        # Government intervention
-        # -----------------------
-        
-        # Also time-dependent
-        l_t_star = labor_compensation_intervention(t, t_start_lockdown, t_end_pandemic, l, l_0, b)
-
-        # Productive capacity
-        # -------------------
-        x_t_cap = calc_labor_restriction(x_0,l_0,l)
-
-        # Input bottlenecks
-        # -----------------
-        x_t_inp = calc_input_restriction(self.S_mat,A,C)
 
         return (x_new, c_new, f_new, d_new, l_new, O_new, S_new)
 

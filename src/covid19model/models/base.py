@@ -92,7 +92,6 @@ class BaseModel:
 
         if self.stratification:
             all_param_names.extend(self.stratification)
-        print(all_param_names)
 
         for param, func in self.time_dependent_parameters.items():
             if param not in all_param_names:
@@ -144,7 +143,7 @@ class BaseModel:
             for stratified_names in self.parameters_stratified_names:
                 if stratified_names:
                     specified_params += stratified_names
-        print(specified_params)
+
         if self.stratification:
             specified_params += self.stratification
 
