@@ -50,8 +50,8 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         number of Belgian individuals, regardless of sex, in ten year age bins    
     Nc : np.array (9x9)
         total number of daily contacts of individuals in age group X with individuals in age group Y
-    dates : list
-        dates associated with the comix survey waves
+    dates : str
+        date associated with the comix survey wave
 
     Notes
     ----------
@@ -111,7 +111,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         # Date list of comix waves
         dates = ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','02-08-2020','02-09-2020']
 
-        return initN, Nc, dates
+        return initN, Nc, dates[wave-1]
 
     else:
         raise ValueError(
