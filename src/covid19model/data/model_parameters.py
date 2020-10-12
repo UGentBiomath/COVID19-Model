@@ -15,8 +15,7 @@ def get_interaction_matrices(intensity='all', spatial=None):
 		valid options include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'
         
     spatial : string
-        Takes either None (default), 'mun', 'arr' or 'prov', and influences the geographical stratification of the Belgian population
-        in the first return (initN). 
+        Takes either None (default), 'mun', 'arr', 'prov' or 'test', and influences the geographical stratification of the Belgian population in the first return value (initN). When 'test' is chosen, it only returns the population of the arrondissements for the test scenario (Antwerpen, Brussel-Hoofdstad, Gent, in that order).
 
     Returns
     -----------
@@ -68,10 +67,10 @@ def get_interaction_matrices(intensity='all', spatial=None):
 
     # Extract demographic data
     if spatial:
-        if spatial not in ['mun', 'arr', 'prov']:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
             raise ValueError(
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
-                        "stratifications are 'mun', 'arr', 'prov'".format(spatial)
+                        "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
         initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
@@ -80,8 +79,6 @@ def get_interaction_matrices(intensity='all', spatial=None):
         initN_data = "../../../data/interim/demographic/initN_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1].sum(axis=0)
-    # Below is more recent population data but not spatially stratified
-    # initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
 
     return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
@@ -100,8 +97,9 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         If False: returns parameters for non-agestructured model
 
     spatial : string
-        Can be either None (default), 'mun', 'arr', 'prov' for various levels of geographical stratification. Note that
-        'prov' contains the arrondissement Brussels-Capital.
+        Can be either None (default), 'mun', 'arr', 'prov' or 'test' for various levels of geographical stratification. Note that
+        'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
+        mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
 
     intensity : string
         the extracted interaction matrix can be altered based on the nature or duration of the social contacts
@@ -187,10 +185,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
 
     # Add spatial parameters to dictionary
     if spatial:
-        if spatial not in ['mun', 'arr', 'prov']:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
             raise ValueError(
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
-                        "stratifications are 'mun', 'arr', 'prov'".format(spatial)
+                        "stratifications are 'mun', 'arr', 'prov', or 'test'".format(spatial)
                     )
 
         # Read recurrent mobility matrix per region

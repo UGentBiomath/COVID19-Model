@@ -113,6 +113,8 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 + `census-2011-updated_row-commutes-to-column_provinces.csv` contains a square (but non-symmetric) mobility matrix of the Belgian provinces *and* arrondissement Brussels-Capital (NIS 21000) (11x11). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
 
++ `census-20110-updated_row-commutes-to-column_test.csv` contains a square (but non-symmetric) mobility matrix of the three Belgian arrondissements (Antwerpen, Brussel, Gent) (3x3). This is an artificial case: all commuters that leave the home arrondissement but do *not* go to one of the other two arrondissements, have been counted as staying at the home arrondissement instead. The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
+
 #### Demographic data
 
 + `age_structure_per_arrondissement.csv` : population of each age per arrondissement
@@ -121,17 +123,23 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 + `age_structure_per_province.csv` : population of each age per province
 
++ `age_structure_per_test.csv` : population for the test case: only arrondissements Antwerp, Brussels, Gent
+
 + `area_arrond.csv` contains the area of Belgian arrondissements per NIS code in square meters
 
 + `area_municip.csv` contains the area of Belgian municipalities per NIS code in square meters
 
 + `area_province.csv` contains the area of Belgian provinces per NIS code in square meters
 
-+ `initN_arrond.csv` contains a pandas dataframe with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `area_test.csv` contains the area of arrondissements Antwerp, Brussels, Gent
 
-+ `initN_province.csv` contains a pandas dataframe with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `initN_arrond.csv` contains a CSV with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
-+ `initN_municip.csv` contains a pandas dataframe with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `initN_province.csv` contains a CSV with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_municip.csv` contains a CSV with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_test.csv` contains a CSV with the following columns: NIS-code of arrondissement Antwerpen, Brussel, Gent, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
 #### Economic data
 
