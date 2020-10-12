@@ -4,7 +4,6 @@ import pandas as pd
 def create_life_table(input_table,input_QoL,SMR,qCM,r):
     
     """
-    
     Life tables are used to calculate the number of QALYs lost if a person dies at a given age.
     That information can then be used to calculate the total number of QALYs lost.
     It is not necessary that deaths are caused by a specific reason
@@ -28,7 +27,6 @@ def create_life_table(input_table,input_QoL,SMR,qCM,r):
 
     Returns
     -------
-    
     life_table: Dataframe with calculation results. 
                              
     """
@@ -81,7 +79,7 @@ def create_life_table(input_table,input_QoL,SMR,qCM,r):
     return life_table
 
 #%%
-def lost_QALY_hospital_care (red,granular=False):
+def lost_QALY_hospital_care (reduction,granular=False):
     
     """
     This function calculates the expected number of QALYs lost due to a given
@@ -93,8 +91,7 @@ def lost_QALY_hospital_care (red,granular=False):
     
     Parameters
     ----------
-    
-    red: np.array
+    reduction: np.array
         Percentage reduction in hospital care. if granular = True, reduction per disease group
     
     granular: bool
@@ -121,7 +118,7 @@ def lost_QALY_hospital_care (red,granular=False):
         avg_cost_per_qaly=hospital_data['cost_per_qaly'].mean() #Average cost per QALY gained
         total_gained_QALYs=total_cost/avg_cost_per_qaly #Total number of QALYs gained per year (EUR/EUR/QALY = QALY )    
         
-        lost_QALYs= red*total_gained_QALYs # Lost qalys per year
+        lost_QALYs= reduction*total_gained_QALYs # Lost qalys per year
     else:
         
         data_per_disease=pd.DataFrame(columns=['disease_group','gained_qalys','lost_qalys'])
@@ -129,7 +126,7 @@ def lost_QALY_hospital_care (red,granular=False):
         #Number of QALYs gained per year per disease group
         data_per_disease['gained_qalys']=hospital_data['total_spent']*1000000/hospital_data['cost_per_qaly']
         # Number of QALYs lost per year per disease group
-        data_per_disease['lost_qalys']=red*data_per_disease['gained_qalys']
+        data_per_disease['lost_qalys']=reduction*data_per_disease['gained_qalys']
         
         lost_QALYs=data_per_disease.copy().drop(columns=['gained_qalys'])
     
@@ -159,14 +156,11 @@ def get_QALY_parameters (input_table,input_QoL,SMR,qCM,r):
     
     r: float
         Discount rate
-        
-    
 
     Returns
     -------
-    
-    life_table: Dataframe with calculation results. 
-    
+    life_table: pd.DataFrame
+        QALYs lost when a person of a certain age (within the age bins of the model) dies.
     
     """  
     
@@ -189,3 +183,24 @@ def get_QALY_parameters (input_table,input_QoL,SMR,qCM,r):
     lost_QALY_pp=np.array(deaths_input['lost_QALY_pp']) 
     
     return lost_QALY_pp
+
+def QALY2xarray(out,lost_QALY_pp):
+    """
+    This function computes age-stratified QALYs lost due to COVID-19.
+    To this end, the simulation output is multiplied with the number of QALYs lost per person.
+    
+    Parameters
+    ----------
+    out: xarray dataset
+        Simulation output. A state with the number of deaths must be present as 'D'.
+
+    lost_QALY_pp: pd.DataFrame
+        QALYs lost when a person of a certain age (within the age bins of the model) dies.
+
+    Returns
+    -------
+    out: xarray dataset
+        Simulation output with new data variable 'QALYs lost'.
+    
+    """  
+    return out.assign(variables={'QALYs_lost': out['D']*np.expand_dims(lost_QALY_pp,axis=1)})
