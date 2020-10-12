@@ -40,6 +40,10 @@
 
 + `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts. 
 
+##### CoMiX
+
++ `wave1.xlsx`, ..., `wave8.xlsx` : contain the interaction matrices under lockdown measures in Belgium. There is one spreadsheet per survey wave. The dates of the surveys were (wave 1 - 8): ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','02-08-2020','02-09-2020'].  Each spreadsheet has two tabs to distinguish between the nature and duration of the contact. The data were extracted using a beta version of the social contact rates data tool made by Lander Willem, SOCRATES. The data are not yet publically available. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed.
+
 ##### Demographic
 
 + `Age pyramid of Belgium.csv` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per gender and per 5 year age bins. Retreived from https://statbel.fgov.be/en/themes/population/structure-population

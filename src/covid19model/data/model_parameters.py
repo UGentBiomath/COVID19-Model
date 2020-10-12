@@ -3,19 +3,30 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(intensity='all'):
-    """Extracts and returns interaction matrices for given contact intensity (Willem 2012) and extracts and returns demographic data for Belgium (2020)
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
+    """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
+    Extracts and returns demographic data for Belgium (2020).
 
 	Parameters
 	-----------
+    dataset : string
+        The desired interaction matrices to be extracted. These can either be the pre-pandemic matrices for Belgium ('willem_2012') or pandemic matrices for Belgium ('comix').
+        The pandemic data are 'time-dependent', i.e. associated with a date at which the survey was conducted.
+        Default dataset: pre-pandemic Willem 2012.
+    wave : int
+        The wave number of the comix data.
+        Defaults to the first wave.
 	intensity : string
-		the extracted interaction matrix can be altered based on the nature or duration of the social contacts
-		this is necessary because a contact is defined as any conversation longer than 3 sentences
-		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
-		valid options include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'
+		The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
+		This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
+		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'.
+        Valid options for CoMiX include 'all' (default) or 'physical_only'.
 
     Returns
-    -----------
+    ------------
+
+    Willem 2012: 
+    ------------
     initN : np.array
         number of Belgian individuals, regardless of sex, in ten year age bins
     Nc_home :  np.array (9x9)
@@ -33,6 +44,15 @@ def get_interaction_matrices(intensity='all'):
     Nc_total :  np.array (9x9)
         total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
 
+    CoMiX:
+    ----------
+    initN : np.array
+        number of Belgian individuals, regardless of sex, in ten year age bins    
+    Nc : np.array (9x9)
+        total number of daily contacts of individuals in age group X with individuals in age group Y
+    dates : str
+        date associated with the comix survey wave
+
     Notes
     ----------
     The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
@@ -42,30 +62,61 @@ def get_interaction_matrices(intensity='all'):
     Example use
     -----------
     initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
+    initN, Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
-    # Define data path
-    abs_dir = os.path.dirname(__file__)
-    matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
+    if dataset == 'willem_2012':
+        # Define data path
+        abs_dir = os.path.dirname(__file__)
+        matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
 
-    # Input check on user-defined intensity
-    if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
+        # Input check on user-defined intensity
+        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
+            raise ValueError(
+                "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
+
+        # Extract interaction matrices
+        Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+
+        # Extract demographic data
+        initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+
+        return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
+
+    elif dataset == 'comix':
+        # Define data path
+        abs_dir = os.path.dirname(__file__)
+        matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/comix")
+        # Input check on user-defined intensity
+        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "wave1.xlsx")).sheet_names:
+            raise ValueError(
+                "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
+        # Allow for both string or digit input for the wave number
+        if type(wave) is not int:
+            raise ValueError(
+                "The specified comix survey wave number '{0}' must be an integer number".format(wave))
+        # Extract interaction matrices
+        Nc = pd.read_excel(os.path.join(matrix_path, "wave"+str(wave)+".xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        # Convert interaction matrices
+        Nc[0,:] = Nc[:,0] # Assume reciprocity
+        Nc[0,0] = Nc[1,1] # Assume interactions of 0-10 yo are equal to interactions 10-20 yo
+        # Extract demographic data
+        initN = np.loadtxt(os.path.join(matrix_path, "../../../interim/interaction_matrices/demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+        # Date list of comix waves
+        dates = ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','02-08-2020','02-09-2020']
+
+        return initN, Nc, dates[wave-1]
+
+    else:
         raise ValueError(
-            "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
-
-    # Extract interaction matrices
-    Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-
-    # Extract demographic data
-    initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
-
-    return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
+                "The specified dataset '{0}' does not exist, use either 'willem_2012' or 'comix'".format(dataset)
+                )
 
 def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='all'):
     """
