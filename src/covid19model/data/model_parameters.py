@@ -109,7 +109,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         # Extract demographic data
         initN = np.loadtxt(os.path.join(matrix_path, "../../../interim/interaction_matrices/demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
         # Date list of comix waves
-        dates = ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','02-08-2020','02-09-2020']
+        dates = ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','20-07-2020','03-08-2020']
 
         return initN, Nc, dates[wave-1]
 
