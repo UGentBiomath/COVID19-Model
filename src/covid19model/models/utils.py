@@ -53,12 +53,13 @@ def read_coordinates_nis(spatial='arr'):
     Parameters
     ----------
     spatial : str
-        choose geographical aggregation. Pick between 'arr', 'mun', 'prov'. Default is 'arr'.
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov', 'test'. Default is 'arr'.
 
     Returns
     -------
      NIS: list
-        a list containing the NIS codes of the 43 Belgian arrondissements, 581 municipalities, or 10 provinces (+ Brussels-Capital)
+        a list containing the NIS codes of the 43 Belgian arrondissements, 581 municipalities, 10 provinces (+ Brussels-Capital), or 3
+        arrondissements in the 'test' case (Antwerp, Brussels, Gent)
 
     """
     
@@ -92,7 +93,8 @@ def read_areas(spatial='arr'):
     Parameters
     ----------
     spatial : str
-        Choose between municipalities ('mun'), arrondissements ('arr') or provinces ('prov'). Defaults is 'arr'
+        Choose between municipalities ('mun'), arrondissements ('arr'), provinces ('prov') or Antwerp-Brussel-Gent ('test'). 
+        Defaults is 'arr'
     
     Returns
     -------
@@ -112,7 +114,7 @@ def read_pops(spatial='arr'):
     Parameters
     ----------
     spatial : str
-        choose geographical aggregation. Pick between 'arr', 'mun', 'prov'. Default is 'arr'.
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov', or 'test'. Default is 'arr'.
         
     Returns
     -------

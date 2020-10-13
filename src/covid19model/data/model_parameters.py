@@ -130,13 +130,20 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         dhospital : time before a patient reaches the hospital
 
         Age-stratified parameters
-        --------------------
-        s: relative susceptibility to infection
+        -------------------------
+        s : relative susceptibility to infection
         a : probability of a subclinical infection
         h : probability of hospitalisation for a mild infection
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        pi : mobility parameter per age class. Only loads when spatial is not None
+        
+        Spatially stratified parameters
+        -------------------------------
+        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
+        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
+        sg : average size of a household per patch. Not used as of yet.
 
     Example use
     -----------
@@ -180,8 +187,29 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
-        non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
-        pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
+        # Assign AZMM and UZG estimates to correct variables
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        pars_dict['c'] = np.array([df['c'].values[-1]])
+        pars_dict['m_C'] = np.array([df['m0_{C}'].values[-1]])
+        pars_dict['m_ICU'] = np.array([df['m0_{ICU}'].values[-1]])
+        
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+
+        # verity_etal
+        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array([0.0812]) # age-weiged average
+
+        # davies_etal
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
+        pars_dict['a'] =  np.array([0.579]) # age-weighed average
+        pars_dict['s'] =  np.array([0.719]) # age-weighed average. Ideally this is equal to one, I would think
+        
+#         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
+#         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
 
     # Add spatial parameters to dictionary
     if spatial:
