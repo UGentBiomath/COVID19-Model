@@ -318,7 +318,7 @@ class BaseModel:
         """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
-    def sim(self, time, excess_time=None, checkpoints=None, start_date='2020-03-15'):
+    def sim(self, time, excess_time=None, start_date='2020-03-15'):
         """
         Run a model simulation for the given time period.
 
@@ -327,11 +327,6 @@ class BaseModel:
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
-        checkpoints : dict
-            A dictionary with a "time" key and additional parameter keys,
-            in the form of
-            ``{"time": [t1, t2, ..], "param": [param1, param2, ..], ..}``
-            indicating new parameter values at the corresponding timestamps.
 
         Returns
         -------
@@ -345,73 +340,9 @@ class BaseModel:
         if isinstance(time, str):
             time = [0, self.date_to_diff(start_date, time, excess_time)]
 
-        if checkpoints:
-            for i in range(len(checkpoints["time"])):
-                if isinstance(checkpoints["time"][i],str):
-                    checkpoints["time"][i] = self.date_to_diff(start_date, checkpoints["time"][i], excess_time)
-
-        original_parameters = self.parameters.copy()
-        original_initial_states = self.initial_states.copy()
-        self.time_of_lst_chk= 0
-
-        if checkpoints is None:
-            return self._sim_single(
-                time
-                )
-
-        # checkpoints dictionary has the form of
-        #   {"time": [t1, t2], "param": [param1, param2]}
-
-        time_points = [time[0], *checkpoints["time"], time[1]]
-        results = []
-
-        # first part of the simulation with original parameters
-        output = self._sim_single(
-            [time_points[0], time_points[1]]
-        )
-        results.append(output)
-        try:
-            # further simulations with updated parameters
-            for i in range(0, len(checkpoints["time"])):
-                # update parameters
-                for param in checkpoints.keys():
-                    if param != 'time' and param != self.apply_compliance_to:
-                        self.parameters[param] = checkpoints[param][i]
-                    elif param != 'time' and param == self.apply_compliance_to:
-                        # assign old and new Nc to class
-                        self.old = self.parameters[param]
-                        self.new = checkpoints[param][i]
-                self._validate()
-
-                # update initial states with states of last result
-                previous_output = results[-1]
-                last_states = previous_output.isel(time=-1)
-                initial_states = {}
-                for state in self.state_names:
-                    initial_states[state] = last_states[state].values
-                self.initial_states = initial_states
-
-                # continue simulation
-                self.time_of_lst_chk = time_points[i + 1]
-
-                output = self._sim_single(
-                    [time_points[i + 1], time_points[i + 2] ]
-                )
-
-                results.append(output.loc[dict(time=slice(time_points[i + 1]+1,time_points[i + 2]))])
-                #results.append(output)
-        except:
-            # reset parameters and initial states to original value
-            self.parameters = original_parameters
-            self.initial_states = original_initial_states
-            raise
-
-        # reset parameters and initial states to original value
-        self.parameters = original_parameters
-        self.initial_states = original_initial_states
-
-        # return combined output
-        return xarray.concat(results, dim="time")
+        return self._sim_single(
+            time
+            )
 
     def _output_to_xarray_dataset(self, output):
         """
