@@ -87,7 +87,7 @@ def draw_sample_COVID19_SEIRD(model,samples_dict):
     model.parameters['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
     idx,model.parameters['l'] = random.choice(list(enumerate(samples_dict['l'])))
     model.parameters['tau'] = samples_dict['tau'][idx]
-    prevention = samples_dict['prevention'][idx]
+    model.parameters['prevention'] = samples_dict['prevention'][idx]
     return model
 
 def MC_sim(model,N,T,draw_function=None,*samples):
