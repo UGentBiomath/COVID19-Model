@@ -1,6 +1,8 @@
+import os
+import random
 import numpy as np
 import pandas as pd
-import os
+import xarray as xr
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -61,3 +63,70 @@ def read_coordinates_nis():
     NIS = initN_df.NIS.values
 
     return NIS
+
+def draw_sample_COVID19_SEIRD(model,samples_dict):
+    """
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
+
+    Parameters
+    ----------
+    model : object
+        BIOMATH model object
+    
+    samples_dict : dictionary
+        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+
+    Returns
+    ----------
+    model : object
+        BIOMATH model object
+
+    """
+    # Use posterior samples of fitted parameters
+    model.parameters['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    idx,model.parameters['l'] = random.choice(list(enumerate(samples_dict['l'])))
+    model.parameters['tau'] = samples_dict['tau'][idx]
+    prevention = samples_dict['prevention'][idx]
+    return model
+
+def MC_sim(model,N,T,draw_function=None,*samples):
+    """
+    A function to perform N repeated simulations of T days with 'model'.
+    Can optionally use samples draw using MCMC to perform the simulation.
+
+    Parameters
+    ----------
+    model : object
+        BIOMATH model object
+
+    N : int
+        Number of repeated simulations
+    
+    T : int
+        length of simulation
+
+    Optional parameters
+    -------------------
+    draw_function: function
+        Function that draws MCMC parameters and assigns them to the model object.
+    
+    samples: dictionary
+        Dictionary containing the sampled parameters. To be used by 'draw_function'.
+
+    Returns
+    ----------
+    dataset : xarray dataset
+        Contains an extra dimension "MC" for "Monte-Carlo".
+
+    """
+
+    if draw_function:
+        model = draw_function(model,samples[0])
+    dataset = model.sim(T)
+    for i in range(N-1):
+        if draw_function:
+            model = draw_function(model,samples[0])
+        dataset = xr.concat([dataset, model.sim(T)], "MC")
+        
+    return dataset
