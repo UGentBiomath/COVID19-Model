@@ -17,15 +17,20 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         The wave number of the comix data.
         Defaults to the first wave.
 	intensity : string
+
 		The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
 		This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
 		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'.
         Valid options for CoMiX include 'all' (default) or 'physical_only'.
 
+    spatial : string
+        Takes either None (default), 'mun', 'arr', 'prov' or 'test', and influences the geographical stratification of the Belgian population in the first return value (initN).
+        When 'test' is chosen, it only returns the population of the arrondissements for the test scenario (Antwerpen, Brussel-Hoofdstad, Gent, in that order).
+
     Returns
     ------------
 
-    Willem 2012: 
+    Willem 2012:
     ------------
     initN : np.array
         number of Belgian individuals, regardless of sex, in ten year age bins
@@ -47,7 +52,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
     CoMiX:
     ----------
     initN : np.array
-        number of Belgian individuals, regardless of sex, in ten year age bins    
+        number of Belgian individuals, regardless of sex, in ten year age bins
     Nc : np.array (9x9)
         total number of daily contacts of individuals in age group X with individuals in age group Y
     dates : str
@@ -115,14 +120,39 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
 
     else:
         raise ValueError(
-                "The specified dataset '{0}' does not exist, use either 'willem_2012' or 'comix'".format(dataset)
-                )
+            "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='all'):
+    # Extract interaction matrices
+    Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+    Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+
+    # Extract demographic data
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
+                    )
+        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1]
+    if not spatial:
+        initN_data = "../../../data/interim/demographic/initN_arr.csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1].sum(axis=0)
+
+    return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
+
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
-    This function returns all parameters needed to run the age-stratified model.
+    This function returns all parameters needed to run the age-stratified and/or spatially stratified model.
     This function was created to group all parameters in one centralised location.
 
     Parameters
@@ -131,10 +161,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
     age_stratified : boolean
         If True: returns parameters stratified by age, for agestructured model
         If False: returns parameters for non-agestructured model
-    
-    spatial : boolean
-        If True: returns parameters for the age-stratified spatially explicit model
-        If False: returns parameters for the age-stratified national-level model
+
+    spatial : string
+        Can be either None (default), 'mun', 'arr', 'prov' or 'test' for various levels of geographical stratification. Note that
+        'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
+        mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
 
     intensity : string
         the extracted interaction matrix can be altered based on the nature or duration of the social contacts
@@ -165,13 +196,20 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
         dhospital : time before a patient reaches the hospital
 
         Age-stratified parameters
-        --------------------
-        s: relative susceptibility to infection
+        -------------------------
+        s : relative susceptibility to infection
         a : probability of a subclinical infection
         h : probability of hospitalisation for a mild infection
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        pi : mobility parameter per age class. Only loads when spatial is not None
+
+        Spatially stratified parameters
+        -------------------------------
+        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
+        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
+        sg : average size of a household per patch. Not used as of yet.
 
     Example use
     -----------
@@ -196,11 +234,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
         pars_dict['c'] = np.array(df['c'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
-        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1]) # Better is .values[:-1], but there is no sufficient data
 
         # verity_etal
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
@@ -214,17 +253,66 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
-        non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
-        pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
+        # Assign AZMM and UZG estimates to correct variables
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        pars_dict['c'] = np.array([df['c'].values[-1]])
+        pars_dict['m_C'] = np.array([df['m0_{C}'].values[-1]])
+        pars_dict['m_ICU'] = np.array([df['m0_{ICU}'].values[-1]])
 
-    # Add recurrent mobility matrix to parameter dictionary
-    if spatial == True:
-        mobility_df=pd.read_csv(os.path.join(abs_dir, '../../../data/interim/census_2011/recurrent_mobility.csv'), index_col=[0])
-        NIS=mobility_df.values
+        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1])
+        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
+        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
+        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+
+        # verity_etal
+        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array([0.0812]) # age-weiged average
+
+        # davies_etal
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
+        pars_dict['a'] =  np.array([0.579]) # age-weighed average
+        pars_dict['s'] =  np.array([0.719]) # age-weighed average. Ideally this is equal to one, I would think
+
+#         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
+#         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
+
+    # Add spatial parameters to dictionary
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov', or 'test'".format(spatial)
+                    )
+
+        # Read recurrent mobility matrix per region
+        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
+        mobility_df=pd.read_csv(os.path.join(abs_dir, mobility_data), index_col='NIS')
+        # Make sure the regions are ordered according to ascending NIS values
+        mobility_df=mobility_df.sort_index(axis=0).sort_index(axis=1)
+        # Take only the values (matrix) and save in NIS as floating points
+        NIS=mobility_df.values.astype(float)
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i,:]=NIS[i,:]/sum(NIS[i,:])
-        pars_dict.update({'place': NIS})
+        pars_dict['place'] = NIS
+
+        # Read areas per region, ordered in ascending NIS values
+        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
+        area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
+        # Make sure the regions are ordered well
+        area_df=area_df.sort_index(axis=0)
+        area=area_df.values[:,0]
+        pars_dict['area'] = area * 1e-6 # in square kilometer
+
+        # Load mobility parameter, which is age-stratified and 1 by default (no measures)
+        pi = np.ones(pars_dict['Nc'].shape[0])
+        pars_dict['pi'] = pi
+
+        # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
+        sg = np.ones(pars_dict['place'].shape[0]) * 2.3
+        pars_dict['sg'] = sg
+
 
     # Other parameters
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')

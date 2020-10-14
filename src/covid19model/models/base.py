@@ -34,6 +34,7 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
+    apply_compliance_to = None
     coordinates = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,

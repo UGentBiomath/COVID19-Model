@@ -48,19 +48,25 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
-def read_coordinates_nis():
+def read_coordinates_nis(spatial='arr'):
     """
     A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
+
+    Parameters
+    ----------
+    spatial : str
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov', 'test'. Default is 'arr'.
 
     Returns
     -------
      NIS: list
-        a list containing the NIS codes of the 43 Belgian arrondissements
+        a list containing the NIS codes of the 43 Belgian arrondissements, 581 municipalities, 10 provinces (+ Brussels-Capital), or 3
+        arrondissements in the 'test' case (Antwerp, Brussels, Gent)
 
     """
 
-    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_arrond.csv'))
-    NIS = initN_df.NIS.values
+    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col=[0])
+    NIS = initN_df.index.values
 
     return NIS
 
@@ -73,7 +79,7 @@ def draw_sample_COVID19_SEIRD(model,samples_dict):
     ----------
     model : object
         BIOMATH model object
-    
+
     samples_dict : dictionary
         Dictionary containing the samples of the sampled parameters: beta, l and tau.
 
@@ -102,7 +108,7 @@ def MC_sim(model,N,T,draw_function=None,*samples):
 
     N : int
         Number of repeated simulations
-    
+
     T : int
         length of simulation
 
@@ -110,7 +116,7 @@ def MC_sim(model,N,T,draw_function=None,*samples):
     -------------------
     draw_function: function
         Function that draws MCMC parameters and assigns them to the model object.
-    
+
     samples: dictionary
         Dictionary containing the sampled parameters. To be used by 'draw_function'.
 
@@ -128,5 +134,66 @@ def MC_sim(model,N,T,draw_function=None,*samples):
         if draw_function:
             model = draw_function(model,samples[0])
         dataset = xr.concat([dataset, model.sim(T)], "MC")
-        
+
     return dataset
+
+def dens_dep(rho, xi=0.01):
+    """
+    A function used by Arenas et al. (2020) and justified by Hu et al. (2013) (https://pubmed.ncbi.nlm.nih.gov/23665296/)
+
+    Parameters
+    ----------
+    rho : population density
+    xi : scale parameter. Default value is 0.01 square kilometer
+
+    Returns
+    -------
+    f : density dependence value, ranges between 1 and 2
+    """
+
+    f = 1 + ( 1 - np.exp(-xi * rho) )
+
+    return f
+
+def read_areas(spatial='arr'):
+    """
+    Reads full CSV with area per NIS code
+
+    Parameters
+    ----------
+    spatial : str
+        Choose between municipalities ('mun'), arrondissements ('arr'), provinces ('prov') or Antwerp-Brussel-Gent ('test').
+        Defaults is 'arr'
+
+    Returns
+    -------
+    areas : dictionary
+        NIS codes are keys, values are population in square meters
+    """
+
+    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + spatial + '.csv'), index_col='NIS')
+    areas = areas_df['area'].to_dict()
+
+    return areas
+
+def read_pops(spatial='arr'):
+    """
+    Reads initial population per age and per area
+
+    Parameters
+    ----------
+    spatial : str
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov', or 'test'. Default is 'arr'.
+
+    Returns
+    -------
+    pops : dictionary
+        NIS codes are keys, values are dictionaries. The inner dictionary has population classes as keys and
+        population per age class and per NIS code as values.
+        Age classes are [0,10), [10,20), ... , [80, 110)
+    """
+
+    pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col='NIS')
+    pops = pops_df.T.to_dict()
+
+    return pops
