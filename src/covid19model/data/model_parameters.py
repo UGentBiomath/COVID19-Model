@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', spatial=None):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
 
@@ -33,7 +33,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
     Willem 2012:
     ------------
     initN : np.array
-        number of Belgian individuals, regardless of sex, in ten year age bins
+        number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
     Nc_home :  np.array (9x9)
         number of daily contacts at home of individuals in age group X with individuals in age group Y
     Nc_work :  np.array (9x9)
@@ -70,9 +70,24 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
     initN, Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
+    # Extract demographic data
+    abs_dir = os.path.dirname(__file__)
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
+                    )
+        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1]
+    if not spatial:
+        initN_data = "../../../data/interim/demographic/initN_arr.csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1].sum(axis=0)    
+    
     if dataset == 'willem_2012':
         # Define data path
-        abs_dir = os.path.dirname(__file__)
         matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
 
         # Input check on user-defined intensity
@@ -89,14 +104,10 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
         Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
 
-        # Extract demographic data
-        initN = np.loadtxt(os.path.join(matrix_path, "../demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
-
         return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
     elif dataset == 'comix':
         # Define data path
-        abs_dir = os.path.dirname(__file__)
         matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/comix")
         # Input check on user-defined intensity
         if intensity not in pd.ExcelFile(os.path.join(matrix_path, "wave1.xlsx")).sheet_names:
@@ -111,8 +122,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         # Convert interaction matrices
         Nc[0,:] = Nc[:,0] # Assume reciprocity
         Nc[0,0] = Nc[1,1] # Assume interactions of 0-10 yo are equal to interactions 10-20 yo
-        # Extract demographic data
-        initN = np.loadtxt(os.path.join(matrix_path, "../../../interim/interaction_matrices/demographic/BELagedist_10year.txt"), dtype='f', delimiter='\t')
+
         # Date list of comix waves
         dates = ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','20-07-2020','03-08-2020']
 
@@ -130,23 +140,6 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
     Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-
-    # Extract demographic data
-    if spatial:
-        if spatial not in ['mun', 'arr', 'prov', 'test']:
-            raise ValueError(
-                        "spatial stratification '{0}' is not legitimate. Possible spatial "
-                        "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
-                    )
-        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
-        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1]
-    if not spatial:
-        initN_data = "../../../data/interim/demographic/initN_arr.csv"
-        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1].sum(axis=0)
-
-    return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
 def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
     """
