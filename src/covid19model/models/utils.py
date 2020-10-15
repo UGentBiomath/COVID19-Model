@@ -1,6 +1,8 @@
+import os
+import random
 import numpy as np
 import pandas as pd
-import os
+import xarray as xr
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -61,3 +63,29 @@ def read_coordinates_nis():
     NIS = initN_df.NIS.values
 
     return NIS
+
+def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
+    """
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
+
+    Parameters
+    ----------
+    model : object
+        BIOMATH model object
+    
+    samples_dict : dictionary
+        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+
+    Returns
+    ----------
+    model : object
+        BIOMATH model object
+
+    """
+    # Use posterior samples of fitted parameters
+    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
+    parameter_dictionary['tau'] = samples_dict['tau'][idx]
+    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
+    return parameter_dictionary

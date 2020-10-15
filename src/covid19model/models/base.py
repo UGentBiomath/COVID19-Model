@@ -5,7 +5,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
-
+import copy
 
 class BaseModel:
     """
@@ -317,15 +317,28 @@ class BaseModel:
         """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
-    def sim(self, time, excess_time=None, start_date='2020-03-15'):
+    def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None):
         """
-        Run a model simulation for the given time period.
+        Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
+        Can use samples drawn using MCMC to perform the repeated simulations.
+
 
         Parameters
         ----------
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+
+        N : int
+            Number of repeated simulations. One by default.
+
+        draw_fcn : function
+            A function which takes as its input the dictionary of model parameters and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
+            # TO DO: verify draw_fcn
+
+        samples : dictionary
+            Sample dictionary used by draw_fcn.
+            # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
 
         Returns
         -------
@@ -339,9 +352,22 @@ class BaseModel:
         if isinstance(time, str):
             time = [0, self.date_to_diff(start_date, time, excess_time)]
 
-        return self._sim_single(
-            time
-            )
+        # Copy parameter dictionary --> dict is global
+        cp = copy.deepcopy(self.parameters)
+        # Perform first simulation as preallocation
+        if draw_fcn:
+            self.parameters = draw_fcn(self.parameters,samples)
+        out = self._sim_single(time)
+        # Repeat N - 1 times and concatenate
+        for _ in range(N-1):
+            if draw_fcn:
+                self.parameters = draw_fcn(self.parameters,samples)
+            out = xarray.concat([out, self._sim_single(time)], "draws")
+
+        # Reset parameter dictionary
+        self.parameters = cp
+
+        return out
 
     def _output_to_xarray_dataset(self, output):
         """
