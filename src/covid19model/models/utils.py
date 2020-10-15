@@ -64,7 +64,7 @@ def read_coordinates_nis():
 
     return NIS
 
-def draw_sample_COVID19_SEIRD(model,samples_dict):
+def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
     """
     A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
     Tailor-made for the BIOMATH COVID-19 SEIRD model.
@@ -84,11 +84,11 @@ def draw_sample_COVID19_SEIRD(model,samples_dict):
 
     """
     # Use posterior samples of fitted parameters
-    model.parameters['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    idx,model.parameters['l'] = random.choice(list(enumerate(samples_dict['l'])))
-    model.parameters['tau'] = samples_dict['tau'][idx]
-    model.parameters['prevention'] = samples_dict['prevention'][idx]
-    return model
+    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
+    parameter_dictionary['tau'] = samples_dict['tau'][idx]
+    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
+    return parameter_dictionary
 
 def MC_sim(model,N,T,draw_function=None,*samples):
     """
@@ -117,7 +117,7 @@ def MC_sim(model,N,T,draw_function=None,*samples):
     Returns
     ----------
     dataset : xarray dataset
-        Contains an extra dimension "MC" for "Monte-Carlo".
+        Contains an extra dimension "draws".
 
     """
 
@@ -127,6 +127,6 @@ def MC_sim(model,N,T,draw_function=None,*samples):
     for i in range(N-1):
         if draw_function:
             model = draw_function(model,samples[0])
-        dataset = xr.concat([dataset, model.sim(T)], "MC")
+        dataset = xr.concat([dataset, model.sim(T)], "draws")
         
     return dataset
