@@ -281,7 +281,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction
-    coordinates = [read_coordinates_nis(spatial='test')] # arr hardcoded for now -- to be generalised later
+    coordinates = [read_coordinates_nis(spatial='arr')] # arr hardcoded for now -- to be generalised later
     coordinates.append(None)
 
     # ..transitions/equations
