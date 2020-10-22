@@ -132,10 +132,10 @@ def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
         tt = t-policy_time
         if tt <= tau:
             state = policy1
-        if (tt > tau) & (tt <= tau + ll):
-            intermediate = (policy2 - policy1) / ll * (tt - tau) + policy1
+        if (tt > tau) & (tt <= tau + l):
+            intermediate = (policy2 - policy1) / l * (tt - tau) + policy1
             state = intermediate
-        if tt > tau + ll:
+        if tt > tau + l:
             state = policy2
     return state
 
