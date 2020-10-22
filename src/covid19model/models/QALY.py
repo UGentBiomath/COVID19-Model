@@ -203,4 +203,5 @@ def QALY2xarray(out,lost_QALY_pp):
         Simulation output with new data variable 'QALYs lost'.
     
     """  
-    return out.assign(variables={'QALYs_lost': out['D']*np.expand_dims(lost_QALY_pp,axis=1)})
+    return out.assign(variables={'QALYs_lost': out['D']*np.expand_dims(lost_QALY_pp,axis=1),
+                                'QALYs_gained': out['R_hosp']*np.expand_dims(lost_QALY_pp,axis=1)})
