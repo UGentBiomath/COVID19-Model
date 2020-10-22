@@ -318,7 +318,7 @@ class BaseModel:
         """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
-    def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None):
+    def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None, verbose=False):
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
         Can use samples drawn using MCMC to perform the repeated simulations.
@@ -356,11 +356,15 @@ class BaseModel:
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
         # Perform first simulation as preallocation
+        if verbose==True:
+            print(f"Simulating draw 0/{N-1}")
         if draw_fcn:
             self.parameters = draw_fcn(self.parameters,samples)
         out = self._sim_single(time)
-        # Repeat N - 1 times and concatenate
-        for _ in range(N-1):
+        # Repeat N - 1 more times and concatenate
+        for n in range(N-1):
+            if verbose==True:
+                print(f"Simulating draw {n+1}/{N-1}")
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples)
             out = xarray.concat([out, self._sim_single(time)], "draws")
