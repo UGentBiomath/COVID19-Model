@@ -84,7 +84,7 @@ def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
         Dictionary containing the samples of the sampled parameters: beta, l and tau.
 
     Returns
-    ----------
+    -------
     model : object
         BIOMATH model object
 
@@ -95,6 +95,49 @@ def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
     parameter_dictionary['tau'] = samples_dict['tau'][idx]
     parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
     return parameter_dictionary
+
+def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
+    """
+    Delayed ramp social policy function to implement a gradual change between policy1 and policy2.
+    
+    Parameters
+    ----------
+    t : int
+        Time parameter. Runs simultaneously with simulation time
+    param : 
+        Currently obsolete parameter that may be used in a future stage
+    policy_time : int
+        Time in the simulation at which a new policy is imposed
+    policy1 : float or int or list or matrix
+        Value corresponding to the policy before t = policy_time (e.g. full mobility)
+    policy2 : float or int or list or matrix (same dimensions as policy1)
+        Value corresponding to the policy after t = policy_time (e.g. 50% mobility)
+    tau : int
+        Delayed ramp parameter: number of days before the new policy has any effect
+    l : int
+        Delayed ramp parameter: number of days after t = policy_time + tau the new policy reaches full effect (policy2)
+        
+    Return
+    ------
+    state : float or int or list or matrix
+        Either policy1, policy2 or an intermediate state.
+        
+    """
+    # Nothing changes before policy_time
+    if t < policy_time:
+        state = policy1
+    # From t = policy time onward, the delayed ramp takes effect toward policy2
+    else:
+        # Time starting at policy_time
+        tt = t-policy_time
+        if tt <= tau:
+            state = policy1
+        if (tt > tau) & (tt <= tau + ll):
+            intermediate = (policy2 - policy1) / ll * (tt - tau) + policy1
+            state = intermediate
+        if tt > tau + ll:
+            state = policy2
+    return state
 
 def dens_dep(rho, xi=0.01):
     """
