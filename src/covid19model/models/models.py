@@ -120,7 +120,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, dR_hosp
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, dR_hosp,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, s, a, h, c, m_C, m_ICU, Nc):
         """
