@@ -192,7 +192,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     -------
     maps : AxesSubplot
         Plot of the geopandas color map. The user can customize this map further.
-    graphs : array of AxesSubplot objects (optional)
+    graphs : array of AxesSubplot objects (optional, only if ts_graphs != None)
         Plots of the entire time series
         
     TO DO
@@ -335,6 +335,9 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     upper_pct = 90
     lower_pct = 100 - upper_pct
     
+    # Initialise empty graphs list (for return)
+    graphs = []
+    
     ########################
     # Import and plot data #
     ########################
@@ -344,10 +347,10 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         ts_median_today = data.sel(place=nis_value, time=day).sum(dim='Nc').quantile(0.5, dim='draws')[ts_geo].values
         geo.loc[geo['NISCode']==str(nis_value), ts_geo] = ts_median_today
     if lin:
-        output = geo.plot(column=ts_geo, ax=ax0, cmap=cmap, legend=True, edgecolor = 'k',
+        maps = geo.plot(column=ts_geo, ax=ax0, cmap=cmap, legend=True, edgecolor = 'k',
                  vmin=vmin_geo, vmax=vmax_geo, cax=cax, alpha=1)
     else:
-        output = geo.plot(column=ts_geo, ax=ax0, cmap=cmap,legend=True, edgecolor = 'k',
+        maps = geo.plot(column=ts_geo, ax=ax0, cmap=cmap,legend=True, edgecolor = 'k',
                  norm=colors.SymLogNorm(linthresh=1, vmin=vmin_geo, vmax=vmax_geo), cax=cax, alpha=1)
 
     # Add (meta)data to graphs
@@ -355,6 +358,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     figtext_pos = (.18, .12)
     if ts_graph:
         for ts in ts_graph:
+            # show distinct regions in graphs
             if nis:
                 for nis_value in nis:
                     ts_median = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws').values
@@ -363,20 +367,27 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                     label = str(nis_value)
                     if len(nis) > 1:
                         ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict[nis_value], alpha=1, linewidth=2,label=label)
-                        ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict[nis_value], alpha=0.3)
+                        graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict[nis_value], alpha=0.3)
+                        graphs.append(graph)
                     else:
                         ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
-                        ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3)
+                        label2=f"percentile {upper_pct} to {lower_pct}"
+                        graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3,label=label2)
+                        graphs.append(graph)
+            # Show national sum over all regions in graphs
             else:
                 ts_median = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
                 ts_lower = data[ts].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
                 ts_upper = data[ts].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
-                label='national'
-                ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
-                ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3)
+                label1='national'
+                label2=f"percentile {lower_pct} to {higher_pct}"
+                ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
+                graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
+                graphs.append(graph)
             if (nis and (len(nis) == 1)) or not nis:
                 ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size})
             ax_graph_dict[ts].axvline(day, color='r', linewidth=2, linestyle='--')
+        # Show legend in two columns if it becomes too big
         if nis and (len(nis) > 3):
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=2)
         else:
@@ -390,3 +401,9 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         plt.savefig(figname, dpi=dpi, bbox_inches='tight')
         print(f"Saved figure '{figname}'")
         plt.close('all')
+        
+    # Return
+    if ts_graph:
+        return maps, graphs
+    else:
+        return maps
