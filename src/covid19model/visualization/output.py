@@ -174,7 +174,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     lin : Boolean
         Plots a linear representation of the values in the map if True. Otherwise the values are shown with a symlog representation (default).
     rel : Boolean
-        Plot the values relative to the population if True. Default is False: absolute numbers.
+        Plot the values relative to the population (per 100k inhabitants) if True. Default is False: absolute numbers.
     cmap : string
         The color used in the color map of the Geopandas plot. Default is 'Oranges'. Best to use sequential coloring.
     nis : int or array of int
@@ -407,3 +407,241 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         return maps, graphs
     else:
         return maps
+    
+    
+def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=False, colors=['green', 'orange', 'red', 'k', 'm', 'y'], ylim=None,
+                 figname=None, dpi=200, verbose=False):
+    """Plot time series for a selection of compartments in the simulation. Different kind of visualisation than 'infected' function
+    
+    Parameters
+    ----------
+    data : xarray DataSet
+        Model output. 'place' dimension values (if any) are integers.
+    ts : string or list of strings
+        Name of the compartment(s) that are to be plotted. Default: Exposed, new hospitalisations, ICU occupancy, Deaths
+    nis : int or list of ints
+        NIS code of the places whose time series of a particular compartment are to be plotted over each other. Maximally six NIS values
+    lin : Boolean
+        Set y-scale to linear or symlog. Default: True (linear)
+    rel : Boolean
+        Show relative numbers (cases per 100k inhabitants)
+    colors : string or list of strings
+        Choose the colors for the various graphs. If only one graph per plot is shown, every compartment gets its own color. Otherwise all compartments get the same rainbow of colors, assigned per NIS value.
+    ylim : int or list of ints
+        The maximal values on the y axis for the chosen time series (in the same order). If None is chosen, the limit value is determined from the maximum value of the median time series
+    figname : string
+        Directory and name for the figure when saved. Include data extension type (e.g. .jpg). Default is None (image is not saved).
+    dpi : int
+        Set resolution of the image for saving. Default is 200.
+    verbose : Boolean
+        Print progress
+    
+    Returns
+    -------
+    graphs : (array of) AxesSubplot object(s)
+        Plots of the time series of the various compartments
+    """
+    
+    ####################
+    # CHECK PARAMETERS #
+    ####################
+
+    # Check whether the model output has recognisable compartments
+    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H'}
+    data_comp_set = set(data.data_vars)
+    if not data_comp_set.issubset(full_comp_set):
+        diff = data_comp_set.difference(full_comp_set)
+        raise Exception(f"Unrecognised compartments in data: {diff}")
+    
+    # Check whether the chosen visualised time series are acceptable
+    if not type(ts) == list:
+        ts = [ts]
+    for ttss in ts:
+        if type(ttss) != str:
+            raise Exception(f"Error with ts parameter: the chosen compartment(s) for time series graphing must be a (list of) string(s)")
+    if not set(ts).issubset(data_comp_set):
+        diff = set(ts).difference(data_comp_set)
+        raise Exception(f"Error with ts parameter: cannot plot compartment(s) {diff}. Choose ts values from {data_comp_set}")
+    if verbose:
+        print(f"Compartments whose time series are included in the data: {data_comp_set}")
+
+    # Check whether the chosen NIS codes are legitimate
+    dims=[]
+    for key in data.sizes: dims.append(key)
+    if nis:
+        if 'place' not in dims:
+            raise Exception(f"nis parameter should be 'None': the provided dataset does not contain a dimension 'place'")
+        if type(nis) != list:
+            nis = [nis]
+        for value in nis:
+            if type(value) != int:
+                raise Exception(f"Error with nis parameter: the chosen NIS value(s) must be (an) integer(s)")
+        if not set(nis).issubset(set(data.place.values)):
+            diff = set(nis).difference(set(data.place.values))
+            raise Exception(f"Error with nis parameter: the NIS values {diff} are not amongst the available places. Choose from {set(data.place.values)}")
+        if len(nis) > 6:
+            raise Exception(f"List of NIS values is longer than 6; showing more than 6 graphs per plot turns it illegible")
+
+    # Check whether the demanded ylim values are in the right shape
+    if ylim:
+        if type(ylim) != list:
+            ylim = [ylim]
+        if len(ylim) != len(ts):
+            raise Exception(f"Error with ylim parameter: length of ylim, len(ylim)={len(ylim)}, list does not corresponds to the number of time series to be plotted, len(ts)={len(ts)}")
+
+    # Check properties of figname and dpi
+    if (figname != None) & (type(figname) != str):
+        raise Exception(f"Parameter 'figname' should be a string with the appropriate data extension (.jpg, .png, .svg, .pdf, ...)")
+    if (type(dpi) != int) or (dpi < 1):
+        raise Exception(f"Parameter 'dpi' should be an integer larger than 0.")
+            
+    #############################################
+    # INITIATE INTERNAL VALUES AND ENVIRONMENTS #
+    #############################################
+
+    # Check whether the model is spatial
+    spatial = False
+    if 'place' in dims:
+        spatial = True
+    
+    # Define time list from data
+    tlist = data['time'].values
+    
+    # Define the colors
+    if nis and (len(nis) > 1):
+        nis_colors = colors
+    else:
+        ts_colors = colors
+        
+    # Set minima/maxima dictionary based on median value
+    # Note that the age classes are aggregated (this may be extended later)
+    vmax = dict({})
+    vmin = 0
+    if not ylim:
+        for ttss in ts:
+            vmax[ttss]=0
+            if nis: # take highest value of all places
+                for nis_value in nis:
+                    vmax_temp = data[ttss].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
+                    if vmax_temp > vmax[ttss]:
+                        vmax[ttss] = vmax_temp
+            else: # Take highest value of the sum of all places (works only for absolute numbers right now!
+                if spatial:
+                    vmax[ttss] = data[ttss].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                else:
+                    vmax[ttss] = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
+            if verbose:
+                print(f"Maximum value of median draw for timeseries of compartment {ttss} (vmax_graph[{ttss}]) set to {vmax_graph[ttss]}.")
+    else:
+        for (ttss, y) in zip(ts, ylim):
+            vmax[ttss] = y
+
+    # Initiate plotting environment
+    text_size=18
+    legend_size=12
+    #ylabel_pos = (-0.12,0.5)
+    yscale = 'symlog'
+    # Maxfactor: show a little more than the maximum of the median time series
+    maxfactor = 5
+    if lin:
+        yscale = 'linear'
+        maxfactor = 1.25
+    if ylim:
+        maxfactor = 1
+    
+    width=4 # width per plotted time series
+    fig = plt.figure(figsize=(15,len(ts)*width))
+    gs = fig.add_gridspec(len(ts),1)
+        
+    pos = 0
+    ax_dict = dict({})
+    for ttss in ts:
+        ax_dict[ttss] = fig.add_subplot(gs[pos,0])
+        ax_dict[ttss].set_ylabel(ttss, size=text_size)
+        #ax_dict[ttss].yaxis.set_label_coords(ylabel_pos[0], ylabel_pos[1])
+        ax_dict[ttss].set_yscale(yscale)
+        ax_dict[ttss].grid(False)
+        ax_dict[ttss].set_xlim([0,tlist[-1]])
+        ax_dict[ttss].set_ylim([vmin,maxfactor*vmax[ttss]])
+#         if pos != (len(ts)-1):
+#             ax_dict[ttss].set_xticks([])
+        pos += 1
+    ax_dict[ttss].set_xlabel('Days since initial exposure',size=text_size)
+    
+    # Set colors
+    color_dict = dict(zip(ts,colors[:len(ts)]))
+    
+    # Set percentage edges to plot
+    upper_pct = 90
+    lower_pct = 100 - upper_pct
+    
+    # Initialise empty graphs list (for return)
+    graphs = []
+    
+    
+    ########################
+    # Import and plot data #
+    ########################
+    
+    for ttss in ts:
+        # Multiple NIS values
+        if nis and (len(nis) > 1):
+            for (nis_value, c) in zip(nis, colors[:len(nis)]):
+                # Define values
+                ts_median = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws')
+                ts_lower = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+                ts_upper = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                label=nis_value
+                # Plot values
+                ax_dict[ttss].plot(tlist, ts_median, color=c, alpha=1, linewidth=2, label=label)
+                graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=c, alpha=0.1)
+                graphs.append(graph)
+        # Single NIS value
+        if nis and (len(nis) == 1):
+            ts_median = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(0.5, dim='draws')
+            ts_lower = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+            ts_upper = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+            label1=nis_value
+            label2=f"{upper_pct}% interval"
+            # Plot values
+            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            graphs.append(graph)
+        # Sum over all NIS values
+        if not nis and spatial:
+            ts_median = data[ttss].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws')
+            ts_lower = data[ttss].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+            ts_upper = data[ttss].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+            label1='aggregated'
+            label2=f"{upper_pct}% interval"
+            # Plot values
+            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            graphs.append(graph)
+        # Not spatial (national model)
+        if not spatial:
+            ts_median = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws')
+            ts_lower = data[ttss].sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+            ts_upper = data[ttss].sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+            label1='national'
+            label2=f"{upper_pct}% interval"
+            # Plot values
+            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            graphs.append(graph)
+        if nis and (len(nis) > 3):
+            ax_dict[ttss].legend(loc=2, prop={'size':legend_size}, ncol=2)
+        else:
+            ax_dict[ttss].legend(loc=2, prop={'size':legend_size}, ncol=1)
+        fig.
+            
+    # Save figure
+    if figname:
+        plt.savefig(figname, dpi=dpi, bbox_inches='tight')
+        print(f"Saved figure '{figname}'")
+        plt.close('all')
+        
+    # Return
+    return graphs
+            
+            
