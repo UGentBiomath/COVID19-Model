@@ -6,6 +6,7 @@ from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
 from collections import OrderedDict
+import copy
 
 class BaseModel:
     """
@@ -89,7 +90,7 @@ class BaseModel:
         all_param_names = self.parameter_names + self.parameters_stratified_names
         if self.stratification:
             all_param_names.extend(self.stratification)
-
+        print(all_param_names)
         for param, func in self.time_dependent_parameters.items():
             if param not in all_param_names:
                 raise ValueError(
