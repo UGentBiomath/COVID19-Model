@@ -87,10 +87,16 @@ class BaseModel:
         extra_params = []
         self._relative_time_dependent_value = []
 
-        all_param_names = self.parameter_names + self.parameters_stratified_names
+        #all_param_names = self.parameter_names + self.parameters_stratified_names
+
+        all_param_names = self.parameter_names.copy()
+
+        for lst in self.parameters_stratified_names:
+            all_param_names.extend(lst)
+
         if self.stratification:
             all_param_names.extend(self.stratification)
-        print(all_param_names)
+
         for param, func in self.time_dependent_parameters.items():
             if param not in all_param_names:
                 raise ValueError(
