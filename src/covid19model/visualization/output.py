@@ -211,7 +211,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         raise Exception(f"The NIS values in the model output and the geopandas dataframe do not correspond (function parameters 'data' and 'geo')")
         
     # Check whether the model output has recognisable compartments
-    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot'}
+    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H'}
     data_comp_set = set(data.data_vars)
     if not data_comp_set.issubset(full_comp_set):
         diff = data_comp_set.difference(full_comp_set)
@@ -371,7 +371,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                         graphs.append(graph)
                     else:
                         ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
-                        label2=f"percentile {upper_pct} to {lower_pct}"
+                        label2=f"{upper_pct}%"
                         graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3,label=label2)
                         graphs.append(graph)
             # Show national sum over all regions in graphs
@@ -380,7 +380,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                 ts_lower = data[ts].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
                 ts_upper = data[ts].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
                 label1='national'
-                label2=f"percentile {lower_pct} to {upper_pct}"
+                label2=f"{upper_pct}%"
                 ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
                 graphs.append(graph)
