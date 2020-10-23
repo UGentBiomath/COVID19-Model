@@ -5,7 +5,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
-import copy
+from collections import OrderedDict
 
 class BaseModel:
     """
@@ -75,17 +75,16 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "param":
-            raise ValueError(
-                "The second parameter of the parameter function should be named 'param'"
-            )
-        # return additional keywords of the function
-        return keywords[2:]
+        if keywords[1] == "param":
+            return keywords[2:],True
+        else:
+            return keywords[1:],False
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
 
         extra_params = []
+        self._relative_time_dependent_value = []
 
         all_param_names = self.parameter_names + self.parameters_stratified_names
         if self.stratification:
@@ -96,8 +95,9 @@ class BaseModel:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
-            kwds = self._validate_parameter_function(func)
+            kwds,relative = self._validate_parameter_function(func)
             extra_params.append(kwds)
+            self._relative_time_dependent_value.append(relative)
 
         self._function_parameters = extra_params
 
@@ -152,9 +152,12 @@ class BaseModel:
 
         # additional parameters from time-dependent parameter functions
         # are added to specified_params after the above check
-        # TODO check that it doesn't duplicate any existing parameter
+
         if self._function_parameters:
             extra_params = [item for sublist in self._function_parameters for item in sublist]
+            # TODO check that it doesn't duplicate any existing parameter
+            # Line below removes duplicate arguments
+            extra_params = OrderedDict((x, True) for x in extra_params).keys()
             specified_params += extra_params
             self._n_function_params = len(extra_params)
         else:
@@ -252,8 +255,11 @@ class BaseModel:
             if self.time_dependent_parameters:
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = func(t, pars[param], **func_params)
-
+                    if self._relative_time_dependent_value[i] == True:
+                        params[param] = func(t, pars[param], **func_params)
+                    else:
+                        params[param] = func(t, **func_params)
+            
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
