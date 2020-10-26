@@ -21,11 +21,10 @@ from covid19model.optimization import MCMC
 from covid19model.models import models
 from covid19model.data import google
 from covid19model.data import sciensano
-from covid19model.data import polymod
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = polymod.get_interaction_matrices()
+initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices()
 
 def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path,
