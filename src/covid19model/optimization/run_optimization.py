@@ -110,7 +110,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
 
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
-    params.update({'policy_time': lag_time})
+    model.parameters.update({'policy_time': lag_time})
 
     # define dataset
     data=[timeseries[start_date:end_ramp]]
