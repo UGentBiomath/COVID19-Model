@@ -86,8 +86,8 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
                                     args=(model, bounds_mcmc, data, states, parNames_mcmc))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
-    samples_beta = sampler.get_chain(discard=100,flat=False)
-    flat_samples_beta = sampler.get_chain(discard=100,flat=True)
+    samples_beta = sampler.get_chain(discard=500,flat=False)
+    flat_samples_beta = sampler.get_chain(discard=500,flat=True)
 
     try:
         sampler.get_autocorr_time()
@@ -110,11 +110,8 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
 
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
-    # Create checkpoints dictionary
-    chk_beta_pso = {
-        'time':  [lag_time],
-        'Nc':    [0.2*Nc_home + 0.3*Nc_work + 0.2*Nc_transport],
-    }
+    params.update({'policy_time': lag_time})
+
     # define dataset
     data=[timeseries[start_date:end_ramp]]
     # set optimisation settings
@@ -122,16 +119,10 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
     # run optimisation
     theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                         checkpoints=chk_beta_pso, samples=samples_beta, maxiter=maxiter,popsize=popsize)
+                         samples=samples_beta, maxiter=maxiter,popsize=popsize)
 
     model.parameters.update({'l': theta[1], 'tau': theta[2]})
     prevention = theta[2]
-
-    # Create checkpoints dictionary
-    chk_beta_MCMC = {
-        'time':  [lag_time],
-        'Nc':    [prevention*(1.0*Nc_home + 0.4*Nc_work + 0.3*Nc_transport + 0.7*Nc_others + 0.2*Nc_leisure)]}
-
 
     bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
     pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
