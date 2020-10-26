@@ -128,7 +128,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,chk_beta_MCMC,samples_beta))
+                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
 
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
