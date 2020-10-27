@@ -3,6 +3,7 @@ import random
 import numpy as np
 import pandas as pd
 import xarray as xr
+import zarr
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -199,3 +200,98 @@ def read_pops(spatial='arr'):
     pops = pops_df.T.to_dict()
 
     return pops
+
+def save_sim(out, name, group, new=False, descr=None, verbose=True):
+    """Save the output xarray of a simulation as a zarr file for future reference. Especially pertinent when simulation takes a long time to process, such that simulations may be saved in a database.
+    
+    Parameters
+    ----------
+    out : xarray object
+        output of the base sim function: xarray with dimensions 'time' and 'draws', and possibly 'Nc' (age stratification) and 'place' (geographical stratification), and attributes "parameters" (which holds a dictionary)
+    name : string
+        Name under which to save the zarr directory. If no directory path is provided, the directory is saved in the current location.
+    group : string
+        Name of the group in the zarr file to save the particular model scenario under
+    new : Boolean
+        If True, creates a new zarr file with name provided in the function argument. False by default.
+    descr : string
+        Description of the particular simulation inside the group. This is saved as an attribute.
+    verbose : Boolean
+        Print under which file and group name the xarray data has been saved. True by default.
+    """
+    
+    # Check the zarr name format
+    if (type(name) != str) or (name[-5:] != '.zarr'):
+        raise Exception(f"The 'name' parameter value '{name}' is invalid. 'name' should be a string with a .zarr extension.")
+    
+    # Check whether the zarr directory exists
+    if (new == False) and not os.path.isdir(name):
+        raise Exception(f"The 'name' parameter value '{name}' does not exist. If you want to create a new zarr file with this name, include 'new=True' in the function arguments.")
+    
+    if (new == True) and os.path.isdir(name):
+        raise Exception(f"Cannot create new zarr file with name '{name}' because it already exists. Either add a group to this zarr file, or create a new zarr directory with a different name.")
+        
+    if os.path.isdir(name + '/' + group):
+        raise Exception(f"The group '{group}' already exists in the zarr directory '{name}'. Create a new group or a new zarr directory.")
+    
+    # Check description properties
+    if not descr:
+        descr = 'No description provided'
+    if type(descr) != str:
+        raise Exception(f"The description '{descr}' is invalid. The 'descr' parameter value should be a string.")
+    
+    # Save the zarr directory and group
+    out.attrs['description'] = descr
+    out.to_zarr(name, group=group)
+    
+    # Include message if verbose (default)
+    if verbose:
+        if new:
+            message = f"Saved simulation output in newly created zarr directory '{name}' under the group '{group}'"
+        else:
+            message = f"Added simulation output to zarr directory '{name} under the group '{group}'"
+        print(message)
+        print(f"Description: {descr}")
+    
+    
+def open_sim(name, group, verbose=True):
+    """Open the saved simulation output xarray and (optionally) display the main characteristics
+    
+    Parameters
+    ----------
+    name : str
+        directory and name of the main zarr file
+    group : str
+        name of the group within the zarr directory in which the xarray is saved
+    verbose : Boolean
+        Print description and dimensional information of the simulation. Default is True.
+    """
+    
+    # Check the zarr name format
+    if (type(name) != str) or (name[-5:] != '.zarr'):
+        raise Exception(f"The 'name' parameter value '{name}' is invalid. 'name' should be a string with a .zarr extension.")
+    
+    # Verify whether the file and group exists
+    if not os.path.isdir(name + '/' + group):
+        raise Exception(f"The group '{name}/{group}' does not exist. Check the 'name' and 'group' parameter values.")
+    
+    # Open xarray from zarr
+    out = xr.open_zarr(name, group=group)
+    if 'description' in out.attrs.keys():
+        descr = out.attrs['description']
+    
+    if verbose:
+        print(f"Opened simulation output that is saved in {name}/{group}")
+        print('')
+        print('Dimensions:')
+        print('-----------')
+        for key, value in out.dims.items(): print(f"{key}: {value}")
+        print('')
+        print('Description')
+        print('-----------')
+        if descr:
+            print(f"'{descr}'")
+        else:
+            print("WARNING: No 'description' attribute in opened model output. Has it been saved properly, using the save_sim() function?")
+            
+    return out
