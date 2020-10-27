@@ -2272,21 +2272,36 @@ DATE,REGION,AGEGROUP,SEX,DEATHS
 2020-10-23,Flanders,75-84,M,5
 2020-10-23,Flanders,75-84,F,4
 2020-10-23,Flanders,85+,M,3
+<<<<<<< HEAD
 2020-10-23,Flanders,85+,F,4
+=======
+2020-10-23,Flanders,85+,F,5
+>>>>>>> master
 2020-10-23,Brussels,45-64,M,2
 2020-10-23,Brussels,65-74,M,1
 2020-10-23,Brussels,75-84,M,3
 2020-10-23,Brussels,75-84,F,1
 2020-10-23,Brussels,85+,M,3
+<<<<<<< HEAD
 2020-10-23,Brussels,85+,F,2
+=======
+2020-10-23,Brussels,85+,F,3
+>>>>>>> master
 2020-10-23,Wallonia,25-44,M,1
 2020-10-23,Wallonia,45-64,F,1
 2020-10-23,Wallonia,65-74,M,2
 2020-10-23,Wallonia,65-74,F,2
 2020-10-23,Wallonia,75-84,M,14
+<<<<<<< HEAD
 2020-10-23,Wallonia,75-84,F,6
 2020-10-23,Wallonia,85+,M,13
 2020-10-23,Wallonia,85+,F,10
+=======
+2020-10-23,Wallonia,75-84,F,7
+2020-10-23,Wallonia,85+,M,13
+2020-10-23,Wallonia,85+,F,11
+2020-10-23,Wallonia,,M,1
+>>>>>>> master
 2020-10-24,Flanders,45-64,M,1
 2020-10-24,Flanders,65-74,F,2
 2020-10-24,Flanders,75-84,M,4
@@ -2303,15 +2318,39 @@ DATE,REGION,AGEGROUP,SEX,DEATHS
 2020-10-24,Wallonia,45-64,F,2
 2020-10-24,Wallonia,65-74,M,4
 2020-10-24,Wallonia,65-74,F,2
-2020-10-24,Wallonia,75-84,M,2
-2020-10-24,Wallonia,75-84,F,6
-2020-10-24,Wallonia,85+,M,7
-2020-10-24,Wallonia,85+,F,6
+2020-10-24,Wallonia,75-84,M,5
+2020-10-24,Wallonia,75-84,F,7
+2020-10-24,Wallonia,85+,M,8
+2020-10-24,Wallonia,85+,F,8
+2020-10-25,Flanders,45-64,M,1
 2020-10-25,Flanders,65-74,M,2
 2020-10-25,Flanders,65-74,F,1
-2020-10-25,Flanders,75-84,M,2
-2020-10-25,Flanders,75-84,F,5
-2020-10-25,Wallonia,65-74,M,1
-2020-10-25,Wallonia,75-84,M,1
-2020-10-25,Wallonia,85+,M,1
-2020-10-25,Wallonia,85+,F,1
+2020-10-25,Flanders,75-84,M,6
+2020-10-25,Flanders,75-84,F,6
+2020-10-25,Flanders,85+,M,4
+2020-10-25,Flanders,85+,F,4
+2020-10-25,Brussels,65-74,F,1
+2020-10-25,Brussels,75-84,M,3
+2020-10-25,Brussels,85+,M,2
+2020-10-25,Brussels,85+,F,3
+2020-10-25,Wallonia,45-64,F,1
+2020-10-25,Wallonia,65-74,M,6
+2020-10-25,Wallonia,65-74,F,4
+2020-10-25,Wallonia,75-84,M,3
+2020-10-25,Wallonia,75-84,F,5
+2020-10-25,Wallonia,85+,M,10
+2020-10-25,Wallonia,85+,F,4
+2020-10-26,Flanders,45-64,M,1
+2020-10-26,Flanders,65-74,F,1
+2020-10-26,Flanders,75-84,M,2
+2020-10-26,Flanders,75-84,F,1
+2020-10-26,Flanders,85+,F,2
+2020-10-26,Brussels,65-74,M,1
+2020-10-26,Brussels,75-84,M,1
+2020-10-26,Wallonia,45-64,M,1
+2020-10-26,Wallonia,65-74,M,2
+2020-10-26,Wallonia,65-74,F,1
+2020-10-26,Wallonia,75-84,M,1
+2020-10-26,Wallonia,75-84,F,4
+2020-10-26,Wallonia,85+,M,6
+2020-10-26,Wallonia,85+,F,1
