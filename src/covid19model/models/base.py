@@ -408,5 +408,5 @@ class BaseModel:
             xarr = xarray.DataArray(arr, coords=coords, dims=dims)
             data[var] = xarr
 
-        attrs = {'parameters': dict(self.parameters)}
+        attrs = dict(self.parameters)
         return xarray.Dataset(data, attrs=attrs)
