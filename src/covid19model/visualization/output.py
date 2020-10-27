@@ -633,7 +633,6 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
             ax_dict[ttss].legend(loc=2, prop={'size':legend_size}, ncol=2)
         else:
             ax_dict[ttss].legend(loc=2, prop={'size':legend_size}, ncol=1)
-        fig.
             
     # Save figure
     if figname:
