@@ -189,9 +189,9 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     return samples_dict
 
 
-def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, beta_init,
-                     fig_path, samples_path,
-                     maxiter=50, popsize=50, steps_mcmc=10000):
+def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
+                            beta_init, sigma_data_init, fig_path, samples_path,
+                            maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
     model : object
@@ -235,7 +235,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     bounds_mcmc=((1,200),(0.01,0.10))
 
-    pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
+    pos = [sigma_data_init,beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                                     args=(model, bounds_mcmc, data, states, parNames_mcmc))
