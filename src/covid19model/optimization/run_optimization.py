@@ -200,7 +200,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         data to fit with date in index
     spatial_unit : string
         name of the spatial_unit, e.g. Gent, Antwerp, Belgium
-    start_date, end_beta, end_ramp : string, format YYYY-MM-DD
+    start_date, end_beta : string, format YYYY-MM-DD
         date of first data point, last date for fitting beta and last date
         for fitting the compliance ramp
     fig_path : string
@@ -276,7 +276,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
 
     samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
-                  'end_beta':end_beta, 'end_ramp':end_ramp,
+                  'end_beta':end_beta,
                   'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
                   'lag_time': lag_time, 'beta': samples_beta['beta'],
