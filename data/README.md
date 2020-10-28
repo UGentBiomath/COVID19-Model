@@ -167,3 +167,14 @@ All economic data from the data/raw/economical was converted in the notebook `no
 + `others.csv` contains the sectoral output during business-as-usual, household demand during business-as-usual, other final demand during business-as-usual, the desired stock, consumer demand shock, other demand shock, sectoral employees during business-as-usual and sectoral employees under lockdown. Data from various sources. NACE 64 classification.
 + `IO_NACE64.csv` contains the input-output table for Belgium, formatted to NACE 64 classification.
 + `IHS_critical_NACE64.csv` contains the IHS Market Analysts data, reformatted from WIOD 55 to the NACE 64 classification.
+
+
+### simulated
+
+Contains zarr directories, which in turn contain groups that each hold a different simulation result. The aim of this 'simulation database' is to be able to save simulation results and perform post-processing without always having to go through the long and computationally demanding task of simulating (using the base.py sim function). This is especially relevant for spatially stratified SEIRD extended models, as these typically take G times longer to run (where G is the level of spatial stratification).
+
+Simulations are saved here using the `utils.py` function `save_sim()` and opened using the `open_sim()` function. The content of the simulations is suggested in the directory titles and mentioned in the 'description' attribute of the zarr groups. It is also printed upon opening the simulation with `open_sim()`. Additionally, the simulation is quickly described here as well.
+
+#### Sanity-check_100sims_100days_Nctot-to-Nchome-day40.zarr
+
++ `arr_1E-per-arr` description: "Stochastic spatial SEIRD extended model with 100 parallel simulations in 43 arrondissements over 100 days.At day 0 a single exposed person in the age class 30-40 is released ineach of the arrondissements. At day 40 measures are imposed, bringing down the contact rate from Nc_total to Nc_home over the course of 5 + 5 days (tau and l compliance parameters) reaches full effect."
