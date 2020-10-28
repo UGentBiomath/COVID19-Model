@@ -226,8 +226,8 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     ############# CALIBRATING BETA ##############
     #############################################
-
-    model.extraTime = 0
+    lag_time = 0
+    model.extraTime = lag_time
     model.parameters.update({'beta': beta_init})
     
     # run MCMC calibration
