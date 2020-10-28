@@ -246,9 +246,9 @@ class BaseModel:
                     f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
                 )
         # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
-        elif 'place' in self.coordinates:
+        elif self.coordinates and ('place' in self.coordinates):
             raise ValueError(
-                f"'place' argument in model initialisation cannot be None. Choose from '{spatial_options}'"
+                f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
             )
                 
             
