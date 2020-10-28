@@ -126,8 +126,9 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
         theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                              samples=samples_beta, maxiter=maxiter,popsize=popsize)
 
-        model.parameters.update({'l': theta[1], 'tau': theta[2]})
-        prevention = theta[2]
+        model.parameters.update({'l': theta[1], 
+                                'tau': theta[2],
+                                'prevention': theta[3]})
 
         bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
         pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
