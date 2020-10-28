@@ -251,7 +251,9 @@ def save_sim(out, name, group, new=False, descr=None, verbose=True):
         else:
             message = f"Added simulation output to zarr directory '{name} under the group '{group}'"
         print(message)
-        print(f"Description: {descr}")
+        print("Description:")
+        print("------------")
+        print(f"'{descr}'")
     
     
 def open_sim(name, group, verbose=True):
