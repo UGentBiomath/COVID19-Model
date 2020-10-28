@@ -280,9 +280,9 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
-    stratification = ['place','Nc'] # mobility and social interaction
-    coordinates = [read_coordinates_nis(spatial='arr')] # hardcoded for now -- to be generalised later
-    coordinates.append(None)
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
 
     # ..transitions/equations
     @staticmethod
