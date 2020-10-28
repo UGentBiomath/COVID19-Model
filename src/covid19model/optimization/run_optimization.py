@@ -40,6 +40,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     start_date, end_beta, end_ramp : string, format YYYY-MM-DD
         date of first data point, last date for fitting beta and last date
         for fitting the compliance ramp
+        if end_ramp == None => no compliance callibrated
     fig_path : string
         path to folder where to save figures
     samples_path : string
@@ -103,53 +104,61 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
-
-    #############################################
-    ####### CALIBRATING COMPLIANCE PARAMS #######
-    #############################################
-
+    
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
     model.parameters.update({'policy_time': lag_time})
 
-    # define dataset
-    data=[timeseries[start_date:end_ramp]]
-    # set optimisation settings
-    parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
-    bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
-    # run optimisation
-    theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                         samples=samples_beta, maxiter=maxiter,popsize=popsize)
+    #############################################
+    ####### CALIBRATING COMPLIANCE PARAMS #######
+    #############################################
+    l = None
+    tau = None
+    prevention = None
+    if end_ramp != None:
 
-    model.parameters.update({'l': theta[1], 'tau': theta[2]})
-    prevention = theta[2]
+        # define dataset
+        data=[timeseries[start_date:end_ramp]]
+        # set optimisation settings
+        parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
+        bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
+        # run optimisation
+        theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+                             samples=samples_beta, maxiter=maxiter,popsize=popsize)
 
-    bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
-    pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
-    nwalkers, ndim = pos.shape
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
+        model.parameters.update({'l': theta[1], 'tau': theta[2]})
+        prevention = theta[2]
 
-    sampler.run_mcmc(pos, steps_mcmc, progress=True);
+        bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
+        pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
+        nwalkers, ndim = pos.shape
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
+                                        args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
 
-    try:
-        sampler.get_autocorr_time()
-    except:
-        print('Calibrating compliance ramp. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
+        sampler.run_mcmc(pos, steps_mcmc, progress=True);
+
+        try:
+            sampler.get_autocorr_time()
+        except:
+            print('Calibrating compliance ramp. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
 
-    samples_ramp = sampler.get_chain(discard=200,flat=False)
-    flat_samples_ramp = sampler.get_chain(discard=200,flat=True)
+        samples_ramp = sampler.get_chain(discard=200,flat=False)
+        flat_samples_ramp = sampler.get_chain(discard=200,flat=True)
 
-    traceplot(samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","prevention"],
-              plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+        traceplot(samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","prevention"],
+                  plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+        plt.savefig(fig_path+'traceplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+                    dpi=600, bbox_inches='tight')
 
-    fig = corner.corner(flat_samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","$\Omega$"])
-    fig.set_size_inches(9, 9)
-    plt.savefig(fig_path+'cornerplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+        fig = corner.corner(flat_samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","$\Omega$"])
+        fig.set_size_inches(9, 9)
+        plt.savefig(fig_path+'cornerplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+                    dpi=600, bbox_inches='tight')
+        
+        l = flat_samples_ramp[:,1].tolist()
+        tau = flat_samples_ramp[:,2].tolist()
+        prevention = flat_samples_ramp[:,3].tolist()
 
     #############################################
     ####### CALCULATING R0 ######################
@@ -168,8 +177,8 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
                   'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
                   'lag_time': lag_time, 'beta': samples_beta['beta'],
-                  'l': flat_samples_ramp[:,1].tolist(),'tau':flat_samples_ramp[:,2].tolist(),
-                  'prevention':flat_samples_ramp[:,3].tolist()}
+                  'l': l,'tau': tau,
+                  'prevention':prevention}
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
