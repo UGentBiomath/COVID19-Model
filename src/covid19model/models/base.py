@@ -6,6 +6,7 @@ from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
 import copy
+from .utils import read_coordinates_nis
 
 class BaseModel:
     """
@@ -38,11 +39,12 @@ class BaseModel:
     coordinates = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False):
+                 discrete=False, spatial=None):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
+        self.spatial = spatial
 
         if self.stratification:
             self.stratification_size = []
@@ -235,6 +237,21 @@ class BaseModel:
             )
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
+        
+        spatial_options = {'mun', 'arr', 'prov'}
+        if self.spatial:
+            # verify wether the spatial parameter value is OK
+            if self.spatial not in spatial_options:
+                raise ValueError(
+                    f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
+                )
+        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
+        elif 'place' in self.coordinates:
+            raise ValueError(
+                f"'place' argument in model initialisation cannot be None. Choose from '{spatial_options}'"
+            )
+                
+            
 
     @staticmethod
     def integrate():
@@ -391,8 +408,11 @@ class BaseModel:
 
         if self.stratification:
             for i in range(len(self.stratification)):
-                if self.coordinates and self.coordinates[i] is not None:
-                    coords.update({self.stratification[i]: self.coordinates[i]})
+                if self.coordinates:
+                    if (self.coordinates[i] == 'place') and self.spatial:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    elif self.coordinates[i] is not None:
+                        coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 
