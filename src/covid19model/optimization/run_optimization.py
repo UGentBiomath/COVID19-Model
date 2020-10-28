@@ -157,6 +157,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     plt.savefig(fig_path+'cornerplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
     
+    sigma_data = flat_samples_ramp[:,0].tolist()
     l = flat_samples_ramp[:,1].tolist()
     tau = flat_samples_ramp[:,2].tolist()
     prevention = flat_samples_ramp[:,3].tolist()
@@ -178,7 +179,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
                   'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
                   'lag_time': lag_time, 'beta': samples_beta['beta'],
-                  'l': l,'tau': tau,
+                  'sigma_data':sigma_data, 'l': l,'tau': tau,
                   'prevention':prevention}
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
