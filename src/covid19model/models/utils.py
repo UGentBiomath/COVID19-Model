@@ -1,6 +1,8 @@
+import os
+import random
 import numpy as np
 import pandas as pd
-import os
+import xarray as xr
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -49,7 +51,7 @@ def name2nis(name):
 def read_coordinates_nis(name='arrond'):
     """
     A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
-    
+
     Parameters
     ----------
     name : str
@@ -61,7 +63,7 @@ def read_coordinates_nis(name='arrond'):
         a list containing the NIS codes of the 43 Belgian arrondissements
 
     """
-    
+
     initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + name + '.csv'), index_col=[0])
     NIS = initN_df.index.values
 
@@ -88,32 +90,32 @@ def dens_dep(rho, xi=0.01):
 def read_areas(name='arrond'):
     """
     Reads full CSV with area per NIS code
-    
+
     Parameters
     ----------
     name : str
         Choose between municipalities ('municip'), arrondissements ('arrond') or provinces ('province'). Defaults is 'arrond'
-    
+
     Returns
     -------
     areas : dictionary
         NIS codes are keys, values are population in square meters
     """
-    
+
     areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + name + '.csv'), index_col='NIS')
     areas = areas_df['area'].to_dict()
-    
+
     return areas
 
 def read_pops(name='arrond'):
     """
     Reads initial population per age and per area
-    
+
     Parameters
     ----------
     name : str
         choose geographical aggregation. Pick between 'arrond', 'municip', 'province'. Default is 'arrond'.
-        
+
     Returns
     -------
     pops : dictionary
@@ -121,8 +123,34 @@ def read_pops(name='arrond'):
         population per age class and per NIS code as values.
         Age classes are [0,10), [10,20), ... , [80, 110)
     """
-    
+
     pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + name + '.csv'), index_col='NIS')
     pops = pops_df.T.to_dict()
-    
+
     return pops
+
+def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
+    """
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
+
+    Parameters
+    ----------
+    model : object
+        BIOMATH model object
+
+    samples_dict : dictionary
+        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+
+    Returns
+    ----------
+    model : object
+        BIOMATH model object
+
+    """
+    # Use posterior samples of fitted parameters
+    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
+    parameter_dictionary['tau'] = samples_dict['tau'][idx]
+    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
+    return parameter_dictionary
