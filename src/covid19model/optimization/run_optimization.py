@@ -28,7 +28,7 @@ initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_tot
 
 def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path,
-                     maxiter=50, popsize=50, steps_mcmc=10000):
+                     maxiter=50, popsize=50, steps_mcmc=10000, lag_needed=True):
 
     """
     model : object
@@ -64,24 +64,40 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
     #############################################
     ####### CALIBRATING BETA AND LAG_TIME #######
     #############################################
+    if lag_needed==True:
+        # set optimisation settings
+        parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
+        bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
+        # run pso optimisation
+        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
 
-    # set optimisation settings
-    parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
-    bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
-    # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
+        sigma_data = theta[0]
+        lag_time = int(round(theta[1]))
+        beta = theta[2]
+        # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
+        model.extraTime = lag_time
+        model.parameters.update({'beta': beta})
+    
+    else:
+        # set optimisation settings
+        parNames_pso = ['sigma_data','beta'] # must be a list!
+        bounds_pso=((1,100),(0.02,0.06)) # must be a list!
+        # run pso optimisation
+        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
 
-    lag_time = int(round(theta[1]))
-    # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
-    model.extraTime = int(round(theta[1]))
+        sigma_data = theta[0]
+        lag_time = 0
+        beta = theta[1]
+        # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
+        model.extraTime = lag_time
+        model.parameters.update({'beta': beta})
 
-    model.parameters.update({'beta': theta[2]})
+    # run MCMC calibration
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     bounds_mcmc=((1,200),(0.01,0.10))
 
-    # run MCMC calibration
-    pos = [theta[0],theta[2]] + [1, 1e-2 ]* np.random.randn(4, 2)
+    pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                                     args=(model, bounds_mcmc, data, states, parNames_mcmc))
@@ -123,14 +139,15 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
         parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
         bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
         # run optimisation
-        theta = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+        theta_comp = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                              samples=samples_beta, maxiter=maxiter,popsize=popsize)
 
-        model.parameters.update({'l': theta[1], 'tau': theta[2]})
-        prevention = theta[2]
+        model.parameters.update({'l': theta_comp[1], 
+                                'tau': theta_comp[2],
+                                'prevention': theta_comp[3]})
 
         bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
-        pos = theta + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
+        pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
         nwalkers, ndim = pos.shape
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                                         args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
