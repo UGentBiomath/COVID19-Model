@@ -19,10 +19,6 @@ def fit_pso(model,data,parNames,states,bounds,samples=None,disp=True,maxiter=30,
         list containg the names of the model states to be fitted to data
     bounds: tuple
         contains one tuples with the lower and upper bounds of each parameter theta
-    checkpoints : dict
-        A dictionary with a "time" key and additional parameter keys,in the form of
-        ``{"time": [t1, t2, ..], "param": [param1, param2, ..], ..}``
-        indicating new parameter values at the corresponding timestamps.
     disp: boolean
         display the pso output stream
     maxiter: float or int
