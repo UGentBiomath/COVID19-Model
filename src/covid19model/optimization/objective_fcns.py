@@ -81,7 +81,7 @@ def MLE(thetas,BaseModel,data,states,parNames,samples=None):
         correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
-    thetas: list
+    parNames: list
         names of parameters to be fitted
     data: list
         list containing dataseries
