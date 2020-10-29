@@ -24,10 +24,8 @@ from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices()
-
 def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
-                     fig_path, samples_path,
+                     fig_path, samples_path, initN, Nc_total,
                      maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
@@ -190,7 +188,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
 
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
-                            beta_init, sigma_data_init, fig_path, samples_path,
+                            beta_init, sigma_data_init, fig_path, samples_path,initN, Nc_total,
                             maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
@@ -260,8 +258,6 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
                 dpi=600, bbox_inches='tight')
     
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
-
-    model.parameters.update({'policy_time': lag_time})
 
        #############################################
     ####### CALCULATING R0 ######################
