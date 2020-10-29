@@ -49,7 +49,7 @@ def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_
         maximum number of pso iterations
     popsize: int (default 50)
         population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
+        increasing this variable increases the chance of finding local minima but
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
