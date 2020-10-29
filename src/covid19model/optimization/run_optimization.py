@@ -34,7 +34,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     timeseries : Series
         data to fit with date in index
     spatial_unit : string
-        name of the spatial_unit, e.g. Gent, Antwerp, Belgium
+        name of the spatial_unit, e.g. Gent, Antwerp, Belgium or NIS-code (for writing out files)
     start_date, end_beta, end_ramp : string, format YYYY-MM-DD
         date of first data point, last date for fitting beta and last date
         for fitting the compliance ramp
