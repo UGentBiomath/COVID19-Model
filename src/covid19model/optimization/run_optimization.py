@@ -24,7 +24,7 @@ from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
-def full_calibration(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
+def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total,
                      maxiter=50, popsize=50, steps_mcmc=10000):
 
