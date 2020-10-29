@@ -29,6 +29,10 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
                      maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
+    Function to calibrate the first wave in different steps with pso and mcmc
+    Step 1: calibration of beta and lag_time
+    Step 2: calibation of compliance parameters
+
     model : object
         initialized model
     timeseries : Series
@@ -192,6 +196,11 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
                             maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
+
+    Function to calibrate the second wave: only mcmc, 
+    based on initial values for beta and sigma_data from the first waves
+    Only beta is calibrated in this function.
+
     model : object
         initialized model
     timeseries : Series
