@@ -236,7 +236,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     norm_params = (sigma_data_norm_params, beta_norm_params)
-    bounds_mcmc = ((1,200),(0.01,0.10))
+    bounds_mcmc = ((1,200),(0.0001,0.10))
 
     pos = [sigma_data_init, beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
