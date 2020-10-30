@@ -194,7 +194,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
                            beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
                            fig_path, samples_path,initN, Nc_total,
-                           maxiter=50, popsize=50, steps_mcmc=10000):
+                           steps_mcmc=10000):
 
     """
 
@@ -215,12 +215,6 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
-    maxiter: int (default 50)
-        maximum number of pso iterations
-    popsize: int (default 50)
-        population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
-        slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
 
@@ -241,7 +235,6 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     # run MCMC calibration
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
-    #bounds_mcmc=((1,200),(0.01,0.10))
     norm_params = (beta_norm_params,sigma_data_norm_params)
 
     pos = [beta_init, sigma_data_init] + [1, 1e-2 ]* np.random.randn(4, 2)
@@ -284,7 +277,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
                   'end_beta':end_beta,
-                  'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
+                  'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
                   'lag_time': lag_time, 'beta': samples_beta['beta']}
 
