@@ -5,6 +5,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
+from collections import OrderedDict
 import copy
 
 class BaseModel:
@@ -75,19 +76,24 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "param":
-            raise ValueError(
-                "The second parameter of the parameter function should be named 'param'"
-            )
-        # return additional keywords of the function
-        return keywords[2:]
+        if keywords[1] == "param":
+            return keywords[2:],True
+        else:
+            return keywords[1:],False
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
 
         extra_params = []
+        self._relative_time_dependent_value = []
 
-        all_param_names = self.parameter_names + self.parameters_stratified_names
+        #all_param_names = self.parameter_names + self.parameters_stratified_names
+
+        all_param_names = self.parameter_names.copy()
+
+        for lst in self.parameters_stratified_names:
+            all_param_names.extend(lst)
+
         if self.stratification:
             all_param_names.extend(self.stratification)
 
@@ -96,8 +102,9 @@ class BaseModel:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
-            kwds = self._validate_parameter_function(func)
+            kwds,relative = self._validate_parameter_function(func)
             extra_params.append(kwds)
+            self._relative_time_dependent_value.append(relative)
 
         self._function_parameters = extra_params
 
@@ -152,9 +159,12 @@ class BaseModel:
 
         # additional parameters from time-dependent parameter functions
         # are added to specified_params after the above check
-        # TODO check that it doesn't duplicate any existing parameter
+
         if self._function_parameters:
             extra_params = [item for sublist in self._function_parameters for item in sublist]
+            # TODO check that it doesn't duplicate any existing parameter
+            # Line below removes duplicate arguments
+            extra_params = OrderedDict((x, True) for x in extra_params).keys()
             specified_params += extra_params
             self._n_function_params = len(extra_params)
         else:
@@ -240,7 +250,7 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self):
+    def _create_fun(self, start_date, excess_time):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, pars={}):
@@ -250,10 +260,17 @@ class BaseModel:
             params = pars.copy()
 
             if self.time_dependent_parameters:
+                if excess_time is not None:
+                    date = self.int_to_date(start_date, t, excess_time)
+                else:
+                    date = t
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = func(t, pars[param], **func_params)
-
+                    if self._relative_time_dependent_value[i] == True:
+                        params[param] = func(date, pars[param], **func_params)
+                    else:
+                        params[param] = func(date, **func_params)
+            
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
@@ -270,9 +287,9 @@ class BaseModel:
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time, start_date=None, excess_time=None):
         """"""
-        fun = self._create_fun()
+        fun = self._create_fun(start_date, excess_time)
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
@@ -317,6 +334,10 @@ class BaseModel:
         """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
+    def int_to_date(self, start_date, t, excess_time):
+        date = pd.to_datetime(start_date) + pd.to_timedelta((t - excess_time), unit='D')
+        return date
+
     def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None):
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -357,12 +378,12 @@ class BaseModel:
         # Perform first simulation as preallocation
         if draw_fcn:
             self.parameters = draw_fcn(self.parameters,samples)
-        out = self._sim_single(time)
+        out = self._sim_single(time, start_date, excess_time)
         # Repeat N - 1 times and concatenate
         for _ in range(N-1):
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples)
-            out = xarray.concat([out, self._sim_single(time)], "draws")
+            out = xarray.concat([out, self._sim_single(time, start_date, excess_time)], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
