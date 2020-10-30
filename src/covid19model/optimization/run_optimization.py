@@ -236,11 +236,16 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     norm_params = (beta_norm_params,sigma_data_norm_params)
+    bounds_mcmc = ((1,200),(0.01,0.10))
 
     pos = [beta_init, sigma_data_init] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability_normal,
+    if beta_norm_params is not None: # use normal prior
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability_normal,
                                     args=(model, norm_params, data, states, parNames_mcmc))
+    else: # use uniform prior
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)
