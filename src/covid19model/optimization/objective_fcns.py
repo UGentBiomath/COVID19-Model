@@ -260,7 +260,7 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     else:
         return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples) # must be negative for emcee
 
-def log_probability_normal(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
+def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -271,8 +271,8 @@ def log_probability_normal(thetas,BaseModel,bounds,data,states,parNames,checkpoi
         correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
-    bounds: tuple
-        contains one tuples with the lower and upper bounds of each parameter theta
+    norm_params: tuple
+        contains tuples with mean and standard deviation for each theta in the parameter vector    
     thetas: array
         names of parameters to be fitted
     data: array
@@ -283,18 +283,14 @@ def log_probability_normal(thetas,BaseModel,bounds,data,states,parNames,checkpoi
     Returns
     -----------
     lp : float
-        returns the MLE if all parameters fall within the user-specified bounds
-        returns - np.inf if one parameter doesn't fall in the user-provided bounds
+        returns normal prior density from a given parameter vector
 
     Example use
     -----------
-    lp = log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    lp = log_probability(BaseModel,thetas,norm_params,data,states,parNames,weights,checkpoints=None,method='MLE')
     """
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check if all provided thetas are within the user-specified bounds
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    lp = log_prior_normal(thetas,bounds)
+    lp = log_prior_normal(thetas,norm_params)
     if not np.isfinite(lp).all():
         return - np.inf
     else:
