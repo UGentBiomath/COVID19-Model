@@ -202,7 +202,7 @@ def read_pops(spatial='arr'):
     return pops
 
 def save_sim(out, name, group, new=False, descr=None, verbose=True):
-    """Save the output xarray of a simulation as a zarr file for future reference. Especially pertinent when simulation takes a long time to process, such that simulations may be saved in a database.
+    """Save the output xarray of a simulation as a zarr file for future reference. Especially pertinent when simulation takes a long time to process, such that simulations may be saved in a database. Note that data variable values are saved as Disk arrays (but open_sim converts them back to Numpy arrays)
     
     Parameters
     ----------
@@ -302,6 +302,10 @@ def open_sim(name, group, verbose=True):
             param_dict[key] = out.attrs[key]
             out.attrs.pop(key)
     out.attrs['parameters'] = param_dict
+    
+    # Convert Disk arrays values of data variables back to Numpy arrays
+    for var in out:
+        out[var].values = np.array(out[var].values)
         
     if verbose:
         print(f"Opened simulation output that is saved in {name}/{group}")
