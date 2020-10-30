@@ -284,7 +284,8 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
                   'end_beta':end_beta,
                   'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
-                  'lag_time': lag_time, 'beta': samples_beta['beta']}
+                  'lag_time': lag_time, 'beta': samples_beta['beta'],
+                  'sigma_data':sigma_data}
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
