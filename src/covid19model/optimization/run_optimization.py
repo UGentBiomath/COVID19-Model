@@ -266,6 +266,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     plt.savefig(fig_path+'cornerplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
     
+    sigma_data = flat_samples_ramp[:,0].tolist()
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
        #############################################
