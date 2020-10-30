@@ -250,7 +250,7 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self):
+    def _create_fun(self, start_date, excess_time):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, pars={}):
@@ -260,12 +260,16 @@ class BaseModel:
             params = pars.copy()
 
             if self.time_dependent_parameters:
+                if excess_time is not None:
+                    date = self.int_to_date(start_date, t, excess_time)
+                else:
+                    date = t
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
                     if self._relative_time_dependent_value[i] == True:
-                        params[param] = func(t, pars[param], **func_params)
+                        params[param] = func(date, pars[param], **func_params)
                     else:
-                        params[param] = func(t, **func_params)
+                        params[param] = func(date, **func_params)
             
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
@@ -283,9 +287,9 @@ class BaseModel:
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time, start_date=None, excess_time=None):
         """"""
-        fun = self._create_fun()
+        fun = self._create_fun(start_date, excess_time)
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
@@ -330,6 +334,10 @@ class BaseModel:
         """
         return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
 
+    def int_to_date(self, start_date, t, excess_time):
+        date = pd.to_datetime(start_date) + pd.to_timedelta((t - excess_time), unit='D')
+        return date
+
     def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None):
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -370,12 +378,12 @@ class BaseModel:
         # Perform first simulation as preallocation
         if draw_fcn:
             self.parameters = draw_fcn(self.parameters,samples)
-        out = self._sim_single(time)
+        out = self._sim_single(time, start_date, excess_time)
         # Repeat N - 1 times and concatenate
         for _ in range(N-1):
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples)
-            out = xarray.concat([out, self._sim_single(time)], "draws")
+            out = xarray.concat([out, self._sim_single(time, start_date, excess_time)], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
