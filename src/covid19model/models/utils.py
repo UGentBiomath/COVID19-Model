@@ -220,6 +220,8 @@ def save_sim(out, name, group, new=False, descr=None, verbose=True):
         Print under which file and group name the xarray data has been saved. True by default.
     """
     
+    ### EXCEPTIONS
+    
     # Check the zarr name format
     if (type(name) != str) or (name[-5:] != '.zarr'):
         raise Exception(f"The 'name' parameter value '{name}' is invalid. 'name' should be a string with a .zarr extension.")
@@ -240,8 +242,15 @@ def save_sim(out, name, group, new=False, descr=None, verbose=True):
     if type(descr) != str:
         raise Exception(f"The description '{descr}' is invalid. The 'descr' parameter value should be a string.")
     
-    # Save the zarr directory and group
+    ### CORE
+    
+    # Save parameters dictionary one level up (otherwise it cannot be saved in zarr format)
+    out.attrs = out.attrs['parameters']
+    
+    # Add description attribute
     out.attrs['description'] = descr
+    
+    # Save to zarr under the right name/group
     out.to_zarr(name, group=group)
     
     # Include message if verbose (default)
@@ -257,7 +266,7 @@ def save_sim(out, name, group, new=False, descr=None, verbose=True):
     
     
 def open_sim(name, group, verbose=True):
-    """Open the saved simulation output xarray and (optionally) display the main characteristics
+    """Open the saved simulation output xarray and (optionally) display the main characteristics. Note: can only handle parameter attributes + description (additional attributes will be wrongly categorised under 'parameters').
     
     Parameters
     ----------
@@ -269,6 +278,8 @@ def open_sim(name, group, verbose=True):
         Print description and dimensional information of the simulation. Default is True.
     """
     
+    ### EXCEPTIONS
+    
     # Check the zarr name format
     if (type(name) != str) or (name[-5:] != '.zarr'):
         raise Exception(f"The 'name' parameter value '{name}' is invalid. 'name' should be a string with a .zarr extension.")
@@ -277,11 +288,21 @@ def open_sim(name, group, verbose=True):
     if not os.path.isdir(name + '/' + group):
         raise Exception(f"The group '{name}/{group}' does not exist. Check the 'name' and 'group' parameter values.")
     
+    ### CORE
+    
     # Open xarray from zarr
     out = xr.open_zarr(name, group=group)
     if 'description' in out.attrs.keys():
         descr = out.attrs['description']
-    
+
+    # Repack parameters into a dictionary
+    param_dict = dict({})
+    for key in out.attrs.copy():
+        if key != 'description':
+            param_dict[key] = out.attrs[key]
+            out.attrs.pop(key)
+    out.attrs['parameters'] = param_dict
+        
     if verbose:
         print(f"Opened simulation output that is saved in {name}/{group}")
         print('')
