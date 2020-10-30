@@ -29,12 +29,16 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
                      maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
+    Function to calibrate the first wave in different steps with pso and mcmc
+    Step 1: calibration of beta and lag_time
+    Step 2: calibation of compliance parameters
+
     model : object
         initialized model
     timeseries : Series
         data to fit with date in index
     spatial_unit : string
-        name of the spatial_unit, e.g. Gent, Antwerp, Belgium
+        name of the spatial_unit, e.g. Gent, Antwerp, Belgium or NIS-code (for writing out files)
     start_date, end_beta, end_ramp : string, format YYYY-MM-DD
         date of first data point, last date for fitting beta and last date
         for fitting the compliance ramp
@@ -192,6 +196,11 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
                             maxiter=50, popsize=50, steps_mcmc=10000):
 
     """
+
+    Function to calibrate the second wave: only mcmc, 
+    based on initial values for beta and sigma_data from the first waves
+    Only beta is calibrated in this function.
+
     model : object
         initialized model
     timeseries : Series
