@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import norm
 
 def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
@@ -191,6 +192,34 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
+def log_prior_normal(thetas, norm_params):
+    """
+    A function to compute the log of a multivariate normal prior density from a given parameter vector.
+    The parameters are assumed to be independent (i.e. the MVN is a product of marginal normal distributions)
+    
+    Parameters
+    -----------
+    thetas: array
+        parameter vector  
+    norm_params: tuple
+        contains tuples with mean and standard deviation for each theta in the parameter vector
+    Returns
+    -----------
+    lp : float
+        log of normal prior density
+    Example use
+    -----------
+    thetas = [1.2,2]
+    norm_params = ((1,0.5),(1,2))
+    lp = log_prior_normal(thetas,norm_params)
+    """
+    thetas = np.array(thetas)
+    norm_params = np.array(norm_params).reshape(len(thetas),2)
+    lp = norm.logpdf(thetas, loc = norm_params[:,0], scale = norm_params[:,1])
+    return np.sum(lp)
+    
+
+
 def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
 
     """
@@ -226,6 +255,46 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     # Check if all provided thetas are within the user-specified bounds
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     lp = log_prior(thetas,bounds)
+    if not np.isfinite(lp).all():
+        return - np.inf
+    else:
+        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples) # must be negative for emcee
+
+def log_probability_normal(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
+
+    """
+    A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
+
+    Parameters
+    -----------
+    BaseModel: model object
+        correctly initialised model to be fitted to the dataset
+    thetas: np.array
+        vector containing estimated parameter values
+    bounds: tuple
+        contains one tuples with the lower and upper bounds of each parameter theta
+    thetas: array
+        names of parameters to be fitted
+    data: array
+        list containing dataseries
+    states: array
+        list containg the names of the model states to be fitted to data
+
+    Returns
+    -----------
+    lp : float
+        returns the MLE if all parameters fall within the user-specified bounds
+        returns - np.inf if one parameter doesn't fall in the user-provided bounds
+
+    Example use
+    -----------
+    lp = log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    """
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Check if all provided thetas are within the user-specified bounds
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    lp = log_prior_normal(thetas,bounds)
     if not np.isfinite(lp).all():
         return - np.inf
     else:
