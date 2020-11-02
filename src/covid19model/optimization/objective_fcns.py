@@ -191,7 +191,7 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
-def log_probability(thetas,model,bounds,data,states,parNames,checkpoints=None,samples=None,start_date=None,warmup=0):
+def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.

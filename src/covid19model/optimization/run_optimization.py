@@ -69,7 +69,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
     bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
     # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
+    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,start_date=start_date)
 
     sigma_data = theta[0]
     lag_time = int(round(theta[1]))
@@ -87,7 +87,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, start_date, lag_time))
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, lag_time))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)
@@ -136,7 +136,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
+                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta, start_date, lag_time))
 
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
@@ -245,7 +245,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     pos = [sigma_data_init,beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc))
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, lag_time))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)
