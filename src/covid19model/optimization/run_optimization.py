@@ -75,7 +75,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     lag_time = int(round(theta[1]))
     beta = theta[2]
     # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
-    model.extraTime = lag_time
+    #model.extraTime = lag_time
     model.parameters.update({'beta': beta})
     
 
@@ -87,7 +87,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc))
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, start_date, lag_time))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)

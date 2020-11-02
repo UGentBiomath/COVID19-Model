@@ -1,6 +1,6 @@
 import numpy as np
 
-def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
+def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
 
     """
     A function to return the sum of squared errors given a model prediction and a dataset.
@@ -8,7 +8,7 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
 
     Parameters
     -----------
-    BaseModel: model object
+    model: model object
         correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
@@ -37,9 +37,9 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
     i = 0
     for param in parNames:
         if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
-            setattr(BaseModel,param,int(round(thetas[i])))
+            setattr(model,param,int(round(thetas[i])))
         else:
-            BaseModel.parameters.update({param:thetas[i]})
+            model.parameters.update({param:thetas[i]})
         i = i + 1
 
     # ~~~~~~~~~~~~~~
@@ -51,9 +51,9 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+BaseModel.extraTime-1
+    T = max(data_length)+model.extraTime-1
     # Perform simulation
-    out=BaseModel.sim(T,checkpoints=checkpoints)
+    out=model.sim(T,checkpoints=checkpoints)
 
     # -------------
     # calculate SSE
@@ -65,19 +65,19 @@ def SSE(thetas,BaseModel,data,states,parNames,weights,checkpoints=None):
         # sum required states
         for j in range(len(states[i])):
             som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[BaseModel.extraTime:])
+        ymodel.append(som[model.extraTime:])
         # calculate quadratic error
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,BaseModel,data,states,parNames,samples=None):
+def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
 
     Parameters
     -----------
-    BaseModel: model object
+    model: model object
         correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
@@ -111,11 +111,11 @@ def MLE(thetas,BaseModel,data,states,parNames,samples=None):
     sigma=[]
     for param in parNames:
         if param == 'extraTime':
-            setattr(BaseModel,param,int(round(thetas[i])))
+            warmup = round(thetas[i])
         elif i < len(data):
             sigma.append(thetas[i])
         else:
-            BaseModel.parameters.update({param:thetas[i]})
+            model.parameters.update({param:thetas[i]})
         i = i + 1
 
     # ~~~~~~~~~~~~~~
@@ -127,25 +127,25 @@ def MLE(thetas,BaseModel,data,states,parNames,samples=None):
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+BaseModel.extraTime-1
+    T = max(data_length)+warmup-1 # *** TO DO: make indepedent from data length
     # Use previous samples
     if samples:
         for param in samples:
-            BaseModel.parameters[param] = np.random.choice(samples[param],1,replace=False)
+            model.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
-    out=BaseModel.sim(T)
+    out = model.sim(T, start_date=start_date, excess_time=warmup)
  
     # -------------
     # calculate MLE
     # -------------
-    ymodel=[]
+    ymodel = []
     MLE = 0
     for i in range(n):
         som = 0
         # sum required states
         for j in range(len(states[i])):
             som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[BaseModel.extraTime:])
+        ymodel.append(som[warmup:])
         # calculate simga2 and log-likelihood function
         MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
     return abs(MLE) # must be positive for pso
@@ -191,14 +191,14 @@ def log_prior(thetas,bounds):
     else:
         return 0
 
-def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=None,samples=None):
+def log_probability(thetas,model,bounds,data,states,parNames,checkpoints=None,samples=None,start_date=None,warmup=0):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
 
     Parameters
     -----------
-    BaseModel: model object
+    model: model object
         correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
@@ -219,7 +219,7 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
 
     Example use
     -----------
-    lp = log_probability(BaseModel,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    lp = log_probability(model,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
     """
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -229,4 +229,4 @@ def log_probability(thetas,BaseModel,bounds,data,states,parNames,checkpoints=Non
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,samples=samples, start_date=start_date) # must be negative for emcee
