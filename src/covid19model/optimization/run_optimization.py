@@ -126,7 +126,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
     # run optimisation
     theta_comp = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                            samples=samples_beta, maxiter=maxiter,popsize=popsize)
+                            samples=samples_beta, maxiter=maxiter,popsize=popsize, start_date=start_date)
 
     model.parameters.update({'l': theta_comp[1], 
                             'tau': theta_comp[2],
