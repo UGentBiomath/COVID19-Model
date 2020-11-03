@@ -250,7 +250,7 @@ class BaseModel:
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self, start_date, excess_time):
+    def _create_fun(self, actual_start_date):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, pars={}):
@@ -260,8 +260,8 @@ class BaseModel:
             params = pars.copy()
 
             if self.time_dependent_parameters:
-                if excess_time is not None:
-                    date = self.int_to_date(start_date, t, excess_time)
+                if actual_start_date is not None:
+                    date = self.int_to_date(actual_start_date, t)
                 else:
                     date = t
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
@@ -287,9 +287,9 @@ class BaseModel:
 
         return func
 
-    def _sim_single(self, time, start_date=None, excess_time=None):
+    def _sim_single(self, time, actual_start_date=None):
         """"""
-        fun = self._create_fun(start_date, excess_time)
+        fun = self._create_fun(actual_start_date)
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
@@ -303,7 +303,7 @@ class BaseModel:
                             args=self.parameters)
 
         # map to variable names
-        return self._output_to_xarray_dataset(output)
+        return self._output_to_xarray_dataset(output, actual_start_date)
 
     def solve_discrete(self,fun,time,y,args):
         # Preparations
@@ -327,18 +327,18 @@ class BaseModel:
         }
         return output
 
-    def date_to_diff(self, start_date, date, excess_time):
+    def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
-        which is excess_time days before start_date)
+        which is excess_time days before actual_start_date)
         """
-        return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
+        return int((pd.to_datetime(end_date)-pd.to_datetime(actual_start_date))/pd.to_timedelta('1D'))
 
-    def int_to_date(self, start_date, t, excess_time):
-        date = pd.to_datetime(start_date) + pd.to_timedelta((t - excess_time), unit='D')
+    def int_to_date(self, actual_start_date, t):
+        date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
         return date
 
-    def sim(self, time, excess_time=None, start_date='2020-03-15', N=1, draw_fcn=None, samples=None):
+    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None):
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
         Can use samples drawn using MCMC to perform the repeated simulations.
@@ -349,6 +349,12 @@ class BaseModel:
         time : int or list of int [start, stop]
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+
+        excess_time : int
+            Number of days for model warm-up
+
+        start_date : str or timestamp
+            Model starts to run on start_date - excess_time
 
         N : int
             Number of repeated simulations. One by default.
@@ -370,27 +376,39 @@ class BaseModel:
         if isinstance(time, int):
             time = [0, time]
 
+        if start_date is not None:
+            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(excess_time, unit='D')
+        else:
+            actual_start_date = None
+
         if isinstance(time, str):
-            time = [0, self.date_to_diff(start_date, time, excess_time)]
+            if not isinstance(start_date, (str, pd.Timestamp)):
+                raise TypeError(
+                    'start_date needs to be string or timestamp, not None'
+                )
+            
+            time = [0, self.date_to_diff(actual_start_date, time)]
+
+
 
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
         # Perform first simulation as preallocation
         if draw_fcn:
             self.parameters = draw_fcn(self.parameters,samples)
-        out = self._sim_single(time, start_date, excess_time)
+        out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for _ in range(N-1):
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples)
-            out = xarray.concat([out, self._sim_single(time, start_date, excess_time)], "draws")
+            out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
 
         return out
 
-    def _output_to_xarray_dataset(self, output):
+    def _output_to_xarray_dataset(self, output, actual_start_date=None):
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
         """
@@ -401,8 +419,13 @@ class BaseModel:
             dims = []
         dims.append('time')
 
+        if actual_start_date is not None:
+            time = actual_start_date + pd.to_timedelta(output["t"], unit='D')
+        else:
+            time = output["t"]
+
         coords = {
-            "time": output["t"],
+            "time": time,
         }
 
         if self.stratification:

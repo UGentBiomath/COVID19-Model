@@ -24,13 +24,38 @@ from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
+def checkplots(samples, flatsamples, fig_path, spatial_unit, figname, labels):
+
+    traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+    plt.savefig(fig_path+'traceplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+                dpi=600, bbox_inches='tight')
+
+    fig = corner.corner(flatsamples,labels=labels)
+    fig.set_size_inches(8, 8)
+    plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+                dpi=600, bbox_inches='tight')
+    
+    return
+
+def calculate_R0(samples_beta, model, initN, Nc_total):
+    R0 =[]
+    for i in range(len(samples_beta['beta'])):
+        R0.append(sum((model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)*(initN/sum(initN))))
+    R0_stratified = np.zeros([initN.size,len(samples_beta['beta'])])
+    for i in range(len(samples_beta['beta'])):
+        R0_stratified[:,i]= (model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)
+    R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
+
+    return R0, R0_stratified_dict
+
+
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total,
-                     maxiter=50, popsize=50, steps_mcmc=10000):
+                     maxiter=50, popsize=50, steps_mcmc=10000, omega=0.8, phip=0.8, phig=0.8):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
-    Step 1: calibration of beta and lag_time
+    Step 1: calibration of beta and warmup
     Step 2: calibation of compliance parameters
 
     model : object
@@ -63,19 +88,18 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     states = [["H_in"]]
 
     #############################################
-    ####### CALIBRATING BETA AND LAG_TIME #######
+    ####### CALIBRATING BETA AND warmup #######
     #############################################
     # set optimisation settings
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
     bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
     # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize)
+    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+                        start_date=start_date, omega=omega, phip=phip, phig=phig)
 
     sigma_data = theta[0]
-    lag_time = int(round(theta[1]))
+    warmup = int(round(theta[1]))
     beta = theta[2]
-    # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
-    model.extraTime = lag_time
     model.parameters.update({'beta': beta})
     
 
@@ -87,7 +111,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc))
+                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)
@@ -98,19 +122,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     except:
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
-
-    traceplot(samples_beta,labels=['$\sigma_{data}$','$\\beta$'],plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
-
-    fig = corner.corner(flat_samples_beta,labels=['$\sigma_{data}$','$\\beta$'])
-    fig.set_size_inches(8, 8)
-    plt.savefig(fig_path+'cornerplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+                figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
     
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
-    model.parameters.update({'policy_time': lag_time})
+    model.parameters.update({'policy_time': warmup})
 
     #############################################
     ####### CALIBRATING COMPLIANCE PARAMS #######
@@ -126,7 +143,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
     # run optimisation
     theta_comp = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                            samples=samples_beta, maxiter=maxiter,popsize=popsize)
+                            samples=samples_beta, maxiter=maxiter,popsize=popsize, start_date=start_date)
 
     model.parameters.update({'l': theta_comp[1], 
                             'tau': theta_comp[2],
@@ -136,7 +153,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta))
+                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta, start_date, warmup))
 
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
@@ -149,15 +166,9 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     samples_ramp = sampler.get_chain(discard=200,flat=False)
     flat_samples_ramp = sampler.get_chain(discard=200,flat=True)
 
-    traceplot(samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","prevention"],
-                plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+    checkplots(samples_ramp, flat_samples_ramp, fig_path, spatial_unit, 
+                figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
 
-    fig = corner.corner(flat_samples_ramp, labels=["$\sigma_{data}$","l","$\\tau$","$\Omega$"])
-    fig.set_size_inches(9, 9)
-    plt.savefig(fig_path+'cornerplots/ramp_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
     
     sigma_data = flat_samples_ramp[:,0].tolist()
     l = flat_samples_ramp[:,1].tolist()
@@ -168,19 +179,13 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     ####### CALCULATING R0 ######################
     #############################################
 
-    R0 =[]
-    for i in range(len(samples_beta['beta'])):
-        R0.append(sum((model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)*(initN/sum(initN))))
-    R0_stratified = np.zeros([initN.size,len(samples_beta['beta'])])
-    for i in range(len(samples_beta['beta'])):
-        R0_stratified[:,i]= (model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)
-    R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
+    R0, R0_stratified_dict = calculate_R0(samples_beta, model, initN, Nc_total)
 
     samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
                   'end_beta':end_beta, 'end_ramp':end_ramp,
                   'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
-                  'lag_time': lag_time, 'beta': samples_beta['beta'],
+                  'warmup': warmup, 'beta': samples_beta['beta'],
                   'sigma_data':sigma_data, 'l': l,'tau': tau,
                   'prevention':prevention}
 
@@ -192,8 +197,9 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
-                            beta_init, sigma_data_init, fig_path, samples_path,initN, Nc_total,
-                            maxiter=50, popsize=50, steps_mcmc=10000):
+                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
+                           fig_path, samples_path,initN, Nc_total,
+                           steps_mcmc=10000):
 
     """
 
@@ -214,12 +220,6 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
-    maxiter: int (default 50)
-        maximum number of pso iterations
-    popsize: int (default 50)
-        population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
-        slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
 
@@ -233,19 +233,24 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     ############# CALIBRATING BETA ##############
     #############################################
-    lag_time = 0
-    model.extraTime = lag_time
+    warmup = 0
     model.parameters.update({'beta': beta_init})
     
     # run MCMC calibration
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
-    bounds_mcmc=((1,200),(0.01,0.10))
+    norm_params = (sigma_data_norm_params, beta_norm_params)
+    bounds_mcmc = ((1,200),(0.0001,0.10))
 
-    pos = [sigma_data_init,beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
+    pos = [sigma_data_init, beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
     nwalkers, ndim = pos.shape
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc))
+
+    if beta_norm_params is not None: # use normal prior
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability_normal,
+                                    args=(model, norm_params, data, states, parNames_mcmc, None, start_date, warmup))
+    else: # use uniform prior
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     samples_beta = sampler.get_chain(discard=500,flat=False)
@@ -257,34 +262,23 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
 
-    traceplot(samples_beta,labels=['$\sigma_{data}$','$\\beta$'],plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+                figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
 
-    fig = corner.corner(flat_samples_beta,labels=['$\sigma_{data}$','$\\beta$'])
-    fig.set_size_inches(8, 8)
-    plt.savefig(fig_path+'cornerplots/beta_'+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
     
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
-       #############################################
+    #############################################
     ####### CALCULATING R0 ######################
     #############################################
 
-    R0 =[]
-    for i in range(len(samples_beta['beta'])):
-        R0.append(sum((model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)*(initN/sum(initN))))
-    R0_stratified = np.zeros([initN.size,len(samples_beta['beta'])])
-    for i in range(len(samples_beta['beta'])):
-        R0_stratified[:,i]= (model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)
-    R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
+    R0, R0_stratified_dict = calculate_R0(samples_beta, model, initN, Nc_total)
 
     samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
                   'end_beta':end_beta,
-                  'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
+                  'steps_mcmc':steps_mcmc,
                   'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
-                  'lag_time': lag_time, 'beta': samples_beta['beta']}
+                  'warmup': warmup, 'beta': samples_beta['beta']}
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
