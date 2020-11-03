@@ -26,7 +26,7 @@ from covid19model.visualization.optimization import traceplot
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total,
-                     maxiter=50, popsize=50, steps_mcmc=10000):
+                     maxiter=50, popsize=50, steps_mcmc=10000, omega=0.8, phip=0.8, phig=0.8):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
@@ -69,13 +69,11 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
     bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
     # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,start_date=start_date)
+    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,start_date=start_date, omega=omega, phip=phip, phig=phig)
 
     sigma_data = theta[0]
     lag_time = int(round(theta[1]))
     beta = theta[2]
-    # Assign 'extraTime' or lag_time as a model attribute --> is needed to perform the optimalization
-    #model.extraTime = lag_time
     model.parameters.update({'beta': beta})
     
 

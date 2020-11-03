@@ -229,4 +229,4 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,samples=samples, start_date=start_date) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup) # must be negative for emcee
