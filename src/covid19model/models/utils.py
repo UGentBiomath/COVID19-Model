@@ -293,14 +293,14 @@ def open_sim(name, group, verbose=True):
     # Open xarray from zarr
     out = xr.open_zarr(name, group=group)
     if 'description' in out.attrs.keys():
-        descr = out.attrs['description']
+        # Copy and delete description from attributes
+        descr = out.attrs.pop('description')
 
     # Repack parameters into a dictionary
     param_dict = dict({})
     for key in out.attrs.copy():
-        if key != 'description':
-            param_dict[key] = out.attrs[key]
-            out.attrs.pop(key)
+        param_dict[key] = out.attrs[key]
+        out.attrs.pop(key)
     out.attrs['parameters'] = param_dict
     
     # Convert Disk arrays values of data variables back to Numpy arrays
