@@ -266,7 +266,7 @@ def save_sim(out, name, group, new=False, descr=None, verbose=True):
     
     
 def open_sim(name, group, verbose=True):
-    """Open the saved simulation output xarray and (optionally) display the main characteristics. Note: can only handle parameter attributes + description (additional attributes will be wrongly categorised under 'parameters').
+    """Open the saved simulation output xarray and (optionally) display the main characteristics. Note: can only handle parameter attributes + description (additional attributes will be wrongly categorised under 'parameters'). Note: changes the order of the parameters in the dictionary
     
     Parameters
     ----------
