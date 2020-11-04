@@ -198,7 +198,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
                            beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
-                           fig_path, samples_path,initN, Nc_total,
+                           fig_path, samples_path,initN, Nc_total, pso=False, 
                            maxiter=100, popsize=200, steps_mcmc=1000, omega=0.8, phip=0.8, phig=0.8):
 
     """
@@ -229,20 +229,25 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     # define dataset
     data=[timeseries[start_date:end_beta]]
     states = [["H_in"]]
-
+    
+    sigma_data = sigma_data_init
+    beta = beta_init
+    warmup = 0
+    
     #############################################
     ############# CALIBRATING BETA ##############
     #############################################
     # set optimisation settings
-    parNames_pso = ['sigma_data','beta'] # must be a list!
-    bounds_pso=((1,100),(0.01,0.06)) # must be a list!
-    # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
-                        start_date=start_date, omega=omega, phip=phip, phig=phig)
+    if pso == True:
+        parNames_pso = ['sigma_data','beta'] # must be a list!
+        bounds_pso=((1,100),(0.01,0.06)) # must be a list!
+        # run pso optimisation
+        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+                            start_date=start_date, omega=omega, phip=phip, phig=phig)
 
-    sigma_data = theta[0]
-    beta = theta[1]
-    warmup = 0
+        sigma_data = theta[0]
+        beta = theta[1]
+        
     model.parameters.update({'beta': beta})
         
     # run MCMC calibration
