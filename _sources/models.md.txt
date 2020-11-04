@@ -38,9 +38,9 @@ for every of the 11 population compartments. This results in the following syste
 $$
 \begin{eqnarray}
 \dot{S_i} &=& - \beta s_i S_i \sum_{j=1}^{N} N_{c,ij}  \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
-\dot{E_i} &=& \beta s_i  S_i \sum_{j=1}^{N} N_{c,ij} \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
+\dot{E_i} &=& \beta s_i  S_i \sum_{j=1}^{N} N_{c,ij} \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\
 \dot{I_i} &=& (1/\sigma) E_i - (1/\omega) I_i, \\
-\dot{A_i} &=& (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\ 
+\dot{A_i} &=& (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\
 \dot{M_i} &=&  ((1-\text{a}_i) / \omega ) I_i - ( (1-h_i)/d_m + h_i/d_{\text{hospital}} ) M_i, \\
 \dot{ER_i} &=& (h_i/d_{\text{hospital}}) M_i - (1/d_{\text{ER}}) ER_i, \\
 \dot{C_i} &=& c_i (1/d_{\text{ER}}) ER_i  - (m_{C, i}/d_{c,D}) C_i - ((1 - m_{C, i})/d_{c,R}) C_i, \\
@@ -79,7 +79,7 @@ If a transitioning between states is defined as "succes", we can regard the numb
 
 $$
 \begin{equation}
-(\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg). 
+(\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg).
 \end{equation}
 $$
 
@@ -182,7 +182,7 @@ Coefficients can be added to the contributing contact matrices to model a goverm
 
 ### Modeling social intertia
 
-The model takes into account the effect of *social inertia* when measures are taken. In reality, social restrictions or relaxations represent a change in behaviour which is gradual and cannot be modeled using a step-wise change of the social interaction matrix $\mathbf{N_c}$. This can be seen when closely inspecting the *Google community mobility report* above. Multiple functions can be used to model the effects of social compliance, e.g. a delayed or non-delayed ramp, or a logistic function. In our model, we use a delayed ramp to model compliance, 
+The model takes into account the effect of *social inertia* when measures are taken. In reality, social restrictions or relaxations represent a change in behaviour which is gradual and cannot be modeled using a step-wise change of the social interaction matrix $\mathbf{N_c}$. This can be seen when closely inspecting the *Google community mobility report* above. Multiple functions can be used to model the effects of social compliance, e.g. a delayed or non-delayed ramp, or a logistic function. In our model, we use a delayed ramp to model compliance,
 
 $$
 \begin{equation}
@@ -194,7 +194,7 @@ where,
 
 $$
 \begin{equation}
-    f^k= 
+    f^k=
 \begin{cases}
 	0.0,& \text{if } k\leq \tau\\
     \frac{k}{l} - \frac{\tau}{l},& \text{if } \tau < k\leq \tau + l\\

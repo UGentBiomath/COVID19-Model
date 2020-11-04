@@ -215,9 +215,9 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 \[\begin{split}
 \begin{eqnarray}
 \dot{S_i} &amp;=&amp; - \beta s_i S_i \sum_{j=1}^{N} N_{c,ij}  \Big( \frac{I_j+A_j}{T_j} \Big) + \zeta R_i, \\
-\dot{E_i} &amp;=&amp; \beta s_i  S_i \sum_{j=1}^{N} N_{c,ij} \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\ 
+\dot{E_i} &amp;=&amp; \beta s_i  S_i \sum_{j=1}^{N} N_{c,ij} \Big( \frac{I_j+A_j}{T_j} \Big) - (1/\sigma) \cdot E_i,  \\
 \dot{I_i} &amp;=&amp; (1/\sigma) E_i - (1/\omega) I_i, \\
-\dot{A_i} &amp;=&amp; (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\ 
+\dot{A_i} &amp;=&amp; (\text{a}_i/\omega) I_i - (1/d_{\text{a}}) A_i, \\
 \dot{M_i} &amp;=&amp;  ((1-\text{a}_i) / \omega ) I_i - ( (1-h_i)/d_m + h_i/d_{\text{hospital}} ) M_i, \\
 \dot{ER_i} &amp;=&amp; (h_i/d_{\text{hospital}}) M_i - (1/d_{\text{ER}}) ER_i, \\
 \dot{C_i} &amp;=&amp; c_i (1/d_{\text{ER}}) ER_i  - (m_{C, i}/d_{c,D}) C_i - ((1 - m_{C, i})/d_{c,R}) C_i, \\
@@ -252,7 +252,7 @@ P(ICU_i \rightarrow C_{\text{ICU,rec,i}}) = 1 - \text{exp} \Bigg[ - \frac{1-m_{\
 <div class="math notranslate nohighlight">
 \[
 \begin{equation}
-(\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg). 
+(\text{ICU}_i \rightarrow C_{\text{ICU,rec,i}})(k) \sim \text{Binomial}\Bigg(\text{ICU}_i(k),\ 1 - \text{exp}\Bigg[- \frac{1-m_{\text{ICU,i}}}{d_{\text{ICU,R}}}\Bigg]\Bigg).
 \end{equation}
 \]</div>
 <p>For a discrete stepsize <span class="math notranslate nohighlight">\(l\)</span>, there are 15 possible transitions,</p>
@@ -359,7 +359,7 @@ D_{i,g}(k+1) &amp;=&amp; D_{i,g}(k) + (ICU_{i,g} \rightarrow D_{i,g}) (k) + (C_{
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \begin{equation}
-    f^k= 
+    f^k=
 \begin{cases}
 	0.0,&amp; \text{if } k\leq \tau\\
     \frac{k}{l} - \frac{\tau}{l},&amp; \text{if } \tau &lt; k\leq \tau + l\\
@@ -386,7 +386,8 @@ R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
 <p align="center">
 <img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
 <em> Overview of BIOMATH COVID-19 model parameters. </em>
-</p></div>
+</p>
+</div>
 </div>
 
 
