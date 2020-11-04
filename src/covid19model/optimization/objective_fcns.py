@@ -71,7 +71,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
@@ -111,8 +111,8 @@ def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0)
     i = 0
     sigma=[]
     for param in parNames:
-        if param == 'extraTime':
-            warmup = round(thetas[i])
+        if param == 'warmup':
+            warmup = int(round(thetas[i]))
         elif i < len(data):
             sigma.append(thetas[i])
         else:
@@ -130,9 +130,8 @@ def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0)
         data_length.append(data[i].size)
     T = max(data_length)+warmup-1 # *** TO DO: make indepedent from data length
     # Use previous samples
-    if samples:
-        for param in samples:
-            model.parameters[param] = np.random.choice(samples[param],1,replace=False)
+    if draw_fcn:
+        model.parameters = draw_fcn(model.parameters,samples)
     # Perform simulation
     out = model.sim(T, start_date=start_date, excess_time=warmup)
  
