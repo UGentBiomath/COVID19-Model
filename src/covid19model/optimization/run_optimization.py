@@ -92,16 +92,19 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     # set optimisation settings
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
-    bounds_pso=((1,100),(30,60),(0.02,0.06)) # must be a list!
+    bounds_pso=((1,100),(30,100),(0.01,0.06)) # must be a list!
     # run pso optimisation
-    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
-                        start_date=start_date, omega=omega, phip=phip, phig=phig)
+#    theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+#                        start_date=start_date, omega=omega, phip=phip, phig=phig)
+#    sigma_data = theta[0]
+#    warmup = int(round(theta[1]))
+#    beta = theta[2]
+    warmup = 36
+    sigma_data = 10
+    beta = 0.039
 
-    sigma_data = theta[0]
-    warmup = int(round(theta[1]))
-    beta = theta[2]
     model.parameters.update({'beta': beta})
-    
+        
 
     # run MCMC calibration
 
@@ -127,7 +130,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
-    model.parameters.update({'policy_time': warmup})
+    #model.parameters.update({'policy_time': warmup})
 
     #############################################
     ####### CALIBRATING COMPLIANCE PARAMS #######
