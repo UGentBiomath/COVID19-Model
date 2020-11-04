@@ -147,12 +147,9 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
 
-    # Define a function to draw values of beta and assign them to the model parameter dictionary
+    # Import a function to draw values of beta and assign them to the model parameter dictionary
+    from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD
     global draw_sample_beta_COVID19_SEIRD
-    def draw_sample_beta_COVID19_SEIRD(parameter_dictionary,samples_dict):
-        # Use posterior samples of fitted parameters
-        parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-        return parameter_dictionary
 
     # run optimisation
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
