@@ -7,6 +7,7 @@ import xarray
 import pandas as pd
 from collections import OrderedDict
 import copy
+from .utils import read_coordinates_nis
 
 class BaseModel:
     """
@@ -35,14 +36,16 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
+    apply_compliance_to = None
     coordinates = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False):
+                 discrete=False, spatial=None):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
+        self.spatial = spatial
 
         if self.stratification:
             self.stratification_size = []
@@ -245,6 +248,21 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
+        spatial_options = {'mun', 'arr', 'prov'}
+        if self.spatial:
+            # verify wether the spatial parameter value is OK
+            if self.spatial not in spatial_options:
+                raise ValueError(
+                    f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
+                )
+        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
+        elif self.coordinates and ('place' in self.coordinates):
+            raise ValueError(
+                f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
+            )
+
+
+
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
@@ -270,7 +288,7 @@ class BaseModel:
                         params[param] = func(date, pars[param], **func_params)
                     else:
                         params[param] = func(date, **func_params)
-            
+
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
@@ -338,7 +356,8 @@ class BaseModel:
         date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
         return date
 
-    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None):
+    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
+
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
         Can use samples drawn using MCMC to perform the repeated simulations.
@@ -386,7 +405,7 @@ class BaseModel:
                 raise TypeError(
                     'start_date needs to be string or timestamp, not None'
                 )
-            
+
             time = [0, self.date_to_diff(actual_start_date, time)]
 
 
@@ -394,11 +413,15 @@ class BaseModel:
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
         # Perform first simulation as preallocation
+        if verbose==True:
+            print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
             self.parameters = draw_fcn(self.parameters,samples)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
-        for _ in range(N-1):
+        for n in range(N-1):
+            if verbose==True:
+                print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
@@ -430,8 +453,11 @@ class BaseModel:
 
         if self.stratification:
             for i in range(len(self.stratification)):
-                if self.coordinates and self.coordinates[i] is not None:
-                    coords.update({self.stratification[i]: self.coordinates[i]})
+                if self.coordinates:
+                    if (self.coordinates[i] == 'place') and self.spatial:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    elif self.coordinates[i] is not None:
+                        coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 

@@ -34,7 +34,7 @@ def checkplots(samples, flatsamples, fig_path, spatial_unit, figname, labels):
     fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
-    
+
     return
 
 def calculate_R0(samples_beta, model, initN, Nc_total):
@@ -75,7 +75,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         maximum number of pso iterations
     popsize: int (default 50)
         population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
+        increasing this variable increases the chance of finding local minima but
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
@@ -101,7 +101,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     warmup = int(round(theta[1]))
     beta = theta[2]
     model.parameters.update({'beta': beta})
-    
+
 
     # run MCMC calibration
 
@@ -122,9 +122,9 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     except:
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
-    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit,
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
-    
+
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
     model.parameters.update({'policy_time': warmup})
@@ -145,7 +145,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     theta_comp = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             samples=samples_beta, maxiter=maxiter,popsize=popsize, start_date=start_date)
 
-    model.parameters.update({'l': theta_comp[1], 
+    model.parameters.update({'l': theta_comp[1],
                             'tau': theta_comp[2],
                             'prevention': theta_comp[3]})
 
@@ -166,10 +166,10 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     samples_ramp = sampler.get_chain(discard=200,flat=False)
     flat_samples_ramp = sampler.get_chain(discard=200,flat=True)
 
-    checkplots(samples_ramp, flat_samples_ramp, fig_path, spatial_unit, 
+    checkplots(samples_ramp, flat_samples_ramp, fig_path, spatial_unit,
                 figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
 
-    
+
     sigma_data = flat_samples_ramp[:,0].tolist()
     l = flat_samples_ramp[:,1].tolist()
     tau = flat_samples_ramp[:,2].tolist()
@@ -196,14 +196,14 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     return samples_dict
 
 
-def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
-                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
+def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
+                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params,
                            fig_path, samples_path,initN, Nc_total,
                            steps_mcmc=10000):
 
     """
 
-    Function to calibrate the second wave: only mcmc, 
+    Function to calibrate the second wave: only mcmc,
     based on initial values for beta and sigma_data from the first waves
     Only beta is calibrated in this function.
 
@@ -235,7 +235,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     warmup = 0
     model.parameters.update({'beta': beta_init})
-    
+
     # run MCMC calibration
 
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
@@ -262,10 +262,10 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
 
-    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit,
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
 
-    
+
     samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
 
     #############################################
