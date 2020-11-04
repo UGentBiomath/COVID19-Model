@@ -64,28 +64,54 @@ def read_coordinates_nis():
 
     return NIS
 
-def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
+def draw_sample_COVID19_SEIRD(param_dict,samples_dict,beta_only=False):
     """
     A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
     Tailor-made for the BIOMATH COVID-19 SEIRD model.
 
     Parameters
     ----------
-    model : object
-        BIOMATH model object
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
     
     samples_dict : dictionary
-        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
 
     Returns
     ----------
-    model : object
-        BIOMATH model object
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
     """
-    # Use posterior samples of fitted parameters
-    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
-    parameter_dictionary['tau'] = samples_dict['tau'][idx]
-    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
-    return parameter_dictionary
+    
+    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    if beta_only == False:
+        idx,param_dict['l'] = random.choice(list(enumerate(samples_dict['l'])))
+        param_dict['tau'] = samples_dict['tau'][idx]
+        param_dict['prevention'] = samples_dict['prevention'][idx]
+
+    return param_dict
+
+def draw_sample_beta_COVID19_SEIRD(param_dict,samples_dict):
+    """
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
+
+    Parameters
+    ----------
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
+    
+    samples_dict : dictionary
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
+
+    Returns
+    ----------
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
+
+    """
+
+    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+
+    return param_dict
