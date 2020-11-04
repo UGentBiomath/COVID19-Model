@@ -38,7 +38,7 @@
 
 ##### Willem 2012
 
-+ `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts. 
++ `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts.
 
 ##### CoMiX
 
@@ -47,6 +47,8 @@
 ##### Demographic
 
 + `Age pyramid of Belgium.csv` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per gender and per 5 year age bins. Retreived from https://statbel.fgov.be/en/themes/population/structure-population
+
++ `TF_SOC_POP_STRUCT_2020.xlsx` contains the most recent (January 1st, 2020) structure of the Belgian population, per age and per municipality. This is used to extract the spatially and age-stratified population `initN`. Retrieved from https://statbel.fgov.be/nl/open-data/bevolking-naar-woonplaats-nationaliteit-burgerlijke-staat-leeftijd-en-geslacht-10
 
 #### Google
 
@@ -136,17 +138,23 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 + `age_structure_per_province.csv` : population of each age per province
 
++ `age_structure_per_test.csv` : population for the test case: only arrondissements Antwerp, Brussels, Gent
+
 + `area_arrond.csv` contains the area of Belgian arrondissements per NIS code in square meters
 
 + `area_municip.csv` contains the area of Belgian municipalities per NIS code in square meters
 
 + `area_province.csv` contains the area of Belgian provinces per NIS code in square meters
 
-+ `initN_arrond.csv` contains a pandas dataframe with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `area_test.csv` contains the area of arrondissements Antwerp, Brussels, Gent
 
-+ `initN_province.csv` contains a pandas dataframe with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `initN_arrond.csv` contains a CSV with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
-+ `initN_municip.csv` contains a pandas dataframe with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `initN_province.csv` contains a CSV with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_municip.csv` contains a CSV with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
+
++ `initN_test.csv` contains a CSV with the following columns: NIS-code of arrondissement Antwerpen, Brussel, Gent, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
 
 #### Economic data
 
@@ -157,3 +165,14 @@ All economic data from the data/raw/economical was converted in the notebook `no
 + `others.csv` contains the sectoral output during business-as-usual, household demand during business-as-usual, other final demand during business-as-usual, the desired stock, consumer demand shock, other demand shock, sectoral employees during business-as-usual and sectoral employees under lockdown. Data from various sources. NACE 64 classification.
 + `IO_NACE64.csv` contains the input-output table for Belgium, formatted to NACE 64 classification.
 + `IHS_critical_NACE64.csv` contains the IHS Market Analysts data, reformatted from WIOD 55 to the NACE 64 classification.
+
+
+### simulated
+
+Contains zarr directories, which in turn contain groups that each hold a different simulation result. The aim of this 'simulation database' is to be able to save simulation results and perform post-processing without always having to go through the long and computationally demanding task of simulating (using the base.py sim function). This is especially relevant for spatially stratified SEIRD extended models, as these typically take G times longer to run (where G is the level of spatial stratification).
+
+Simulations are saved here using the `utils.py` function `save_sim()` and opened using the `open_sim()` function. The content of the simulations is suggested in the directory titles and mentioned in the 'description' attribute of the zarr groups. It is also printed upon opening the simulation with `open_sim()`. Additionally, the simulation is quickly described here as well.
+
+#### Sanity-check_100sims_100days_Nctot-to-Nchome-day40.zarr
+
++ `arr_1E-per-arr` description: "Stochastic spatial SEIRD extended model with 100 parallel simulations in 43 arrondissements over 100 days.At day 0 a single exposed person in the age class 30-40 is released ineach of the arrondissements. At day 40 measures are imposed, bringing down the contact rate from Nc_total to Nc_home over the course of 5 + 5 days (tau and l compliance parameters) reaches full effect."

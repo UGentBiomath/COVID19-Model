@@ -23,7 +23,7 @@ register_matplotlib_converters()
 
 from .utils import read_coordinates_nis, dens_dep
 from ..optimization import pso
-from .QALY import create_life_table 
+from .QALY import create_life_table
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -149,7 +149,7 @@ class COVID19_SEIRD(BaseModel):
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        
+
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -278,23 +278,20 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'pi']]
-    stratification = ['place','Nc']
-    coordinates = [read_coordinates_nis()]
-    coordinates.append(None)
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
 
     # ..transitions/equations
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, # SEIRD parameters
-                  area, sg,  # spatially stratified parameters
-                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, dICUrec, pi, # age-stratified parameters
-                  place, Nc): # not really sure?
-#     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-#                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-#                   dhospital, s, a, h, c, m_C, m_ICU, place, Nc):
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, # SEIRD parameters
+                  area, sg,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
+                  place, Nc): # stratified parameters that determine stratification dimensions
 
         """
         BIOMATH extended SEIRD model for COVID-19
@@ -315,67 +312,71 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
         # For total population and for the relevant compartments I and A
-        G = P.shape[0] # spatial stratification
+        G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
-        T_eff = np.zeros(initN.shape) # initialise
-        A_eff = np.zeros(initN.shape)
-        I_eff = np.zeros(initN.shape)
+        T_eff = np.zeros([G,N]) # initialise
+        A_eff = np.zeros([G,N])
+        I_eff = np.zeros([G,N])
         for g in range(G):
-            for h in range(G):
-                # total population
-                sum1 = (1 - pi) * np.identity(G)[h][g]
-                sum2 = pi * P[h][g]
-                T_eff[g] += ( sum1 + sum2 ) * initN[h]
-                A_eff[g] += ( sum1 + sum2 ) * A[h]
-                I_eff[g] += ( sum1 + sum2 ) * A[h]
+            for i in range(N):
+                sumT = 0
+                sumA = 0
+                sumI = 0
+                # h is taken, so iterator for a sum is gg
+                for gg in range(G):
+                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
+                    term2 = pi[i] * place[gg][g]
+                    sumT += (term1 + term2) * T[gg][i]
+                    sumA += (term1 + term2) * A[gg][i]
+                    sumI += (term1 + term2) * I[gg][i]
+                T_eff[g][i] = sumT
+                A_eff[g][i] = sumA
+                I_eff[g][i] = sumI
 
-        # Density dependence parameter per patch: f[patch]
-        def dens_dep(rho, xi):
-            f = 1 + (1 - np.exp(-xi*rho))
-            return f
-        # xi is hard-coded for now
+        # Density dependence per patch: f[patch]
         xi = 0.01 # km^-2
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
 
         # Normalisation factor per age class: zi[age]
+        # Population per age class
         Ti = T.sum(axis=0)
-        f = dens_dep(T_eff.sum(axis=1) / area, xi)
         denom = np.zeros(N)
-        for h in range(G):
-            value = f[h] * T_eff[h]
+        for gg in range(G):
+            value = f[gg] * T_eff[gg]
             denom += value
         zi = Ti / denom
 
         # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
         # initialisation for the summation over all ages below
-        T_eff_temp = np.zeros(Nc.shape)
-        A_eff_temp = np.zeros(Nc.shape)
-        I_eff_temp = np.zeros(Nc.shape)
-        s_temp = np.array([s]*43)
-        Nc_temp = np.array([Nc]*43)
-        for h in range(G):
-            for j in range(N):
-                T_eff_temp[h,j] = T_eff[h]
-                A_eff_temp[h,j] = A_eff[h]
-                I_eff_temp[h,j] = I_eff[h]
-
         argument = np.zeros([G,N])
-        for j in range(N):
-            argument += - beta * s * zi * f * Nc[:,:,j] * ( I_eff_temp[:,:,j] + A_eff_temp[:,:,j] ) / T_eff_temp[:,:,j]
+        for i in range(N):
+            for g in range(G):
+                summ = 0
+                for j in range(N):
+                    term = - beta * s[i] * zi[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j] # this used to be T_eff[g,i]
+                    summ += term
+                argument[g,i] = summ
+        P = 1 - np.exp(l*argument) # multiplied by length of timestep
 
-        P = 1 - np.exp(argument)
+        # The probability to get infected in any patch when in a particular age class: Pbis[patch][age]
+        Pbis = np.zeros([G,N]) # initialise
+        # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
+        for i in range(N):
+            for g in range(G):
+                summ = 0
+                for gg in range(G):
+                    term = place[g,gg] * P[gg,i]
+                    summ += term
+                Pbis[g,i] = summ
 
-        # the probability to get infected in any patch when in a particular age class: Pbis[patch][age]
-        Pbis = np.zeros(P.shape) # initialise
-        for j in range(N):
-            Pbis[:,j] = np.matmul(np.transpose(place), P[:,j])
+        # The total probability bigP[patch][age], depending on mobility parameter pi[age]
+        bigP = np.zeros([G,N])
+        for i in range(N):
+            for g in range(G):
+                bigP[g,i] = (1 - pi[i]) * P[g,i] + pi[i] * Pbis[g,i]
 
-        # the combined probability, depending on the overall mobility
-        bigP = np.zeros(P.shape) # initialise
-        for h in range(G):
-            bigP[h] = (1 - pi) * P[h] + pi * Pbis[h]
 
         # To be added: effect of average family size (sigma^g or sg)
 
@@ -386,47 +387,48 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
 
 
-        matrix_1 = np.zeros([place.shape[0],Nc.shape[0]])
-        for i in range(place.shape[0]):
-            # matrix_1[i,:] =
-            matrix_1[i,:] = -l*s*beta*np.matmul(Nc,((I[i,:]+A[i,:])/T[i,:]))
-        matrix_2 = np.matmul(place,matrix_1)
-
-        probabilities = [1 - np.exp(matrix_2),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * a * (1/omega) )*np.ones([place.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * (1-a)* (1/omega) )*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1/da) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * h * (1/dhospital) )*np.ones([place.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * c * (1/der) )*np.ones([place.shape[0],Nc.shape[0]]),
-                        1 - np.exp(- l * (1-c) * (1/der) )*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([place.shape[0],Nc.shape[0]]),
-                        (1 - np.exp(- l * zeta ))*np.ones([place.shape[0],Nc.shape[0]]),
+        # Probabilities for a single agent to migrate between SEIR compartments in one unit of the timestep (typically days)
+        probabilities = [bigP,
+                        (1 - np.exp(- l * (1/sigma) ))*np.ones([G,N]),
+                        1 - np.exp(- l * a * (1/omega) )*np.ones([G,N]),
+                        1 - np.exp(- l * (1-a)* (1/omega) )*np.ones([G,N]),
+                        (1 - np.exp(- l * (1/da) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones([G,N]),
+                        1 - np.exp(- l * h * (1/dhospital) )*np.ones([G,N]),
+                        1 - np.exp(- l * c * (1/der) )*np.ones([G,N]),
+                        1 - np.exp(- l * (1-c) * (1/der) )*np.ones([G,N]),
+                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
+                        (1 - np.exp(- l * zeta ))*np.ones([G,N]),
                         ]
 
-        states = [S,E,I,I,A,M,M,ER,ER,C,ICU,C_icurec,C,ICU,R]
+        states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
         propensity={}
-        for i in range(len(keys)):
-            prop=np.zeros([place.shape[0],Nc.shape[0]])
-            for j in range(place.shape[0]):
-                for k in range(Nc.shape[0]):
-                    if states[i][j][k]<=0:
-                        prop[j,k]=0
-                else:
-                    draw=np.array([])
-                    for l in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j][k],probabilities[i][j][k]))
-                    draw = np.rint(np.mean(draw))
-                    prop[j,k] = draw
-            propensity.update({keys[i]: np.asarray(prop)})
+        # Calculate propensity for each migration (listed in keys)
+        for k in range(len(keys)):
+            prop=np.zeros([G,N])
+            for g in range(G):
+                for i in range(N):
+                    # If state is empty, no one can migrate out of it
+                    if states[k][g][i]<=0:
+                        prop[g,i]=0
+                    else:
+                        draw=np.array([])
+                        # Loop over number of draws. Calculate binomial random number per draw and pick average
+                        for l in range(n):
+                            draw = np.append(draw,np.random.binomial(states[k][g][i],probabilities[k][g][i]))
+                        draw = np.rint(np.mean(draw)) # round to nearest integer
+                        prop[g,i] = draw
+            # Define migration flow
+            propensity.update({keys[k]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Add and subtract the ins and outs calculated binomially above
         S_new  = S - propensity['StoE'] + propensity['RtoS']
         E_new  =  E + propensity['StoE'] - propensity['EtoI']
         I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
@@ -442,9 +444,11 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
         H_out_new = propensity['CtoR'] + propensity['CicurectoR']
         H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
 
+
         # Add protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new,H_tot_new)
+        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new, ICU_new, R_new, D_new, H_in_new, H_out_new, H_tot_new)
+        # Any SEIR class with a negative population is brought to zero
         for i in range(len(output)):
             output[i][output[i]<0] = 0
 
