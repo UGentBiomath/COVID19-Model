@@ -78,7 +78,7 @@ def draw_sample_COVID19_SEIRD(param_dict,samples_dict,beta_only=False):
         Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
 
     Returns
-    ----------
+    -------
     param_dict : dict
         Parameter dictionary of the BIOMATH COVID-19 model.
 
