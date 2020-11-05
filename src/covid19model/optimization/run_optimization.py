@@ -129,7 +129,6 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     samples_dict = {'warmup': warmup,
                     'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
 
-    model.parameters.update({'policy_time': warmup})
     print('---------------------------------------------------------------------------------------------------------\n')
 
     #############################################
@@ -153,7 +152,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     # run optimisation
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
     theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                            draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date)
+                            draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
 
     model.parameters.update({'l': theta_comp[1], 
                             'tau': theta_comp[2],
