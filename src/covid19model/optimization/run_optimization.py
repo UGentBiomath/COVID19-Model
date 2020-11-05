@@ -75,7 +75,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         maximum number of pso iterations
     popsize: int (default 50)
         population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
+        increasing this variable increases the chance of finding local minima but
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
@@ -106,6 +106,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     warmup = int(round(theta[1]))
     beta = theta[2]
     model.parameters.update({'beta': beta})
+
 
     # run MCMC calibration
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
@@ -154,7 +155,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
 
-    model.parameters.update({'l': theta_comp[1], 
+    model.parameters.update({'l': theta_comp[1],
                             'tau': theta_comp[2],
                             'prevention': theta_comp[3]})
 
@@ -210,14 +211,14 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     return samples_dict
 
 
-def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
-                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
+def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
+                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params,
                            fig_path, samples_path,initN, Nc_total,
                            steps_mcmc=10000, discard=500):
 
     """
 
-    Function to calibrate the second wave: only mcmc, 
+    Function to calibrate the second wave: only mcmc,
     based on initial values for beta and sigma_data from the first waves
     Only beta is calibrated in this function.
 
@@ -250,7 +251,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     warmup = 0
     model.parameters.update({'beta': beta_init})
-    
+
     # run MCMC calibration
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     norm_params = (sigma_data_norm_params, beta_norm_params)
