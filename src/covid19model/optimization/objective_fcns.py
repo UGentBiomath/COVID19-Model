@@ -134,7 +134,7 @@ def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0)
         for param in samples:
             model.parameters[param] = np.random.choice(samples[param],1,replace=False)
     # Perform simulation
-    out = model.sim(T, start_date=start_date, excess_time=warmup)
+    out = model.sim(T, start_date=start_date, excess_time=warmup, verbose=True)
  
     # -------------
     # calculate MLE
