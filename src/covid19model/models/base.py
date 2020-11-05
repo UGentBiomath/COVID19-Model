@@ -376,7 +376,7 @@ class BaseModel:
             Model starts to run on start_date - excess_time
 
         N : int
-            Number of repeated simulations. One by default.
+            Number of repeated simulations (useful for stochastic models). One by default.
 
         draw_fcn : function
             A function which takes as its input the dictionary of model parameters and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
