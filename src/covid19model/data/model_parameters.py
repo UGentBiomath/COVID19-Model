@@ -180,7 +180,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=False, intensity='
 
     abs_dir = os.path.dirname(__file__)
     par_raw_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
-    par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/COVID19_SEIRD")
 
     # Initialize parameters dictionary
     pars_dict = {}
