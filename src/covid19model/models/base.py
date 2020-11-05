@@ -299,7 +299,6 @@ class BaseModel:
             for size in self.stratification_size:
                 size_lst.append(size)
             y_reshaped = y.reshape(tuple(size_lst))
-
             dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
@@ -407,8 +406,6 @@ class BaseModel:
                 )
 
             time = [0, self.date_to_diff(actual_start_date, time)]
-
-
 
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
