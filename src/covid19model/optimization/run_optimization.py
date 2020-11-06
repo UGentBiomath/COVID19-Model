@@ -100,7 +100,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     # set optimisation settings
     parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
-    bounds_pso=((1,100),(30,100),(0.01,0.06)) # must be a list!
+    bounds_pso=((1,100),(30,60),(0.01,0.06)) # must be a list!
     if pso==True:
     # run pso optimisation
         theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
