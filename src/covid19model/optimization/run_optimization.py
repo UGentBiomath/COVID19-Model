@@ -50,8 +50,8 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
 
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
-                     fig_path, samples_path, initN, Nc_total,
-                     maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8):
+                     fig_path, samples_path, initN, Nc_total, theta_init=None, pso=True,
+                     maxiter=100, popsize=200, steps_mcmc=1000, discard=500, omega=0.8, phip=0.8, phig=0.8):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
@@ -71,9 +71,17 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
-    maxiter: int (default 50)
+    initN : int
+        total population in spatial unit
+    Nc_total : array
+        general contact matrix
+    theta-init : list
+        initial values [sigma_data, warmup, beta] if pso is not run
+    pso : boolean
+        whether to run pso or not, default True
+    maxiter: int (default 100)
         maximum number of pso iterations
-    popsize: int (default 50)
+    popsize: int (default 200)
         population size of particle swarm
         increasing this variable increases the chance of finding local minima but
         slows down calculations
@@ -98,13 +106,20 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     # set optimisation settings
     parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
-    bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
+    bounds_pso=((1,100),(30,60),(0.01,0.06)) # must be a list!
+    # bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
+
+    if pso==True:
     # run pso optimisation
-    theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig)
+    else:
+        theta = theta_init
+        
     sigma_data = theta[0]
     warmup = int(round(theta[1]))
     beta = theta[2]
+
     model.parameters.update({'beta': beta})
 
 
@@ -211,10 +226,10 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     return samples_dict
 
 
-def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
-                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params,
-                           fig_path, samples_path,initN, Nc_total,
-                           steps_mcmc=10000, discard=500):
+def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
+                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
+                           fig_path, samples_path,initN, Nc_total, pso=False, 
+                           maxiter=100, popsize=200, steps_mcmc=1000, discard=500, omega=0.8, phip=0.8, phig=0.8):
 
     """
 
@@ -244,13 +259,28 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     # define dataset
     data=[timeseries[start_date:end_beta]]
     states = [["H_in"]]
-
+    
+    sigma_data = sigma_data_init
+    beta = beta_init
+    warmup = 0
+    
     #############################################
     ############# CALIBRATING BETA ##############
     #############################################
+    # set optimisation settings
+    if pso == True:
+        parNames_pso = ['sigma_data','beta'] # must be a list!
+        bounds_pso=((1,100),(0.01,0.06)) # must be a list!
+        # run pso optimisation
+        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+                            start_date=start_date, omega=omega, phip=phip, phig=phig)
 
-    warmup = 0
-    model.parameters.update({'beta': beta_init})
+        sigma_data = theta[0]
+        beta = theta[1]
+        
+    model.parameters.update({'beta': beta})
+        
+    # run MCMC calibration
 
     # run MCMC calibration
     parNames_mcmc = ['sigma_data','beta'] # must be a list!

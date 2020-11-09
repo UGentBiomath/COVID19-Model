@@ -355,7 +355,7 @@ class BaseModel:
         date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
         return date
 
-    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
+    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -378,12 +378,16 @@ class BaseModel:
             Number of repeated simulations. One by default.
 
         draw_fcn : function
-            A function which takes as its input the dictionary of model parameters and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
+            A function which takes as its input the dictionary of model parameters 
+            and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
             # TO DO: verify draw_fcn
 
         samples : dictionary
             Sample dictionary used by draw_fcn.
             # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
+
+        to_sample : list
+            list of parameters to sample by draw_fcn, default ['beta','l','tau','prevention']
 
         Returns
         -------
@@ -413,14 +417,14 @@ class BaseModel:
         if verbose==True:
             print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples)
+            self.parameters = draw_fcn(self.parameters,samples,to_sample)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
             if draw_fcn:
-                self.parameters = draw_fcn(self.parameters,samples)
+                self.parameters = draw_fcn(self.parameters,samples,to_sample)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary
