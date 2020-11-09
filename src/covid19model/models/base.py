@@ -347,7 +347,7 @@ class BaseModel:
     def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
-        which is excess_time days before actual_start_date)
+        which is warmup days before actual_start_date)
         """
         return int((pd.to_datetime(end_date)-pd.to_datetime(actual_start_date))/pd.to_timedelta('1D'))
 
@@ -355,7 +355,7 @@ class BaseModel:
         date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
         return date
 
-    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -368,11 +368,11 @@ class BaseModel:
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
 
-        excess_time : int
+        warmup : int
             Number of days for model warm-up
 
         start_date : str or timestamp
-            Model starts to run on start_date - excess_time
+            Model starts to run on start_date - warmup
 
         N : int
             Number of repeated simulations. One by default.
@@ -399,7 +399,7 @@ class BaseModel:
             time = [0, time]
 
         if start_date is not None:
-            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(excess_time, unit='D')
+            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
             actual_start_date = None
 

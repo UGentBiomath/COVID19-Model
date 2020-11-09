@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 
-def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
+def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
 
     """
     A function to return the sum of squared errors given a model prediction and a dataset.
@@ -37,7 +37,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     i = 0
     for param in parNames:
-        if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
+        if param == 'warmup':
             setattr(model,param,int(round(thetas[i])))
         else:
             model.parameters.update({param:thetas[i]})
@@ -52,7 +52,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+model.extraTime-1
+    T = max(data_length)+warmup-1
     # Perform simulation
     out=model.sim(T,checkpoints=checkpoints)
 
@@ -66,7 +66,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
         # sum required states
         for j in range(len(states[i])):
             som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[model.extraTime:])
+        ymodel.append(som[warmup:])
         # calculate quadratic error
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
@@ -133,7 +133,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
     # Perform simulation
-    out = model.sim(T, start_date=start_date, excess_time=warmup)
+    out = model.sim(T, start_date=start_date, warmup=warmup)
  
     # -------------
     # calculate MLE
