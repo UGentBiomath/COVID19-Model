@@ -364,9 +364,10 @@ class BaseModel:
 
         Parameters
         ----------
-        time : int or list of int [start, stop]
+        time : int, list of int [start, stop], string or timestamp
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+            If a string or timestamp is specified, this is interpreted as the end time of the simulation
 
         warmup : int
             Number of days for model warm-up
@@ -395,22 +396,29 @@ class BaseModel:
 
         """
 
-        if isinstance(time, int):
-            time = [0, time]
 
         if start_date is not None:
             actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
             actual_start_date = None
 
-        if isinstance(time, str):
+        if isinstance(time, int):
+            time = [0, time]
+
+        elif isinstance(time, list):
+            time = time
+
+        elif isinstance(time, (str, pd.Timestamp)):
             if not isinstance(start_date, (str, pd.Timestamp)):
                 raise TypeError(
                     'start_date needs to be string or timestamp, not None'
                 )
-
             time = [0, self.date_to_diff(actual_start_date, time)]
 
+        else:
+            raise TypeError(
+                    'time must be int, list of ints [start, stop], string or timestamp'
+                )
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
         # Perform first simulation as preallocation
