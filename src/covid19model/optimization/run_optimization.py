@@ -16,8 +16,7 @@ import emcee
 import json
 import corner
 
-from covid19model.optimization import objective_fcns
-from covid19model.optimization import MCMC
+from covid19model.optimization import objective_fcns, pso
 from covid19model.models import models
 from covid19model.data import google
 from covid19model.data import sciensano
@@ -25,16 +24,17 @@ from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 
 def checkplots(samples, flatsamples, fig_path, spatial_unit, figname, labels):
-
+    # Traceplots of samples
     traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
     plt.savefig(fig_path+'traceplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
+    # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
     fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
-    
+
     return
 
 def calculate_R0(samples_beta, model, initN, Nc_total):
@@ -51,7 +51,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total, theta_init=None, pso=True,
-                     maxiter=100, popsize=200, steps_mcmc=1000, omega=0.8, phip=0.8, phig=0.8):
+                     maxiter=100, popsize=200, steps_mcmc=1000, discard=500, omega=0.8, phip=0.8, phig=0.8):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
@@ -83,7 +83,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         maximum number of pso iterations
     popsize: int (default 200)
         population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but
+        increasing this variable increases the chance of finding local minima but
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
@@ -98,12 +98,20 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     #############################################
     ####### CALIBRATING BETA AND warmup #######
     #############################################
+
+    print('---------------------------')
+    print('CALIBRATING BETA AND WARMUP')
+    print('---------------------------\n')
+    print('1) Particle swarm optimization\n')
+
     # set optimisation settings
-    parNames_pso = ['sigma_data','extraTime','beta'] # must be a list!
+    parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
     bounds_pso=((1,100),(30,60),(0.01,0.06)) # must be a list!
+    # bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
+
     if pso==True:
     # run pso optimisation
-        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig)
     else:
         theta = theta_init
@@ -113,9 +121,10 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     beta = theta[2]
 
     model.parameters.update({'beta': beta})
-        
-    # run MCMC calibration
 
+
+    # run MCMC calibration
+    print('\n2) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     bounds_mcmc=((1,200),(0.01,0.10))
 
@@ -125,38 +134,43 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
                      args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
-    samples_beta = sampler.get_chain(discard=500,flat=False)
-    flat_samples_beta = sampler.get_chain(discard=500,flat=True)
-
     try:
         sampler.get_autocorr_time()
     except:
-        print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
 
-    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+    checkplots(sampler.get_chain(discard=discard,flat=False), sampler.get_chain(discard=discard,flat=True), fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
     
-    samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
+    samples_dict = {'warmup': warmup,
+                    'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
 
-    #model.parameters.update({'policy_time': warmup})
+    print('---------------------------------------------------------------------------------------------------------\n')
 
     #############################################
     ####### CALIBRATING COMPLIANCE PARAMS #######
     #############################################
-    l = None
-    tau = None
-    prevention = None
+
+    print('CALIBRATING COMPLIANCE RAMP')
+    print('---------------------------\n')
+    print('1) Particle swarm optimization\n')
 
     # define dataset
     data=[timeseries[start_date:end_ramp]]
     # set optimisation settings
     parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
     bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
-    # run optimisation
-    theta_comp = MCMC.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
-                            samples=samples_beta, maxiter=maxiter,popsize=popsize, start_date=start_date)
 
-    model.parameters.update({'l': theta_comp[1], 
+    # Import a function to draw values of beta and assign them to the model parameter dictionary
+    from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD
+    global draw_sample_beta_COVID19_SEIRD
+
+    # run optimisation
+    print('\n2) Markov-Chain Monte-Carlo sampling\n')
+    theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+                            draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
+
+    model.parameters.update({'l': theta_comp[1],
                             'tau': theta_comp[2],
                             'prevention': theta_comp[3]})
 
@@ -164,57 +178,62 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_beta, start_date, warmup))
+                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_dict, start_date, warmup))
+    sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
-    sampler.run_mcmc(pos, steps_mcmc, progress=True);
-
+    # Check autocorrelation time as a measure of the adequacy of the sample size
     try:
         sampler.get_autocorr_time()
     except:
-        print('Calibrating compliance ramp. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
-
-
-    samples_ramp = sampler.get_chain(discard=200,flat=False)
-    flat_samples_ramp = sampler.get_chain(discard=200,flat=True)
-
-    checkplots(samples_ramp, flat_samples_ramp, fig_path, spatial_unit, 
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
+        
+    checkplots(sampler.get_chain(discard=discard,flat=False), sampler.get_chain(discard=discard,flat=True), fig_path, spatial_unit, 
                 figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
-
-    
-    sigma_data = flat_samples_ramp[:,0].tolist()
-    l = flat_samples_ramp[:,1].tolist()
-    tau = flat_samples_ramp[:,2].tolist()
-    prevention = flat_samples_ramp[:,3].tolist()
+    print('---------------------------------------------------------------------------------------------------------\n')
 
     #############################################
     ####### CALCULATING R0 ######################
     #############################################
 
-    R0, R0_stratified_dict = calculate_R0(samples_beta, model, initN, Nc_total)
+    R0, R0_stratified_dict = calculate_R0(samples_dict, model, initN, Nc_total)
 
-    samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
-                  'end_beta':end_beta, 'end_ramp':end_ramp,
-                  'maxiter': maxiter, 'popsize':popsize, 'steps_mcmc':steps_mcmc,
-                  'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
-                  'warmup': warmup, 'beta': samples_beta['beta'],
-                  'sigma_data':sigma_data, 'l': l,'tau': tau,
-                  'prevention':prevention}
+    #############################################
+    ####### Output to dictionary ################
+    #############################################
+
+    samples_dict.update({'l': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
+                        'tau': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
+                        'prevention': sampler.get_chain(discard=discard,flat=True)[:,3].tolist(),
+                        'sigma_data': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
+                        'calibration_data':states[0][0],
+                        'start_date':start_date,
+                        'end_beta':end_beta,
+                        'end_ramp':end_ramp,
+                        'maxiter': maxiter,
+                        'popsize': popsize,
+                        'steps_mcmc': steps_mcmc,
+                        'discard' : discard,
+                        'R0': R0,
+                        'R0_stratified_dict': R0_stratified_dict,
+    })
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     plt.ion()
+    print('DONE\n')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json'+'"')
     return samples_dict
 
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta, 
                            beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params, 
                            fig_path, samples_path,initN, Nc_total, pso=False, 
-                           maxiter=100, popsize=200, steps_mcmc=1000, omega=0.8, phip=0.8, phig=0.8):
+                           maxiter=100, popsize=200, steps_mcmc=1000, discard=500, omega=0.8, phip=0.8, phig=0.8):
 
     """
 
-    Function to calibrate the second wave: only mcmc, 
+    Function to calibrate the second wave: only mcmc,
     based on initial values for beta and sigma_data from the first waves
     Only beta is calibrated in this function.
 
@@ -263,6 +282,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         
     # run MCMC calibration
 
+    # run MCMC calibration
     parNames_mcmc = ['sigma_data','beta'] # must be a list!
     norm_params = (sigma_data_norm_params, beta_norm_params)
     bounds_mcmc = ((1,200),(0.0001,0.10))
@@ -278,32 +298,37 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
                                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
-    samples_beta = sampler.get_chain(discard=500,flat=False)
-    flat_samples_beta = sampler.get_chain(discard=500,flat=True)
-
+    # Check autocorrelation time as a measure of the adequacy of the sample size
     try:
         sampler.get_autocorr_time()
     except:
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
-
-    checkplots(samples_beta, flat_samples_beta, fig_path, spatial_unit, 
+    checkplots(sampler.get_chain(discard=discard,flat=False), sampler.get_chain(discard=discard,flat=True), fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
-
     
-    samples_beta = {'beta': flat_samples_beta[:,1].tolist()}
+    samples_dict = {'warmup': warmup,
+                    'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
 
     #############################################
     ####### CALCULATING R0 ######################
     #############################################
 
-    R0, R0_stratified_dict = calculate_R0(samples_beta, model, initN, Nc_total)
+    R0, R0_stratified_dict = calculate_R0(samples_dict, model, initN, Nc_total)
 
-    samples_dict={'calibration_data':states[0][0], 'start_date':start_date,
-                  'end_beta':end_beta,
-                  'steps_mcmc':steps_mcmc,
-                  'R0':R0, 'R0_stratified_dict':R0_stratified_dict,
-                  'warmup': warmup, 'beta': samples_beta['beta']}
+    samples_dict.update({
+        'calibration_data': states[0][0],
+        'start_date': start_date,
+        'end_beta': end_beta,
+        'steps_mcmc': steps_mcmc,
+        'discard': discard,
+        'R0': R0,
+        'R0_stratified_dict': R0_stratified_dict,
+    })
+
+    #############################################
+    ####### Output to dictionary ################
+    #############################################
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
