@@ -310,10 +310,15 @@ class BaseModel:
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
+        
+        if spatial:
+            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
+        else:
+            y0 = list(itertools.chain(*self.initial_states.values()))
 
         if self.discrete == False:
             output = solve_ivp(fun, time,
-                           list(itertools.chain(*self.initial_states.values())),
+                           y0,
                            args=[self.parameters], t_eval=t_eval)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
