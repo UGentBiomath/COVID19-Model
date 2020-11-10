@@ -16,7 +16,8 @@ import emcee
 import json
 import corner
 
-from covid19model.optimization import objective_fcns, pso
+from covid19model.optimization import objective_fcns
+from covid19model.optimization import pso as PSO
 from covid19model.models import models
 from covid19model.data import google
 from covid19model.data import sciensano
@@ -111,7 +112,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     if pso==True:
     # run pso optimisation
-        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+        theta = PSO.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig)
     else:
         theta = theta_init
@@ -167,7 +168,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     # run optimisation
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
-    theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+    theta_comp = PSO.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
 
     model.parameters.update({'l': theta_comp[1],
@@ -272,7 +273,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         parNames_pso = ['sigma_data','beta'] # must be a list!
         bounds_pso=((1,100),(0.01,0.06)) # must be a list!
         # run pso optimisation
-        theta = MCMC.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+        theta = PSO.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                             start_date=start_date, omega=omega, phip=phip, phig=phig)
 
         sigma_data = theta[0]
