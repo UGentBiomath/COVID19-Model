@@ -311,7 +311,7 @@ class BaseModel:
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
         
-        if spatial:
+        if self.spatial:
             y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
         else:
             y0 = list(itertools.chain(*self.initial_states.values()))
