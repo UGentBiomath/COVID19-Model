@@ -71,74 +71,37 @@ def read_coordinates_nis(spatial='arr'):
 
     return NIS
 
-def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
+def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict, to_sample=['beta','l','tau','prevention']):
     """
     A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
     Tailor-made for the BIOMATH COVID-19 SEIRD model.
 
     Parameters
     ----------
-    model : object
-        BIOMATH model object
-
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
+    
     samples_dict : dictionary
-        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
+
+    to_sample : list
+        list of parameters to sample, default ['beta','l','tau','prevention']
 
     Returns
     -------
-    model : object
-        BIOMATH model object
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
     """
-    # Use posterior samples of fitted parameters
-    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
-    parameter_dictionary['tau'] = samples_dict['tau'][idx]
-    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
-    return parameter_dictionary
-
-def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
-    """
-    Delayed ramp social policy function to implement a gradual change between policy1 and policy2.
     
-    Parameters
-    ----------
-    t : int
-        Time parameter. Runs simultaneously with simulation time
-    param : 
-        Currently obsolete parameter that may be used in a future stage
-    policy_time : int
-        Time in the simulation at which a new policy is imposed
-    policy1 : float or int or list or matrix
-        Value corresponding to the policy before t = policy_time (e.g. full mobility)
-    policy2 : float or int or list or matrix (same dimensions as policy1)
-        Value corresponding to the policy after t = policy_time (e.g. 50% mobility)
-    tau : int
-        Delayed ramp parameter: number of days before the new policy has any effect
-    l : int
-        Delayed ramp parameter: number of days after t = policy_time + tau the new policy reaches full effect (policy2)
-        
-    Return
-    ------
-    state : float or int or list or matrix
-        Either policy1, policy2 or an intermediate state.
-        
-    """
-    # Nothing changes before policy_time
-    if t < policy_time:
-        state = policy1
-    # From t = policy time onward, the delayed ramp takes effect toward policy2
-    else:
-        # Time starting at policy_time
-        tt = t-policy_time
-        if tt <= tau:
-            state = policy1
-        if (tt > tau) & (tt <= tau + l):
-            intermediate = (policy2 - policy1) / l * (tt - tau) + policy1
-            state = intermediate
-        if tt > tau + l:
-            state = policy2
-    return state
+    if 'beta' in to_sample:
+        parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    if 'l' in to_sample:
+        idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
+        parameter_dictionary['tau'] = samples_dict['tau'][idx]
+        if 'prevention' in to_sample:
+            parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
+    return parameter_dictionary
 
 def dens_dep(rho, xi=0.01):
     """

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 
-def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
+def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
 
     """
     A function to return the sum of squared errors given a model prediction and a dataset.
@@ -37,7 +37,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     i = 0
     for param in parNames:
-        if param == 'extraTime': # don't know if there's a way to make this function more general due to the 'extraTime', can this be abstracted in any way?
+        if param == 'warmup':
             setattr(model,param,int(round(thetas[i])))
         else:
             model.parameters.update({param:thetas[i]})
@@ -52,7 +52,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+model.extraTime-1
+    T = max(data_length)+warmup-1
     # Perform simulation
     out=model.sim(T,checkpoints=checkpoints)
 
@@ -66,12 +66,12 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None):
         # sum required states
         for j in range(len(states[i])):
             som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[model.extraTime:])
+        ymodel.append(som[warmup:])
         # calculate quadratic error
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
@@ -111,8 +111,8 @@ def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0)
     i = 0
     sigma=[]
     for param in parNames:
-        if param == 'extraTime':
-            warmup = round(thetas[i])
+        if param == 'warmup':
+            warmup = int(round(thetas[i]))
         elif i < len(data):
             sigma.append(thetas[i])
         else:
@@ -130,12 +130,11 @@ def MLE(thetas,model,data,states,parNames,samples=None,start_date=None,warmup=0)
         data_length.append(data[i].size)
     T = max(data_length)+warmup-1 # *** TO DO: make indepedent from data length
     # Use previous samples
-    if samples:
-        for param in samples:
-            model.parameters[param] = np.random.choice(samples[param],1,replace=False)
+    if draw_fcn:
+        model.parameters = draw_fcn(model.parameters,samples)
     # Perform simulation
-    out = model.sim(T, start_date=start_date, excess_time=warmup, verbose=True)
- 
+    out = model.sim(T, start_date=start_date, warmup=warmup)
+
     # -------------
     # calculate MLE
     # -------------
@@ -196,11 +195,11 @@ def log_prior_normal(thetas, norm_params):
     """
     A function to compute the log of a multivariate normal prior density from a given parameter vector.
     The parameters are assumed to be independent (i.e. the MVN is a product of marginal normal distributions)
-    
+
     Parameters
     -----------
     thetas: array
-        parameter vector  
+        parameter vector
     norm_params: tuple
         contains tuples with mean and standard deviation for each theta in the parameter vector
     Returns
@@ -217,7 +216,7 @@ def log_prior_normal(thetas, norm_params):
     norm_params = np.array(norm_params).reshape(len(thetas),2)
     lp = norm.logpdf(thetas, loc = norm_params[:,0], scale = norm_params[:,1])
     return np.sum(lp)
-    
+
 
 
 def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0):
@@ -272,7 +271,7 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
     thetas: np.array
         vector containing estimated parameter values
     norm_params: tuple
-        contains tuples with mean and standard deviation for each theta in the parameter vector    
+        contains tuples with mean and standard deviation for each theta in the parameter vector
     thetas: array
         names of parameters to be fitted
     data: array

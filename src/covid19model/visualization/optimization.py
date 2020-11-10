@@ -51,7 +51,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     return ax
 
-def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=True,T=1,
+def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,T=1,
                     data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
                     legend_text=None,titleText=None,ax=None,ylabel='number of patients',
                     plt_kwargs={},sct_kwargs={}):
@@ -66,7 +66,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
         list containing dataseries
     start_date : string, format YYYY-MM-DD
         date corresponding to first entry of dataseries
-    lag_time : float or int
+    warmup : float or int
         time between start of simulation and start of data recording
     states : array
         list containg the names of the model states that correspond to the data
@@ -89,16 +89,16 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
     -----------
     data = [[71,  90, 123, 183, 212, 295, 332]]
     start_date = '15-03-2020'
-    lag_time = int(42)
+    warmup = int(42)
     states = [["H_in"]]
-    T = data[0].size+lag_time-1
+    T = data[0].size+warmup-1
 
     y_model = model.sim(int(T))
-    ax = plot_fit(y_model,data,start_date,lag_time,states)
+    ax = plot_fit(y_model,data,start_date,warmup,states)
 
     for i in range(100):
         y_model = model.sim(T)
-        ax = plot_fit(y_model,data,start_date,lag_time,states,ax=ax)
+        ax = plot_fit(y_model,data,start_date,warmup,states,ax=ax)
 
     """
     # Make sure to use pandas plot settings
@@ -110,9 +110,9 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
         ax = plt.gca()
     # Create shifted index vector
     if with_ints==True:
-        idx = pd.date_range(start_date,freq='D',periods=data[0].size + lag_time + T) - datetime.timedelta(days=lag_time)
+        idx = pd.date_range(start_date,freq='D',periods=data[0].size + warmup + T) - datetime.timedelta(days=warmup)
     else:
-        idx_model = pd.date_range(pd.to_datetime(start_date)-pd.to_timedelta(lag_time, unit='days'),
+        idx_model = pd.date_range(pd.to_datetime(start_date)-pd.to_timedelta(warmup, unit='days'),
                                   pd.to_datetime(end_date))
 
         idx_data = pd.date_range(pd.to_datetime(start_date),
@@ -133,7 +133,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
     # Plot data
     for i in range(len(data)):
         if with_ints==True:
-            lines=ax.scatter(idx[lag_time:-T],data[i],color="black",facecolors='none',**sct_kwargs)
+            lines=ax.scatter(idx[warmup:-T],data[i],color="black",facecolors='none',**sct_kwargs)
         else:
             if len(data[i]) < len(idx_data):
                 idx_data_short = pd.date_range(pd.to_datetime(start_date),
@@ -156,7 +156,7 @@ def plot_fit(y_model,data,start_date,lag_time,states,end_date=None,with_ints=Tru
         'rotation', 90)
     #fig.autofmt_xdate(rotation=90)
     if with_ints==True:
-        ax.set_xlim( idx[lag_time-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
+        ax.set_xlim( idx[warmup-3], pd.to_datetime(idx[-1]+ datetime.timedelta(days=1)))
     else:
         #breakpoint()
         ax.set_xlim('2020-03-12', end_date)

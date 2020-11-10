@@ -1173,7 +1173,7 @@ class SEIRSNetworkModel():
         # reset all numX
         self.reset()
         # assign estimates to correct variable
-        extraTime = int(thetas[0])
+         = int(thetas[0])
         i = 0
         for param in parNames:
             setattr(self,param,thetas[i+1])
