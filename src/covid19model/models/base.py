@@ -347,7 +347,7 @@ class BaseModel:
     def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
-        which is excess_time days before actual_start_date)
+        which is warmup days before actual_start_date)
         """
         return int((pd.to_datetime(end_date)-pd.to_datetime(actual_start_date))/pd.to_timedelta('1D'))
 
@@ -355,7 +355,7 @@ class BaseModel:
         date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
         return date
 
-    def sim(self, time, excess_time=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -364,26 +364,31 @@ class BaseModel:
 
         Parameters
         ----------
-        time : int or list of int [start, stop]
+        time : int, list of int [start, stop], string or timestamp
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+            If a string or timestamp is specified, this is interpreted as the end time of the simulation
 
-        excess_time : int
+        warmup : int
             Number of days for model warm-up
 
         start_date : str or timestamp
-            Model starts to run on start_date - excess_time
+            Model starts to run on start_date - warmup
 
         N : int
             Number of repeated simulations. One by default.
 
         draw_fcn : function
-            A function which takes as its input the dictionary of model parameters and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
+            A function which takes as its input the dictionary of model parameters 
+            and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
             # TO DO: verify draw_fcn
 
         samples : dictionary
             Sample dictionary used by draw_fcn.
             # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
+
+        to_sample : list
+            list of parameters to sample by draw_fcn, default ['beta','l','tau','prevention']
 
         Returns
         -------
@@ -391,36 +396,43 @@ class BaseModel:
 
         """
 
-        if isinstance(time, int):
-            time = [0, time]
 
         if start_date is not None:
-            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(excess_time, unit='D')
+            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
             actual_start_date = None
 
-        if isinstance(time, str):
+        if isinstance(time, int):
+            time = [0, time]
+
+        elif isinstance(time, list):
+            time = time
+
+        elif isinstance(time, (str, pd.Timestamp)):
             if not isinstance(start_date, (str, pd.Timestamp)):
                 raise TypeError(
                     'start_date needs to be string or timestamp, not None'
                 )
-
             time = [0, self.date_to_diff(actual_start_date, time)]
 
+        else:
+            raise TypeError(
+                    'time must be int, list of ints [start, stop], string or timestamp'
+                )
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
         # Perform first simulation as preallocation
         if verbose==True:
             print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples)
+            self.parameters = draw_fcn(self.parameters,samples,to_sample)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
             if draw_fcn:
-                self.parameters = draw_fcn(self.parameters,samples)
+                self.parameters = draw_fcn(self.parameters,samples,to_sample)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary

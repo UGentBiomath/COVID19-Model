@@ -148,6 +148,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     # Initialize the particle's position
     x = lb + x*(ub - lb)
+
     # if needed, transform the parameter vector
     if transform_pars is not None:
         x = np.apply_along_axis(transform_pars, 1, x)
