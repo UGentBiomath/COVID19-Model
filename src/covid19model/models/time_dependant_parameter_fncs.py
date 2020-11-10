@@ -109,6 +109,67 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
     elif t8 < t:
         return prevention*policy9
 
+def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
+    
+    # Convert tau and l to dates
+    tau_days = pd.to_timedelta(tau, unit='D')
+    l_days = pd.to_timedelta(l, unit='D')
+
+    # Define additional dates where intensity or school policy changes
+    t1 = pd.to_datetime('2020-03-15') # start of lockdown
+    t2 = pd.to_datetime('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+    t3 = pd.to_datetime('2020-07-01') # start of summer: COVID-urgency very low
+    t4 = pd.to_datetime('2020-08-01')
+    t5 = pd.to_datetime('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
+    t6 = pd.to_datetime('2020-10-19') # lockdown
+
+    # get mobility reductions
+    if t < t1:
+        return Nc_all['total']
+    elif t1 < t <= df_google.index[-1]:
+        row = -df_google[df_google.index == pd.to_datetime(t.date())]/100
+    elif t > df_google.index[-1]:
+        row=-df_google[df_google.index == df_google.index[-1]]/100
+    
+    work=(1-row['work'].values)[0]
+    transport=(1-row['transport'].values)[0]
+    leisure=(1-row['retail_recreation'].values)[0]
+    others=(1-row['grocery'].values)[0]
+
+    # define policies
+    if t1 < t <= t1 + tau_days:
+        school = 0
+        return (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
+    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        school = 0
+        policy_old = (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
+        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+    elif t1 + tau_days + l_days < t <= t2:
+        school = 0
+        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']  
+    elif t2 < t <= t3:
+        school = 0
+        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+    elif t3 < t <= t4:
+        school = 0
+        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others'] 
+    elif t4 < t <= t5:
+        school = 0
+        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']     
+    elif t5 < t <= t6 + tau_days:
+        school = 1
+        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
+    elif t6 + tau_days < t <= t6 + tau_days + l_days:
+        school = 1
+        policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
+        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
+    else:
+        school = 0
+        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+
+
 def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
     """
     Delayed ramp social policy function to implement a gradual change between policy1 and policy2.
