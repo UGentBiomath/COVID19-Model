@@ -131,30 +131,36 @@ def read_pops(name='arrond'):
 
     return pops
 
-def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict):
+def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict, to_sample=['beta','l','tau','prevention']):
     """
     A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
     Tailor-made for the BIOMATH COVID-19 SEIRD model.
 
     Parameters
     ----------
-    model : object
-        BIOMATH model object
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
     samples_dict : dictionary
-        Dictionary containing the samples of the sampled parameters: beta, l and tau.
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
+
+    to_sample : list
+        list of parameters to sample, default ['beta','l','tau','prevention']
 
     Returns
     -------
-    model : object
-        BIOMATH model object
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
     """
-    # Use posterior samples of fitted parameters
-    parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
-    parameter_dictionary['tau'] = samples_dict['tau'][idx]
-    parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
+
+    if 'beta' in to_sample:
+        parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    if 'l' in to_sample:
+        idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
+        parameter_dictionary['tau'] = samples_dict['tau'][idx]
+        if 'prevention' in to_sample:
+            parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
     return parameter_dictionary
 
 def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
