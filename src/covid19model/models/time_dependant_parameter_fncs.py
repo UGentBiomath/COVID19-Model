@@ -111,7 +111,7 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
 
 def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
     """
-    Delayed ramp social policy function to implement a gradual change between policy1 and policy2.
+    Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
     
     Parameters
     ----------
