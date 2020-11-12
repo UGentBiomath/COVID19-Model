@@ -76,7 +76,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         total population in spatial unit
     Nc_total : array
         general contact matrix
-    theta-init : list
+    theta_init : list
         initial values [sigma_data, warmup, beta] if pso is not run
     pso : boolean
         whether to run pso or not, default True
