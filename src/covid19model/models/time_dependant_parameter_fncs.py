@@ -169,13 +169,13 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
         policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
     elif t6 + tau_days + l_days < t <= t7:
-        schools = 0
+        school = 0
         prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
     elif t7 < t <= t8:
-        schools = 1
+        school = 1
         prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
     elif t8 < t <= t9:
-        schools = 0
+        school = 0
         prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
     else:
         school = 1
