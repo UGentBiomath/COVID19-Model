@@ -31,8 +31,8 @@ def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
     start_date : timestamp
         start date of the data
     """
-    tau_days = pd.to_timedelta(tau, unit='D')
-    l_days = pd.to_timedelta(l, unit='D')
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
     if t <= start_date + tau_days:
         return policy0
     elif start_date + tau_days < t <= start_date + tau_days + l_days:
@@ -75,16 +75,16 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
 
     """
 
-    tau_days = pd.to_timedelta(tau, unit='D')
-    l_days = pd.to_timedelta(l, unit='D')
-    t1 = pd.to_datetime('2020-05-04') # reopening industry
-    t2 = pd.to_datetime('2020-05-06') # merging of two bubbels
-    t3 = pd.to_datetime('2020-05-11') # reopening of businesses
-    t4 = pd.to_datetime('2020-05-18') # partial reopening schools
-    t5 = pd.to_datetime('2020-06-04') # reopening schools, bars, restaurants
-    t6 = pd.to_datetime('2020-07-01') # school holidays, gatherings 15 people, cultural event
-    t7 = pd.to_datetime('2020-07-31') # "second" wave
-    t8 = pd.to_datetime('2020-09-01') # opening schools
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+    t1 = pd.Timestamp('2020-05-04') # reopening industry
+    t2 = pd.Timestamp('2020-05-06') # merging of two bubbels
+    t3 = pd.Timestamp('2020-05-11') # reopening of businesses
+    t4 = pd.Timestamp('2020-05-18') # partial reopening schools
+    t5 = pd.Timestamp('2020-06-04') # reopening schools, bars, restaurants
+    t6 = pd.Timestamp('2020-07-01') # school holidays, gatherings 15 people, cultural event
+    t7 = pd.Timestamp('2020-07-31') # "second" wave
+    t8 = pd.Timestamp('2020-09-01') # opening schools
     
     if t <= start_date + tau_days:
         return policy0
@@ -112,22 +112,22 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
 def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
     
     # Convert tau and l to dates
-    tau_days = pd.to_timedelta(tau, unit='D')
-    l_days = pd.to_timedelta(l, unit='D')
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
 
     # Define additional dates where intensity or school policy changes
-    t1 = pd.to_datetime('2020-03-15') # start of lockdown
-    t2 = pd.to_datetime('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.to_datetime('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.to_datetime('2020-08-01')
-    t5 = pd.to_datetime('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.to_datetime('2020-10-19') # lockdown
+    t1 = pd.Timestamp('2020-03-15') # start of lockdown
+    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
+    t4 = pd.Timestamp('2020-08-01')
+    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
+    t6 = pd.Timestamp('2020-10-19') # lockdown
 
     # get mobility reductions
     if t < t1:
         return Nc_all['total']
     elif t1 < t <= df_google.index[-1]:
-        row = -df_google[df_google.index == pd.to_datetime(t.date())]/100
+        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
     elif t > df_google.index[-1]:
         row=-df_google[df_google.index == df_google.index[-1]]/100
     
