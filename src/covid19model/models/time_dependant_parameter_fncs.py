@@ -109,7 +109,7 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
     elif t8 < t:
         return prevention*policy9
 
-def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
+def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
     
     # Convert tau and l to dates
     tau_days = pd.to_timedelta(tau, unit='D')
@@ -163,11 +163,11 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         school = 1
         policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
     else:
         school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
+        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
 
 def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
