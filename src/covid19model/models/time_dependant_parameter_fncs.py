@@ -123,8 +123,8 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
     t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
     t6 = pd.Timestamp('2020-10-19') # lockdown
     t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-21') # schools close
-    t9 = pd.Timestamp('2020-01-03') # schools re-open
+    t8 = pd.Timestamp('2020-12-18') # schools close
+    t9 = pd.Timestamp('2021-01-04') # schools re-open
 
     # get mobility reductions
     if t < t1:
