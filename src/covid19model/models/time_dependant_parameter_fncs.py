@@ -122,6 +122,9 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
     t4 = pd.to_datetime('2020-08-01')
     t5 = pd.to_datetime('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
     t6 = pd.to_datetime('2020-10-19') # lockdown
+    t7 = pd.to_datetime('2020-11-12') # schools re-open
+    t8 = pd.to_datetime('2020-12-21') # schools close
+    t9 = pd.to_datetime('2020-01-03') # schools re-open
 
     # get mobility reductions
     if t < t1:
@@ -163,10 +166,19 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         school = 1
         policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
+        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
+    elif t6 + tau_days + l_days < t <= t7:
+        schools = 0
+        prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
+    elif t7 < t <= t8:
+        schools = 1
+        prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
+    elif t8 < t <= t9:
+        schools = 0
+        prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
     else:
-        school = 0
+        school = 1
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
 
