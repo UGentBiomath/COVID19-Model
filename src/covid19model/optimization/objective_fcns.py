@@ -134,12 +134,16 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         model.parameters = draw_fcn(model.parameters,samples)
     # Perform simulation
     out = model.sim(T, start_date=start_date, warmup=warmup)
+    
+    # Sum over all places
+    if 'place' in out.dims:
+        out = out.sum(dim='place')
 
     # -------------
     # calculate MLE
     # -------------
     ymodel = []
-    MLE = 0
+    MLE = 0    
     for i in range(n):
         som = 0
         # sum required states
