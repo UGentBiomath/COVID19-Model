@@ -267,6 +267,8 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     Step 1: calibration of beta and warmup
     Step 2: calibation of compliance parameters
 
+    Parameters
+    ----------
     model : object
         initialized model
     timeseries : Series
@@ -293,7 +295,13 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
 
-
+    
+    Returns
+    -------
+    samples_dict: dictionary
+        dictionary with keys 'warmup', 'beta', 'l', 'tau' and 'prevention', as well as some other lists
+        and values that are of interest for inspecting the working of the optimization.
+    
     """
     plt.ioff()
     # define dataset
