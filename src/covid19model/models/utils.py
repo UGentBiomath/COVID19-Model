@@ -163,48 +163,53 @@ def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict, to_sample=['bet
             parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
     return parameter_dictionary
 
-def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
+def draw_sample_COVID19_SEIRD_google(param_dict,samples_dict,google=False):
     """
-    Delayed ramp social policy function to implement a gradual change between policy1 and policy2.
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
 
     Parameters
     ----------
-    t : int
-        Time parameter. Runs simultaneously with simulation time
-    param :
-        Currently obsolete parameter that may be used in a future stage
-    policy_time : int
-        Time in the simulation at which a new policy is imposed
-    policy1 : float or int or list or matrix
-        Value corresponding to the policy before t = policy_time (e.g. full mobility)
-    policy2 : float or int or list or matrix (same dimensions as policy1)
-        Value corresponding to the policy after t = policy_time (e.g. 50% mobility)
-    tau : int
-        Delayed ramp parameter: number of days before the new policy has any effect
-    l : int
-        Delayed ramp parameter: number of days after t = policy_time + tau the new policy reaches full effect (policy2)
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
-    Return
-    ------
-    state : float or int or list or matrix
-        Either policy1, policy2 or an intermediate state.
+    samples_dict : dictionary
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
+
+    Returns
+    -------
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
 
     """
-    # Nothing changes before policy_time
-    if t < policy_time:
-        state = policy1
-    # From t = policy time onward, the delayed ramp takes effect toward policy2
-    else:
-        # Time starting at policy_time
-        tt = t-policy_time
-        if tt <= tau:
-            state = policy1
-        if (tt > tau) & (tt <= tau + l):
-            intermediate = (policy2 - policy1) / l * (tt - tau) + policy1
-            state = intermediate
-        if tt > tau + l:
-            state = policy2
-    return state
+
+    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    idx,param_dict['l'] = random.choice(list(enumerate(samples_dict['l'])))
+    param_dict['tau'] = samples_dict['tau'][idx]
+    return param_dict
+
+
+def draw_sample_beta_COVID19_SEIRD(param_dict,samples_dict):
+    """
+    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
+    Tailor-made for the BIOMATH COVID-19 SEIRD model.
+
+    Parameters
+    ----------
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
+
+    samples_dict : dictionary
+        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
+
+    Returns
+    ----------
+    param_dict : dict
+        Parameter dictionary of the BIOMATH COVID-19 model.
+
+    """
+    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
+    return param_dict
 
 def dens_dep(rho, xi=0.01):
     """
