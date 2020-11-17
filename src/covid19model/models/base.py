@@ -358,7 +358,7 @@ class BaseModel:
         return int((pd.to_datetime(end_date)-pd.to_datetime(actual_start_date))/pd.to_timedelta('1D'))
 
     def int_to_date(self, actual_start_date, t):
-        date = pd.to_datetime(actual_start_date) + pd.to_timedelta((t), unit='D')
+        date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
     def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
