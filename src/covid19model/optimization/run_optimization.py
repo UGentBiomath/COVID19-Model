@@ -41,13 +41,51 @@ def checkplots(samples, flatsamples, fig_path, spatial_unit, figname, labels):
     return
 
 def calculate_R0(samples_beta, model, initN, Nc_total):
+    spatial=False
+    N = initN.size
+    sample_size = len(samples_beta['beta'])
+    if 'place' in model.parameters.keys():
+        spatial=True
+        G = initN.shape[0]
+        N = initN.shape[1]
     R0 =[]
-    for i in range(len(samples_beta['beta'])):
-        R0.append(sum((model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)*(initN/sum(initN))))
-    R0_stratified = np.zeros([initN.size,len(samples_beta['beta'])])
-    for i in range(len(samples_beta['beta'])):
-        R0_stratified[:,i]= (model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)
-    R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
+    # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
+    for j in range(sample_size):
+        som = 0
+        if spatial:
+            for gg in range(G):
+                for i in range(N):
+                    som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                            model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[gg][i]
+            R0_temp = som / np.sum(initN)
+        else:
+            for i in range(N):
+                som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                        model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[i]
+            R0_temp = som / np.sum(initN)
+        R0.append(R0_temp)
+        
+    # Stratified R0 value: R0_stratified[place][age][chain] or R0_stratified[age][chain]
+    # This needs to be modified if 'beta' is further stratified
+    R0_stratified_dict = dict({})
+    if spatial:
+        for gg in range(G):
+            R0_stratified_dict[gg] = dict({})
+            for i in range(N):
+                R0_list = []
+                for j in range(sample_size):
+                    R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
+                            samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total,axis=1)[i]
+                    R0_list.append(R0_temp)
+                R0_stratified_dict[gg][i] = R0_list
+    else:
+        for i in range(N):
+            R0_list = []
+            for j in range(sample_size):
+                R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
+                        samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total,axis=1)[i]
+                R0_list.append(R0_temp)
+            R0_stratified_dict[i] = R0_list
 
     return R0, R0_stratified_dict
 
