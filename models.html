@@ -101,7 +101,12 @@
 <li class="toctree-l3"><a class="reference internal" href="#stochastic-framework">Stochastic framework</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#stochastic-spatial-framework">Stochastic spatial framework</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#spatial-extension">Spatial extension</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#deterministic-spatial-framework">Deterministic spatial framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#stochastic-spatial-framework">Stochastic spatial framework</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#spatial-remaining-issues-and-tasks">Spatial: remaining issues and tasks</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#transmission-rates-and-social-contact-data">Transmission rates and social contact data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#modeling-social-intertia">Modeling social intertia</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#basic-reproduction-number">Basic reproduction number</a></li>
@@ -296,44 +301,170 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model defenition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
 </div>
 </div>
-<div class="section" id="stochastic-spatial-framework">
-<h2>Stochastic spatial framework<a class="headerlink" href="#stochastic-spatial-framework" title="Permalink to this headline">¶</a></h2>
-<p><em>Disclaimer: preliminary and subject to changes</em></p>
+<div class="section" id="spatial-extension">
+<h2>Spatial extension<a class="headerlink" href="#spatial-extension" title="Permalink to this headline">¶</a></h2>
+<p>Rather than considering the entire nation as a homogeneous collection of compartments, it is more realistic to consider spatially distinct regions that are mutually connected. The relevance of this approach becomes clear by looking at the spatial spread in the data (embedded video below): the occurence of confirmed cases is not entirely homogeneous.</p>
+<figure class="video_container">
+  <video loop="loop" controls="true" allowfullscreen="true" poster="_static/figs/First-wave-data_spatial_animated_first.png">
+    <source src="_static/figs/First-wave-data_spatial_animated.mp4" type="video/mp4">
+  </video>
+</figure>
+<p>The main motivation for investigating spatial relations is to quantify the effect of certain types of mobility on the severity and speed of the spread of COVID19, and the effect of spatial isolation of key regions. We consider e.g. the 43 Belgian arrondissements or the 10 Belgian provinces (plus Brussels-Capital). These regions are considered internally homogeneous and are connected through known or estimated mobility matrices.</p>
+<p>Below, the spatially explicit model is worked out in a deterministic framework and a stochastic framework. These are largely based on the approach taken in <a class="reference external" href="https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1">this 2020 paper</a> by Arenas et al.</p>
+<div class="section" id="deterministic-spatial-framework">
+<h3>Deterministic spatial framework<a class="headerlink" href="#deterministic-spatial-framework" title="Permalink to this headline">¶</a></h3>
+<p>The deterministic approach is largely the same as in the non-spatial framework, only this time every ‘patch’ (either arrondissement or province) exhibits the dynamics explained before. We make the following assumptions from the mobility:</p>
+<ol class="simple">
+<li><p>The effective population of a patch is not the same as the registered population, because (during the daytime) some people will leave their home patch and go to another, e.g. for their profession</p></li>
+<li><p>People can get become exposed in their home patch or in the patch they visit</p></li>
+<li><p>The overall mobility is scaled with a single parameter <span class="math notranslate nohighlight">\(p\)</span>, ranging between 0 and 1, where 0 means no mobility is possible, and 1 indicates regular mobility. This mobility parameter is typically below 1 in a pandemic situation, due to travelling restrictions.</p></li>
+<li><p>Social contact rates are (slightly) different in every patch. Following Arenas et al., this translates to a rescaling of the overall contact rate with respect to density.</p></li>
+</ol>
+<p>Mathematically, the <strong>effective population</strong> in a particular patch <span class="math notranslate nohighlight">\(g\)</span> is</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+T^g_{i,\text{eff}} = \sum_{h=1}^G [(1-p_i)\delta^{gh} + p_i P_i^{hg}]T_i^h,
+\end{equation}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(G\)</span> is the total number of patches (e.g. 43 arrondissements), <span class="math notranslate nohighlight">\(p_i\)</span> the mobility parameter (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), <span class="math notranslate nohighlight">\(\delta^{gh}\)</span> the Kronecker delta, <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> the recurrent mobility <em>from</em> patch <span class="math notranslate nohighlight">\(h\)</span> <em>to</em> patch <span class="math notranslate nohighlight">\(g\)</span> (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), and <span class="math notranslate nohighlight">\(T_i^h\)</span> the registered population in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(h\)</span>. The same formula works goes for <span class="math notranslate nohighlight">\(I^g_{i,\text{eff}}\)</span> and <span class="math notranslate nohighlight">\(E^g_{i,\text{eff}}\)</span>. Note that <span class="math notranslate nohighlight">\(T^g_{i,eff} = T^g_i\)</span> if <span class="math notranslate nohighlight">\(p_i = 0\)</span>. Note: <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> is implemented in the code as <code class="docutils literal notranslate"><span class="pre">place</span></code>.</p>
+<p>Because people can get exposed in their own <em>or</em> another patch, we need an expression for the <strong>number of susceptibles</strong> from patch <span class="math notranslate nohighlight">\(g\)</span> that reside in patch <span class="math notranslate nohighlight">\(h\)</span>, in age class <span class="math notranslate nohighlight">\(i\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    S_i^{gh} = p_i P_i^{gh} S_i^g + (1-p_i) \delta^{gh} S_i^g
+\end{equation}
+\]</div>
+<p>We now have a <strong>social contact matrix</strong> for every patch, <span class="math notranslate nohighlight">\(N^g_{c,ij}\)</span>. We follow the suggestion in Arenas et al. that the contact rate is proportional to a population density function <span class="math notranslate nohighlight">\(f\)</span>, or</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+N^g_{c,ij} \propto f\left( \frac{T^g_\text{eff}}{a^g} \right).
+\end{equation}
+\]</div>
+<p>Here <span class="math notranslate nohighlight">\(T^g_\text{eff}\)</span> is again the effective population of patch <span class="math notranslate nohighlight">\(g\)</span>, and <span class="math notranslate nohighlight">\(a^g\)</span> its area. The function <span class="math notranslate nohighlight">\(f\)</span> is defined as</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    f(x) = 1 + (1-e^{-\xi x}),
+\end{equation}
+\]</div>
+<p>and increases monotonically from 1 to 2 (see figure below)</p>
 <p align="center">
-<img src="_static/figs/mild_cases_cluster_aarlen.gif" alt="drawing" width="400"/>
-<p><em> Percentage of arrondissement population experiencing mild COVID-19 symptoms. Simulation started with cluster located in arrondissement Aarlen, in Belgiums far southeast. A total of 250 days are simulated. Non-calibrated spatial model, meant for explanatory purposes. </em></p>
-</p>
-<p>We built upon the stochastic national-level model to take spatial heterogeneity into account. The Belgian territory is divided into 43 arrondissements, which are from hereon referred to as <em>patches</em>. Our patch-model boils down to a simulation of the extended SEIRD model dynamics on each patch, where the patches are connected by commuting traffic. This takes the form of a 43x43 from-to commuting matrix, <code class="docutils literal notranslate"><span class="pre">P</span></code>, extracted from the 2011 Belgian census. The system of equations is identical to the national level model, for a resident of age group i in patch g,</p>
+<img src="_static/figs/density-influence.jpg" alt="drawing" width="600"/>
+<p>This allows us to rewrite <span class="math notranslate nohighlight">\(N^g_{c,ij}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    N^g_{c,ij} = z_i f\left( \frac{T^g_\text{eff}}{a^g} \right) N_{c,ij},
+\end{equation}
+\]</div>
+<p>where Arenas et al. call <span class="math notranslate nohighlight">\(z_i\)</span> the ‘normalisation factor’:</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    z_i = \frac{ T_i }{ \sum\limits_{h=1}^G f\left(\dfrac{T^h_\text{eff}}{a^h}\right) T^h_{i,\text{eff}}},
+    \label{eq:z_i-normalisation}
+\end{equation}
+\]</div>
+<p>with <span class="math notranslate nohighlight">\(T_i\)</span> the total population in age class <span class="math notranslate nohighlight">\(i\)</span>.</p>
+<p>Having that background, we define a quantity</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    B^g_i \equiv \sum_{j=1}^N \beta s_i z_i f\left(\frac{T_\text{eff}^g}{a^g}\right) N_{c,ij} \frac{I_{j,\text{eff}}^g + A_{j,\text{eff}}^g}{T_{j,\text{eff}}^g}
+\end{equation}
+\]</div>
+<p>The <strong>coupled ordinary differential equations</strong> can be rewritten to the spatial situation
+$<span class="math notranslate nohighlight">\(
+\begin{eqnarray}
+\dot{S}_i^g &amp;=&amp; - \sum_{h=1}^G S_i^{gh} B^h_i + \zeta R_i^g, \\
+\dot{E}_i^g &amp;=&amp; \sum_{h=1}^G S_i^{gh} B^h_i - (1/\sigma) \cdot E_i^g,  \\
+\dot{I}_i^g &amp;=&amp; (1/\sigma) E_i - (1/\omega) I_i^g, \\
+\dot{A}_i^g &amp;=&amp; (\text{a}_i/\omega) I_i^g - (1/d_{\text{a}}) A_i^g, \\
+\dot{M}_i^g &amp;=&amp;  ((1-\text{a}_i) / \omega ) I_i^g - ( (1-h_i)/d_m + h_i/d_{\text{hospital}} ) M_i^g, \\
+\dot{ER}_i^g &amp;=&amp; (h_i/d_{\text{hospital}}) M_i^g - (1/d_{\text{ER}}) ER_i^g, \\
+\dot{C}_i^g &amp;=&amp; c_i (1/d_{\text{ER}}) ER_i^g  - (m_{C, i}/d_{c,D}) C_i^g - ((1 - m_{C, i})/d_{c,R}) C_i^g, \\
+\dot{ICU}+i^g &amp;=&amp; (1-c_i) (1/d_{\text{ER}}) ER_i^g - (m_{ICU,i}/d_{\text{ICU},D}) ICU_i^g  \\
+&amp;&amp; - ((1-m_{ICU,i})/d_{\text{ICU},R}) ICU_i^g,\\
+\dot{C}_{\text{ICU,rec,i}}^g &amp;=&amp; ((1-m_{ICU,i})/d_{\text{ICU},R}) ICU_i^g - (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}}^g, \\
+\dot{D}_i^g &amp;=&amp;  (m_{ICU,i}/d_{\text{ICU},D}) ICU_i^g +  (m_{C,i}/d_{\text{c},D}) C_i^g , \\
+\dot{R}_i^g &amp;=&amp;  (1/d_a) A_i + ((1-h_i)/d_m) M_i^g + ((1-m_{C,i})/d_{c,R}) C_i^g \\
+&amp;&amp; + (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}}^g - \zeta R_i^g,
+\end{eqnarray}
+\)</span>$</p>
+<p>All state matrices have dimensions <span class="math notranslate nohighlight">\(G \times N\)</span>, so integrating these ODEs takes (more than) <span class="math notranslate nohighlight">\(G\)</span> times the computation time compared to the non-spatial case. Note that, if relevant and available, all parameters may be further stratified per patch <span class="math notranslate nohighlight">\(g\)</span>.</p>
+<p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. When creating the simulation, these equations are integrated numerically.</p>
+</div>
+<div class="section" id="stochastic-spatial-framework">
+<h3>Stochastic spatial framework<a class="headerlink" href="#stochastic-spatial-framework" title="Permalink to this headline">¶</a></h3>
+<p>Extending the deterministic spatial framework to a (discrete) stochastic one is straightforward. The probability of being infected in patch <span class="math notranslate nohighlight">\(g\)</span> in the next timestep (stepsize <span class="math notranslate nohighlight">\(\ell\)</span>) for a susceptible individual is</p>
+<div class="math notranslate nohighlight">
+\[
+\begin{equation}
+    P^g_i = 1 - \exp\left( - \ell \sum\limits_{j=1}^N \beta s_i z_i f\left( \frac{T_\text{eff}^g}{a^g} \right) N_{c,ij} \frac{ I^{g}_{j, \text{eff}} + A^{g}_{j, \text{eff}}}{T_{j,\text{eff}}^g} \right)
+\end{equation}
+\]</div>
+<p>The same delocalised infection happens here, again depending on the overall mobility <span class="math notranslate nohighlight">\(p_i\)</span> and the recurrent mobility matrix <span class="math notranslate nohighlight">\(P_i^{gh}\)</span>:
+\begin{equation}
+\Pi_i^g = P_i^g + p_i\sum\limits_{\substack{h=1 \ h\neq g}}^G P_i^{gh}P_i^h
+\end{equation}
+The <strong>overall probability of exposure</strong> for an agent in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(g\)</span>, <span class="math notranslate nohighlight">\(\Pi_i^g\)</span>, is a sum of</p>
+<ol class="simple">
+<li><p>The probability of being infected at home, <em>plus</em></p></li>
+<li><p>The probability of being infected outside the home patch, weighed by the mobility to that patch</p></li>
+</ol>
+<p>Note that a higher mobility parameter does <em>not</em> necessarily mean that the exposure probability <span class="math notranslate nohighlight">\(\Pi_i^g\)</span> is larger, because the probability of becoming infected in the home patch, <span class="math notranslate nohighlight">\(P_i^g\)</span>, is also dependant on the mobility parameter <span class="math notranslate nohighlight">\(p_i\)</span>.</p>
+<p>This translates to the same <strong>set of stochastic equations</strong> as in the non-spatial case, but now with spatial stratification and a slightly adjusted probability in the binomial experiment:
+$<span class="math notranslate nohighlight">\(
+\begin{eqnarray}
+(S_i^g \rightarrow E_i^g) (k) &amp;\sim&amp; \text{Binomial}\Bigg(S_i^g(k), \Pi_i^g(k) \Bigg)\\
+(E_i^g \rightarrow I_i^g) (k) &amp;\sim&amp; \text{Binomial}\Bigg(E_i^g(k), \Pi_i^g(k) \Bigg)\\
+\end{eqnarray}
+\)</span>$</p>
+<p>These in turn determine the discrete development of the stochastic model:</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
 \begin{eqnarray}
-S_{i,g}(k+1) &amp;=&amp; S_{i,g}(k) + (R_{i,g} \rightarrow S_{i,g}) (k) - (S_{i,g} \rightarrow E_{i,g}) (k) \\
-E_{i,g}(k+1) &amp;=&amp; E_{i,g}(k) + (S_{i,g} \rightarrow E_{i,g}) (k) - (E_{i,g} \rightarrow I_{i,g}) (k) \\
-I_{i,g}(k+1) &amp;=&amp; I_{i,g}(k) + (E_{i,g} \rightarrow I_{i,g}) (k) - (I_{i,g} \rightarrow A_{i,g}) - (I_{i,g} \rightarrow M_{i,g}) (k) \\
-A_{i,g}(k+1) &amp;=&amp; A_{i,g}(k) + (I_{i,g} \rightarrow A_{i,g}) (k) - (A_{i,g} \rightarrow R_{i,g}) (k) \\
-M_{i,g}(k+1) &amp;=&amp; M_{i,g}(k) + (I_{i,g} \rightarrow M_{i,g}) (k) - (M_{i,g} \rightarrow R_{i,g}) (k) - (M_{i,g} \rightarrow ER_{i,g}) (k) \\
-ER_{i,g}(k+1) &amp;=&amp; ER_{i,g}(k) + (M_{i,g} \rightarrow ER_{i,g}) (k) - (ER_{i,g} \rightarrow C_{i,g}) (k) - (ER_{i,g} \rightarrow ICU_{i,g}) (k) \\
-C_{i,g}(k+1) &amp;=&amp; C_{i,g}(k) + (ER_{i,g} \rightarrow C_{i,g}) (k) - (C_{i,g} \rightarrow R_{i,g}) (k) - (C_{i,g} \rightarrow D_{i,g}) (k) \\
-C_{\text{ICU,rec,i,g}}(k+1) &amp;=&amp; C_{\text{ICU,rec,i,g}}(k)  + (ICU_{i,g} \rightarrow C_{\text{ICU,rec,i,g}}) (k) - (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k) \\
-R_{i,g}(k+1) &amp;=&amp; R_{i,g}(k) + (A_{i,g} \rightarrow R_{i,g}) (k)  + (M_{i,g} \rightarrow R_{i,g}) (k) + (C_{i,g} \rightarrow R_{i,g}) (k)\\
-&amp;&amp; + (C_{\text{ICU,rec,i,g}} \rightarrow R_{i,g}) (k)  - (R_{i,g} \rightarrow S_{i,g}) (k) \\
-D_{i,g}(k+1) &amp;=&amp; D_{i,g}(k) + (ICU_{i,g} \rightarrow D_{i,g}) (k) + (C_{i,g} \rightarrow D_{i,g}) (k) \\
+S_i^g(k+1) &amp;=&amp; S_i^g(k) + (R_i^g \rightarrow S_i^g) (k) - (S_i^g \rightarrow E_i^g) (k) \\
+E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \rightarrow I_i^g) (k) \\
 \end{eqnarray}
 \end{split}\]</div>
-<p>Differing only in the chance of infection <span class="math notranslate nohighlight">\((S_{i,g} \rightarrow E_{i,g}) (k)\)</span>. All other possible transitions are dependent on the disease dynamics and not on the spatial coordinate of the individual. If the individual works within his own patch, the individual is assumed to have contacts with people from within his home patch only. The interaction matrix for individuals working in their residence patch is the sum of home, school, work, leisure and other human-to-human interactions per day. If the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperated,</p>
-<div class="math notranslate nohighlight">
-\[\begin{split}
+<p>… etcetera (see non-spatial case).</p>
+<p>An <strong>example</strong> of the stochastic spatial framework is shown in the video below.</p>
+<figure class="video_container">
+  <video loop="loop" controls="true" allowfullscreen="true" poster="_static/figs/demo_arr_demo_arr_5-35-yo_81000.png">
+    <source src="_static/figs/demo_arr_demo_arr_5-35-yo_81000.mp4" type="video/mp4">
+  </video>
+</figure>
+<em>Simulation with the stochastic model and an initial condition where at time = 0, 5 exposed individuals in age class 30-40 years are 'released' in Arlon, all the way on the south-easter side of the country. At the onset, it is clear how the 'wave' of new exposures travels through the country, hitting the densely populated patches first. At day 40, measures are taken that bring down the effective reproduction constant below zero.</em>
+<p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model definition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
+</div>
+<div class="section" id="spatial-remaining-issues-and-tasks">
+<h3>Spatial: remaining issues and tasks<a class="headerlink" href="#spatial-remaining-issues-and-tasks" title="Permalink to this headline">¶</a></h3>
+<p>The theory at the basis of both the deterministic and the stochastic spatial model is still subject to change. Some of these ‘to-dos’ are listed below.</p>
+<ol class="simple">
+<li><p>In the original implementation of the spatial method, the type of contact in the exposure probability was related to whether or not the contact takes place in the home patch or not (see equation below, in the original notation). The reason is that e.g. home contact (<span class="math notranslate nohighlight">\(N_{\text{home},ij}\)</span> is not relevant when visiting other places; if the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperate. Whilst this is certainly true, it is currently unclear whether this additional complication is worth pursuing.
+$<span class="math notranslate nohighlight">\(
 \begin{eqnarray}
-    P(S_{i,g} \rightarrow E_{i,g}) (k) &amp;=&amp; 1 - \text{exp} \Bigg[ \underbrace{\text{P}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
-    &amp;+&amp; \sum_{l=1\\ l \neq g}^{G} \text{P}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
-     &amp;-&amp; \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
+ P(S_{i,g} \rightarrow E_{i,g}) (k) &amp;=&amp; 1 - \text{exp} \Bigg[ \underbrace{\text{P}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
+ &amp;+&amp; \sum_{l=1\\ l \neq g}^{G} \text{P}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
+  &amp;-&amp; \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
 \end{eqnarray}
-\end{split}\]</div>
+\)</span>$</p></li>
+<li><p>Many parameters, most notably the mobility parameter <span class="math notranslate nohighlight">\(p_i\)</span>, can (and often should) be stratified further.</p></li>
+<li><p>The calibration methods are still under construction and are more difficult, mainly because of the higher number of possible choices:</p>
 <ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(i \in \big\{0, 1, ..., N\big\}\)</span> where N is the number of age groups (9).</p></li>
-<li><p><span class="math notranslate nohighlight">\(g \in \big\{0, 1, ..., G\big\}\)</span> where G is the number of arrondissements (43).</p></li>
+<li><p>Should every patch have its own <span class="math notranslate nohighlight">\(\beta^g\)</span> value?</p></li>
+<li><p>How do we go about choosing an initial condition for the calibration?</p></li>
 </ul>
-<p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model defenition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
+</li>
+<li><p>A good spatial model is largely dependant on good mobility data. The currently available data is a mobility matrix from 2011, which is quite certainly not representative for the 2020 pandemic situation. Ideally we have <em>current</em> mobility data, stratified per <em>age class</em> and per <em>activity</em> (work/school/leisure/…)</p></li>
+<li><p>This model currently does <em>not</em> account for importation of exposed individuals, which in a highly populated region like Western Europe is undoubtedly an important factor.</p></li>
+<li><p>The contact rate’s dependence on the density may be omitted – it has little effect – but is currently implemented to parallel Arenas et al.’s approach.</p></li>
+<li><p>Arguably, stratification at the level of arrondissements is too highly detailed in a ‘big city’ like Belgium. Data analysis of the current situation may point out that it is justified to aggregate some arrondissements with a similar time series morphology together.</p></li>
+</ol>
+</div>
 </div>
 <div class="section" id="transmission-rates-and-social-contact-data">
 <h2>Transmission rates and social contact data<a class="headerlink" href="#transmission-rates-and-social-contact-data" title="Permalink to this headline">¶</a></h2>
