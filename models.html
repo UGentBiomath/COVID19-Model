@@ -305,8 +305,8 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 <h2>Spatial extension<a class="headerlink" href="#spatial-extension" title="Permalink to this headline">¶</a></h2>
 <p>Rather than considering the entire nation as a homogeneous collection of compartments, it is more realistic to consider spatially distinct regions that are mutually connected. The relevance of this approach becomes clear by looking at the spatial spread in the data (embedded video below): the occurence of confirmed cases is not entirely homogeneous.</p>
 <figure class="video_container">
-  <video loop="loop" controls="true" allowfullscreen="true" poster="_static/figs/First-wave-data_spatial_animated_first.png">
-    <source src="_static/figs/First-wave-data_spatial_animated.mp4" type="video/mp4">
+  <video loop="loop" controls="true" poster="_static/figs/First-wave-data_spatial_animated_first.png">
+    <source src="_static/figs/First-wave-data_spatial_animated.mp4" type="video/mp4", width="600">
   </video>
 </figure>
 <p>The main motivation for investigating spatial relations is to quantify the effect of certain types of mobility on the severity and speed of the spread of COVID19, and the effect of spatial isolation of key regions. We consider e.g. the 43 Belgian arrondissements or the 10 Belgian provinces (plus Brussels-Capital). These regions are considered internally homogeneous and are connected through known or estimated mobility matrices.</p>
@@ -327,7 +327,7 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 T^g_{i,\text{eff}} = \sum_{h=1}^G [(1-p_i)\delta^{gh} + p_i P_i^{hg}]T_i^h,
 \end{equation}
 \]</div>
-<p>where <span class="math notranslate nohighlight">\(G\)</span> is the total number of patches (e.g. 43 arrondissements), <span class="math notranslate nohighlight">\(p_i\)</span> the mobility parameter (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), <span class="math notranslate nohighlight">\(\delta^{gh}\)</span> the Kronecker delta, <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> the recurrent mobility <em>from</em> patch <span class="math notranslate nohighlight">\(h\)</span> <em>to</em> patch <span class="math notranslate nohighlight">\(g\)</span> (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), and <span class="math notranslate nohighlight">\(T_i^h\)</span> the registered population in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(h\)</span>. The same formula works goes for <span class="math notranslate nohighlight">\(I^g_{i,\text{eff}}\)</span> and <span class="math notranslate nohighlight">\(E^g_{i,\text{eff}}\)</span>. Note that <span class="math notranslate nohighlight">\(T^g_{i,eff} = T^g_i\)</span> if <span class="math notranslate nohighlight">\(p_i = 0\)</span>. Note: <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> is implemented in the code as <code class="docutils literal notranslate"><span class="pre">place</span></code>.</p>
+<p>where <span class="math notranslate nohighlight">\(G\)</span> is the total number of patches (e.g. 43 arrondissements), <span class="math notranslate nohighlight">\(p_i\)</span> the mobility parameter (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), <span class="math notranslate nohighlight">\(\delta^{gh}\)</span> the Kronecker delta, <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> the recurrent mobility <em>from</em> patch <span class="math notranslate nohighlight">\(h\)</span> <em>to</em> patch <span class="math notranslate nohighlight">\(g\)</span> (stratified per age <span class="math notranslate nohighlight">\(i\)</span>), and <span class="math notranslate nohighlight">\(T_i^h\)</span> the registered population in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(h\)</span>. The same formula works goes for <span class="math notranslate nohighlight">\(I^g_{i,\text{eff}}\)</span> and <span class="math notranslate nohighlight">\(E^g_{i,\text{eff}}\)</span>. Note that <span class="math notranslate nohighlight">\(T^g_{i,\text{eff}} = T^g_i\)</span> if <span class="math notranslate nohighlight">\(p_i = 0\)</span>. Note: <span class="math notranslate nohighlight">\(P_i^{hg}\)</span> is implemented in the code as <code class="docutils literal notranslate"><span class="pre">place</span></code>.</p>
 <p>Because people can get exposed in their own <em>or</em> another patch, we need an expression for the <strong>number of susceptibles</strong> from patch <span class="math notranslate nohighlight">\(g\)</span> that reside in patch <span class="math notranslate nohighlight">\(h\)</span>, in age class <span class="math notranslate nohighlight">\(i\)</span>:</p>
 <div class="math notranslate nohighlight">
 \[
@@ -368,15 +368,16 @@ N^g_{c,ij} \propto f\left( \frac{T^g_\text{eff}}{a^g} \right).
 \end{equation}
 \]</div>
 <p>with <span class="math notranslate nohighlight">\(T_i\)</span> the total population in age class <span class="math notranslate nohighlight">\(i\)</span>.</p>
-<p>Having that background, we define a quantity</p>
+<p>Having that background, we define the quantity</p>
 <div class="math notranslate nohighlight">
 \[
 \begin{equation}
     B^g_i \equiv \sum_{j=1}^N \beta s_i z_i f\left(\frac{T_\text{eff}^g}{a^g}\right) N_{c,ij} \frac{I_{j,\text{eff}}^g + A_{j,\text{eff}}^g}{T_{j,\text{eff}}^g}
 \end{equation}
 \]</div>
-<p>The <strong>coupled ordinary differential equations</strong> can be rewritten to the spatial situation
-$<span class="math notranslate nohighlight">\(
+<p>The <strong>coupled ordinary differential equations</strong> can be rewritten to the spatial situation</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
 \begin{eqnarray}
 \dot{S}_i^g &amp;=&amp; - \sum_{h=1}^G S_i^{gh} B^h_i + \zeta R_i^g, \\
 \dot{E}_i^g &amp;=&amp; \sum_{h=1}^G S_i^{gh} B^h_i - (1/\sigma) \cdot E_i^g,  \\
@@ -392,7 +393,7 @@ $<span class="math notranslate nohighlight">\(
 \dot{R}_i^g &amp;=&amp;  (1/d_a) A_i + ((1-h_i)/d_m) M_i^g + ((1-m_{C,i})/d_{c,R}) C_i^g \\
 &amp;&amp; + (1/d_{\text{ICU,rec}}) C_{\text{ICU,rec,i}}^g - \zeta R_i^g,
 \end{eqnarray}
-\)</span>$</p>
+\end{split}\]</div>
 <p>All state matrices have dimensions <span class="math notranslate nohighlight">\(G \times N\)</span>, so integrating these ODEs takes (more than) <span class="math notranslate nohighlight">\(G\)</span> times the computation time compared to the non-spatial case. Note that, if relevant and available, all parameters may be further stratified per patch <span class="math notranslate nohighlight">\(g\)</span>.</p>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. When creating the simulation, these equations are integrated numerically.</p>
 </div>
@@ -405,23 +406,27 @@ $<span class="math notranslate nohighlight">\(
     P^g_i = 1 - \exp\left( - \ell \sum\limits_{j=1}^N \beta s_i z_i f\left( \frac{T_\text{eff}^g}{a^g} \right) N_{c,ij} \frac{ I^{g}_{j, \text{eff}} + A^{g}_{j, \text{eff}}}{T_{j,\text{eff}}^g} \right)
 \end{equation}
 \]</div>
-<p>The same delocalised infection happens here, again depending on the overall mobility <span class="math notranslate nohighlight">\(p_i\)</span> and the recurrent mobility matrix <span class="math notranslate nohighlight">\(P_i^{gh}\)</span>:
+<p>The same delocalised infection happens here, again depending on the overall mobility <span class="math notranslate nohighlight">\(p_i\)</span> and the recurrent mobility matrix <span class="math notranslate nohighlight">\(P_i^{gh}\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
 \begin{equation}
-\Pi_i^g = P_i^g + p_i\sum\limits_{\substack{h=1 \ h\neq g}}^G P_i^{gh}P_i^h
+    \Pi_i^g = P_i^g + p_i\sum\limits_{\substack{h=1 \\ h\neq g}}^G P_i^{gh}P_i^h
 \end{equation}
-The <strong>overall probability of exposure</strong> for an agent in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(g\)</span>, <span class="math notranslate nohighlight">\(\Pi_i^g\)</span>, is a sum of</p>
+\end{split}\]</div>
+<p>The <strong>overall probability of exposure</strong> for an agent in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(g\)</span>, <span class="math notranslate nohighlight">\(\Pi_i^g\)</span>, is a sum of</p>
 <ol class="simple">
 <li><p>The probability of being infected at home, <em>plus</em></p></li>
 <li><p>The probability of being infected outside the home patch, weighed by the mobility to that patch</p></li>
 </ol>
 <p>Note that a higher mobility parameter does <em>not</em> necessarily mean that the exposure probability <span class="math notranslate nohighlight">\(\Pi_i^g\)</span> is larger, because the probability of becoming infected in the home patch, <span class="math notranslate nohighlight">\(P_i^g\)</span>, is also dependant on the mobility parameter <span class="math notranslate nohighlight">\(p_i\)</span>.</p>
-<p>This translates to the same <strong>set of stochastic equations</strong> as in the non-spatial case, but now with spatial stratification and a slightly adjusted probability in the binomial experiment:
-$<span class="math notranslate nohighlight">\(
+<p>This translates to the same <strong>set of stochastic equations</strong> as in the non-spatial case, but now with spatial stratification and a slightly adjusted probability in the binomial experiment:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}
 \begin{eqnarray}
 (S_i^g \rightarrow E_i^g) (k) &amp;\sim&amp; \text{Binomial}\Bigg(S_i^g(k), \Pi_i^g(k) \Bigg)\\
 (E_i^g \rightarrow I_i^g) (k) &amp;\sim&amp; \text{Binomial}\Bigg(E_i^g(k), \Pi_i^g(k) \Bigg)\\
 \end{eqnarray}
-\)</span>$</p>
+\end{split}\]</div>
 <p>These in turn determine the discrete development of the stochastic model:</p>
 <div class="math notranslate nohighlight">
 \[\begin{split}
@@ -433,8 +438,8 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 <p>… etcetera (see non-spatial case).</p>
 <p>An <strong>example</strong> of the stochastic spatial framework is shown in the video below.</p>
 <figure class="video_container">
-  <video loop="loop" controls="true" allowfullscreen="true" poster="_static/figs/demo_arr_demo_arr_5-35-yo_81000.png">
-    <source src="_static/figs/demo_arr_demo_arr_5-35-yo_81000.mp4" type="video/mp4">
+  <video loop="loop" controls="true" poster="_static/figs/demo_arr_demo_arr_5-35-yo_81000.png">
+    <source src="_static/figs/demo_arr_demo_arr_5-35-yo_81000.mp4" type="video/mp4" width="600">
   </video>
 </figure>
 <em>Simulation with the stochastic model and an initial condition where at time = 0, 5 exposed individuals in age class 30-40 years are 'released' in Arlon, all the way on the south-easter side of the country. At the onset, it is clear how the 'wave' of new exposures travels through the country, hitting the densely populated patches first. At day 40, measures are taken that bring down the effective reproduction constant below zero.</em>
@@ -444,14 +449,17 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 <h3>Spatial: remaining issues and tasks<a class="headerlink" href="#spatial-remaining-issues-and-tasks" title="Permalink to this headline">¶</a></h3>
 <p>The theory at the basis of both the deterministic and the stochastic spatial model is still subject to change. Some of these ‘to-dos’ are listed below.</p>
 <ol class="simple">
-<li><p>In the original implementation of the spatial method, the type of contact in the exposure probability was related to whether or not the contact takes place in the home patch or not (see equation below, in the original notation). The reason is that e.g. home contact (<span class="math notranslate nohighlight">\(N_{\text{home},ij}\)</span> is not relevant when visiting other places; if the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperate. Whilst this is certainly true, it is currently unclear whether this additional complication is worth pursuing.
-$<span class="math notranslate nohighlight">\(
-\begin{eqnarray}
- P(S_{i,g} \rightarrow E_{i,g}) (k) &amp;=&amp; 1 - \text{exp} \Bigg[ \underbrace{\text{P}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
- &amp;+&amp; \sum_{l=1\\ l \neq g}^{G} \text{P}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
-  &amp;-&amp; \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
-\end{eqnarray}
-\)</span>$</p></li>
+<li><p>In the original implementation of the spatial method, the type of contact in the exposure probability was related to whether or not the contact takes place in the home patch or not (see equation below, in the original notation). The reason is that e.g. home contact (<span class="math notranslate nohighlight">\(N_{\text{home},ij}\)</span> is not relevant when visiting other places; if the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperate. Whilst this is certainly true, it is currently unclear whether this additional complication is worth pursuing.</p></li>
+</ol>
+<div class="math notranslate nohighlight">
+\[\begin{split}
+\begin{equation*}
+    P(S_{i,g} \rightarrow E_{i,g}) (k) = 1 - \text{exp} \Bigg[ \underbrace{\text{P}_{g,g} \Bigg\{ - l \beta s_i \sum_{j=1}^{N} N_{\text{c, tot, ij}} \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg) \Bigg\}}_{\text{individual working in residence patch}}  \\
+    \quad + \sum_{l=1\\ l \neq g}^{G} \text{P}_{g,l} \Bigg\{ \underbrace{- l \beta s_i \sum_{j=1}^{N} N_{\text{c, work, ij}} \Bigg( \frac{I_{j,l} + A_{j,l}}{T_{j,l}} \Bigg)}_{\text{work interactions in work patch (subscript l)}} \\
+     \quad - \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
+\end{equation*}
+\end{split}\]</div>
+<ol class="simple">
 <li><p>Many parameters, most notably the mobility parameter <span class="math notranslate nohighlight">\(p_i\)</span>, can (and often should) be stratified further.</p></li>
 <li><p>The calibration methods are still under construction and are more difficult, mainly because of the higher number of possible choices:</p>
 <ul class="simple">
