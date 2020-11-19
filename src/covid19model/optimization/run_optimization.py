@@ -91,7 +91,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
 
 
 def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_beta_ramp, start_recalibrate_beta, end_recalibrate_beta, fig_path, samples_path, initN, Nc_total,warmup=0,
-                     maxiter=50, popsize=50, n=30, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8):
+                     maxiter=50, popsize=50, n=30, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     plt.ioff()
 
@@ -113,8 +113,11 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     parNames = ['sigma_data','beta','l','tau']
     bounds=((30,200),(0.030,0.040),(0.01,20),(0.01,20))
     # run PSO optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
-
+    if processes == -1: # use all but one processor
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
+    else: # use indicated number of processors
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_date,warmup=warmup, processes=processes)
+        
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -204,8 +207,11 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     parNames = ['sigma_data','beta']
     bounds=((1,100),(0.010,0.060))
     # run PSO optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
-
+    if processes == -1:
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
+    else:
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0, processes=processes)
+        
     # run MCMC sampler
     print('\n4) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -298,7 +304,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total,
-                     maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8):
+                     maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
@@ -332,6 +338,8 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
+    processes : int
+        number of processors used in the PSO. -1 means "use all but one" (default).
 
     
     Returns
@@ -350,6 +358,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     ####### CALIBRATING BETA AND warmup #######
     #############################################
 
+    if processes == -1:
+        nr_processes = 'all but one'
+    else:
+        nr_processes = str(processes)
+
+    print(f'Using {nr_processes} logical processors\n')
     print('---------------------------')
     print('CALIBRATING BETA AND WARMUP')
     print('---------------------------\n')
@@ -359,8 +373,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
     bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
     # run pso optimisation
-    theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+    if processes == -1:
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig)
+    else:
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+                        start_date=start_date, omega=omega, phip=phip, phig=phig, processes=processes)
     sigma_data = theta[0]
     warmup = int(round(theta[1]))
     beta = theta[2]
@@ -411,8 +429,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     # run optimisation
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
-    theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+    if processes == -1:
+        theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
+    else:
+        theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+                            draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup, processes=processes)
 
     model.parameters.update({'l': theta_comp[1],
                             'tau': theta_comp[2],
