@@ -292,6 +292,11 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
+    if processes > mp.cpu_count():
+        raise ValueError(
+            f"Desired number of logical processors ({processes}) unavailable. Maximum number: {mp.cpu_count()}"
+        )
+    
     # -------------------------------------------
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
