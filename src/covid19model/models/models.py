@@ -470,7 +470,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
 
-        # Density dependence per patch: f[patch
+        # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
