@@ -48,6 +48,29 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
         spatial=True
         G = initN.shape[0]
         N = initN.shape[1]
+        # Define values for 'normalisation' of contact matrices
+        T_eff = np.zeros([G,N])
+        for ii in range(N):
+            for gg in range(G):
+                som = 0
+                for hh in range(G):
+                    som += model.parameters['place'][hh][gg] * initN[hh][ii] # pi = 1 for calculation of R0
+                T_eff[gg][ii] = som
+        density = np.sum(T_eff,axis=1) / model.parameters['area']
+        f = 1 + ( 1 - np.exp(-model.parameters['xi'] * density) )
+        zi_denom = np.zeros(N)
+        for ii in range(N):
+            som = 0
+            for hh in range(G):
+                som += f[hh] * T_eff[hh][ii]
+            zi_denom[ii] = som
+        zi = np.sum(initN, axis=0) / zi_denom
+        Nc_total_spatial = np.zeros([G,N,N])
+        for ii in range(N):
+            for jj in range(N):
+                for hh in range(G):
+                    Nc_total_spatial[hh][ii][jj] = zi[ii] * f[hh] * Nc_total[ii][jj]
+        
     R0 =[]
     # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
     for j in range(sample_size):
@@ -56,7 +79,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
             for gg in range(G):
                 for i in range(N):
                     som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
-                            model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[gg][i]
+                            model.parameters['s'][i] * np.sum(Nc_total_spatial, axis=2)[gg][i] * initN[gg][i]
             R0_temp = som / np.sum(initN)
         else:
             for i in range(N):
@@ -75,7 +98,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
                 R0_list = []
                 for j in range(sample_size):
                     R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
-                            samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total,axis=1)[i]
+                            samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total_spatial,axis=2)[gg][i]
                     R0_list.append(R0_temp)
                 R0_stratified_dict[gg][i] = R0_list
     else:
