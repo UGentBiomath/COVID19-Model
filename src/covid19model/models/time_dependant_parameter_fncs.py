@@ -28,33 +28,35 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
         only school cannot be None!
     """
     
-    if school is None:
-        raise ValueError(
-        "Please indicate to which extend schools are open")
-
     if t < pd.Timestamp('2020-03-15'):
         CM = Nc_all['total']
-    elif pd.Timestamp('2020-03-15') < t <= df_google.index[-1]:
-        #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100 
     else:
-        row = -df_google.iloc[[-1],:]/100
-    
-    if work is None:
-        work=(1-row['work'].values)[0]
-    if transport is None:
-        transport=(1-row['transport'].values)[0]
-    if leisure is None:
-        leisure=(1-row['retail_recreation'].values)[0]
-    if others is None:
-        others=(1-row['grocery'].values)[0]
-    
-    CM = (prev_home*(1/2.3)*Nc_all['home'] + 
-          prev_schools*school*Nc_all['schools'] + 
-          prev_work*work*Nc_all['work'] + 
-          prev_transport*transport*Nc_all['transport'] + 
-          prev_leisure*leisure*Nc_all['leisure'] + 
-          prev_others*others*Nc_all['others']) 
+        
+        if school is None:
+            raise ValueError(
+            "Please indicate to which extend schools are open")
+        
+        if pd.Timestamp('2020-03-15') < t <= df_google.index[-1]:
+            #take t.date() because t can be more than a date! (e.g. when tau_days is added)
+            row = -df_google[df_google.index == pd.Timestamp(t.date())]/100 
+        else:
+            row = -df_google.iloc[[-1],:]/100
+
+        if work is None:
+            work=(1-row['work'].values)[0]
+        if transport is None:
+            transport=(1-row['transport'].values)[0]
+        if leisure is None:
+            leisure=(1-row['retail_recreation'].values)[0]
+        if others is None:
+            others=(1-row['grocery'].values)[0]
+
+        CM = (prev_home*(1/2.3)*Nc_all['home'] + 
+              prev_schools*school*Nc_all['schools'] + 
+              prev_work*work*Nc_all['work'] + 
+              prev_transport*transport*Nc_all['transport'] + 
+              prev_leisure*leisure*Nc_all['leisure'] + 
+              prev_others*others*Nc_all['others']) 
 
 
     return CM
