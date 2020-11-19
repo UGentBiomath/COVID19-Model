@@ -279,7 +279,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -289,7 +289,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, # SEIRD parameters
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -338,7 +338,6 @@ class COVID19_SEIRD_spatial(BaseModel):
                     Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]       
 
         # Density dependence per patch: f[patch]
-        xi = 0.01 # km^-2
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
@@ -359,6 +358,7 @@ class COVID19_SEIRD_spatial(BaseModel):
                 sumj = 0
                 for j in range(N):
                     term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
                     sumj += term
                 B[gg][i] = sumj
 
@@ -415,7 +415,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -425,7 +425,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, # SEIRD parameters
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -470,8 +470,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
 
-        # Density dependence per patch: f[patch]
-        xi = 0.01 # km^-2
+        # Density dependence per patch: f[patch
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))
