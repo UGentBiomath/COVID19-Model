@@ -292,11 +292,15 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
+    if processes > mp.cpu_count():
+        raise ValueError(
+            f"Desired number of logical processors ({processes}) unavailable. Maximum number: {mp.cpu_count()}"
+        )
+    
     # -------------------------------------------
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup), swarmsize=popsize, maxiter=maxiter,
-                                                                                processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup), swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
     theta_hat = p_hat
 
     return theta_hat
