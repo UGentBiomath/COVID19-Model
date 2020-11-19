@@ -263,6 +263,11 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     # Define time list from data
     tlist = data['time'].values
     
+    # Check whether there is more than one draw
+    draws = False
+    if 'draws' in data.dims:
+        draws = True
+    
     # Define colors dictionary for graphs (maximally six)
     if ts_graph:
         color_list_total = ['g', 'orange', 'r', 'k', 'c', 'm']
@@ -282,16 +287,28 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
             vmax_graph[ts]=0
             if nis: # take highest value of all places
                 for nis_value in nis:
-                    vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
+                    if draws:
+                        vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
+                    else:
+                        vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).values.max()
                     if vmax_temp > vmax_graph[ts]:
                         vmax_graph[ts] = vmax_temp
             else: # Take highest value of the sum of all places (works only for absolute numbers right now!
-                vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                if draws:
+                    vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                else:
+                    vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').values.max()
             if verbose:
-                print(f"Maximum value of median draw for timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
+                if draws:
+                    print(f"Maximum value of median draw for timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
+                else:
+                    print(f"Maximum value of timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
         vmin_graph = 0
     
-    vmax_geo = data[ts_geo].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
+    if draws:
+        vmax_geo = data[ts_geo].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
+    else:
+        vmax_geo = data[ts_geo].sum(dim='Nc').values.max()
     vmin_geo = 0
     
     # Initiate plotting environment
@@ -344,7 +361,10 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     
     # Add data to geopandas dataframe
     for nis_value in nis_data:
-        ts_median_today = data.sel(place=nis_value, time=day).sum(dim='Nc').quantile(0.5, dim='draws')[ts_geo].values
+        if draws:
+            ts_median_today = data.sel(place=nis_value, time=day).sum(dim='Nc').quantile(0.5, dim='draws')[ts_geo].values
+        else:
+            ts_median_today = data.sel(place=nis_value, time=day).sum(dim='Nc')[ts_geo].values
         geo.loc[geo['NISCode']==str(nis_value), ts_geo] = ts_median_today
     if lin:
         maps = geo.plot(column=ts_geo, ax=ax0, cmap=cmap, legend=True, edgecolor = 'k',
@@ -361,28 +381,42 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
             # show distinct regions in graphs
             if nis:
                 for nis_value in nis:
-                    ts_median = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws').values
-                    ts_lower = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
-                    ts_upper = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
+                    if draws:
+                        ts_median = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws').values
+                        ts_lower = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
+                        ts_upper = data[ts].sel(place=nis_value).sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
+                    else:
+                        ts_single = data[ts].sel(place=nis_value).sum(dim='Nc').values
                     label = str(nis_value)
                     if len(nis) > 1:
-                        ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict[nis_value], alpha=1, linewidth=2,label=label)
-                        graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict[nis_value], alpha=0.3)
+                        if draws:
+                            ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict[nis_value], alpha=1, linewidth=2,label=label)
+                            graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict[nis_value], alpha=0.3)
+                        else:
+                            graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict[nis_value], alpha=1, linewidth=2, label=label)
                         graphs.append(graph)
                     else:
-                        ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
-                        label2=f"{upper_pct}%"
-                        graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3,label=label2)
+                        if draws:
+                            ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
+                            label2=f"{upper_pct}%"
+                            graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3,label=label2)
+                        else:
+                            graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2,label=label)
                         graphs.append(graph)
             # Show national sum over all regions in graphs
             else:
-                ts_median = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
-                ts_lower = data[ts].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
-                ts_upper = data[ts].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
-                label1='national'
-                label2=f"{upper_pct}%"
-                ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
-                graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
+                if draws:
+                    ts_median = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
+                    ts_lower = data[ts].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws').values
+                    ts_upper = data[ts].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws').values
+                    label1='national'
+                    label2=f"{upper_pct}%"
+                    ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
+                    graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
+                else:
+                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
+                    label1='national'
+                    graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graphs.append(graph)
             if (nis and (len(nis) == 1)) or not nis:
                 ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size})
@@ -446,6 +480,11 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
     # CHECK PARAMETERS #
     ####################
 
+    # Check whether there is more than one draw
+    draws = False
+    if 'draws' in data.dims:
+        draws = True
+    
     # Check whether the model output has recognisable compartments
     full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H'}
     data_comp_set = set(data.data_vars)
@@ -522,16 +561,28 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
             vmax[ttss]=0
             if nis: # take highest value of all places
                 for nis_value in nis:
-                    vmax_temp = data[ttss].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
+                    if draws:
+                        vmax_temp = data[ttss].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
+                    else:
+                        vmax_temp = data[ttss].sum(dim='Nc').sel(place=nis_value).values.max()
                     if vmax_temp > vmax[ttss]:
                         vmax[ttss] = vmax_temp
             else: # Take highest value of the sum of all places (works only for absolute numbers right now!
                 if spatial:
-                    vmax[ttss] = data[ttss].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                    if draws:
+                        vmax[ttss] = data[ttss].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                    else:
+                        vmax[ttss] = data[ttss].sum(dim='Nc').sum(dim='place').values.max()
                 else:
-                    vmax[ttss] = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
+                    if draws:
+                        vmax[ttss] = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
+                    else:
+                        vmax[ttss] = data[ttss].sum(dim='Nc').values.max()
             if verbose:
-                print(f"Maximum value of median draw for timeseries of compartment {ttss} (vmax_graph[{ttss}]) set to {vmax_graph[ttss]}.")
+                if draws:
+                    print(f"Maximum value of median draw for timeseries of compartment {ttss} (vmax_graph[{ttss}]) set to {vmax_graph[ttss]}.")
+                else:
+                    print(f"Maximum value for timeseries of compartment {ttss} (vmax_graph[{ttss}]) set to {vmax_graph[ttss]}.")
     else:
         for (ttss, y) in zip(ts, ylim):
             vmax[ttss] = y
@@ -588,46 +639,70 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
         if nis and (len(nis) > 1):
             for (nis_value, c) in zip(nis, colors[:len(nis)]):
                 # Define values
-                ts_median = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws')
-                ts_lower = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
-                ts_upper = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                if draws:
+                    ts_median = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(0.5, dim='draws')
+                    ts_lower = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+                    ts_upper = data[ttss].sel(place=nis_value).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                else:
+                    ts_single = data[ttss].sel(place=nis_value).sum(dim='Nc')
                 label=nis_value
                 # Plot values
-                ax_dict[ttss].plot(tlist, ts_median, color=c, alpha=1, linewidth=2, label=label)
-                graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=c, alpha=0.1)
+                if draws:
+                    ax_dict[ttss].plot(tlist, ts_median, color=c, alpha=1, linewidth=2, label=label)
+                    graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=c, alpha=0.1)
+                else:
+                    graph = ax_dict[ttss].plot(tlist, ts_single, color=c, alpha=1, linewidth=2, label=label)
                 graphs.append(graph)
         # Single NIS value
         if nis and (len(nis) == 1):
-            ts_median = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(0.5, dim='draws')
-            ts_lower = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
-            ts_upper = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
-            label1=nis_value
-            label2=f"{upper_pct}% interval"
-            # Plot values
-            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
-            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            if draws:
+                ts_median = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(0.5, dim='draws')
+                ts_lower = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+                ts_upper = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                label1=nis_value
+                label2=f"{upper_pct}% interval"
+                # Plot values
+                ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+                graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            else:
+                ts_single = data[ttss].sel(place=nis[0]).sum(dim='Nc')
+                label=nis_value
+                # Plot values
+                graph = ax_dict[ttss].plot(tlist, ts_single, color=color_dict[ttss], alpha=1, linewidth=2, label=label)
             graphs.append(graph)
         # Sum over all NIS values
         if not nis and spatial:
-            ts_median = data[ttss].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws')
-            ts_lower = data[ttss].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws')
-            ts_upper = data[ttss].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws')
-            label1='aggregated'
-            label2=f"{upper_pct}% interval"
-            # Plot values
-            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
-            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            if draws:
+                ts_median = data[ttss].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws')
+                ts_lower = data[ttss].sum(dim='place').sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+                ts_upper = data[ttss].sum(dim='place').sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                label1='aggregated'
+                label2=f"{upper_pct}% interval"
+                # Plot values
+                ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+                graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            else:
+                ts_single = data[ttss].sum(dim='place').sum(dim='Nc')
+                label='aggregated'
+                # Plot values
+                graph = ax_dict[ttss].plot(tlist, ts_single, color=color_dict[ttss], alpha=1, linewidth=2, label=label)
             graphs.append(graph)
         # Not spatial (national model)
         if not spatial:
-            ts_median = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws')
-            ts_lower = data[ttss].sum(dim='Nc').quantile(lower_pct/100, dim='draws')
-            ts_upper = data[ttss].sum(dim='Nc').quantile(upper_pct/100, dim='draws')
-            label1='national'
-            label2=f"{upper_pct}% interval"
-            # Plot values
-            ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
-            graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            if draws:
+                ts_median = data[ttss].sum(dim='Nc').quantile(0.5, dim='draws')
+                ts_lower = data[ttss].sum(dim='Nc').quantile(lower_pct/100, dim='draws')
+                ts_upper = data[ttss].sum(dim='Nc').quantile(upper_pct/100, dim='draws')
+                label1='national'
+                label2=f"{upper_pct}% interval"
+                # Plot values
+                ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
+                graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
+            else:
+                ts_single = data[ttss].sum(dim='Nc')
+                label='national'
+                # Plot values
+                graph = ax_dict[ttss].plot(tlist, ts_single, color=color_dict[ttss], alpha=1, linewidth=2, label=label)
             graphs.append(graph)
         if nis and (len(nis) > 3):
             ax_dict[ttss].legend(loc=2, prop={'size':legend_size}, ncol=2)
