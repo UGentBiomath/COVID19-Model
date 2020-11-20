@@ -54,7 +54,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,T=1,
                     data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
                     legend_text=None,titleText=None,ax=None,ylabel='number of patients',
-                    plt_kwargs={},sct_kwargs={}):
+                    plt_kwargs={},sct_kwargs={}, spatial=False):
 
     """Plot model fit to user provided data
 
@@ -80,6 +80,8 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
         If provided, will use the axis to add the lines.
     ylabel : string, optional
         label for y-axis, default 'number of patients'
+    spatial : Boolean
+        Set to True if y_model is spatially explicit. False by default.
 
     Returns
     -----------
@@ -119,7 +121,10 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
                                   pd.to_datetime(end_date))
 
     # Plot model prediction
-    y_model = y_model.sum(dim="Nc")
+    if spatial:
+        y_model = y_model.sum(dim='Nc').sum(dim='place')
+    else:
+        y_model = y_model.sum(dim="Nc")
     for i in range(len(data)):
         # dummy lines for legend
         lines = ax.plot([],[],plt_clr[i],alpha=1)
