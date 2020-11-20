@@ -25,7 +25,7 @@ from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
 
-def checkplots(sampler, fig_path, spatial_unit, figname, labels):
+def checkplots(sampler, discard, fig_path, spatial_unit, figname, labels):
     
     samples = sampler.get_chain(discard=discard,flat=False)
     flatsamples = sampler.get_chain(discard=discard,flat=True)
@@ -37,7 +37,7 @@ def checkplots(sampler, fig_path, spatial_unit, figname, labels):
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
-    fig.set_size_inches(8, 8)
+    #fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
                 dpi=600, bbox_inches='tight')
 
@@ -96,7 +96,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
     # Make and save diagnostic visualizations
-    checkplots(sampler, fig_path, spatial_unit, 
+    checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='BETA_RAMP_GOOGLE_WAVE1_ ', labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$'])
 
     # Save output in parameter dictionary
@@ -187,7 +187,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
     # Make and save diagnostic visualizations
-    checkplots(sampler, fig_path, spatial_unit, 
+    checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='BETA_RECALIBRATE_GOOGLE_', labels=['$\sigma_{data}$','$\\beta$'])
 
     print('\n5) Saving chains\n')
@@ -336,7 +336,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
 
-    checkplots(sampler, fig_path, spatial_unit, 
+    checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
     
     samples_dict = {'warmup': warmup,
@@ -384,7 +384,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
         
-    checkplots(sampler, fig_path, spatial_unit, 
+    checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
     print('---------------------------------------------------------------------------------------------------------\n')
 
@@ -486,7 +486,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     except:
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
-    checkplots(sampler, fig_path, spatial_unit, 
+    checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
     
     samples_dict = {'warmup': warmup,
