@@ -659,14 +659,14 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
                 ts_median = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(0.5, dim='draws')
                 ts_lower = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
                 ts_upper = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
-                label1=nis_value
+                label1=nis
                 label2=f"{upper_pct}% interval"
                 # Plot values
                 ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
                 graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
             else:
                 ts_single = data[ttss].sel(place=nis[0]).sum(dim='Nc')
-                label=nis_value
+                label=nis[0]
                 # Plot values
                 graph = ax_dict[ttss].plot(tlist, ts_single, color=color_dict[ttss], alpha=1, linewidth=2, label=label)
             graphs.append(graph)
