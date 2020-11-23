@@ -197,6 +197,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
         pi : mobility parameter per age class. Only loads when spatial is not None
+        v : daily vaccination rate (percentage of population to be vaccinated)
+        e : vaccine effectivity
 
         Spatially stratified parameters
         -------------------------------
@@ -242,6 +244,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
         pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+
+        # vaccination
+        df_vacc = pd.read_csv(os.path.join(par_raw_path,"vaccination.csv"), sep=',',header='infer')
+        pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
+        pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
