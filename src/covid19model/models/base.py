@@ -6,6 +6,8 @@ from scipy.integrate import solve_ivp
 import xarray
 import pandas as pd
 from collections import OrderedDict
+import copy
+from .utils import read_coordinates_nis
 
 class BaseModel:
     """
@@ -34,14 +36,16 @@ class BaseModel:
     parameter_names = None
     parameters_stratified_names = None
     stratification = None
+    apply_compliance_to = None
     coordinates = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False):
+                 discrete=False, spatial=None):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
+        self.spatial = spatial
 
         if self.stratification:
             self.stratification_size = []
@@ -86,7 +90,10 @@ class BaseModel:
         extra_params = []
         self._relative_time_dependent_value = []
 
+        #all_param_names = self.parameter_names + self.parameters_stratified_names
+
         all_param_names = self.parameter_names.copy()
+
         for lst in self.parameters_stratified_names:
             all_param_names.extend(lst)
 
@@ -242,12 +249,27 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
+        spatial_options = {'mun', 'arr', 'prov'}
+        if self.spatial:
+            # verify wether the spatial parameter value is OK
+            if self.spatial not in spatial_options:
+                raise ValueError(
+                    f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
+                )
+        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
+        elif self.coordinates and ('place' in self.coordinates):
+            raise ValueError(
+                f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
+            )
+
+
+
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
         raise NotImplementedError
 
-    def _create_fun(self):
+    def _create_fun(self, actual_start_date):
         """Convert integrate statement to scipy-compatible function"""
 
         def func(t, y, pars={}):
@@ -257,13 +279,17 @@ class BaseModel:
             params = pars.copy()
 
             if self.time_dependent_parameters:
+                if actual_start_date is not None:
+                    date = self.int_to_date(actual_start_date, t)
+                else:
+                    date = t
                 for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
                     if self._relative_time_dependent_value[i] == True:
-                        params[param] = func(t, pars[param], **func_params)
+                        params[param] = func(date, pars[param], **func_params)
                     else:
-                        params[param] = func(t, **func_params)
-            
+                        params[param] = func(date, **func_params)
+
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
@@ -274,29 +300,34 @@ class BaseModel:
             for size in self.stratification_size:
                 size_lst.append(size)
             y_reshaped = y.reshape(tuple(size_lst))
-
             dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
         return func
 
-    def _sim_single(self, time):
+    def _sim_single(self, time, actual_start_date=None):
         """"""
-        fun = self._create_fun()
+        fun = self._create_fun(actual_start_date)
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
+        
+        # Initial conditions must be one long list of values
+        if self.spatial:
+            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
+        else:
+            y0 = list(itertools.chain(*self.initial_states.values()))
 
         if self.discrete == False:
             output = solve_ivp(fun, time,
-                           list(itertools.chain(*self.initial_states.values())),
+                           y0,
                            args=[self.parameters], t_eval=t_eval)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
 
         # map to variable names
-        return self._output_to_xarray_dataset(output)
+        return self._output_to_xarray_dataset(output, actual_start_date)
 
     def solve_discrete(self,fun,time,y,args):
         # Preparations
@@ -320,22 +351,51 @@ class BaseModel:
         }
         return output
 
-    def date_to_diff(self, start_date, date, excess_time):
+    def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
-        which is excess_time days before start_date)
+        which is warmup days before actual_start_date)
         """
-        return int((pd.to_datetime(date)-pd.to_datetime(start_date))/pd.to_timedelta('1D'))+excess_time
+        return int((pd.to_datetime(end_date)-pd.to_datetime(actual_start_date))/pd.to_timedelta('1D'))
 
-    def sim(self, time, excess_time=None, start_date='2020-03-15'):
+    def int_to_date(self, actual_start_date, t):
+        date = actual_start_date + pd.Timedelta(t, unit='D')
+        return date
+
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
+
         """
-        Run a model simulation for the given time period.
+        Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
+        Can use samples drawn using MCMC to perform the repeated simulations.
+
 
         Parameters
         ----------
-        time : int or list of int [start, stop]
+        time : int, list of int [start, stop], string or timestamp
             The start and stop time for the simulation run.
             If an int is specified, it is interpreted as [0, time].
+            If a string or timestamp is specified, this is interpreted as the end time of the simulation
+
+        warmup : int
+            Number of days for model warm-up
+
+        start_date : str or timestamp
+            Model starts to run on start_date - warmup
+
+        N : int
+            Number of repeated simulations (useful for stochastic models). One by default.
+
+        draw_fcn : function
+            A function which takes as its input the dictionary of model parameters 
+            and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
+            # TO DO: verify draw_fcn
+
+        samples : dictionary
+            Sample dictionary used by draw_fcn.
+            # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
+
+        to_sample : list
+            list of parameters to sample by draw_fcn, default ['beta','l','tau','prevention']
 
         Returns
         -------
@@ -343,17 +403,51 @@ class BaseModel:
 
         """
 
+
+        if start_date is not None:
+            actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
+        else:
+            actual_start_date = None
+
         if isinstance(time, int):
             time = [0, time]
 
-        if isinstance(time, str):
-            time = [0, self.date_to_diff(start_date, time, excess_time)]
+        elif isinstance(time, list):
+            time = time
 
-        return self._sim_single(
-            time
-            )
+        elif isinstance(time, (str, pd.Timestamp)):
+            if not isinstance(start_date, (str, pd.Timestamp)):
+                raise TypeError(
+                    'start_date needs to be string or timestamp, not None'
+                )
+            time = [0, self.date_to_diff(actual_start_date, time)]
 
-    def _output_to_xarray_dataset(self, output):
+        else:
+            raise TypeError(
+                    'time must be int, list of ints [start, stop], string or timestamp'
+                )
+        # Copy parameter dictionary --> dict is global
+        cp = copy.deepcopy(self.parameters)
+        # Perform first simulation as preallocation
+        if verbose==True:
+            print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
+        if draw_fcn:
+            self.parameters = draw_fcn(self.parameters,samples,to_sample)
+        out = self._sim_single(time, actual_start_date)
+        # Repeat N - 1 times and concatenate
+        for n in range(N-1):
+            if verbose==True:
+                print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
+            if draw_fcn:
+                self.parameters = draw_fcn(self.parameters,samples,to_sample)
+            out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
+
+        # Reset parameter dictionary
+        self.parameters = cp
+
+        return out
+
+    def _output_to_xarray_dataset(self, output, actual_start_date=None):
         """
         Convert array (returned by scipy) to an xarray Dataset with variable names
         """
@@ -364,14 +458,22 @@ class BaseModel:
             dims = []
         dims.append('time')
 
+        if actual_start_date is not None:
+            time = actual_start_date + pd.to_timedelta(output["t"], unit='D')
+        else:
+            time = output["t"]
+
         coords = {
-            "time": output["t"],
+            "time": time,
         }
 
         if self.stratification:
             for i in range(len(self.stratification)):
-                if self.coordinates and self.coordinates[i] is not None:
-                    coords.update({self.stratification[i]: self.coordinates[i]})
+                if self.coordinates:
+                    if (self.coordinates[i] == 'place') and self.spatial:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    elif self.coordinates[i] is not None:
+                        coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
 
