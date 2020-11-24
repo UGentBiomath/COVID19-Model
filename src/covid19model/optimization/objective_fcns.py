@@ -134,12 +134,16 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         model.parameters = draw_fcn(model.parameters,samples)
     # Perform simulation
     out = model.sim(T, start_date=start_date, warmup=warmup)
- 
+    
+    # Sum over all places
+    if 'place' in out.dims:
+        out = out.sum(dim='place')
+
     # -------------
     # calculate MLE
     # -------------
     ymodel = []
-    MLE = 0
+    MLE = 0    
     for i in range(n):
         som = 0
         # sum required states
@@ -195,11 +199,11 @@ def log_prior_normal(thetas, norm_params):
     """
     A function to compute the log of a multivariate normal prior density from a given parameter vector.
     The parameters are assumed to be independent (i.e. the MVN is a product of marginal normal distributions)
-    
+
     Parameters
     -----------
     thetas: array
-        parameter vector  
+        parameter vector
     norm_params: tuple
         contains tuples with mean and standard deviation for each theta in the parameter vector
     Returns
@@ -216,7 +220,7 @@ def log_prior_normal(thetas, norm_params):
     norm_params = np.array(norm_params).reshape(len(thetas),2)
     lp = norm.logpdf(thetas, loc = norm_params[:,0], scale = norm_params[:,1])
     return np.sum(lp)
-    
+
 
 
 def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0):
@@ -271,7 +275,7 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
     thetas: np.array
         vector containing estimated parameter values
     norm_params: tuple
-        contains tuples with mean and standard deviation for each theta in the parameter vector    
+        contains tuples with mean and standard deviation for each theta in the parameter vector
     thetas: array
         names of parameters to be fitted
     data: array
