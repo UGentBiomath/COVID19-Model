@@ -596,24 +596,35 @@ from .economic_utils import labor_supply_shock, household_demand_shock, labor_co
 class Economic_Model(BaseModel):
 
     # ...state variables and parameters
-
     state_names = ['x', 'c', 'f', 'd', 'l', 'O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'c_s', 'f_s', 'on_site', 'C', 'S_0', 'theta_0']
-    parameters_stratified_names = [['epsilon_S','epsilon_Dh','epsilon_Df']]
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0', 'theta_0']
+    parameters_stratified_names = [['l_s','c_s','f_s']]
     stratification = ['A']
     coordinates = [read_economic_labels('NACE64')]
+
+    # Bookkeeping of 2D stock matrix
+    state_2d = ["S"]
 
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, l_s, n, c_s, f_s, on_site, C, S_0, theta_0, epsilon_S, epsilon_Dh, epsilon_Df, A):
+    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, theta_0, l_s, c_s, f_s, A):
         """
         BIOMATH production network model for Belgium
 
         *Based on the Oxford INET implementation*
         """
 
+        x_new = x
+        c_new = c
+        f_new = f
+        d_new = d
+        l_new = l
+        O_new = O
+        S_new = S
+
         return (x_new, c_new, f_new, d_new, l_new, O_new, S_new)
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
