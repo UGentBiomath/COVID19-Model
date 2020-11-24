@@ -38,6 +38,7 @@ class BaseModel:
     stratification = None
     apply_compliance_to = None
     coordinates = None
+    state_2d = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
                  discrete=False, spatial=None):
@@ -65,6 +66,10 @@ class BaseModel:
             self._function_parameters = []
 
         self._validate()
+
+        # Added to use 2D states
+        if self.state_2d:
+            self.split_point = (len(self.state_names) - 1) * self.stratification_size[0]
 
     def _fill_initial_state_with_zero(self):
         for state in self.state_names:
@@ -208,15 +213,24 @@ class BaseModel:
 
         def validate_initial_states(values, name, object_name):
             values = np.asarray(values)
-            if list(values.shape) != self.stratification_size:
-                raise ValueError(
-                    "The stratification parameters '{strat}' indicates a "
-                    "stratification size of {strat_size}, but {obj} '{name}' "
-                    "has length {val}".format(
-                        strat=self.stratification, strat_size=self.stratification_size,
-                        obj=object_name, name=name, val=list(values.shape)
+            if self.state_2d:
+                if name in self.state_2d:
+                    if list(values.shape) != [self.stratification_size[0],self.stratification_size[0]]:
+                        raise ValueError(
+                            "{obj} {name} was defined as a two-dimensional state "
+                            "but has size {size}, instead of {desired_size}"
+                            .format(obj=object_name,name=name,size=list(values.shape),desired_size=[self.stratification_size[0],self.stratification_size[0]])
+                            )
+            else:
+                if list(values.shape) != self.stratification_size:
+                    raise ValueError(
+                        "The stratification parameters '{strat}' indicates a "
+                        "stratification size of {strat_size}, but {obj} '{name}' "
+                        "has length {val}".format(
+                            strat=self.stratification, strat_size=self.stratification_size,
+                            obj=object_name, name=name, val=list(values.shape)
+                        )
                     )
-                )
 
         # the size of the stratified parameters
         if self.parameters_stratified_names:
@@ -256,13 +270,12 @@ class BaseModel:
                 raise ValueError(
                     f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
                 )
-        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
-        elif self.coordinates and ('place' in self.coordinates):
-            raise ValueError(
-                f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
-            )
-
-
+        
+        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argumen
+        #elif self.coordinates and ('place' in self.coordinates):
+        #    raise ValueError(
+        #        f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
+        #    )
 
     @staticmethod
     def integrate():
@@ -295,13 +308,21 @@ class BaseModel:
             else:
                 model_pars = list(params.values())
 
-            # for the moment assume sequence of parameters, vars,... is correct
-            size_lst=[len(self.state_names)]
-            for size in self.stratification_size:
-                size_lst.append(size)
-            y_reshaped = y.reshape(tuple(size_lst))
-            dstates = self.integrate(t, *y_reshaped, *model_pars)
-            return np.array(dstates).flatten()
+            if not self.state_2d:
+                # for the moment assume sequence of parameters, vars,... is correct
+                size_lst=[len(self.state_names)]
+                for size in self.stratification_size:
+                    size_lst.append(size)
+                y_reshaped = y.reshape(tuple(size_lst))
+                dstates = self.integrate(t, *y_reshaped, *model_pars)
+                return np.array(dstates).flatten()
+            else:
+                # incoming y -> different reshape for 1D vs 2D variables  (2)
+                y_1d, y_2d = np.split(y, [self.split_point])
+                y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
+                y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
+                dstates = self.integrate(t, *y_1d, y_2d, *model_pars)
+                return np.concatenate([np.array(state).flatten() for state in dstates])
 
         return func
 
@@ -312,6 +333,10 @@ class BaseModel:
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
         
+        if self.state_2d:
+            for state in self.state_2d:
+                self.initial_states[state] = self.initial_states[state].flatten()
+
         # Initial conditions must be one long list of values
         if self.spatial:
             y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
@@ -470,9 +495,9 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    if (self.coordinates[i] == 'place') and self.spatial:
-                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
-                    elif self.coordinates[i] is not None:
+                    #if (self.coordinates[i] == 'place') and self.spatial:
+                    #    coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    if self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
@@ -482,12 +507,26 @@ class BaseModel:
             for size in self.stratification_size:
                 size_lst.append(size)
         size_lst.append(len(output["t"]))
-        y_reshaped = output["y"].reshape(tuple(size_lst))
+
+        if not self.state_2d:
+            y_reshaped = output["y"].reshape(tuple(size_lst))
+            zip_star = zip(self.state_names, y_reshaped)
+        else:
+            # assuming only 1 2D variable!
+            size_lst[0] = size_lst[0]-1
+            y_1d, y_2d = np.split(output["y"], [self.split_point])
+            y_1d_reshaped = y_1d.reshape(tuple(size_lst))
+            y_2d_reshaped = y_2d.reshape(self.stratification_size[0], self.stratification_size[0],len(output["t"]))
+            zip_star=zip(self.state_names[:-1],y_1d_reshaped)
 
         data = {}
-        for var, arr in zip(self.state_names, y_reshaped):
+        for var, arr in zip_star:
             xarr = xarray.DataArray(arr, coords=coords, dims=dims)
             data[var] = xarr
+        
+        if self.state_2d:
+            xarr = xarray.DataArray(y_2d_reshaped,coords=coords,dims=[self.stratification[0],self.stratification[0],'time'])
+            data[self.state_names[-1]] = xarr
 
         attrs = {'parameters': dict(self.parameters)}
         return xarray.Dataset(data, attrs=attrs)
