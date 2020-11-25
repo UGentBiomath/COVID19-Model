@@ -55,7 +55,7 @@ def get_economic_parameters():
     pars_dict['f_s'] = -np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
     #pars_dict['n_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
     #pars_dict['n_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
-    pars_dict['on_site'] = np.expand_dims(np.array(df['On-site consumption (-)'].values), axis=1)
+    pars_dict['on_site'] = np.array(df['On-site consumption (-)'].values)
     #pars_dict['TS_0'] = np.expand_dims(np.array(df['Taxes minus subsidies (M€/y)'].values), axis=1)
     #pars_dict['FC_0'] = np.expand_dims(np.array(df['Consumption fixed capital (M€/y)'].values), axis=1)
     #pars_dict['I_0'] = np.expand_dims(np.array(df['Imports (M€/y)'].values), axis=1)
