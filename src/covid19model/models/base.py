@@ -84,16 +84,16 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] == "param":
-            return keywords[2:],True
-        else:
-            return keywords[1:],False
+        if keywords[1] != "param":
+            raise ValueError(
+                "The second parameter of the parameter function should be named 'param'"
+            )
+        return keywords[2:]            
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
 
         extra_params = []
-        self._relative_time_dependent_value = []
 
         #all_param_names = self.parameter_names + self.parameters_stratified_names
 
@@ -110,10 +110,8 @@ class BaseModel:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
-            kwds,relative = self._validate_parameter_function(func)
+            kwds = self._validate_parameter_function(func)
             extra_params.append(kwds)
-            self._relative_time_dependent_value.append(relative)
-
         self._function_parameters = extra_params
 
     def _validate(self):
@@ -171,6 +169,7 @@ class BaseModel:
 
         if self._function_parameters:
             extra_params = [item for sublist in self._function_parameters for item in sublist]
+
             # TODO check that it doesn't duplicate any existing parameter
             # Line below removes duplicate arguments
             extra_params = OrderedDict((x, True) for x in extra_params).keys()
