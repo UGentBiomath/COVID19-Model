@@ -187,6 +187,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
+        xi : factor controlling the contact dependence on density f (spatial only)
 
         Age-stratified parameters
         -------------------------
@@ -312,6 +313,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
+        
+        # Define factor controlling the contact dependence on density f (hard-coded)
+        xi = 0.01 # km^-2
+        pars_dict['xi'] = xi
 
 
     # Other parameters

@@ -310,10 +310,16 @@ class BaseModel:
 
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
+        
+        # Initial conditions must be one long list of values
+        if self.spatial:
+            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
+        else:
+            y0 = list(itertools.chain(*self.initial_states.values()))
 
         if self.discrete == False:
             output = solve_ivp(fun, time,
-                           list(itertools.chain(*self.initial_states.values())),
+                           y0,
                            args=[self.parameters], t_eval=t_eval)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
@@ -376,7 +382,7 @@ class BaseModel:
             Model starts to run on start_date - warmup
 
         N : int
-            Number of repeated simulations. One by default.
+            Number of repeated simulations (useful for stochastic models). One by default.
 
         draw_fcn : function
             A function which takes as its input the dictionary of model parameters 

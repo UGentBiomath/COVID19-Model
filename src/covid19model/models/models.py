@@ -259,9 +259,10 @@ class COVID19_SEIRD_sto(BaseModel):
 
         return output
 
-class COVID19_SEIRD_sto_spatial(BaseModel):
+    
+class COVID19_SEIRD_spatial(BaseModel):
     """
-    BIOMATH stochastic extended SEIRD model for COVID-19, spatially explicit
+    BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
 
     Parameters
     ----------
@@ -280,7 +281,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -290,7 +291,143 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, # SEIRD parameters
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
+                  area, sg,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
+                  place, Nc): # stratified parameters that determine stratification dimensions
+
+        """
+        BIOMATH extended SEIRD model for COVID-19
+        """
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+
+
+        # Define all the parameters needed to determine the rates of change
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
+        # For total population and for the relevant compartments I and A
+        G = place.shape[0] # spatial stratification
+        N = Nc.shape[0] # age stratification
+        T_eff = np.zeros([G,N]) # initialise
+        A_eff = np.zeros([G,N])
+        I_eff = np.zeros([G,N])
+        for g in range(G):
+            for i in range(N):
+                sumT = 0
+                sumA = 0
+                sumI = 0
+                # h is taken, so iterator for a sum is gg
+                for gg in range(G):
+                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
+                    term2 = pi[i] * place[gg][g]
+                    sumT += (term1 + term2) * T[gg][i]
+                    sumA += (term1 + term2) * A[gg][i]
+                    sumI += (term1 + term2) * I[gg][i]
+                T_eff[g][i] = sumT
+                A_eff[g][i] = sumA
+                I_eff[g][i] = sumI
+                
+        # The number of susceptibles from patch g that work in patch h
+        Susc = np.zeros([G,G,N])
+        for gg in range(G):
+            for hh in range(G):
+                for i in range(N):
+                    Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]       
+
+        # Density dependence per patch: f[patch]
+        T_eff_total = T_eff.sum(axis=1)
+        rho = T_eff_total / area
+        f = 1 + (1 - np.exp(-xi * rho))
+
+        # Normalisation factor per age class: zi[age]
+        # Population per age class
+        Ti = T.sum(axis=0)
+        denom = np.zeros(N)
+        for gg in range(G):
+            value = f[gg] * T_eff[gg]
+            denom += value
+        zi = Ti / denom
+        
+        # Define infection from the sum over contacts
+        B = np.zeros([G,N])
+        for gg in range(G):
+            for i in range(N):
+                sumj = 0
+                for j in range(N):
+                    term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    sumj += term
+                B[gg][i] = sumj
+
+        # Infection from sum over all patches
+        dS_inf = np.zeros([G,N])
+        for gg in range(G):
+            for i in range(N):
+                sumhh = 0
+                for hh in range(G):
+                    term = Susc[gg][hh][i] * B[hh][i]
+                    sumhh += term
+                dS_inf[gg][i] = sumhh
+
+        dS  = -dS_inf + zeta*R
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
+        dER = M*(h/dhospital) - (1/der)*ER
+        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
+        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
+        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
+        dH_in = M*(h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
+
+
+        # To be added: effect of average family size (sigma^g or sg)
+        
+
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+    
+    
+class COVID19_SEIRD_sto_spatial(BaseModel):
+    """
+    BIOMATH stochastic extended SEIRD model for COVID-19, spatially explicit. Note: enable discrete=True in model simulation.
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+    """
+
+    # ...state variables and parameters
+
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
+
+    # ..transitions/equations
+    @staticmethod
+
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
+                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -336,7 +473,6 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                 I_eff[g][i] = sumI
 
         # Density dependence per patch: f[patch]
-        xi = 0.01 # km^-2
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
         f = 1 + (1 - np.exp(-xi * rho))

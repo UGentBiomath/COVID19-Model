@@ -16,7 +16,8 @@ import emcee
 import json
 import corner
 
-from covid19model.optimization import objective_fcns, pso
+from covid19model.optimization import objective_fcns
+from covid19model.optimization import pso
 from covid19model.models import models
 from covid19model.models.time_dependant_parameter_fncs import google_lockdown
 from covid19model.data import google
@@ -44,20 +45,81 @@ def checkplots(sampler, discard, fig_path, spatial_unit, figname, labels):
     return
 
 def calculate_R0(samples_beta, model, initN, Nc_total):
+    spatial=False
+    N = initN.size
+    sample_size = len(samples_beta['beta'])
+    if 'place' in model.parameters.keys():
+        spatial=True
+        G = initN.shape[0]
+        N = initN.shape[1]
+        # Define values for 'normalisation' of contact matrices
+        T_eff = np.zeros([G,N])
+        for ii in range(N):
+            for gg in range(G):
+                som = 0
+                for hh in range(G):
+                    som += model.parameters['place'][hh][gg] * initN[hh][ii] # pi = 1 for calculation of R0
+                T_eff[gg][ii] = som
+        density = np.sum(T_eff,axis=1) / model.parameters['area']
+        f = 1 + ( 1 - np.exp(-model.parameters['xi'] * density) )
+        zi_denom = np.zeros(N)
+        for ii in range(N):
+            som = 0
+            for hh in range(G):
+                som += f[hh] * T_eff[hh][ii]
+            zi_denom[ii] = som
+        zi = np.sum(initN, axis=0) / zi_denom
+        Nc_total_spatial = np.zeros([G,N,N])
+        for ii in range(N):
+            for jj in range(N):
+                for hh in range(G):
+                    Nc_total_spatial[hh][ii][jj] = zi[ii] * f[hh] * Nc_total[ii][jj]
+        
     R0 =[]
-    for i in range(len(samples_beta['beta'])):
-        R0.append(sum((model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)*(initN/sum(initN))))
-    R0_stratified = np.zeros([initN.size,len(samples_beta['beta'])])
-    for i in range(len(samples_beta['beta'])):
-        R0_stratified[:,i]= (model.parameters['a']*model.parameters['da']+model.parameters['omega'])*samples_beta['beta'][i]*model.parameters['s']*np.sum(Nc_total,axis=1)
-    R0_stratified_dict = pd.DataFrame(R0_stratified).T.to_dict(orient='list')
+    # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
+    for j in range(sample_size):
+        som = 0
+        if spatial:
+            for gg in range(G):
+                for i in range(N):
+                    som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                            model.parameters['s'][i] * np.sum(Nc_total_spatial, axis=2)[gg][i] * initN[gg][i]
+            R0_temp = som / np.sum(initN)
+        else:
+            for i in range(N):
+                som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                        model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[i]
+            R0_temp = som / np.sum(initN)
+        R0.append(R0_temp)
+        
+    # Stratified R0 value: R0_stratified[place][age][chain] or R0_stratified[age][chain]
+    # This needs to be modified if 'beta' is further stratified
+    R0_stratified_dict = dict({})
+    if spatial:
+        for gg in range(G):
+            R0_stratified_dict[gg] = dict({})
+            for i in range(N):
+                R0_list = []
+                for j in range(sample_size):
+                    R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
+                            samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total_spatial,axis=2)[gg][i]
+                    R0_list.append(R0_temp)
+                R0_stratified_dict[gg][i] = R0_list
+    else:
+        for i in range(N):
+            R0_list = []
+            for j in range(sample_size):
+                R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
+                        samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total,axis=1)[i]
+                R0_list.append(R0_temp)
+            R0_stratified_dict[i] = R0_list
 
     return R0, R0_stratified_dict
 
 
 def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_beta_ramp, start_recalibrate_beta, end_recalibrate_beta, fig_path, samples_path, initN, Nc_total,warmup=0,
-                     maxiter=50, popsize=50, n=30, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8):
-    
+                     maxiter=50, popsize=50, n=30, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
+
     plt.ioff()
 
     ####################################################
@@ -78,8 +140,11 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     parNames = ['sigma_data','beta','l','tau']
     bounds=((30,200),(0.030,0.040),(0.01,20),(0.01,20))
     # run PSO optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
-
+    if processes == -1: # use all but one processor
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
+    else: # use indicated number of processors
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_date,warmup=warmup, processes=processes)
+        
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -169,8 +234,11 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     parNames = ['sigma_data','beta']
     bounds=((1,100),(0.010,0.060))
     # run PSO optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
-
+    if processes == -1:
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
+    else:
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0, processes=processes)
+        
     # run MCMC sampler
     print('\n4) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -195,7 +263,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         'beta_summer': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
         'start_recalibrate_beta': start_recalibrate_beta,
         'end_recalibrate_beta': end_recalibrate_beta})
-    
+
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'_google.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
@@ -252,10 +320,10 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         json.dump(initial_states,fp)
 
     plt.ion()
-    
+
     print('DONE\n')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'_WAVE1_GOOGLE.json'+'"\n')
-    
+
     return samples_dict
 
     print('---------------------------------------------------------------------------------------------------------\n')
@@ -263,13 +331,15 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
                      fig_path, samples_path, initN, Nc_total,
-                     maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8):
+                     maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     """
     Function to calibrate the first wave in different steps with pso and mcmc
     Step 1: calibration of beta and warmup
     Step 2: calibation of compliance parameters
 
+    Parameters
+    ----------
     model : object
         initialized model
     timeseries : Series
@@ -283,7 +353,11 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
-    maxiter: int (default 50)
+    initN : int
+        total population in spatial unit
+    Nc_total : array
+        general contact matrix
+    maxiter: int (default 100)
         maximum number of pso iterations
     popsize: int (default 50)
         population size of particle swarm
@@ -291,8 +365,16 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         slows down calculations
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
+    processes : int
+        number of processors used in the PSO. -1 means "use all but one" (default).
 
-
+    
+    Returns
+    -------
+    samples_dict: dictionary
+        dictionary with keys 'warmup', 'beta', 'l', 'tau' and 'prevention', as well as some other lists
+        and values that are of interest for inspecting the working of the optimization.
+    
     """
     plt.ioff()
     # define dataset
@@ -303,6 +385,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     ####### CALIBRATING BETA AND warmup #######
     #############################################
 
+    if processes == -1:
+        nr_processes = 'all but one'
+    else:
+        nr_processes = str(processes)
+
+    print(f'Using {nr_processes} logical processors\n')
     print('---------------------------')
     print('CALIBRATING BETA AND WARMUP')
     print('---------------------------\n')
@@ -312,8 +400,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
     bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
     # run pso optimisation
-    theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+    if processes == -1:
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig)
+    else:
+        theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
+                        start_date=start_date, omega=omega, phip=phip, phig=phig, processes=processes)
     sigma_data = theta[0]
     warmup = int(round(theta[1]))
     beta = theta[2]
@@ -338,7 +430,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
-    
+
     samples_dict = {'warmup': warmup,
                     'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
 
@@ -364,8 +456,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
     # run optimisation
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
-    theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+    if processes == -1:
+        theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup)
+    else:
+        theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
+                            draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup, processes=processes)
 
     model.parameters.update({'l': theta_comp[1],
                             'tau': theta_comp[2],
@@ -488,7 +584,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     checkplots(sampler, discard, fig_path, spatial_unit, 
                 figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
-    
+
     samples_dict = {'warmup': warmup,
                     'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
 
