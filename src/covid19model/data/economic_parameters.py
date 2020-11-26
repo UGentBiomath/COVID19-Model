@@ -85,9 +85,6 @@ def get_economic_parameters():
             S_0[i,j] = pars_dict['IO'][i,j]*pars_dict['n'][j]
     pars_dict['S_0'] = S_0
 
-    # Consumer preference vector
-    pars_dict['theta_0'] = pars_dict['c_0']/sum(pars_dict['c_0'])
-
     return pars_dict
 
 def get_conversion_matrix(from_to):
