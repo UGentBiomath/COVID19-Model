@@ -170,11 +170,17 @@ class BaseModel:
         if self._function_parameters:
             extra_params = [item for sublist in self._function_parameters for item in sublist]
 
-            # TODO check that it doesn't duplicate any existing parameter
-            # Line below removes duplicate arguments
+            # TODO check that it doesn't duplicate any existing parameter (completed?)
+            # Line below removes duplicate arguments in time dependent parameter functions
             extra_params = OrderedDict((x, True) for x in extra_params).keys()
             specified_params += extra_params
-            self._n_function_params = len(extra_params)
+            len_before = len(specified_params)
+            # Line below removes duplicate arguments with integrate defenition
+            specified_params = OrderedDict((x, True) for x in specified_params).keys()
+            len_after = len(specified_params)
+            # Line below computes number of integrate arguments used in time dependent parameter functions
+            n_duplicates = len_before - len_after
+            self._n_function_params = len(extra_params) - n_duplicates
         else:
             self._n_function_params = 0
 
@@ -299,10 +305,7 @@ class BaseModel:
                     func_params = {key: params[key] for key in self._function_parameters[i]}
                     params[param] = func(date, pars[param], **func_params)
 
-            if self._n_function_params > 0:
-                model_pars = list(params.values())[:-self._n_function_params+1]
-            else:
-                model_pars = list(params.values())
+                model_pars = list(params.values())[:-self._n_function_params]
 
             if not self.state_2d:
                 # for the moment assume sequence of parameters, vars,... is correct
