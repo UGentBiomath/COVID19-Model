@@ -591,14 +591,16 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
 
         return output
 
-from .economic_utils import labor_supply_shock, household_demand_shock, labor_compensation_intervention, calc_labor_restriction, calc_input_restriction, household_preference_shock,aggregate_demand_shock,household_income_expectations,calc_household_demand
+#from .economic_utils import calc_intermediate_demand, labor_supply_shock, household_demand_shock, labor_compensation_intervention, calc_labor_restriction, calc_input_restriction, household_preference_shock,aggregate_demand_shock,household_income_expectations,calc_household_demand
+from .economic_utils import *
+#import .economic_utils
 
 class Economic_Model(BaseModel):
 
     # ...state variables and parameters
-    state_names = ['x', 'c', 'f', 'd', 'l', 'O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0', 'theta_0']
-    parameters_stratified_names = [['l_s','c_s','f_s']]
+    state_names = ['x', 'c', 'f', 'd', 'l','O', 'S']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','zeta_previous','tau','gamma_F','gamma_H']
+    parameters_stratified_names = [['epsilon_S','epsilon_D','epsilon_F']]
     stratification = ['A']
     coordinates = [read_economic_labels('NACE64')]
 
@@ -608,20 +610,66 @@ class Economic_Model(BaseModel):
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, theta_0, l_s, c_s, f_s, A):
+    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, zeta_previous, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
         """
         BIOMATH production network model for Belgium
 
         *Based on the Oxford INET implementation*
         """
 
-        x_new = x
-        c_new = c
-        f_new = f
-        d_new = d
-        l_new = l
-        O_new = O
-        S_new = S
+        # 1. Update exogeneous demand with shock vector
+        # ---------------------------------------------
+        f_desired = (1-epsilon_F)*f
+
+        # 2. Compute labor income after government furloughing
+        # ----------------------------------------------------
+        l_star = l + b*(l_0-l)
+
+        # 3. Compute productive capacity under labor constraints
+        # ------------------------------------------------------
+        x_cap = calc_labor_restriction(x_0,l_0,l)
+
+        # 4. Compute productive capacity under input constraints
+        # ------------------------------------------------------
+        x_inp = calc_input_restriction(S,A,C)
+
+        # 5. Compute total consumer demand
+        # --------------------------------
+        # Compute consumer preference vector
+        theta_0 = c_0/sum(c_0)
+        theta = household_preference_shock(epsilon_D, theta_0)
+        # Compute aggregate demand shock
+        epsilon = aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho)
+        # Compute expected long term labor income (Eq. 22, 23)
+        l_p = zeta*sum(l_0)
+        # Compute total consumer demand (per sector)
+        m = sum(c_0)/sum(l_0)
+        c_desired = theta*calc_household_demand(sum(c),l_star,l_p,epsilon,rho,m)
+
+        # 6. Compute B2B demand
+        # ---------------------
+        O_desired = calc_intermediate_demand(d,S,A,S_0,tau)
+
+        # 7. Compute total demand
+        # -----------------------
+        d_desired = calc_total_demand(O_desired,c_desired,f_desired)
+
+        # 8. Leontief production function with critical inputs
+        # ----------------------------------------------------
+        x_new = leontief(x_cap, x_inp, d_desired)
+
+        # 9. Perform rationing
+        # --------------------
+        O_new, c_new, f_new = rationing(x,d_desired,O_desired,c_desired,f_desired)
+        d_new = calc_total_demand(O_new,c_new,f_new)
+
+        # 10. Update inventories
+        # ----------------------
+        S_new = inventory_updating(S,O_new,x_new,A)
+
+        # 11. Hire/fire workers
+        # ---------------------
+        l_new = hiring_firing(l, l_0, x_0, x_inp, x_cap, d_new, gamma_F, gamma_H, epsilon_S)
 
         return (x_new, c_new, f_new, d_new, l_new, O_new, S_new)
 
