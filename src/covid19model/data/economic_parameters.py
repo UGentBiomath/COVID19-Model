@@ -44,15 +44,16 @@ def get_economic_parameters():
 
     # Others.csv
     df = pd.read_csv(os.path.join(par_interim_path,"others.csv"), sep=',',header=[1],index_col=[0])
-    pars_dict['x_0'] = np.expand_dims(np.array(df['Sectoral output (M€/y)'].values), axis=1)/365
-    pars_dict['O_j'] = np.expand_dims(np.array(df['Intermediate demand (M€/y)'].values), axis=1)/365
-    pars_dict['l_0'] = np.expand_dims(np.array(df['Labor compensation (M€/y)'].values), axis=1)/365
-    pars_dict['l_s'] = 1-np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
-    pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€/y)'].values), axis=1)/365
-    pars_dict['f_0'] = np.expand_dims(np.array(df['Total other demand (M€/y)'].values), axis=1)/365
+    pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
+    pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
+    pars_dict['l_0'] = np.array(df['Labor compensation (M€/y)'].values)/365
+    pars_dict['c_0'] = np.array(df['Household demand (M€/y)'].values)/365
+    pars_dict['f_0'] = np.array(df['Total other demand (M€/y)'].values)/365
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
-    pars_dict['c_s'] = -np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)/100
-    pars_dict['f_s'] = -np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)/100
+    # shock vectors
+    pars_dict['l_s'] = 1-np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100)
+    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
     #pars_dict['n_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
     #pars_dict['n_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
     pars_dict['on_site'] = np.array(df['On-site consumption (-)'].values)
