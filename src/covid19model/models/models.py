@@ -598,7 +598,7 @@ from .economic_utils import *
 class Economic_Model(BaseModel):
 
     # ...state variables and parameters
-    state_names = ['x', 'c', 'f', 'd', 'l','O', 'S']
+    state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
     parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','zeta_previous','tau','gamma_F','gamma_H']
     parameters_stratified_names = [['epsilon_S','epsilon_D','epsilon_F']]
     stratification = ['A']
@@ -610,7 +610,7 @@ class Economic_Model(BaseModel):
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, zeta_previous, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, zeta_previous, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
         """
         BIOMATH production network model for Belgium
 
@@ -619,12 +619,12 @@ class Economic_Model(BaseModel):
 
         # 1. Update exogeneous demand with shock vector
         # ---------------------------------------------
-        f_desired = (1-epsilon_F)*f
+        f_desired = (1-epsilon_F)*f_0
 
         # 2. Compute labor income after government furloughing
         # ----------------------------------------------------
         l_star = l + b*(l_0-l)
-
+  
         # 3. Compute productive capacity under labor constraints
         # ------------------------------------------------------
         x_cap = calc_labor_restriction(x_0,l_0,l)
@@ -632,36 +632,35 @@ class Economic_Model(BaseModel):
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
         x_inp = calc_input_restriction(S,A,C)
-
+ 
         # 5. Compute total consumer demand
         # --------------------------------
         # Compute consumer preference vector
         theta_0 = c_0/sum(c_0)
         theta = household_preference_shock(epsilon_D, theta_0)
         # Compute aggregate demand shock
-        epsilon = aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho)
-        # Compute expected long term labor income (Eq. 22, 23)
+        epsilon_t = aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho)
+        # Compute expected total long term labor income (Eq. 22, 23)
         l_p = zeta*sum(l_0)
         # Compute total consumer demand (per sector)
         m = sum(c_0)/sum(l_0)
-        c_desired = theta*calc_household_demand(sum(c),l_star,l_p,epsilon,rho,m)
+        c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
 
         # 6. Compute B2B demand
-        # ---------------------
-        O_desired = calc_intermediate_demand(d,S,A,S_0,tau)
+        # ---------------------   
+        O_desired = calc_intermediate_demand(d,S,A,S_0,tau) # 2D
 
         # 7. Compute total demand
         # -----------------------
-        d_desired = calc_total_demand(O_desired,c_desired,f_desired)
+        d_new = calc_total_demand(O_desired,c_desired_new,f_desired)
 
         # 8. Leontief production function with critical inputs
         # ----------------------------------------------------
-        x_new = leontief(x_cap, x_inp, d_desired)
+        x_new = leontief(x_cap, x_inp, d_new)
 
         # 9. Perform rationing
         # --------------------
-        O_new, c_new, f_new = rationing(x,d_desired,O_desired,c_desired,f_desired)
-        d_new = calc_total_demand(O_new,c_new,f_new)
+        O_new, c_new, f_new = rationing(x_new,d_new,O_desired,c_desired_new,f_desired)
 
         # 10. Update inventories
         # ----------------------
@@ -671,7 +670,11 @@ class Economic_Model(BaseModel):
         # ---------------------
         l_new = hiring_firing(l, l_0, x_0, x_inp, x_cap, d_new, gamma_F, gamma_H, epsilon_S)
 
-        return (x_new, c_new, f_new, d_new, l_new, O_new, S_new)
+        # 12. Convert order matrix to total order per sector (2D --> 1D)
+        # --------------------------------------------------------------
+        O_new = np.sum(O_new,axis=1)
+
+        return (x_new, c_new, c_desired_new, f_new, d_new, l_new, O_new, S_new)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

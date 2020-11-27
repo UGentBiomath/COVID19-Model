@@ -48,7 +48,7 @@ def calc_input_restriction(S_t,A,C):
         x_t[i] = np.nanmin(S_t[np.where(C[i,:] == 1),i]/A[np.where(C[i,:] == 1),i])
         if np.isnan(x_t[i]): # Q for Koen Schoors: sectors with no input dependencies, is this realistic?
             x_t[i]=np.inf
-    return np.expand_dims(x_t,axis=1)
+    return x_t
 
 def household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,on_site):
     """
@@ -78,7 +78,7 @@ def household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,
     """
 
     if t < t_start_lockdown:
-        return np.zeros([c_s.shape[0],1])
+        return np.zeros([c_s.shape[0]])
     elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
         return c_s
     elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
@@ -86,15 +86,15 @@ def household_demand_shock(t,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,
         epsilon[np.where(on_site == 0)] = 0
         return epsilon
     else:
-        return np.zeros([c_s.shape[0],1])
+        return np.zeros([c_s.shape[0]])
 
-def household_preference_shock(epsilon, theta_0):
+def household_preference_shock(epsilon_D, theta_0):
     """
     A function to return the preference of households for the output of a certain sector
 
     Parameters
     ----------
-    epsilon : np.array
+    epsilon_D : np.array
         sectoral household demand shock
     theta_0 : int
         household preference under business-as-usual (absence of shock epsilon)
@@ -105,13 +105,12 @@ def household_preference_shock(epsilon, theta_0):
         household consumption preference vector
     """
 
-    theta=np.zeros(epsilon.shape[0])
-    for i in range(epsilon.shape[0]):
-        theta[i] = (1-epsilon[i])*theta_0[i]/(sum((1-epsilon)*theta_0))
+    theta=np.zeros(epsilon_D.shape[0])
+    for i in range(epsilon_D.shape[0]):
+        theta[i] = (1-epsilon_D[i])*theta_0[i]/(sum((1-epsilon_D)*theta_0))
+    return theta
 
-    return np.expand_dims(theta, axis=1)
-
-def aggregate_demand_shock(epsilon,theta_0,delta_S,rho):
+def aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho):
     """
     A function to return the aggregate household demand shock.
 
@@ -127,7 +126,7 @@ def aggregate_demand_shock(epsilon,theta_0,delta_S,rho):
     epsilon_t : np.array
         household consumption preference vector
     """
-    return delta_S*(1-sum((1-epsilon)*theta_0))*(1-rho)
+    return delta_S*(1-sum((1-epsilon_D)*theta_0))*(1-rho)
 
 def household_income_expectations(t,zeta_previous,t_start_lockdown,t_end_lockdown,l_0,l_start_lockdown,rho,L):
     """
@@ -242,7 +241,7 @@ def calc_total_demand(O,c_t,f_t):
     d_t : np.array
         total demand
     """
-    return np.expand_dims(np.sum(O,axis=1),axis=1) + c_t + f_t
+    return np.sum(O,axis=1) + c_t + f_t
 
 def rationing(x_t,d_t,O,c_t,f_t):
     """
@@ -346,10 +345,11 @@ def hiring_firing(l_old, l_0, x_0, x_t_input, x_t_labor, d_t, gamma_F, gamma_H, 
         elif delta_l[i] <= 0:
             l_new[i] = l_old[i] + gamma_F*delta_l[i]
     l_new=np.expand_dims(l_new,axis=1)
+    l_0=np.expand_dims(l_0,axis=1)
+    epsilon_S=np.expand_dims(epsilon_S,axis=1)
     # Labor force reduction due to lockdown
     l_new[np.greater(l_new,(1-epsilon_S)*l_0)] =  ((1-epsilon_S)*l_0)[np.greater(l_new,(1-epsilon_S)*l_0)]
-
-    return l_new
+    return l_new[:,0]
 
 def labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s):
     """
@@ -373,11 +373,11 @@ def labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s):
         
     """
     if t < t_start_lockdown:
-        return np.zeros([l_s.shape[0],1])
+        return np.zeros([l_s.shape[0]])
     elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
         return l_s
     else:
-        return np.zeros([l_s.shape[0],1])
+        return np.zeros([l_s.shape[0]])
 
 def labor_compensation_intervention(t, t_start_compensation, t_end_compensation, l_t, l_0, b):
     """
