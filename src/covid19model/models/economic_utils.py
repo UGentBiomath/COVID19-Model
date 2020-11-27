@@ -351,17 +351,19 @@ def hiring_firing(l_old, l_0, x_0, x_t_input, x_t_labor, d_t, gamma_F, gamma_H, 
     l_new[np.greater(l_new,(1-epsilon_S)*l_0)] =  ((1-epsilon_S)*l_0)[np.greater(l_new,(1-epsilon_S)*l_0)]
     return l_new[:,0]
 
-def labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s):
+def labor_supply_shock(t,param,t_start_lockdown,t_end_lockdown,l_s):
     """
-    A function returning the labor reduction due to lockdown measures. (= time-dependent parameter)
+    A time-dependent parameter function returning the labor reduction due to lockdown measures.
 
     Parameters
     ----------
     t : int
         current time
-    t_start_lockdown : int
+    param: np.array
+        initialised value of epsilon_S
+    t_start_lockdown : pd.timestamp
         start of economic lockdown
-    t_end_lockdown : int
+    t_end_lockdown : pd.timestamp
         end of economic lockdown
     l_s : np.array
         number of unactive workers under lockdown measures (obtained from survey 25-04-2020)
@@ -373,11 +375,11 @@ def labor_supply_shock(t,t_start_lockdown,t_end_lockdown,l_s):
         
     """
     if t < t_start_lockdown:
-        return np.zeros([l_s.shape[0]])
+        return param
     elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
         return l_s
     else:
-        return np.zeros([l_s.shape[0]])
+        return param
 
 def labor_compensation_intervention(t, t_start_compensation, t_end_compensation, l_t, l_0, b):
     """
