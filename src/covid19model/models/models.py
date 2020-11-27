@@ -599,7 +599,7 @@ class Economic_Model(BaseModel):
 
     # ...state variables and parameters
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','zeta_previous','tau','gamma_F','gamma_H']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H']
     parameters_stratified_names = [['epsilon_S','epsilon_D','epsilon_F']]
     stratification = ['A']
     coordinates = [read_economic_labels('NACE64')]
@@ -610,7 +610,7 @@ class Economic_Model(BaseModel):
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, zeta_previous, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
         """
         BIOMATH production network model for Belgium
 
