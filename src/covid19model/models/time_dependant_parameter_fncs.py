@@ -176,7 +176,7 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
     # get mobility reductions
     if t < t1:
         return Nc_all['total']
-    elif t1 < t <= df_google.index[-1]:
+    elif t1 <= t <= df_google.index[-1]:
         row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
     elif t > df_google.index[-1]:
         row=-df_google[df_google.index == df_google.index[-1]]/100
@@ -250,7 +250,7 @@ def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau
     # get mobility reductions
     if t < t1:
         return Nc_all['total']
-    elif t1 < t <= df_google.index[-1]:
+    elif t1 <= t <= df_google.index[-1]:
         row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
     elif t > df_google.index[-1]:
         row=-df_google[df_google.index == df_google.index[-1]]/100
