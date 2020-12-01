@@ -14,6 +14,53 @@ def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
 
+def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, prev_leisure=1, prev_others=1, school=None, work=None, transport=None, leisure=None, others=None):
+    """
+    t : timestamp
+        current date
+    Nc_all : dictionnary
+        contact matrices for home, schools, work, transport, leisure and others
+    prev_... : float [0,1]
+        prevention parameter to estimate
+    school, work, transport, leisure, others : float [0,1]
+        level of opening of these sectors
+        if None, it is calculated from google mobility data
+        only school cannot be None!
+    """
+    
+    if t < pd.Timestamp('2020-03-15'):
+        CM = Nc_all['total']
+    else:
+        
+        if school is None:
+            raise ValueError(
+            "Please indicate to which extend schools are open")
+        
+        if pd.Timestamp('2020-03-15') < t <= df_google.index[-1]:
+            #take t.date() because t can be more than a date! (e.g. when tau_days is added)
+            row = -df_google[df_google.index == pd.Timestamp(t.date())]/100 
+        else:
+            row = -df_google.iloc[[-1],:]/100
+
+        if work is None:
+            work=(1-row['work'].values)[0]
+        if transport is None:
+            transport=(1-row['transport'].values)[0]
+        if leisure is None:
+            leisure=(1-row['retail_recreation'].values)[0]
+        if others is None:
+            others=(1-row['grocery'].values)[0]
+
+        CM = (prev_home*(1/2.3)*Nc_all['home'] + 
+              prev_schools*school*Nc_all['schools'] + 
+              prev_work*work*Nc_all['work'] + 
+              prev_transport*transport*Nc_all['transport'] + 
+              prev_leisure*leisure*Nc_all['leisure'] + 
+              prev_others*others*Nc_all['others']) 
+
+
+    return CM
+
 def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
     """
     Lockdown function handling t as datetime
@@ -129,7 +176,7 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
     # get mobility reductions
     if t < t1:
         return Nc_all['total']
-    elif t1 < t <= df_google.index[-1]:
+    elif t1 <= t <= df_google.index[-1]:
         row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
     elif t > df_google.index[-1]:
         row=-df_google[df_google.index == df_google.index[-1]]/100
@@ -203,7 +250,7 @@ def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau
     # get mobility reductions
     if t < t1:
         return Nc_all['total']
-    elif t1 < t <= df_google.index[-1]:
+    elif t1 <= t <= df_google.index[-1]:
         row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
     elif t > df_google.index[-1]:
         row=-df_google[df_google.index == df_google.index[-1]]/100
