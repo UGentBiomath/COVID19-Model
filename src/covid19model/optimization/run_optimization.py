@@ -143,7 +143,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     if processes == -1: # use all but one processor
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
     else: # use indicated number of processors
-        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_date,warmup=warmup, processes=processes)
+        theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup, processes=processes)
         
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
