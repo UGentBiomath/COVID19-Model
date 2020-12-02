@@ -135,8 +135,8 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - beta*s*np.matmul(Nc,((I+A)/T)*S) + zeta*R
-        dE  = beta*s*np.matmul(Nc,((I+A)/T)*S) - E/sigma
+        dS  = - beta*s*np.matmul(Nc,((I+A)/T))*S + zeta*R
+        dE  = beta*s*np.matmul(Nc,((I+A)/T))*S - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
@@ -356,8 +356,8 @@ class COVID19_SEIRD_spatial(BaseModel):
             for i in range(N):
                 sumj = 0
                 for j in range(N):
-                    #term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
-                    term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
                     sumj += term
                 B[gg][i] = sumj
 
@@ -370,6 +370,16 @@ class COVID19_SEIRD_spatial(BaseModel):
                     term = Susc[gg][hh][i] * B[hh][i]
                     sumhh += term
                 dS_inf[gg][i] = sumhh
+                
+#         # Sanity check: redefine dS_inf to simplest case: DELETE LATER
+#         for gg in range(G):
+#             for i in range(N):
+#                 sumj = 0
+#                 for j in range(N):
+#                     term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I[gg,j] + A[gg,j]) / T[gg,j]
+#                     #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
+#                     sumj += term
+#                 dS_inf[gg][i] = S[gg][i] * sumj
 
         dS  = -dS_inf + zeta*R
         dE  = dS_inf - E/sigma
