@@ -23,7 +23,7 @@ register_matplotlib_converters()
 
 from .utils import read_coordinates_nis, dens_dep
 from ..optimization import pso
-from .QALY import create_life_table 
+from .QALY import create_life_table
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -109,20 +109,22 @@ class COVID19_SEIRD(BaseModel):
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        v : daily vaccination rate (percentage of population to be vaccinated)
+        e : vaccine effectivity
 
     """
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, Nc):
+                  dhospital, e, s, a, h, c, m_C, m_ICU, v, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -144,12 +146,12 @@ class COVID19_SEIRD(BaseModel):
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        
+
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -257,7 +259,7 @@ class COVID19_SEIRD_sto(BaseModel):
 
         return output
 
-    
+
 class COVID19_SEIRD_spatial(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
@@ -328,13 +330,13 @@ class COVID19_SEIRD_spatial(BaseModel):
                 T_eff[g][i] = sumT
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
-                
+
         # The number of susceptibles from patch g that work in patch h
         Susc = np.zeros([G,G,N])
         for gg in range(G):
             for hh in range(G):
                 for i in range(N):
-                    Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]       
+                    Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]
 
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
@@ -349,7 +351,7 @@ class COVID19_SEIRD_spatial(BaseModel):
             value = f[gg] * T_eff[gg]
             denom += value
         zi = Ti / denom
-        
+
         # Define infection from the sum over contacts
         B = np.zeros([G,N])
         for gg in range(G):
@@ -370,7 +372,7 @@ class COVID19_SEIRD_spatial(BaseModel):
                     term = Susc[gg][hh][i] * B[hh][i]
                     sumhh += term
                 dS_inf[gg][i] = sumhh
-                
+
 #         # Sanity check: redefine dS_inf to simplest case: DELETE LATER
 #         for gg in range(G):
 #             for i in range(N):
@@ -398,11 +400,11 @@ class COVID19_SEIRD_spatial(BaseModel):
 
 
         # To be added: effect of average family size (sigma^g or sg)
-        
+
 
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
-    
-    
+
+
 class COVID19_SEIRD_sto_spatial(BaseModel):
     """
     BIOMATH stochastic extended SEIRD model for COVID-19, spatially explicit. Note: enable discrete=True in model simulation.
@@ -504,7 +506,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                     summ += term
                 argument[g,i] = summ
         P = 1 - np.exp(l*argument) # multiplied by length of timestep
-        
+
         # The probability to get infected in any patch when in a particular age class: Pbis[patch][age]
         Pbis = np.zeros([G,N]) # initialise
         # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
@@ -549,7 +551,7 @@ class COVID19_SEIRD_sto_spatial(BaseModel):
                         (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
                         (1 - np.exp(- l * zeta ))*np.ones([G,N]),
                         ]
-        
+
         states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
         propensity={}
         # Calculate propensity for each migration (listed in keys)
