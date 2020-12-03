@@ -339,7 +339,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         for gg in range(G):
             for hh in range(G):
                 for i in range(N):
-                    place_eff[gg][hh] * S[gg][i]
+                    Susc[gg][hh][i] = place_eff[gg][hh] * S[gg][i]
 
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
