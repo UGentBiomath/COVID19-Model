@@ -414,7 +414,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                     ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                     graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
                 else:
-                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
+                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').values
                     label1='national'
                     graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graphs.append(graph)
