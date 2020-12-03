@@ -13,7 +13,7 @@ def sample_beta_binomial(n, p, k, size=None):
     r = np.random.binomial(n, p)
     return r
 
-def name2nis(name):
+def name2nis(name, return_index=None):
     """
     A function to convert the name of a Belgian municipality/arrondissement/province/etc. to its NIS code
 
@@ -21,6 +21,8 @@ def name2nis(name):
     ----------
     name : str
         the name of the municipality/arrondissement/province/etc.
+    return_index : str
+        Return the index of the ordered NIS codes; ordered per municipality/arrondissement/province. Possible strings: mun, arr, prov, test. Default is None.
 
     Returns
     -------
@@ -46,8 +48,26 @@ def name2nis(name):
         raise ValueError(
                 "No match for '{0}' found".format(name)
             )
+        
+    nis_value = name_df[name_df['name'] == name]['NIS'].values[0]
+    if return_index:
+        if return_index not in ['mun', 'arr', 'prov', 'test']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov', or 'test'".format(return_index)
+                    )
+        geo = return_index
+        nis_list = pd.read_csv(os.path.join(data_path, f'interim/demographic/initN_{geo}.csv'))['NIS']
+        if nis_list.index[nis_list==nis_value].values:
+            index = nis_list.index[nis_list==nis_value][0]
+            return index
+        else:
+            raise ValueError(
+                        f"NIS value {nis_value} not found in file 'initN_{geo}.csv'. Make sure the "
+                        "'return_index' string matches the requested name type."
+                    )
     else:
-        return name_df[name_df['name'] == name]['NIS'].values[0]
+        return nis_value
 
 def read_coordinates_nis(spatial='arr'):
     """
