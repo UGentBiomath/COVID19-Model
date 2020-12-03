@@ -323,7 +323,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
-    # Fitted parameters
-    pars_dict['beta'] = 0.03492
+    # Fitted parameters (hardcoded)
+    beta = 0.03492
+    pars_dict['beta'] = beta
+    if spatial:
+        pars_dict['beta'] = beta*np.ones(pars_dict['place'].shape[0]) # one effective beta per patch
 
     return pars_dict
