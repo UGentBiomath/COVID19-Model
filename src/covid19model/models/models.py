@@ -282,8 +282,8 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e',  'xi']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'v', 'pi']]
-    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    parameters_stratified_names = [['area', 'sg', 'pg'], ['s','a','h', 'c', 'm_C','m_ICU', 'v']] # resp. G-, N-dimensional
+    stratification = ['place', 'Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
 
@@ -292,8 +292,8 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e, xi, # SEIRD parameters
-                  area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, v, pi, # age-stratified parameters
+                  area, sg, pg,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, v, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
@@ -308,35 +308,38 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
-        # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
+        
+        # Effective mobility matrix (no age stratification)
+        place_eff = np.zeros([G,G])
+        for gg in range(G):
+            for hh in range(G):
+                place_eff[gg][hh] = pg[gg] * pg[hh] * place[gg][hh]
+                if gg == hh:
+                    sumff = 0
+                    for ff in range(G):
+                        sumff += (1 - pg[gg] * pg[ff]) * place[gg][ff]
+                    place_eff[gg][hh] += sumff
+        
+        # Effective population per age class per patch: T[patch][age] due to mobility place_eff[patch][patch]
+        # For total population and for the relevant compartments I and A
         T_eff = np.zeros([G,N]) # initialise
         A_eff = np.zeros([G,N])
         I_eff = np.zeros([G,N])
-        for g in range(G):
+        for gg in range(G):
             for i in range(N):
-                sumT = 0
-                sumA = 0
-                sumI = 0
-                # h is taken, so iterator for a sum is gg
-                for gg in range(G):
-                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
-                    term2 = pi[i] * place[gg][g]
-                    sumT += (term1 + term2) * T[gg][i]
-                    sumA += (term1 + term2) * A[gg][i]
-                    sumI += (term1 + term2) * I[gg][i]
-                T_eff[g][i] = sumT
-                A_eff[g][i] = sumA
-                I_eff[g][i] = sumI
+                for hh in range(G):
+                    T_eff[gg][i] += place_eff[hh][gg] * T[hh][i]
+                    A_eff[gg][i] += place_eff[hh][gg] * A[hh][i]
+                    I_eff[gg][i] += place_eff[hh][gg] * I[hh][i]
 
         # The number of susceptibles from patch g that work in patch h
         Susc = np.zeros([G,G,N])
         for gg in range(G):
             for hh in range(G):
                 for i in range(N):
-                    Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]
+                    place_eff[gg][hh] * S[gg][i]
 
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
@@ -358,9 +361,8 @@ class COVID19_SEIRD_spatial(BaseModel):
             for i in range(N):
                 sumj = 0
                 for j in range(N):
-                    term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    sumj += beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
                     #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
-                    sumj += term
                 B[gg][i] = sumj
 
         # Infection from sum over all patches
@@ -369,19 +371,8 @@ class COVID19_SEIRD_spatial(BaseModel):
             for i in range(N):
                 sumhh = 0
                 for hh in range(G):
-                    term = Susc[gg][hh][i] * B[hh][i]
-                    sumhh += term
+                    sumhh += Susc[gg][hh][i] * B[hh][i]
                 dS_inf[gg][i] = sumhh
-
-#         # Sanity check: redefine dS_inf to simplest case: DELETE LATER
-#         for gg in range(G):
-#             for i in range(N):
-#                 sumj = 0
-#                 for j in range(N):
-#                     term = beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I[gg,j] + A[gg,j]) / T[gg,j]
-#                     #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
-#                     sumj += term
-#                 dS_inf[gg][i] = S[gg][i] * sumj
 
         dS  = -dS_inf + zeta*R
         dE  = dS_inf - E/sigma
