@@ -281,8 +281,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e',  'xi']
-    parameters_stratified_names = [['area', 'sg', 'pg'], ['s','a','h', 'c', 'm_C','m_ICU', 'v']] # resp. G-, N-dimensional
+    parameter_names = ['sigma', 'omega', 'zeta','da', 'dm', 'der','dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e',  'xi']
+    parameters_stratified_names = [['beta', 'area', 'sg', 'pg'], ['s','a','h', 'c', 'm_C','m_ICU', 'v']] # resp. G-, N-dimensional
     stratification = ['place', 'Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -291,8 +291,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e, xi, # SEIRD parameters
-                  area, sg, pg,  # spatially stratified parameters. Might delete sg later.
+                  sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e, xi, # SEIRD parameters
+                  beta, area, sg, pg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, v, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
@@ -361,8 +361,8 @@ class COVID19_SEIRD_spatial(BaseModel):
             for i in range(N):
                 sumj = 0
                 for j in range(N):
-                    sumj += beta * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
-                    #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
+                    sumj += beta[gg] * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    #term = beta[gg] * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j] # No Arenas rescaling
                 B[gg][i] = sumj
 
         # Infection from sum over all patches
