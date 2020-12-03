@@ -281,8 +281,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec','dhospital', 'xi']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e',  'xi']
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'v', 'pi']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -291,9 +291,9 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, xi, # SEIRD parameters
+                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e, xi, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, v, pi, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
