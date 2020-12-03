@@ -307,7 +307,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['area'] = area * 1e-6 # in square kilometer
 
         # Load mobility parameter, which is doubly stratified and 1 by default (no measures)
-        pi = np.ones([pars_dict['place'].shape[0], pars_dict['Nc'].shape[0]])
+        pi = np.ones(pars_dict['place'].shape[0])
         pars_dict['pi'] = pi
 
         # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now. Currently not used
