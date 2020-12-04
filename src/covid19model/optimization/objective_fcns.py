@@ -71,7 +71,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson'):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
@@ -88,11 +88,13 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
 
     Returns
     -----------
     MLE : float
-        total sum of squared errors
+        loglikelihood based on available data and provided parameter values
 
     Notes
     -----------
@@ -108,16 +110,25 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    i = 0
-    sigma=[]
-    for param in parNames:
-        if param == 'warmup':
-            warmup = int(round(thetas[i]))
-        elif i < len(data):
-            sigma.append(thetas[i])
-        else:
-            model.parameters.update({param:thetas[i]})
-        i = i + 1
+    
+    if dist not in ['gaussian', 'poisson']:
+        raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
+    
+    if dist == 'gaussian':
+        sigma=[]
+        for i, param in enumerate(parNames):
+            if param == 'warmup':
+                warmup = int(round(thetas[i]))
+            elif i < len(data):
+                sigma.append(thetas[i])
+            else:
+                model.parameters.update({param : thetas[i]})
+    if dist == 'poisson':
+        for i, param in enumerate(parNames):
+            if param == 'warmup':
+                warmup = int(round(thetas[i]))
+            else:
+                model.parameters.update({param : thetas[i]})
 
     # ~~~~~~~~~~~~~~
     # Run simulation
@@ -132,27 +143,35 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # Use previous samples
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
-    # Perform simulation
+    # Perform simulation and loose the first 'warmup' days
     out = model.sim(T, start_date=start_date, warmup=warmup)
     
-    # Sum over all places
+    # Sanity check: sum over all places
     if 'place' in out.dims:
         out = out.sum(dim='place')
 
     # -------------
     # calculate MLE
     # -------------
-    ymodel = []
-    MLE = 0    
-    for i in range(n):
-        som = 0
-        # sum required states
-        for j in range(len(states[i])):
-            som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[warmup:])
-        # calculate simga2 and log-likelihood function
-        MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
-    return abs(MLE) # must be positive for pso
+    
+    if dist == 'gaussian':
+        ymodel = []
+        MLE = 0
+        for i in range(n): this is wrong for i != 0 I think
+            som = 0
+            # sum required states. This is wrong for j != 0 I think.
+            for j in range(len(states[i])):
+                som = som + out[states[i][j]].sum(dim="Nc").values
+            ymodel.append(som[warmup:]) # only add data beyond warmup time
+            # calculate sigma2 and log-likelihood function based on Gaussian
+            MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+
+    if dist == 'poisson'
+    # calculate loglikelihood function based on Poisson distribution for only H_in
+    ymodel = out[states[i][0]].sum(dim="Nc").values
+    MLE = - np.sum(ymodel) - np.sum(ymodel*data)
+    
+    return abs(MLE) # must be positive for pso, which attempts to minimises MLE
 
 def log_prior(thetas,bounds):
 
