@@ -394,5 +394,5 @@ def moving_avg(timeseries, days=7, win_type=None, params=None):
     if win_type == 'exponential':
         ts_temp = ts_temp.rolling(window=days, center=True, win_type=win_type).mean(tau=params[0])
         
-    timeseries_avg = pd.DataFrame(data=ts_temp.values.copy(), index=timeseries.index.copy())
+    timeseries_avg = pd.DataFrame(data=ts_temp.values.copy(), index=timeseries.index.copy(), columns=[timeseries.name])
     return timeseries_avg
