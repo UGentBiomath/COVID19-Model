@@ -242,7 +242,7 @@ def log_prior_normal(thetas, norm_params):
 
 
 
-def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0):
+def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0, dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -261,6 +261,8 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
         list containing dataseries
     states: array
         list containg the names of the model states to be fitted to data
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
 
     Returns
     -----------
@@ -280,9 +282,9 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
 
-def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None):
+def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None,dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -301,6 +303,8 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
         list containing dataseries
     states: array
         list containg the names of the model states to be fitted to data
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
 
     Returns
     -----------
@@ -316,4 +320,4 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup) # must be negative for emcee
+        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
