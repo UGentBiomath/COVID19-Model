@@ -146,7 +146,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # Perform simulation and loose the first 'warmup' days
     out = model.sim(T, start_date=start_date, warmup=warmup)
     
-    # Sanity check: sum over all places
+    # Sanity check spatial case: sum over all places
     if 'place' in out.dims:
         out = out.sum(dim='place')
 
