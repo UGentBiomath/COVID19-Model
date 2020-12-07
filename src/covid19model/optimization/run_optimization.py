@@ -133,7 +133,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     print('1) Particle swarm optimization\n')
 
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, window_type=None, params=None)
+    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
     data=[ts[start_data:end_beta_ramp]]
     states = [["H_in"]]
 
@@ -336,7 +336,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
 
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
-                     fig_path, samples_path, initN, Nc_total, avg_window=1,
+                     fig_path, samples_path, initN, Nc_total, avg_window=1, dist='poisson',
                      maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     """
@@ -365,6 +365,8 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         general contact matrix
     avg_window : int
         window of a moving average over the data in days. Default is 1 (no averaging)
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     maxiter: int (default 100)
         maximum number of pso iterations
     popsize: int (default 50)
@@ -386,7 +388,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     """
     plt.ioff()
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, window_type=None, params=None)
+    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
     data=[ts[start_date:end_beta]]
     states = [["H_in"]]
 
@@ -406,8 +408,12 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     print('1) Particle swarm optimization\n')
 
     # set optimisation settings
-    parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
-    bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
+    if dist == 'gaussian':
+        parNames_pso = ['sigma_data','warmup','beta'] # must be a list!
+        bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
+    if dist == 'poisson':
+        parNames_pso = ['warmup','beta'] # must be a list!
+        bounds_pso=((40,70),(0.025,0.04)) # must be a list!
     # run pso optimisation
     if processes == -1:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
@@ -415,21 +421,31 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     else:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig, processes=processes)
-    sigma_data = theta[0]
-    warmup = int(round(theta[1]))
-    beta = theta[2]
+        
+    if dist == 'gaussian':
+        sigma_data = theta[0]
+        warmup = int(round(theta[1]))
+        beta = theta[2]
+    if dist == 'gaussian':
+        warmup = int(round(theta[0]))
+        beta = theta[1]
     model.parameters.update({'beta': beta})
 
 
     # run MCMC calibration
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
-    parNames_mcmc = ['sigma_data','beta'] # must be a list!
-    bounds_mcmc=((1,200),(0.01,0.10))
-
-    pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
+    if dist == 'gaussian':
+        parNames_mcmc = ['sigma_data','beta'] # must be a list!
+        bounds_mcmc=((1,200),(0.01,0.10))
+        pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
+    if dist == 'poisson':
+        parNames_mcmc = ['beta']
+        bounds_mcmc=((0.01, 0.10))
+        pos = [beta] + 1e-2*np.random.randn(4,1)
+    
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
+                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     thin = 0
@@ -456,10 +472,14 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     print('1) Particle swarm optimization\n')
 
     # define dataset
-    data=[timeseries[start_date:end_ramp]]
+    data=[ts[start_date:end_ramp]]
     # set optimisation settings
-    parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
-    bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
+    if dist == 'gaussian':
+        parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
+        bounds_pso2=((1,100),(0.1,20),(0,20),(0,1)) # must be a list!
+    if dist == 'poisson':
+        parNames_pso2 = ['l','tau','prevention'] # must be a list!
+        bounds_pso2=((0.1,20),(0,20),(0,1)) # must be a list!
 
     # Import a function to draw values of beta and assign them to the model parameter dictionary
     from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD
@@ -474,15 +494,24 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         theta_comp = pso.fit_pso(model, data, parNames_pso2, states, bounds_pso2,
                             draw_fcn=draw_sample_beta_COVID19_SEIRD, samples=samples_dict, maxiter=maxiter,popsize=popsize, start_date=start_date, warmup=warmup, processes=processes)
 
-    model.parameters.update({'l': theta_comp[1],
-                            'tau': theta_comp[2],
-                            'prevention': theta_comp[3]})
+    if dist == 'gaussian':
+        model.parameters.update({'l': theta_comp[1],
+                                'tau': theta_comp[2],
+                                'prevention': theta_comp[3]})
+    if dist == 'poisson':
+        model.parameters.update({'l': theta_comp[0],
+                                'tau': theta_comp[1],
+                                'prevention': theta_comp[2]})
 
-    bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
-    pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
+    if dist == 'gaussian':
+        bounds_mcmc2=((1,100),(0.001,20),(0,20),(0,1)) # must be a list!
+        pos = theta_comp + [1, 0.1, 0.1, 0.1 ]* np.random.randn(8, 4)
+    if dist == 'poisson':
+        bounds_mcmc2=((0.001,20),(0,20),(0,1)) # must be a list!
+        pos = theta_comp + [0.1, 0.1, 0.1 ]* np.random.randn(8, 3)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_dict, start_date, warmup))
+                                    args=(model,bounds_mcmc2,data,states,parNames_pso2,samples_dict, start_date, warmup, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
     # Check autocorrelation time as a measure of the adequacy of the sample size
@@ -565,7 +594,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     """
     plt.ioff()
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, window_type=None, params=None)
+    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
     data=[ts[start_date:end_beta]]
     states = [["H_in"]]
 
