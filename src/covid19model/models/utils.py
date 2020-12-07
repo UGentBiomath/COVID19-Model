@@ -378,7 +378,7 @@ def moving_avg(timeseries, days=7, win_type=None, params=None):
     -----
     Different win_types are not yet supported, because combining a non-integer window (such as '7D') cannot be combined with non-equal weighing. This can be worked around by first converting the datetime indices to regular indices, saving the datetime indices in a list, then applying centred moving average, and linking the resulting list back to the original dates.
     """
-    
+    col_name = timeseries.columns[0]
     ts_temp = pd.DataFrame(data=timeseries.values.copy())
     if win_type in [None, 'boxcar', 'triang', 'blackman', 'hamming', 'bartlett', 'parzen', 'bohman', 'blackmanharris', 'nuttall', 'barthann']:
         ts_temp = ts_temp.rolling(window=days, center=True, win_type=win_type).mean()
@@ -393,6 +393,6 @@ def moving_avg(timeseries, days=7, win_type=None, params=None):
         ts_temp = ts_temp.rolling(window=days, center=True, win_type=win_type).mean(width=params[0])
     if win_type == 'exponential':
         ts_temp = ts_temp.rolling(window=days, center=True, win_type=win_type).mean(tau=params[0])
-        
-    timeseries_avg = pd.DataFrame(data=ts_temp.values.copy(), index=timeseries.index.copy(), columns=[timeseries.name])
+    
+    timeseries_avg = pd.DataFrame(data=ts_temp.values.copy(), index=timeseries.index.copy(), columns=[col_name])
     return timeseries_avg
