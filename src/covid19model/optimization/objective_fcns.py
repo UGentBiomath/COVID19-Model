@@ -157,7 +157,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     if dist == 'gaussian':
         ymodel = []
         MLE = 0
-        for i in range(n): this is wrong for i != 0 I think
+        for i in range(n): #this is wrong for i != 0 I think
             som = 0
             # sum required states. This is wrong for j != 0 I think.
             for j in range(len(states[i])):
@@ -166,10 +166,10 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
             # calculate sigma2 and log-likelihood function based on Gaussian
             MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
 
-    if dist == 'poisson'
-    # calculate loglikelihood function based on Poisson distribution for only H_in
-    ymodel = out[states[i][0]].sum(dim="Nc").values
-    MLE = - np.sum(ymodel) - np.sum(ymodel*data)
+    if dist == 'poisson':
+        # calculate loglikelihood function based on Poisson distribution for only H_in
+        ymodel = out[states[i][0]].sum(dim="Nc").values
+        MLE = - np.sum(ymodel) - np.sum(ymodel*data)
     
     return abs(MLE) # must be positive for pso, which attempts to minimises MLE
 
