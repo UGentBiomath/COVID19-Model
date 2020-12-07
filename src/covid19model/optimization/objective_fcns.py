@@ -168,7 +168,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
 
     if dist == 'poisson':
         # calculate loglikelihood function based on Poisson distribution for only H_in
-        ymodel = out[states[i][0]].sum(dim="Nc").values
+        ymodel = out[states[0][0]].sum(dim="Nc").values
         MLE = - np.sum(ymodel) - np.sum(ymodel*data)
     
     return abs(MLE) # must be positive for pso, which attempts to minimises MLE
