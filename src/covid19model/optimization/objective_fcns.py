@@ -139,7 +139,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+warmup-1 # *** TO DO: make indepedent from data length
+    T = int(max(data_length)+warmup-1) # *** TO DO: make indepedent from data length
     # Use previous samples
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
