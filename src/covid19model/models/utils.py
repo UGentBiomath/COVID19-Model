@@ -356,7 +356,7 @@ def open_sim(name, group, verbose=True):
 
 
 def moving_avg(timeseries, days=7, win_type=None, params=None):
-    """Takes a centred moving average of a time series over a window with user-defined width and shape. Note: when taking a N-day centred moving average, the first and last N//2 days won't return a value and are effectively lost. Also note that the moving average applied over missing data will result in an effectively larger window - try to make sure there is no missing data in the range the data is averaged.
+    """Takes a centred moving average of a time series over a window with user-defined width and shape. Note: when taking a N-day centred moving average, the first and last N//2 days won't return a value and are effectively lost, BUT they are returned as nans. Also note that the moving average applied over missing data will result in an effectively larger window - try to make sure there is no missing data in the range the data is averaged.
     
     Parameters
     ----------
