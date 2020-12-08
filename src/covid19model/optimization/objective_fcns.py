@@ -175,7 +175,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     return abs(MLE) # must be positive for pso, which attempts to minimises MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
-    """Loglikelihood of Gaussian distribution (minus constant terms)
+    """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
     
     Parameters
     ----------
@@ -192,8 +192,6 @@ def ll_gaussian(ymodel, ydata, sigma):
         Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
     """
     
-#     if (type(ymodel) != list) or (type(ydata) != list):
-#         raise Exception("Input values 'ymodel' and 'ydata' must be lists of floats/ints")
     if len(ymodel) != len(ydata):
         raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
     if (type(sigma) == int) or (type(sigma) == float):
@@ -220,10 +218,11 @@ def ll_poisson(ymodel, ydata, complete=False):
         Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
     """
     
-#     if (type(ymodel) != list) or (type(ydata) != list):
-#         raise Exception("Input values 'ymodel' and 'ydata' must be lists of floats/ints")
     if len(ymodel) != len(ydata):
         raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
+        
+    if min(ymodel) <= 0:
+        raise Exception("When using the loglikelihood of a Poisson distribution, none of the used model values can be zero or smaller.")
         
     ll = - np.sum(ymodel) + np.sum(np.log(ymodel)*ydata)
     if complete == True:
