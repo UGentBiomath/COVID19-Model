@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 from scipy.stats import norm
 from scipy.special import gammaln
 
@@ -114,6 +115,12 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     
     if dist not in ['gaussian', 'poisson']:
         raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
+
+    # number of dataseries
+    n = len(data)
+    for i in range(n):
+        if np.isnan(data[i]).any():
+            raise Exception(f"Data contains nans. Perhaps something went wrong with the moving average?")
     
     if dist == 'gaussian':
         sigma=[]
@@ -134,8 +141,6 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # ~~~~~~~~~~~~~~
     # Run simulation
     # ~~~~~~~~~~~~~~
-    # number of dataseries
-    n = len(data)
     # Compute simulation time
     data_length =[]
     for i in range(n):
@@ -170,7 +175,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     if dist == 'poisson':
         # calculate loglikelihood function based on Poisson distribution for only H_in
         ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:]
-        MLE = ll_poisson(ymodel, data[0])
+        MLE = ll_poisson(ymodel, data[0], offset=1)
     
     return abs(MLE) # must be positive for pso, which attempts to minimises MLE
 
@@ -200,7 +205,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     ll = -1/2 * np.sum(np.log(2*np.pi*sigma*sigma)) - 1/2 * np.sum( (ydata - ymodel)**2 / sigma**2 )
     return ll
 
-def ll_poisson(ymodel, ydata, complete=False):
+def ll_poisson(ymodel, ydata, offset=0, complete=False):
     """Loglikelihood of Poisson distribution
     
     Parameters
@@ -209,6 +214,8 @@ def ll_poisson(ymodel, ydata, complete=False):
         List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
     ydata: list of floats
         List with actual time series values at a particlar time that are to be fitted to the model
+    offset: float
+        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
     complete: boolean
         If True ll_poisson calculates the actual Poisson loglikelihood (including the factorial term), rather than only the terms that vary with varying model parameter values.
 
@@ -221,12 +228,12 @@ def ll_poisson(ymodel, ydata, complete=False):
     if len(ymodel) != len(ydata):
         raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
         
-    if min(ymodel) <= 0:
-        raise Exception("When using the loglikelihood of a Poisson distribution, none of the used model values can be zero or smaller.")
+    if min(ymodel+offset) <= 0:
+        warnings.warn("Some values in the 'ymodel' list are not strictly positive. Consider increasing the 'offset' parameter value")
         
-    ll = - np.sum(ymodel) + np.sum(np.log(ymodel)*ydata)
+    ll = - np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
     if complete == True:
-        ll -= np.sum(gammaln(ydata))
+        ll -= np.sum(gammaln(ydata+offset))
     return ll
 
 def log_prior(thetas,bounds):
