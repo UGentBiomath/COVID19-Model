@@ -109,20 +109,22 @@ class COVID19_SEIRD(BaseModel):
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        v : daily vaccination rate (percentage of population to be vaccinated)
+        e : vaccine effectivity
 
     """
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, Nc):
+                  dhospital, e, s, a, h, c, m_C, m_ICU, v, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -135,8 +137,8 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - beta*s*np.matmul(Nc,((I+A)/T)*S) + zeta*R
-        dE  = beta*s*np.matmul(Nc,((I+A)/T)*S) - E/sigma
+        dS  = - beta*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S
+        dE  = beta*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
@@ -144,7 +146,7 @@ class COVID19_SEIRD(BaseModel):
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S + v*e*E
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
