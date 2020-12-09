@@ -73,7 +73,7 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson'):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
@@ -92,6 +92,8 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         list containg the names of the model states to be fitted to data
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
+    poisson_offset : float
+        Offset to avoid infinities for Poisson loglikelihood around 0. Default is poisson_offset=0.
 
     Returns
     -----------
@@ -176,9 +178,9 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         # calculate loglikelihood function based on Poisson distribution for only H_in
         ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:]
         # Offset=1 is hardcoded and needs to be justified
-        MLE = ll_poisson(ymodel, data[0], offset=1)
+        MLE = ll_poisson(ymodel, data[0], offset=poisson_offset)
     
-    return abs(MLE) # must be positive for pso, which attempts to minimises MLE
+    return -MLE # must be positive for pso, which attempts to minimises MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
     """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
