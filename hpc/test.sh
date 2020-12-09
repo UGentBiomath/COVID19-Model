@@ -1,7 +1,7 @@
 #!/bin/bash
-#PBS -N python_test ## job name
-#PBS -l nodes=1:ppn=all ## single-node job, single core
-#PBS -l walltime=72:00:00 ## max. 2h of wall time
+#PBS -N calibration-COVID19-SEIRD-WAVE2 ## job name
+#PBS -l nodes=1:ppn=all ## single-node job, all available cores
+#PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # load python module
 module load networkx/2.4-intel-2019b-Python-3.7.4
@@ -11,10 +11,10 @@ module load matplotlib/3.1.1-intel-2019b-Python-3.7.4
 cd $VSC_HOME/Documents/COVID-19/hpc/
 
 # Make script executable
-chmod +x sim_stochastic.py
+chmod +x twallema-calibration-COVID19-SEIRD-WAVE2.py
+
+# Load environment 
+conda activate COVID_MODEL
 
 # Execute script
-python sim_stochastic.py
-
-
-
+python twallema-calibration-COVID19-SEIRD-WAVE2.py
