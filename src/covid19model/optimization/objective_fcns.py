@@ -80,16 +80,16 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
 
     Parameters
     -----------
-    model: model object
-        correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
-    parNames: list
-        names of parameters to be fitted
+    model: model object
+        correctly initialised model to be fitted to the dataset
     data: list
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
+    parNames: list
+        names of parameters to be fitted
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     poisson_offset : float
