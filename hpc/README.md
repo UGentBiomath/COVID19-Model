@@ -27,6 +27,7 @@ Now, the environment is ready to be set up using,
 
 ```bash
 conda env create -f environment.yml
+conda init bash
 conda activate COVID_MODEL
 ```
 
@@ -34,6 +35,20 @@ Finally, install the code developed specifically for the project (lives inside t
 
 ```bash
 pip install -e .
+```
+
+## Setting up a job script
+
+To activate the conda environment in a job shell script, use,
+
+```bash
+source activate COVID_MODEL
+```
+
+and close with,
+
+```bash
+source deactivate
 ```
 
 [Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
