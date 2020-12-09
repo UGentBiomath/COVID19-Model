@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import pandas as pd
+from functools import lru_cache
 
 def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
     """
