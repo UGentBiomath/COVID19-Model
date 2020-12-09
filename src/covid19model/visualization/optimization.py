@@ -35,6 +35,8 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
         )
     # initialise figure
     fig, axes = plt.subplots(len(labels))
+    if ndim == 1:
+        axes = [axes]
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
