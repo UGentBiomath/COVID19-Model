@@ -408,7 +408,7 @@ def make_contact_matrix_function(df_google, Nc_all):
     df_google_end = df_google.index[-1]
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def contact_matrix(t, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, 
+    def contact_matrix_6prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, 
                        prev_leisure=1, prev_others=1,
                        school=None, work=None, transport=None, leisure=None, others=None):
         """
