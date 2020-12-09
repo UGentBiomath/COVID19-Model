@@ -387,7 +387,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     plt.ioff()
     # define dataset
 #     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
-    data=[timeseries[start_date:end_beta]]
+    data=[timeseries[start_date:end_beta].squeeze().values]
     states = [["H_in"]]
 
     #############################################
@@ -411,7 +411,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
     if dist == 'poisson':
         parNames_pso = ['warmup','beta'] # must be a list!
-        bounds_pso=((30,80),(0.015,0.080)) # must be a list!
+        bounds_pso=((42,50),(0.030,0.040)) # must be a list!
     # run pso optimisation
     if processes == -1:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
@@ -476,7 +476,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     print('1) Particle swarm optimization\n')
 
     # define dataset
-    data=[ts[start_date:end_ramp]]
+    data=[timeseries[start_date:end_ramp].squeeze().values]
     # set optimisation settings
     if dist == 'gaussian':
         parNames_pso2 = ['sigma_data','l','tau','prevention'] # must be a list!
