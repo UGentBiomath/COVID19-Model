@@ -97,8 +97,8 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
 
     Returns
     -----------
-    MLE : float
-        loglikelihood based on available data and provided parameter values
+    -MLE : float
+        Negative loglikelihood based on available data and provided parameter values
 
     Notes
     -----------
@@ -172,12 +172,11 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
                 som = som + out[states[i][j]].sum(dim="Nc").values
             ymodel.append(som[warmup:]) # only add data beyond warmup time
             # calculate sigma2 and log-likelihood function based on Gaussian
-            MLE = MLE + ll_gaussian(ymodel[i], data[i], sigma[i])#- 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+            MLE = MLE + ll_gaussian(ymodel[i], data[i], sigma[i]) #- 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
 
     if dist == 'poisson':
         # calculate loglikelihood function based on Poisson distribution for only H_in
-        ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:]
-        # Offset=1 is hardcoded and needs to be justified
+        ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:] #- np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
         MLE = ll_poisson(ymodel, data[0], offset=poisson_offset)
     
     return -MLE # must be positive for pso, which attempts to minimises MLE
