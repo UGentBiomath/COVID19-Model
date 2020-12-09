@@ -336,7 +336,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
 
 
 def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta, end_ramp,
-                     fig_path, samples_path, initN, Nc_total, avg_window=1, dist='poisson',
+                     fig_path, samples_path, initN, Nc_total, dist='poisson',
                      maxiter=50, popsize=50, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     """
@@ -363,8 +363,6 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         total population in spatial unit
     Nc_total : array
         general contact matrix
-    avg_window : int
-        window of a moving average over the data in days. Default is 1 (no averaging)
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     maxiter: int (default 100)
@@ -388,8 +386,8 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     """
     plt.ioff()
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
-    data=[ts[start_date:end_beta]]
+#     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
+    data=[timeseries[start_date:end_beta]]
     states = [["H_in"]]
 
     #############################################
@@ -413,7 +411,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
     if dist == 'poisson':
         parNames_pso = ['warmup','beta'] # must be a list!
-        bounds_pso=((40,70),(0.025,0.04)) # must be a list!
+        bounds_pso=((30,80),(0.015,0.080)) # must be a list!
     # run pso optimisation
     if processes == -1:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
@@ -426,7 +424,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         sigma_data = theta[0]
         warmup = int(round(theta[1]))
         beta = theta[2]
-    if dist == 'gaussian':
+    if dist == 'poisson':
         warmup = int(round(theta[0]))
         beta = theta[1]
     model.parameters.update({'beta': beta})
@@ -440,7 +438,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         pos = [sigma_data,beta] + [1, 1e-2 ]* np.random.randn(4, 2)
     if dist == 'poisson':
         parNames_mcmc = ['beta']
-        bounds_mcmc=((0.01, 0.10))
+        bounds_mcmc=[(0.01, 0.10)]
         pos = [beta] + 1e-2*np.random.randn(4,1)
     
     nwalkers, ndim = pos.shape
@@ -448,18 +446,24 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
                      args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
-    thin = 0
+    thin = 1 # was thin = 0, but this raises "slice step cannot be zero"
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
 
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, 
-                figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
-
-    samples_dict = {'warmup': warmup,
-                    'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
+    if dist == 'gaussian':
+        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+                    figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
+        samples_dict = {'warmup': warmup,
+                        'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
+        
+    if dist == 'poisson':
+        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+                    figname='beta_', labels=['$\\beta$'])
+        samples_dict = {'warmup': warmup,
+                        'beta': sampler.get_chain(discard=discard,flat=True)[:,0].tolist()}
 
     print('---------------------------------------------------------------------------------------------------------\n')
 
@@ -515,15 +519,19 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
     # Check autocorrelation time as a measure of the adequacy of the sample size
-    thin = 0
+    thin = 1 # was thin = 0, but this raises "slice step cannot be zero"
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
-        
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, 
-                figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
+
+    if dist == 'gaussian':
+        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+                    figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
+    if dist == 'poisson':
+        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+                    figname='ramp_', labels=["l","$\\tau$","prevention"])
     print('---------------------------------------------------------------------------------------------------------\n')
 
     #############################################
@@ -536,21 +544,38 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     ####### Output to dictionary ################
     #############################################
 
-    samples_dict.update({'l': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
-                        'tau': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
-                        'prevention': sampler.get_chain(discard=discard,flat=True)[:,3].tolist(),
-                        'sigma_data': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
-                        'calibration_data':states[0][0],
-                        'start_date':start_date,
-                        'end_beta':end_beta,
-                        'end_ramp':end_ramp,
-                        'maxiter': maxiter,
-                        'popsize': popsize,
-                        'steps_mcmc': steps_mcmc,
-                        'discard' : discard,
-                        'R0': R0,
-                        'R0_stratified_dict': R0_stratified_dict,
-    })
+    if dist == 'gaussian':
+        samples_dict.update({'l': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
+                            'tau': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
+                            'prevention': sampler.get_chain(discard=discard,flat=True)[:,3].tolist(),
+                            'sigma_data': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
+                            'calibration_data':states[0][0],
+                            'start_date':start_date,
+                            'end_beta':end_beta,
+                            'end_ramp':end_ramp,
+                            'maxiter': maxiter,
+                            'popsize': popsize,
+                            'steps_mcmc': steps_mcmc,
+                            'discard' : discard,
+                            'R0': R0,
+                            'R0_stratified_dict': R0_stratified_dict,
+        })
+        
+    if dist == 'poisson':
+        samples_dict.update({'l': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
+                            'tau': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
+                            'prevention': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
+                            'calibration_data':states[0][0],
+                            'start_date':start_date,
+                            'end_beta':end_beta,
+                            'end_ramp':end_ramp,
+                            'maxiter': maxiter,
+                            'popsize': popsize,
+                            'steps_mcmc': steps_mcmc,
+                            'discard' : discard,
+                            'R0': R0,
+                            'R0_stratified_dict': R0_stratified_dict,
+        })
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
