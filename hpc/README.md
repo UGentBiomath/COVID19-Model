@@ -1,12 +1,58 @@
 # Biomath COVID19-Model: HPC
 
-*Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
-
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
 
-Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases and back tracking. To this end, the SEIR dynamics are implemented using two frameworks: 1) deterministic framework and 2) stochastic network framework. Our code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). The stochastic model is computationally heavy and is preferentially computed using the Flemish high performance computing infrastructure.
 
 ## Prerequisites
+
+Copy (or `git clone`) the COVID19-Model directory to your personal directory on the Flemish HPC cluster. First, install Miniconda to setup the model environment. Download the Bash script that will install it from conda.io using, e.g., wget:
+
+```bash
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+```
+
+Once downloaded, run the installation script,
+
+```bash
+bash Miniconda3-latest-Linux-x86_64.sh -b -p $VSC_DATA/miniconda3
+```
+
+Next, add the path to the Miniconda installation to the `PATH` environment variable in your `.bashrc` (`vi ~/.bashrc`) file. Copy the following command,
+
+```bash
+export PATH="${VSC_DATA}/miniconda3/bin:${PATH}"
+```
+
+Now, the environment is ready to be set up using,
+
+```bash
+conda env create -f environment.yml
+conda activate COVID_MODEL
+```
+
+Finally, install the code developed specifically for the project (lives inside the src/covid19model folder) in the environment (in -e edit mode),
+
+```bash
+pip install -e .
+```
+
+[Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
+
+## Some usefull commands
+
+Copy from HPC to Linux PC:
+
+```bash
+scp vscxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/test.sh .
+```
+
+Copy from Linux PC to HPC:
+
+```bash
+scp sim_stochastic.py test.sh vscxxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/
+```
+
+## Legacy readme
 
 Configuring pip to install the necessary packages when first using Python on (Flemish) HPC:
 
@@ -29,24 +75,3 @@ pip install --install-option="--prefix=${VSC_DATA}/python_lib" seaborn
 pip install --install-option="--prefix=${VSC_DATA}/python_lib" networkx
 ```
 
-[Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
-
-## Computing Time for stochastic model
-
-Results shown below were obtained by executing *sim_stochastic.py* on a single core of the *victini* cluster (Intel Xeon Gold 6140 @ 2.3 GHz).
-
-<img src="../figs/calculation_time.png" alt="drawing" width="500"/>
-
-## Usefull commands
-
-Copy from HPC to Linux PC:
-
-```bash
-scp vscxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/test.sh .
-```
-
-Copy from Linux PC to HPC:
-
-```bash
-scp sim_stochastic.py test.sh vscxxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/
-```
