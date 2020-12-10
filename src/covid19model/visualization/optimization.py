@@ -1,5 +1,6 @@
 import datetime
 import random
+import math
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -24,7 +25,7 @@ def autocorrelation_plot(samples):
     """
 
     # Compute autocorrelation/chain
-    step_autocorr = int(len(samples)/100)
+    step_autocorr = math.ceil(samples.shape[0]/200)
     ndim = samples.shape[2]
     tau_vect = np.empty((len(samples)//step_autocorr,ndim))
     index = 0
