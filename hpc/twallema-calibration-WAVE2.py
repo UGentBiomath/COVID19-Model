@@ -116,14 +116,14 @@ fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 # PSO settings
 warmup=0
-maxiter = 100
-multiplier = 20
+maxiter = 10
+multiplier = 1
 import multiprocessing as mp
 processes = 6 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 50000
-discard = 5000
+steps_mcmc = 5
+discard = 0
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -204,7 +204,7 @@ try:
     autocorr = sampler.get_autocorr_time()
     thin = int(0.5 * np.min(autocorr))
 except:
-    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!')
+    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 from covid19model.optimization.run_optimization import checkplots
 checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA_RAMP_GOOGLE_WAVE2', 
@@ -214,6 +214,8 @@ checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA_RAMP_GO
 #############################################
 ####### Output to dictionary ################
 #############################################
+
+print('\n3) Saving output\n')
 
 flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
 
@@ -236,4 +238,32 @@ samples_dict_wave2.update({
 with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'_WAVE2_GOOGLE.json', 'w') as fp:
     json.dump(samples_dict_wave2, fp)
 
-print('done')
+
+####################################################
+####### Visualize model fit to data ################
+####################################################
+
+print('\n4) Visualizing model fit \n')
+
+end_sim = '2021-05-01'
+
+fig,ax=plt.subplots(figsize=(10,4))
+for i in range(10):
+    # Sample
+    idx, model.parameters['beta'] = random.choice(list(enumerate(samples_dict_wave2['beta'])))
+    model.parameters['l'] = samples_dict_wave2['l'][idx] 
+    model.parameters['tau'] = samples_dict_wave2['tau'][idx]    
+    model.parameters['prev_schools'] = samples_dict_wave2['prev_schools'][idx]    
+    model.parameters['prev_work'] = samples_dict_wave2['prev_work'][idx]       
+    model.parameters['prev_rest'] = samples_dict_wave2['prev_rest'][idx]      
+    # Simulate
+    y_model = model.sim(end_sim,start_date=start_calibration,warmup=0)
+    # Plot
+    ax.plot(y_model['time'],y_model["H_in"].sum(dim="Nc"),color='blue',alpha=0.002)
+
+ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration],color='black',alpha=0.6,linestyle='None',facecolors='none')
+ax = _apply_tick_locator(ax)
+ax.set_xlim('2020-09-01',end_sim)
+fig.savefig(fig_path+'others/FIT_WAVE2_GOOGLE_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+
+print('done\n')
