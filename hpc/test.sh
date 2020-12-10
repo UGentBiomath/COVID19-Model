@@ -13,7 +13,7 @@ chmod +x twallema-calibration-WAVE2.py
 source activate COVID_MODEL
 
 # Execute script
-python twallema-calibration-WAVE2.py
+python twallema-calibration-WAVE2-4prev.py
 
 # Deactivate environment
 source deactivate

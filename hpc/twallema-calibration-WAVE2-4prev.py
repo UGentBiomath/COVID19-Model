@@ -207,7 +207,7 @@ except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 from covid19model.optimization.run_optimization import checkplots
-checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA_RAMP_GOOGLE_WAVE2', 
+checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='FIT_WAVE2_GOOGLE', 
            labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$',
                    'prev_schools', 'prev_work', 'prev_rest', 'prev_home'])
 
@@ -243,7 +243,7 @@ with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'_WAVE2_
 ####### Visualize model fit to data ################
 ####################################################
 
-print('\n4) Visualizing model fit \n')
+print('4) Visualizing model fit \n')
 
 end_sim = '2021-05-01'
 
