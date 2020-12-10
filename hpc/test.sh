@@ -7,13 +7,13 @@
 cd $VSC_HOME/Documents/COVID19-Model/hpc/
 
 # Make script executable
-chmod +x twallema-calibration-WAVE2.py
+chmod +x twallema-calibration-WAVE2-3prev.py
 
 # Activate conda environment
 source activate COVID_MODEL
 
 # Execute script
-python twallema-calibration-WAVE2-4prev.py
+python twallema-calibration-WAVE2-3prev.py
 
 # Deactivate environment
-source deactivate
+conda deactivate

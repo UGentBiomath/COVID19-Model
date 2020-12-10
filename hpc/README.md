@@ -63,7 +63,7 @@ source activate COVID_MODEL
 python test.py
 
 # Deactivate environment
-source deactivate
+conda deactivate
 ```
 
 After setting up the job script, the job must be submitted. Currently one node of 36 cores is reserved on the skitty cluster. Before submitting your job, switch to the skitty cluster,
