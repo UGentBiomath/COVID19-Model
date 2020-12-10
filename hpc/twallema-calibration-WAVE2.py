@@ -122,7 +122,7 @@ import multiprocessing as mp
 processes = 6 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 5
+steps_mcmc = 50
 discard = 0
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
@@ -195,7 +195,7 @@ for i in range(pos.shape[0]):
 # Initialize parallel pool and run sampler
 from multiprocessing import Pool
 with Pool() as pool:
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
