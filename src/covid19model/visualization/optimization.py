@@ -24,9 +24,9 @@ def autocorrelation_plot(samples):
     """
 
     # Compute autocorrelation/chain
-    step_autocorr = int(samples.shape[0])/100
+    step_autocorr = int(len(samples)/100)
     ndim = samples.shape[2]
-    tau_vect = np.empty((len(samples)//step_autocorr-1,ndim))
+    tau_vect = np.empty((len(samples)//step_autocorr,ndim))
     index = 0
     for i in range(step_autocorr, len(samples), step_autocorr):
         tau_vect[index] = emcee.autocorr.integrated_time(samples[:i], tol = 0)
