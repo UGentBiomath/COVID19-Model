@@ -351,50 +351,6 @@ def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
 # Optimized google lockdown function below
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def wave2_policies_4prev(t, param, l , tau, 
-                   prev_schools, prev_work, prev_rest, prev_home):
-
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.Timestamp('2020-08-01')
-    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.Timestamp('2020-10-19') # lockdown
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-04') # schools re-open
-
-    if t5 < t <= t6 + tau_days:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, school=1)
-    elif t6 + tau_days < t <= t6 + tau_days + l_days:
-        t = pd.Timestamp(t.date())
-        policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
-    elif t6 + tau_days + l_days < t <= t7:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t7 < t <= t8:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t8 < t <= t9:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    else:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-
 def make_contact_matrix_function(df_google, Nc_all):
     """
     Nc_all : dictionnary
