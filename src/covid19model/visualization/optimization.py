@@ -24,7 +24,7 @@ def autocorrelation_plot(samples):
     """
 
     # Compute autocorrelation/chain
-    step_autocorr = 1
+    step_autocorr = int(samples.shape[0])/100
     ndim = samples.shape[2]
     tau_vect = np.empty((len(samples)//step_autocorr-1,ndim))
     index = 0
