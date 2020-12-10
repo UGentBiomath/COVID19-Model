@@ -2,6 +2,7 @@
 
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
 
+This readme contains a short tutorial on how to setup and execute the BIOMATH COVID-19 model on the Flemish HPC.
 
 ## Prerequisites
 
@@ -37,23 +38,44 @@ Finally, install the code developed specifically for the project (lives inside t
 pip install -e .
 ```
 
-## Setting up a job script
+[Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
 
-To activate the conda environment in a job shell script, use,
+## Submitting a python script to the HPC
+
+The following bash script, `test.sh`, executes a hypothetical python script, `test.py`, which resides in the `~/hpc` subdirectory of the BIOMATH COVID19-Model repo,
 
 ```bash
+#!/bin/bash
+#PBS -N calibration-COVID19-SEIRD-WAVE2 ## job name
+#PBS -l nodes=1:ppn=all ## single-node job, all available cores
+#PBS -l walltime=72:00:00 ## max. 72h of wall time
+
+# Change to package folder
+cd $VSC_HOME/Documents/COVID19-Model/hpc/
+
+# Make script executable
+chmod +x test.py
+
+# Activate conda environment
 source activate COVID_MODEL
-```
 
-and close with,
+# Execute script
+python test.py
 
-```bash
+# Deactivate environment
 source deactivate
 ```
 
-[Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
+After setting up the job script, the job must be submitted. Currently one node of 36 cores is reserved on the skitty cluster. Before submitting your job, switch to the skitty cluster,
+```bash
+module swap cluster/skitty
+```
+then submit to the reserved node using,
+```bash
+qsub test.sh --pass reservation=covid19.jb
+```
 
-## Some usefull commands
+## Some usefull HPC commands
 
 Copy from HPC to Linux PC:
 
@@ -66,27 +88,3 @@ Copy from Linux PC to HPC:
 ```bash
 scp sim_stochastic.py test.sh vscxxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/
 ```
-
-## Legacy readme
-
-Configuring pip to install the necessary packages when first using Python on (Flemish) HPC:
-
-```bash
-module load Python/3.6.6-intel-2018b
-mkdir -p "${VSC_DATA}/python_lib/lib/python3.6/site-packages/"
-export PYTHONPATH="${VSC_DATA}/python_lib/lib/python3.7/site-packages/:${PYTHONPATH}"
-```
-open bashrc using `vi ~/.bashrc` and insert the following line:
-
-```bash
-export PYTHONPATH="${VSC_DATA}/python_lib/lib/python3.7/site-packages/:${PYTHONPATH}"
-```
-
-install *matplotlib*, *seaborn* and *networkx*
-
-```bash
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" seaborn
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" networkx
-```
-
