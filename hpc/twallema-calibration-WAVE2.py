@@ -116,14 +116,14 @@ fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 # PSO settings
 warmup=0
-maxiter = 10
-multiplier = 1
+maxiter = 100
+multiplier = 20
 import multiprocessing as mp
-processes = mp.cpu_count()
+processes = 6 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 30
-discard = 0
+steps_mcmc = 50000
+discard = 5000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -155,13 +155,13 @@ print('CALIBRATING BETA AND COMPLIANCE RAMP')
 print('------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('1) Particle swarm optimization\n')
-print('Using ' + str(mp.cpu_count()) + ' cores\n')
+print('Using ' + str(processes) + ' cores\n')
 
 # set PSO optimisation settings
 parNames = ['sigma_data','beta','l','tau',
             'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 bounds=((1,2000),(0.010,0.060),(0.1,20),(0.1,20),
-        (0,1),(0,1),(0,1),(0,1))
+        (0.01,1),(0.01,1),(0.01,1),(0.01,1))
 
 # run PSO optimisation
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
@@ -177,12 +177,20 @@ backend = emcee.backends.HDFBackend(results_folder+filename)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
-bounds_mcmc=((1,2000),(0.020,0.060),(0.001,20),(0.001,20),
+bounds_mcmc=((1,2000),(0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
 perturbations = ([1]+(ndim-1)*[1e-3]) * np.random.randn(nwalkers, ndim)
 pos = theta + perturbations
+
+# If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
+for i in range(pos.shape[0]):
+    for j in range(pos.shape[1]):
+        if pos[i,j] < bounds_mcmc[j][0]:
+            pos[i,j] = bounds_mcmc[j][0]
+        elif pos[i,j] > bounds_mcmc[j][1]:
+            pos[i,j] = bounds_mcmc[j][1]
 
 # Initialize parallel pool and run sampler
 from multiprocessing import Pool
@@ -196,7 +204,7 @@ try:
     autocorr = sampler.get_autocorr_time()
     thin = int(0.5 * np.min(autocorr))
 except:
-    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
+    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!')
 
 from covid19model.optimization.run_optimization import checkplots
 checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA_RAMP_GOOGLE_WAVE2', 
