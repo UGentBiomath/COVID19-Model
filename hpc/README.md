@@ -1,43 +1,81 @@
 # Biomath COVID19-Model: HPC
 
-*Original code by Ryan S. McGee. Modified by T.W. Alleman in consultation with the BIOMATH research unit headed by prof. Ingmar Nopens.*
-
 Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved.
 
-Our code implements a SEIRS infectious disease dynamics models with extensions to model the effect quarantining detected cases and back tracking. To this end, the SEIR dynamics are implemented using two frameworks: 1) deterministic framework and 2) stochastic network framework. Our code allows to quickly perform Monte Carlo simulations, calibrate model parameters and calculate an *optimal* government policies using a model predictive controller (MPC). The stochastic model is computationally heavy and is preferentially computed using the Flemish high performance computing infrastructure.
+This readme contains a short tutorial on how to setup and execute the BIOMATH COVID-19 model on the Flemish HPC.
 
 ## Prerequisites
 
-Configuring pip to install the necessary packages when first using Python on (Flemish) HPC:
+Copy (or `git clone`) the COVID19-Model directory to your personal directory on the Flemish HPC cluster. First, install Miniconda to setup the model environment. Download the Bash script that will install it from conda.io using, e.g., wget:
 
 ```bash
-module load Python/3.6.6-intel-2018b
-mkdir -p "${VSC_DATA}/python_lib/lib/python3.6/site-packages/"
-export PYTHONPATH="${VSC_DATA}/python_lib/lib/python3.7/site-packages/:${PYTHONPATH}"
-```
-open bashrc using `vi ~/.bashrc` and insert the following line:
-
-```bash
-export PYTHONPATH="${VSC_DATA}/python_lib/lib/python3.7/site-packages/:${PYTHONPATH}"
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 ```
 
-install *matplotlib*, *seaborn* and *networkx*
+Once downloaded, run the installation script,
 
 ```bash
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" matplotlib
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" seaborn
-pip install --install-option="--prefix=${VSC_DATA}/python_lib" networkx
+bash Miniconda3-latest-Linux-x86_64.sh -b -p $VSC_DATA/miniconda3
+```
+
+Next, add the path to the Miniconda installation to the `PATH` environment variable in your `.bashrc` (`vi ~/.bashrc`) file. Copy the following command,
+
+```bash
+export PATH="${VSC_DATA}/miniconda3/bin:${PATH}"
+```
+
+Now, the environment is ready to be set up using,
+
+```bash
+conda env create -f environment.yml
+conda init bash
+conda activate COVID_MODEL
+```
+
+Finally, install the code developed specifically for the project (lives inside the src/covid19model folder) in the environment (in -e edit mode),
+
+```bash
+pip install -e .
 ```
 
 [Reference](https://vlaams-supercomputing-centrum-vscdocumentation.readthedocs-hosted.com/en/latest/software/python_package_management.html?highlight=conda#install-an-additional-package)
 
-## Computing Time for stochastic model
+## Submitting a python script to the HPC
 
-Results shown below were obtained by executing *sim_stochastic.py* on a single core of the *victini* cluster (Intel Xeon Gold 6140 @ 2.3 GHz).
+The following bash script, `test.sh`, executes a hypothetical python script, `test.py`, which resides in the `~/hpc` subdirectory of the BIOMATH COVID19-Model repo,
 
-<img src="../figs/calculation_time.png" alt="drawing" width="500"/>
+```bash
+#!/bin/bash
+#PBS -N calibration-COVID19-SEIRD-WAVE2 ## job name
+#PBS -l nodes=1:ppn=all ## single-node job, all available cores
+#PBS -l walltime=72:00:00 ## max. 72h of wall time
 
-## Usefull commands
+# Change to package folder
+cd $VSC_HOME/Documents/COVID19-Model/hpc/
+
+# Make script executable
+chmod +x test.py
+
+# Activate conda environment
+source activate COVID_MODEL
+
+# Execute script
+python test.py
+
+# Deactivate environment
+conda deactivate
+```
+
+After setting up the job script, the job must be submitted. Currently one node of 36 cores is reserved on the skitty cluster. Before submitting your job, switch to the skitty cluster,
+```bash
+module swap cluster/skitty
+```
+then submit to the reserved node using,
+```bash
+qsub test.sh --pass reservation=covid19.jb
+```
+
+## Some usefull HPC commands
 
 Copy from HPC to Linux PC:
 
