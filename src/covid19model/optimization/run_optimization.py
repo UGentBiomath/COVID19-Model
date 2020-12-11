@@ -37,9 +37,9 @@ def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
                 dpi=400, bbox_inches='tight')
 
     # Autocorrelation plots of chains
-    autocorrelation_plot(samples)
-    plt.savefig(fig_path+'autocorrelation/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=400, bbox_inches='tight')
+    #autocorrelation_plot(samples)
+    #plt.savefig(fig_path+'autocorrelation/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+    #            dpi=400, bbox_inches='tight')
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
