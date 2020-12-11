@@ -1,5 +1,7 @@
 import numpy as np
+import warnings
 from scipy.stats import norm
+from scipy.special import gammaln
 
 def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
 
@@ -71,28 +73,32 @@ def SSE(thetas,model,data,states,parNames,weights,checkpoints=None, warmup=0):
         SSE = SSE + weights[i]*sum((ymodel[i]-data[i])**2)
     return SSE
 
-def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
 
     Parameters
     -----------
-    model: model object
-        correctly initialised model to be fitted to the dataset
     thetas: np.array
         vector containing estimated parameter values
-    parNames: list
-        names of parameters to be fitted
+    model: model object
+        correctly initialised model to be fitted to the dataset
     data: list
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
+    parNames: list
+        names of parameters to be fitted
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
+    poisson_offset : float
+        Offset to avoid infinities for Poisson loglikelihood around 0. Default is poisson_offset=0.
 
     Returns
     -----------
-    MLE : float
-        total sum of squared errors
+    -MLE : float
+        Negative loglikelihood based on available data and provided parameter values
 
     Notes
     -----------
@@ -108,51 +114,129 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    i = 0
-    sigma=[]
-    for param in parNames:
-        if param == 'warmup':
-            warmup = int(round(thetas[i]))
-        elif i < len(data):
-            sigma.append(thetas[i])
-        else:
-            model.parameters.update({param:thetas[i]})
-        i = i + 1
+    
+    if dist not in ['gaussian', 'poisson']:
+        raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
+
+    # number of dataseries
+    n = len(data)
+    for i in range(n):
+        if np.isnan(data[i]).any():
+            raise Exception(f"Data contains nans. Perhaps something went wrong with the moving average?")
+    
+    if dist == 'gaussian':
+        sigma=[]
+        for i, param in enumerate(parNames):
+            if param == 'warmup':
+                warmup = int(round(thetas[i]))
+            elif i < len(data):
+                sigma.append(thetas[i])
+            else:
+                model.parameters.update({param : thetas[i]})
+    if dist == 'poisson':
+        for i, param in enumerate(parNames):
+            if param == 'warmup':
+                warmup = int(round(thetas[i]))
+            else:
+                model.parameters.update({param : thetas[i]})
 
     # ~~~~~~~~~~~~~~
     # Run simulation
     # ~~~~~~~~~~~~~~
-    # number of dataseries
-    n = len(data)
     # Compute simulation time
     data_length =[]
     for i in range(n):
         data_length.append(data[i].size)
-    T = max(data_length)+warmup-1 # *** TO DO: make indepedent from data length
+    T = int(max(data_length)+warmup-1) # *** TO DO: make indepedent from data length
     # Use previous samples
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
-    # Perform simulation
+    # Perform simulation and loose the first 'warmup' days
     out = model.sim(T, start_date=start_date, warmup=warmup)
     
-    # Sum over all places
+    # Sanity check spatial case: sum over all places
     if 'place' in out.dims:
         out = out.sum(dim='place')
 
     # -------------
     # calculate MLE
     # -------------
-    ymodel = []
-    MLE = 0    
-    for i in range(n):
-        som = 0
-        # sum required states
-        for j in range(len(states[i])):
-            som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[warmup:])
-        # calculate simga2 and log-likelihood function
-        MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
-    return abs(MLE) # must be positive for pso
+    
+    if dist == 'gaussian':
+        ymodel = []
+        MLE = 0
+        for i in range(n): #this is wrong for i != 0 I think
+            som = 0
+            # sum required states. This is wrong for j != 0 I think.
+            for j in range(len(states[i])):
+                som = som + out[states[i][j]].sum(dim="Nc").values
+            ymodel.append(som[warmup:]) # only add data beyond warmup time
+            # calculate sigma2 and log-likelihood function based on Gaussian
+            MLE = MLE + ll_gaussian(ymodel[i], data[i], sigma[i]) #- 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+
+    if dist == 'poisson':
+        # calculate loglikelihood function based on Poisson distribution for only H_in
+        ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:] #- np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+        MLE = ll_poisson(ymodel, data[0], offset=poisson_offset)
+    
+    return -MLE # must be positive for pso, which attempts to minimises MLE
+
+def ll_gaussian(ymodel, ydata, sigma):
+    """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
+    
+    Parameters
+    ----------
+    ymodel: list of floats
+        List with average values of the Gaussian distribution at a particular time (i.e. "mu" values), predicted by the model at hand
+    ydata: list of floats
+        List with actual time series values at a particlar time that are to be fitted to the model
+    sigma: float or list of floats
+        (List of) standard deviation(s) defining the Gaussian distribution around the central value 'ymodel'. If float, the same value for the standard deviation is used for all timeseries values
+
+    Returns
+    -------
+    ll: float
+        Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
+    """
+    
+    if len(ymodel) != len(ydata):
+        raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
+    if (type(sigma) == int) or (type(sigma) == float):
+        sigma_list = np.ones(len(ymodel))*sigma
+        
+    ll = -1/2 * np.sum(np.log(2*np.pi*sigma*sigma)) - 1/2 * np.sum( (ydata - ymodel)**2 / sigma**2 )
+    return ll
+
+def ll_poisson(ymodel, ydata, offset=0, complete=False):
+    """Loglikelihood of Poisson distribution
+    
+    Parameters
+    ----------
+    ymodel: list of floats
+        List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
+    ydata: list of floats
+        List with actual time series values at a particlar time that are to be fitted to the model
+    offset: float
+        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
+    complete: boolean
+        If True ll_poisson calculates the actual Poisson loglikelihood (including the factorial term), rather than only the terms that vary with varying model parameter values.
+
+    Returns
+    -------
+    ll: float
+        Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
+    """
+    
+    if len(ymodel) != len(ydata):
+        raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
+        
+    if min(ymodel+offset) <= 0:
+        warnings.warn("Some values in the 'ymodel' list are not strictly positive. Consider increasing the 'offset' parameter value")
+        
+    ll = - np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+    if complete == True:
+        ll -= np.sum(gammaln(ydata+offset))
+    return ll
 
 def log_prior(thetas,bounds):
 
@@ -223,7 +307,7 @@ def log_prior_normal(thetas, norm_params):
 
 
 
-def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0):
+def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0, dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -242,6 +326,8 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
         list containing dataseries
     states: array
         list containg the names of the model states to be fitted to data
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
 
     Returns
     -----------
@@ -261,9 +347,9 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
 
-def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None):
+def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None,dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -282,6 +368,8 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
         list containing dataseries
     states: array
         list containg the names of the model states to be fitted to data
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
 
     Returns
     -----------
@@ -297,4 +385,4 @@ def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,che
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup) # must be negative for emcee
+        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
