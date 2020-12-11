@@ -137,8 +137,8 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     print('1) Particle swarm optimization\n')
 
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
-    data=[ts[start_data:end_beta_ramp]]
+#     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
+    data=[timeseries[start_data:end_beta_ramp].squeeze().values]
     states = [["H_in"]]
 
     # set PSO optimisation settings
