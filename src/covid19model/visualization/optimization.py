@@ -23,24 +23,22 @@ def autocorrelation_plot(samples):
     -------
     ax
     """
-
     # Compute autocorrelation/chain
-    step_autocorr = math.ceil(len(samples)/200)
     ndim = samples.shape[2]
+    step_autocorr = 100
     tau_vect = np.empty((len(samples)//step_autocorr,ndim))
     index = 0
     for i in range(step_autocorr, len(samples), step_autocorr):
         tau_vect[index] = emcee.autocorr.integrated_time(samples[:i], tol = 0)
         index += 1
     n = step_autocorr * np.arange(1, index + 1)
-    
     # Make figure
     fig,ax=plt.subplots(figsize=(10,4))
     ax.plot(n, n / step_autocorr, "--k")
     ax.plot(n, tau_vect)
     ax.set_xlim(0, n.max())
     ax.set_xlabel("number of steps")
-    ax.set_ylabel(r"$\hat{\tau}$")
+    ax.set_ylabel(r"$\hat{\tau}$");
 
     return ax
 
