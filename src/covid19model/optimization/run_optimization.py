@@ -162,7 +162,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
 
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_data, warmup))
+                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_data, warmup, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
     # Check chain length
     thin = 1 # was thin=0, but that doesn't make sense I think? "Slice cannot be zero" error for [first:last:slice]
@@ -287,7 +287,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         
     nwalkers, ndim = pos.shape #nwalkers is hardcoded to be 4
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                        args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_recalibrate_beta, 0))
+                        args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_recalibrate_beta, 0, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
     # Check chain length
     thin = 1 # was thin=0, but that doesn't make sense I think? "Slice cannot be zero" error for [first:last:slice]
@@ -632,8 +632,8 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
-                           beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params,
-                           fig_path, samples_path,initN, Nc_total,
+                           beta_init, sigma_data_init=None, beta_norm_params, sigma_data_norm_params=None,
+                           fig_path, samples_path,initN, Nc_total, dist='poisson',
                            steps_mcmc=10000, discard=500):
 
     """
@@ -655,11 +655,17 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
+    dist : str
+        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
 
 
     """
+    
+    if (dist == 'gaussian') and ((sigma_data == None) or (sigma_data_norm_params == None)):
+        raise Exception("Parameters 'sigma_data' and 'sigma_data_norm_params' must not be 'None' when presuming a Gaussian distribution (dist = 'gaussian').")
+    
     plt.ioff()
     # define dataset
 #     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
@@ -674,34 +680,48 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     model.parameters.update({'beta': beta_init})
 
     # run MCMC calibration
-    parNames_mcmc = ['sigma_data','beta'] # must be a list!
-    norm_params = (sigma_data_norm_params, beta_norm_params)
-    bounds_mcmc = ((1,200),(0.0001,0.10))
-
-    pos = [sigma_data_init, beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
+    if dist == 'gaussian':
+        parNames_mcmc = ['sigma_data','beta'] # must be a list!
+        norm_params = (sigma_data_norm_params, beta_norm_params)
+        bounds_mcmc = ((1,200),(0.0001,0.10))
+        pos = [sigma_data_init, beta_init] + [1, 1e-2 ]* np.random.randn(4, 2)
+    if dist == 'poisson':
+        parNames_mcmc = ['beta'] # must be a list!
+        norm_params = [beta_norm_params]
+        bounds_mcmc = [(0.0001,0.10)]
+        pos = [beta_init] + 1e-2 * np.random.randn(4, 1)
+    
     nwalkers, ndim = pos.shape
 
     if beta_norm_params is not None: # use normal prior
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability_normal,
-                                    args=(model, norm_params, data, states, parNames_mcmc, None, start_date, warmup))
+                                    args=(model, norm_params, data, states, parNames_mcmc, None, start_date, warmup, dist))
     else: # use uniform prior
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup))
+                                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup, dist))
     sampler.run_mcmc(pos, steps_mcmc, progress=True);
 
     # Check autocorrelation time as a measure of the adequacy of the sample size
-    thin = 0
+    thin = 1 # was thin = 0, but this raises "slice step cannot be zero"
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Calibrating beta. Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
+    if dist == 'gaussian':
+        labels=['$\sigma_{data}$','$\\beta$']
+    if dist == 'poisson':
+        labels=['$\\beta$']
     checkplots(sampler, discard, thin, fig_path, spatial_unit, 
-                figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
+                figname='beta_', labels=labels)
 
-    samples_dict = {'warmup': warmup,
-                    'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
+    if dist == 'gaussian':
+        samples_dict = {'warmup': warmup,
+                'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
+    if dist == 'poisson':
+        samples_dict = {'warmup': warmup,
+                'beta': sampler.get_chain(discard=discard,flat=True)[:,0].tolist()}
 
     #############################################
     ####### CALCULATING R0 ######################
