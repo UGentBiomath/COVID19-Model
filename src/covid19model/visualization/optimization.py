@@ -1,12 +1,46 @@
 import datetime
 import random
+import math
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
+import emcee
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
+
+def autocorrelation_plot(samples):
+    """Make a visualization of autocorrelation of each chain
+    
+    Parameters
+    ----------
+    samples: np.array
+        A 3-D numpy array containing the sampled parameters.
+        The x-dimension must be the number of samples, the y-dimension the number of parallel chains and the z-dimension the number of sampled parameters.
+
+    Returns
+    -------
+    ax
+    """
+    # Compute autocorrelation/chain
+    ndim = samples.shape[2]
+    step_autocorr = 100
+    tau_vect = np.empty((len(samples)//step_autocorr,ndim))
+    index = 0
+    for i in range(step_autocorr, len(samples), step_autocorr):
+        tau_vect[index] = emcee.autocorr.integrated_time(samples[:i], tol = 0)
+        index += 1
+    n = step_autocorr * np.arange(1, index + 1)
+    # Make figure
+    fig,ax=plt.subplots(figsize=(10,4))
+    ax.plot(n, n / step_autocorr, "--k")
+    ax.plot(n, tau_vect)
+    ax.set_xlim(0, n.max())
+    ax.set_xlabel("number of steps")
+    ax.set_ylabel(r"$\hat{\tau}$");
+
+    return ax
 
 def traceplot(samples,labels,plt_kwargs={},filename=None):
     """Make a visualization of sampled parameters
