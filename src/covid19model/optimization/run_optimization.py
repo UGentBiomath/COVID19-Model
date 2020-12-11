@@ -633,7 +633,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
                            beta_init, sigma_data_init, beta_norm_params, sigma_data_norm_params,
-                           fig_path, samples_path,initN, Nc_total, avg_window=1,
+                           fig_path, samples_path,initN, Nc_total,
                            steps_mcmc=10000, discard=500):
 
     """
@@ -655,8 +655,6 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         path to folder where to save figures
     samples_path : string
         path to folder where to save samples
-    avg_window : int
-        window of a moving average over the data in days. Default is 1 (no averaging)
     steps_mcmc : int (default 10000)
         number of steps in MCMC calibration
 
@@ -664,8 +662,8 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
     """
     plt.ioff()
     # define dataset
-    ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
-    data=[ts[start_date:end_beta]]
+#     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
+    data=[timeseries[start_date:end_beta].squeeze().values]
     states = [["H_in"]]
 
     #############################################
