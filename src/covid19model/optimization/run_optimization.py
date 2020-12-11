@@ -23,7 +23,7 @@ from covid19model.models.time_dependant_parameter_fncs import google_lockdown
 from covid19model.data import google
 from covid19model.data import sciensano
 from covid19model.data import model_parameters
-from covid19model.visualization.optimization import traceplot
+from covid19model.visualization.optimization import traceplot, autocorrelation_plot
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
 
 def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
@@ -34,13 +34,17 @@ def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
     # Traceplots of samples
     traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
     plt.savefig(fig_path+'traceplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+                dpi=400, bbox_inches='tight')
+
+    # Autocorrelation plots of chains
+    #autocorrelation_plot(samples)
+    #plt.savefig(fig_path+'autocorrelation/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+    #            dpi=400, bbox_inches='tight')
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
-    #fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+                dpi=400, bbox_inches='tight')
 
     return
 
