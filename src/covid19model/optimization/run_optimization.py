@@ -23,24 +23,28 @@ from covid19model.models.time_dependant_parameter_fncs import google_lockdown
 from covid19model.data import google
 from covid19model.data import sciensano
 from covid19model.data import model_parameters
-from covid19model.visualization.optimization import traceplot
+from covid19model.visualization.optimization import traceplot, autocorrelation_plot
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google, moving_avg
 
 def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
-    
+
     samples = sampler.get_chain(discard=discard,thin=thin,flat=False)
     flatsamples = sampler.get_chain(discard=discard,thin=thin,flat=True)
-    
+
     # Traceplots of samples
     traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
     plt.savefig(fig_path+'traceplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+                dpi=400, bbox_inches='tight')
+
+    # Autocorrelation plots of chains
+    autocorrelation_plot(samples)
+    plt.savefig(fig_path+'autocorrelation/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
-    #fig.set_size_inches(8, 8)
     plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
-                dpi=600, bbox_inches='tight')
+                dpi=400, bbox_inches='tight')
 
     return
 
@@ -74,7 +78,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
             for jj in range(N):
                 for hh in range(G):
                     Nc_total_spatial[hh][ii][jj] = zi[ii] * f[hh] * Nc_total[ii][jj]
-        
+
     R0 =[]
     # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
     for j in range(sample_size):
@@ -91,7 +95,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
                         model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[i]
             R0_temp = som / np.sum(initN)
         R0.append(R0_temp)
-        
+
     # Stratified R0 value: R0_stratified[place][age][chain] or R0_stratified[age][chain]
     # This needs to be modified if 'beta' is further stratified
     R0_stratified_dict = dict({})
@@ -149,7 +153,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
     else: # use indicated number of processors
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup, processes=processes)
-        
+
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -171,13 +175,13 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
-        
+
     # Make and save diagnostic visualizations
     if dist == 'gaussian':
         labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$']
     if dist == 'poisson':
         labels=['$\\beta$','l','$\\tau$']
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+    checkplots(sampler, discard, thin, fig_path, spatial_unit,
                 figname='BETA_RAMP_GOOGLE_WAVE1_ ', labels=labels)
 
     # Save output in parameter dictionary
@@ -213,7 +217,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
             'steps_mcmc': steps_mcmc,
             'discard' : discard
         }
-        
+
     #############################################
     ####### CALCULATING R0 ######################
     #############################################
@@ -274,7 +278,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
     else:
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0, processes=processes)
-        
+
     # run MCMC sampler
     print('\n4) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
@@ -284,7 +288,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     if dist == 'poisson':
         bounds_mcmc=[(0.010,0.060)]
         pos = theta + 1e-4 * np.random.randn(4, 1)
-        
+
     nwalkers, ndim = pos.shape #nwalkers is hardcoded to be 4
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                         args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_recalibrate_beta, 0, dist))
@@ -301,7 +305,7 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         labels = ['$\sigma_{data}$','$\\beta$']
     if dist == 'poisson':
         labels = ['$\\beta$']
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+    checkplots(sampler, discard, thin, fig_path, spatial_unit,
                 figname='BETA_RECALIBRATE_GOOGLE_', labels=labels)
 
     print('\n5) Saving chains\n')
@@ -421,13 +425,13 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     processes : int
         number of processors used in the PSO. -1 means "use all but one" (default).
 
-    
+
     Returns
     -------
     samples_dict: dictionary
         dictionary with keys 'warmup', 'beta', 'l', 'tau' and 'prevention', as well as some other lists
         and values that are of interest for inspecting the working of the optimization.
-    
+
     """
     plt.ioff()
     # define dataset
@@ -464,7 +468,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
     else:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
                         start_date=start_date, omega=omega, phip=phip, phig=phig, processes=processes)
-        
+
     if dist == 'gaussian':
         sigma_data = theta[0]
         warmup = int(round(theta[1]))
@@ -485,7 +489,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         parNames_mcmc = ['beta']
         bounds_mcmc=[(0.01, 0.10)]
         pos = [beta] + 1e-2*np.random.randn(4,1)
-    
+
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                      args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_date, warmup, dist))
@@ -499,13 +503,13 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
 
     if dist == 'gaussian':
-        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+        checkplots(sampler, discard, thin, fig_path, spatial_unit,
                     figname='beta_', labels=['$\sigma_{data}$','$\\beta$'])
         samples_dict = {'warmup': warmup,
                         'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()}
-        
+
     if dist == 'poisson':
-        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+        checkplots(sampler, discard, thin, fig_path, spatial_unit,
                     figname='beta_', labels=['$\\beta$'])
         samples_dict = {'warmup': warmup,
                         'beta': sampler.get_chain(discard=discard,flat=True)[:,0].tolist()}
@@ -572,10 +576,10 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s). Use this estimate with caution and run a longer chain!')
 
     if dist == 'gaussian':
-        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+        checkplots(sampler, discard, thin, fig_path, spatial_unit,
                     figname='ramp_', labels=["$\sigma_{data}$","l","$\\tau$","prevention"])
     if dist == 'poisson':
-        checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+        checkplots(sampler, discard, thin, fig_path, spatial_unit,
                     figname='ramp_', labels=["l","$\\tau$","prevention"])
     print('---------------------------------------------------------------------------------------------------------\n')
 
@@ -605,7 +609,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
                             'R0': R0,
                             'R0_stratified_dict': R0_stratified_dict,
         })
-        
+
     if dist == 'poisson':
         samples_dict.update({'l': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
                             'tau': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
@@ -663,10 +667,10 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
 
     """
-    
+
     if (dist == 'gaussian') and ((sigma_data == None) or (sigma_data_norm_params == None)):
         raise Exception("Parameters 'sigma_data' and 'sigma_data_norm_params' must not be 'None' when presuming a Gaussian distribution (dist = 'gaussian').")
-    
+
     plt.ioff()
     # define dataset
 #     ts = moving_avg(timeseries, days=avg_window, win_type=None, params=None).T.squeeze()
@@ -691,7 +695,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         norm_params = [beta_norm_params]
         bounds_mcmc = [(0.0001,0.10)]
         pos = [beta_init] + 1e-2 * np.random.randn(4, 1)
-    
+
     nwalkers, ndim = pos.shape
 
     if beta_norm_params is not None: # use normal prior
@@ -714,7 +718,7 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
         labels=['$\sigma_{data}$','$\\beta$']
     if dist == 'poisson':
         labels=['$\\beta$']
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, 
+    checkplots(sampler, discard, thin, fig_path, spatial_unit,
                 figname='beta_', labels=labels)
 
     if dist == 'gaussian':

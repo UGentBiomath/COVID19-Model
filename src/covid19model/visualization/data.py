@@ -26,6 +26,7 @@ def google_mobility(data):
         for j in range(2):
             ax[i,j].plot(data.index, data[data_lst[i][j]])
             ax[i,j].axvline(x=pd.Timestamp('2020-03-13'), color='k', linestyle='--')
+            ax[i,j].axvline(x=pd.Timestamp('2020-10-19'), color='k', linestyle='--')
             ax[i,j].set_ylabel('% compared to baseline')
             # Hide the right and top spines
             ax[i,j].spines['right'].set_visible(False)
