@@ -109,7 +109,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2020-12-08'
+end_calibration = '2020-12-10'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
@@ -117,13 +117,13 @@ samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/nati
 # PSO settings
 warmup=0
 maxiter = 50
-multiplier = 5
+multiplier = 20
 import multiprocessing as mp
-processes = 6 #mp.cpu_count()
+processes = 6
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 5000
-discard = 1000
+steps_mcmc = 100000
+discard = 10000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
