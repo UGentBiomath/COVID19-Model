@@ -117,7 +117,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
     return R0, R0_stratified_dict
 
 
-def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_beta_ramp, start_recalibrate_beta, end_recalibrate_beta, fig_path, samples_path, initN, Nc_total,warmup=0, avg_window=1,
+def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_beta_ramp, start_recalibrate_beta, end_recalibrate_beta, fig_path, samples_path, initN, Nc_total,warmup=0, avg_window=1, dist='poisson',
                      maxiter=50, popsize=50, n=30, steps_mcmc=10000, discard=500, omega=0.8, phip=0.8, phig=0.8, processes=-1):
 
     plt.ioff()
@@ -138,8 +138,12 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     states = [["H_in"]]
 
     # set PSO optimisation settings
-    parNames = ['sigma_data','beta','l','tau']
-    bounds=((30,200),(0.030,0.040),(0.01,20),(0.01,20))
+    if dist == 'gaussian':
+        parNames = ['sigma_data','beta','l','tau']
+        bounds=((30,200),(0.030,0.040),(0.01,20),(0.01,20))
+    if dist == 'poisson':
+        parNames = ['beta','l','tau']
+        bounds=((0.030,0.040),(0.01,20),(0.01,20))
     # run PSO optimisation
     if processes == -1: # use all but one processor
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_data,warmup=warmup)
@@ -149,15 +153,19 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
-    bounds_mcmc=((1,200),(0.020,0.060),(0.01,20),(0.01,20))
+    if dist == 'gaussian':
+        bounds_mcmc=((1,200),(0.020,0.060),(0.01,20),(0.01,20))
+        pos = theta + [1, 1e-3, 1e-3, 1e-3 ]* np.random.randn(8, 4)
+    if dist == 'poisson':
+        bounds_mcmc=((0.020,0.060),(0.01,20),(0.01,20))
+        pos = theta + [1e-3, 1e-3, 1e-3 ]* np.random.randn(8, 3)
 
-    pos = theta + [1, 1e-3, 1e-3, 1e-3 ]* np.random.randn(8, 4)
     nwalkers, ndim = pos.shape
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                      args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_data, warmup))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
     # Check chain length
-    thin = 0
+    thin = 1 # was thin=0, but that doesn't make sense I think? "Slice cannot be zero" error for [first:last:slice]
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
@@ -165,27 +173,47 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
         
     # Make and save diagnostic visualizations
+    if dist == 'gaussian':
+        labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$']
+    if dist == 'poisson':
+        labels=['$\\beta$','l','$\\tau$']
     checkplots(sampler, discard, thin, fig_path, spatial_unit, 
-                figname='BETA_RAMP_GOOGLE_WAVE1_ ', labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$'])
+                figname='BETA_RAMP_GOOGLE_WAVE1_ ', labels=labels)
 
     # Save output in parameter dictionary
     print('\n3) Saving chains\n')
 
-    samples_dict = {
-        'warmup': warmup,
-        'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
-        'l': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
-        'tau': sampler.get_chain(discard=discard,flat=True)[:,3].tolist(),
-        'sigma_data': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
-        'calibration_data': states[0][0],
-        'start_data': start_data,
-        'end_beta_ramp': end_beta_ramp,
-        'maxiter': maxiter,
-        'popsize': popsize,
-        'steps_mcmc': steps_mcmc,
-        'discard' : discard
-    }
+    if dist == 'gaussian':
+        samples_dict = {
+            'warmup': warmup,
+            'beta': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
+            'l': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
+            'tau': sampler.get_chain(discard=discard,flat=True)[:,3].tolist(),
+            'sigma_data': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
+            'calibration_data': states[0][0],
+            'start_data': start_data,
+            'end_beta_ramp': end_beta_ramp,
+            'maxiter': maxiter,
+            'popsize': popsize,
+            'steps_mcmc': steps_mcmc,
+            'discard' : discard
+        }
 
+    if dist == 'poisson':
+        samples_dict = {
+            'warmup': warmup,
+            'beta': sampler.get_chain(discard=discard,flat=True)[:,0].tolist(),
+            'l': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
+            'tau': sampler.get_chain(discard=discard,flat=True)[:,2].tolist(),
+            'calibration_data': states[0][0],
+            'start_data': start_data,
+            'end_beta_ramp': end_beta_ramp,
+            'maxiter': maxiter,
+            'popsize': popsize,
+            'steps_mcmc': steps_mcmc,
+            'discard' : discard
+        }
+        
     #############################################
     ####### CALCULATING R0 ######################
     #############################################
@@ -235,8 +263,12 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     states = [["H_in"]]
 
     # set PSO optimisation settings
-    parNames = ['sigma_data','beta']
-    bounds=((1,100),(0.010,0.060))
+    if dist == 'gaussian':
+        parNames = ['sigma_data','beta']
+        bounds=((1,100),(0.010,0.060))
+    if dist == 'poisson':
+        parNames = ['beta']
+        bounds=[(0.010,0.060)]
     # run PSO optimisation
     if processes == -1:
         theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,start_date=start_recalibrate_beta,warmup=0)
@@ -246,29 +278,42 @@ def google_calibration_wave1(model, timeseries, spatial_unit, start_data, end_be
     # run MCMC sampler
     print('\n4) Markov-Chain Monte-Carlo sampling\n')
     parNames_mcmc = parNames
-    bounds_mcmc=((1,200),(0.010,0.060))
-
-    pos = theta + [1, 1e-4]* np.random.randn(4, 2)
-    nwalkers, ndim = pos.shape
+    if dist == 'gaussian':
+        bounds_mcmc=((1,200),(0.010,0.060))
+        pos = theta + [1, 1e-4]* np.random.randn(4, 2)
+    if dist == 'poisson':
+        bounds_mcmc=[(0.010,0.060)]
+        pos = theta + 1e-4 * np.random.randn(4, 1)
+        
+    nwalkers, ndim = pos.shape #nwalkers is hardcoded to be 4
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
                         args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_recalibrate_beta, 0))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
     # Check chain length
-    thin = 0
+    thin = 1 # was thin=0, but that doesn't make sense I think? "Slice cannot be zero" error for [first:last:slice]
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time for 4 parameter(s).\nUse this estimate with caution and run a longer chain!')
     # Make and save diagnostic visualizations
+    if dist == 'gaussian':
+        labels = ['$\sigma_{data}$','$\\beta$']
+    if dist == 'poisson':
+        labels = ['$\\beta$']
     checkplots(sampler, discard, thin, fig_path, spatial_unit, 
-                figname='BETA_RECALIBRATE_GOOGLE_', labels=['$\sigma_{data}$','$\\beta$'])
+                figname='BETA_RECALIBRATE_GOOGLE_', labels=labels)
 
     print('\n5) Saving chains\n')
     samples_dict.update({
-        'beta_summer': sampler.get_chain(discard=discard,flat=True)[:,1].tolist(),
         'start_recalibrate_beta': start_recalibrate_beta,
         'end_recalibrate_beta': end_recalibrate_beta})
+    if dist == 'gaussian':
+        samples_dict.update({
+            'beta_summer': sampler.get_chain(discard=discard,flat=True)[:,1].tolist()})
+    if dist == 'poisson':
+        samples_dict.update({
+            'beta_summer': sampler.get_chain(discard=discard,flat=True)[:,0].tolist()})
 
     with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'_google.json', 'w') as fp:
         json.dump(samples_dict, fp)
@@ -411,7 +456,7 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
         bounds_pso=((1,100),(40,70),(0.025,0.04)) # must be a list!
     if dist == 'poisson':
         parNames_pso = ['warmup','beta'] # must be a list!
-        bounds_pso=((42,50),(0.030,0.040)) # must be a list!
+        bounds_pso=((42,50),(0.034,0.040)) # must be a list!
     # run pso optimisation
     if processes == -1:
         theta = pso.fit_pso(model,data,parNames_pso,states,bounds_pso,maxiter=maxiter,popsize=popsize,
