@@ -157,8 +157,8 @@ def infected(data, asymptomatic=False, mild=False, filename=None, *, ax=None, **
     return lines
 
 
-def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, cmap='Oranges', nis=None,
-                 ts_graph=['E', 'H_in', 'ICU', 'D'], graph_ylim=None, figname=None, dpi=200, verbose=False):
+def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges', nis=None,
+                 ts_graph=['E', 'H_in', 'ICU', 'D'], figname=None, dpi=200, verbose=False):
     """Plot a snapshot of the median evolution of the infection on a Geopandas map
     
     Parameters
@@ -169,8 +169,6 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
         Geopandas dataframe from Belgian shapefiles whose entries correspond to the values in the model output's 'place' dimension. NISCode values are strings.
     ts_geo : string
         The SEIR compartment time series that is plotted into the color map on the chosen day. Either S, E (default), I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, or H_tot.
-    geo_ylim : int
-        Upper limit of the scale for the geopandas map. Default is None (automatic upper limit)
     day : int
         The simulated day that is to be plotted in the color map. Iterate over this value to create an animation. Default is start date.
     lin : Boolean
@@ -183,8 +181,6 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
         NIS value or array of NIS values of the region(s) whose time series will appear in the graphs. Maximum number of graphs per plot is 6, as showing too many will make the graph illegible. Default is None: sum of all regions.
     ts_graph : string or list of strings or None
         Choose which time series are to be shown in the graphs on the side of the map. List contains one or more of S, E (default), I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, or H_tot. Default: ['E', 'H_in', 'ICU', 'D']. Maximal length is 5. If None is chosen only the geopandas map is shown
-    ylim : int or list of ints
-        Upper y limits of ts_graphs in the same order as the ts_graph list. Default is None (automatic limits)
     figname : string
         Directory and name for the figure when saved. Include data extension type (e.g. .jpg). Default is None (image is not saved). Make sure to add an iterator name when iterating over days, in order not to overwrite images.
     dpi : int
@@ -253,15 +249,6 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
                 raise Exception(f"Parameter 'ts_graph', the chosen compartment(s) for time series graphing, must be a (list of) string(s) from {data_comp_set}")
             if ts not in data_comp_set:
                 raise Exception(f"'{ts}' is not an acceptable compartment time series to graph. Choose for parameter 'ts_graph' a (list of) string value(s) from {data_comp_set}, corresponding to the time series that are to be graphed")
-        if graph_ylim:
-            if type(graph_ylim) == int:
-                graph_ylim = [graph_ylim]
-            if len(graph_ylim) != len(ts_graph):
-                raise Exception(f"Dimensions of parameters 'ts_graph' ({len(ts_graph)}) and 'graph_ylim' ({len(graph_ylim)}) should match.")
-                
-    if not ts_graph:
-        if ylim:
-            raise Exception("Parameter 'ylim' has no meaning when not plotting any timeseries graphs. Choose ylim=None (default).")
             
     # Check properties of figname and dpi
     if (figname != None) & (type(figname) != str):
@@ -296,38 +283,32 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
     # Note that the age classes are aggregated (this may be extended later)
     if ts_graph:
         vmax_graph = dict({})
-        if not graph_ylim:
-            for ts in ts_graph:
-                vmax_graph[ts]=0
-                if nis: # take highest value of all places
-                    for nis_value in nis:
-                        if draws:
-                            vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
-                        else:
-                            vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).values.max()
-                        if vmax_temp > vmax_graph[ts]:
-                            vmax_graph[ts] = vmax_temp
-                else: # Take highest value of the sum of all places (works only for absolute numbers right now!
+        for ts in ts_graph:
+            vmax_graph[ts]=0
+            if nis: # take highest value of all places
+                for nis_value in nis:
                     if draws:
-                        vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                        vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).quantile(0.5, dim='draws').values.max()
                     else:
-                        vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').values.max()
-                if verbose:
-                    if draws:
-                        print(f"Maximum value of median draw for timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
-                    else:
-                        print(f"Maximum value of timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
-        else:
-            for i, ts in enumerate(ts_graph):
-                vmax_graph[ts] = graph_ylim[i]
+                        vmax_temp = data[ts].sum(dim='Nc').sel(place=nis_value).values.max()
+                    if vmax_temp > vmax_graph[ts]:
+                        vmax_graph[ts] = vmax_temp
+            else: # Take highest value of the sum of all places (works only for absolute numbers right now!
+                if draws:
+                    vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').quantile(0.5, dim='draws').values.max()
+                else:
+                    vmax_graph[ts] = data[ts].sum(dim='Nc').sum(dim='place').values.max()
+            if verbose:
+                if draws:
+                    print(f"Maximum value of median draw for timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
+                else:
+                    print(f"Maximum value of timeseries of compartment {ts} (vmax_graph[{ts}]) set to {vmax_graph[ts]}.")
         vmin_graph = 0
     
     if draws:
         vmax_geo = data[ts_geo].sum(dim='Nc').quantile(0.5, dim='draws').values.max()
     else:
         vmax_geo = data[ts_geo].sum(dim='Nc').values.max()
-    if geo_ylim:
-        vmax_geo = geo_ylim
     vmin_geo = 0
     
     # Initiate plotting environment
@@ -361,17 +342,14 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
             ax_graph_dict[ts].set_yscale(yscale_graph)
             ax_graph_dict[ts].grid(False)
             ax_graph_dict[ts].set_xlim([0,tlist[-1]])
-            if graph_ylim:
-                ax_graph_dict[ts].set_ylim([vmin_graph,vmax_graph[ts]])
-            else:
-                ax_graph_dict[ts].set_ylim([vmin_graph, 1.25*vmax_graph[ts]])
+            ax_graph_dict[ts].set_ylim([vmin_graph,1.25*vmax_graph[ts]])
             if pos != (len(ts_graph)-1):
                 ax_graph_dict[ts].set_xticks([])
             pos += 1
         ax_graph_dict[ts].set_xlabel('Days since initial exposure',size=text_size)
     
     # Set percentage edges to plot
-    upper_pct = 95
+    upper_pct = 90
     lower_pct = 100 - upper_pct
     
     # Initialise empty graphs list (for return)
@@ -436,7 +414,7 @@ def show_map(data, geo, ts_geo='E', geo_ylim=None, day=0, lin=False, rel=False, 
                     ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                     graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
                 else:
-                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').values
+                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
                     label1='national'
                     graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graphs.append(graph)
@@ -681,14 +659,14 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
                 ts_median = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(0.5, dim='draws')
                 ts_lower = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(lower_pct/100, dim='draws')
                 ts_upper = data[ttss].sel(place=nis[0]).sum(dim='Nc').quantile(upper_pct/100, dim='draws')
-                label1=nis
+                label1=nis_value
                 label2=f"{upper_pct}% interval"
                 # Plot values
                 ax_dict[ttss].plot(tlist, ts_median, color=color_dict[ttss], alpha=1, linewidth=2, label=label1)
                 graph = ax_dict[ttss].fill_between(tlist, ts_lower, ts_upper, color=color_dict[ttss], alpha=0.3, label=label2)
             else:
                 ts_single = data[ttss].sel(place=nis[0]).sum(dim='Nc')
-                label=nis[0]
+                label=nis_value
                 # Plot values
                 graph = ax_dict[ttss].plot(tlist, ts_single, color=color_dict[ttss], alpha=1, linewidth=2, label=label)
             graphs.append(graph)
