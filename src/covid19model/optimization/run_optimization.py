@@ -632,8 +632,9 @@ def full_calibration_wave1(model, timeseries, spatial_unit, start_date, end_beta
 
 
 def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta,
-                           beta_init, sigma_data_init=None, beta_norm_params, sigma_data_norm_params=None,
-                           fig_path, samples_path,initN, Nc_total, dist='poisson',
+                           beta_init, beta_norm_params,
+                           fig_path, samples_path,initN, Nc_total,
+                           dist='poisson', sigma_data_init=None, sigma_data_norm_params=None,
                            steps_mcmc=10000, discard=500):
 
     """
