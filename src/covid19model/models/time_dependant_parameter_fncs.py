@@ -365,7 +365,7 @@ def make_contact_matrix_function(df_google, Nc_all):
     
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def contact_matrix_4prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
-                       school=None, work=None, transport=None, leisure=None, others=None):
+                       school=None, work=None, transport=None, leisure=None, others=None,SB=False):
         """
         t : timestamp
             current date
@@ -391,6 +391,15 @@ def make_contact_matrix_function(df_google, Nc_all):
                 row = -df_google_array[idx]/100
             else:
                 row = -df_google_array[-1]/100
+
+            if SB == '2a':
+                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+            elif SB == '2b':
+                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[4] = row[4]/2
+            elif SB == '2c':
+                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[0] = row[0]/2
 
             # columns: retail_recreation grocery parks transport work residential
             if work is None:
@@ -409,56 +418,6 @@ def make_contact_matrix_function(df_google, Nc_all):
                   prev_rest*leisure*Nc_all['leisure'] + 
                   prev_rest*others*Nc_all['others']) 
 
-
         return CM
 
-    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def contact_matrix_3prev(t, prev_schools=1, prev_work=1, prev_rest = 1,school=None, 
-                       work=None, transport=None, leisure=None, others=None):
-        """
-        t : timestamp
-            current date
-        prev_... : float [0,1]
-            prevention parameter to estimate
-        school, work, transport, leisure, others : float [0,1]
-            level of opening of these sectors
-            if None, it is calculated from google mobility data
-            only school cannot be None!
-        """
-
-        if t < pd.Timestamp('2020-03-15'):
-            CM = Nc_all['total']
-        else:
-
-            if school is None:
-                raise ValueError(
-                "Please indicate to which extend schools are open")
-
-            if pd.Timestamp('2020-03-15') <= t <= df_google_end:
-                #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-                idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
-                row = -df_google_array[idx]/100
-            else:
-                row = -df_google_array[-1]/100
-
-            # columns: retail_recreation grocery parks transport work residential
-            if work is None:
-                work= 1-row[4]
-            if transport is None:
-                transport=1-row[3]
-            if leisure is None:
-                leisure=1-row[0]
-            if others is None:
-                others=1-row[1]
-
-            CM = ((1/2.3)*Nc_all['home'] + 
-                  prev_schools*school*Nc_all['schools'] + 
-                  prev_work*work*Nc_all['work'] + 
-                  prev_rest*transport*Nc_all['transport'] + 
-                  prev_rest*leisure*Nc_all['leisure'] + 
-                  prev_rest*others*Nc_all['others']) 
-
-
-        return CM
-
-    return contact_matrix_4prev, contact_matrix_3prev
+    return contact_matrix_4prev

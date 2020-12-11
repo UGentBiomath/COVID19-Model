@@ -50,7 +50,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
-contact_matrix_4prev, contact_matrix_3prev = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
 def wave2_policies_4prev(t, param, l , tau, 
@@ -109,21 +109,21 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2020-12-08'
+end_calibration = '2020-12-10'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 # PSO settings
 warmup=0
-maxiter = 10
-multiplier = 1
+maxiter = 50
+multiplier = 10
 import multiprocessing as mp
 processes = 6 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 50
-discard = 0
+steps_mcmc = 5000
+discard = 2000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
