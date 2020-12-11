@@ -197,7 +197,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        pi : mobility parameter per age class. Only loads when spatial is not None
+        pg : mobility parameter per patch. Only loads when spatial is not None
         v : daily vaccination rate (percentage of population to be vaccinated)
         e : vaccine effectivity
 
@@ -306,11 +306,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         area=area_df.values[:,0]
         pars_dict['area'] = area * 1e-6 # in square kilometer
 
-        # Load mobility parameter, which is age-stratified and 1 by default (no measures)
-        pi = np.ones(pars_dict['Nc'].shape[0])
-        pars_dict['pi'] = pi
+        # Load mobility parameter, which is doubly stratified and 1 by default (no measures)
+        pg = np.ones(pars_dict['place'].shape[0])
+        pars_dict['pg'] = pg
 
-        # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
+        # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now. Currently not used
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
         
@@ -323,7 +323,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
-    # Fitted parameters
-    pars_dict['beta'] = 0.03492
+    # Fitted parameters (hardcoded)
+    beta = 0.03492
+    pars_dict['beta'] = beta
+    if spatial:
+        pars_dict['beta'] = beta*np.ones(pars_dict['place'].shape[0]) # one effective beta per patch
 
     return pars_dict
