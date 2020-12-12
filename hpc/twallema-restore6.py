@@ -38,7 +38,7 @@ report_version = '6.0'
 end_sim = '2021-03-01'
 start_sim = '2020-09-01'
 model = 'BIOMATH COVID-19 SEIRD national'
-n_samples = 500
+n_samples = 50
 warmup = 0
 conf_int = 0.05
 # Upper- and lower confidence level
@@ -79,7 +79,7 @@ df_google = google.get_google_mobility_data(update=False, plot=False)
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2020-12-10_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_3_prev_full_2020-12-11_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
@@ -88,9 +88,9 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
-contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev, contact_matrix_3prev = make_contact_matrix_function(df_google, Nc_all)
 
-def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
+def report6_policy_function(t, param, l , tau, prev_schools, prev_work, prev_rest,scenario='1a'):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
@@ -108,9 +108,6 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
     t10 = pd.Timestamp('2021-01-11') # alternative school re-opening
     t11 = pd.Timestamp('2021-01-18') # start of alternative policies
 
-    # Average out september mobility
-
-
     if t5 < t <= t6 + tau_days:
         t = pd.Timestamp(t.date())
         # REMARK: contact_matrix_4prev can be used for the 3 prev parameters scenario because the default prevention at home = 1
@@ -118,74 +115,45 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         t = pd.Timestamp(t.date())
         policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
     elif t6 + tau_days + l_days < t <= t7:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t7 < t <= t8:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t8 < t <= t9:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=0)
     else:
-        # Scenario 1
         if scenario == '1a':
             t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=1)
         elif scenario == '1b':
             if t9 < t <= t10:
                 t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=0)
             else:
                 t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=1)
         elif scenario == '1c':
             if t9 < t <= t11:
                 t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                               school=0)
             else:
                 t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-        # Scenario 2
-        elif scenario == '2a':
-            if t9 < t <= t10:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-            else:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1,SB='2a')
-        elif scenario == '2b':
-            if t9 < t <= t10:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-            else:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1,SB='2b')
-        elif scenario == '2c':
-            if t9 < t <= t10:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-            else:
-                t = pd.Timestamp(t.date())
-                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1,SB='2c')
-                              
+                return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                              school=1) 
+
 # ------------------------
 # Define sampling function
 # ------------------------
@@ -195,7 +163,6 @@ def draw_fcn(param_dict,samples_dict,to_sample):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['tau'] = samples_dict['tau'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]    
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx] 
@@ -216,7 +183,6 @@ for scenario in scenarios:
     # Add the time-dependant parameter function arguments
     params.update({'l' : 5,
                 'tau' : 5,
-                'prev_home': 0.5,
                 'prev_schools': 0.5,
                 'prev_work': 0.5,
                 'prev_rest': 0.5,

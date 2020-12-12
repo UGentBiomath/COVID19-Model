@@ -50,7 +50,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
-contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev, contact_matrix_3prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
 def wave2_policies_3prev(t, param, l , tau, 
@@ -73,9 +73,6 @@ def wave2_policies_3prev(t, param, l , tau,
 
     if t5 < t <= t6 + tau_days:
         t = pd.Timestamp(t.date())
-        # REMARK: default prevention at home = 1 in function contact_matrix_4prev
-        # So 'removing' the home prevention to have 3 prevention parameters is simply done by not defening prev_home as a function argument in the four
-        # prevention parameter contact matrix function
         return contact_matrix_4prev(t, school=1)
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         t = pd.Timestamp(t.date())
