@@ -204,7 +204,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     if (type(sigma) == int) or (type(sigma) == float):
         sigma_list = np.ones(len(ymodel))*sigma
         
-    ll = -1/2 * np.sum(np.log(2*np.pi*sigma*sigma)) - 1/2 * np.sum( (ydata - ymodel)**2 / sigma**2 )
+    ll = - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
     return ll
 
 def ll_poisson(ymodel, ydata, offset=0, complete=False):
