@@ -1,5 +1,7 @@
 import numpy as np
+import warnings
 from scipy.stats import norm
+from scipy.special import gammaln
 
 def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson',poisson_offset=0):
 
