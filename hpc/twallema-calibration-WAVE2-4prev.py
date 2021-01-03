@@ -52,7 +52,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
-contact_matrix_4prev, contact_matrix_3prev = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
 def wave2_policies_4prev(t, param, l , tau, 
