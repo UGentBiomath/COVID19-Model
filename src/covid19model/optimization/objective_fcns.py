@@ -142,17 +142,82 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # -------------
     # calculate MLE
     # -------------
-    ymodel = []
-    MLE = 0    
-    for i in range(n):
-        som = 0
-        # sum required states
-        for j in range(len(states[i])):
-            som = som + out[states[i][j]].sum(dim="Nc").values
-        ymodel.append(som[warmup:])
-        # calculate simga2 and log-likelihood function
-        MLE = MLE - 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
-    return abs(MLE) # must be positive for pso
+    
+    if dist == 'gaussian':
+        ymodel = []
+        MLE = 0
+        for i in range(n): #this is wrong for i != 0 I think
+            som = 0
+            # sum required states. This is wrong for j != 0 I think.
+            for j in range(len(states[i])):
+                som = som + out[states[i][j]].sum(dim="Nc").values
+            ymodel.append(som[warmup:]) # only add data beyond warmup time
+            # calculate sigma2 and log-likelihood function based on Gaussian
+            MLE = MLE + ll_gaussian(ymodel[i], data[i], sigma[i]) #- 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+
+    if dist == 'poisson':
+        # calculate loglikelihood function based on Poisson distribution for only H_in
+        ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:] #- np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+        MLE = ll_poisson(ymodel, data[0], offset=poisson_offset)
+    
+    return -MLE # must be positive for pso, which attempts to minimises MLE
+
+def ll_gaussian(ymodel, ydata, sigma):
+    """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
+    
+    Parameters
+    ----------
+    ymodel: list of floats
+        List with average values of the Gaussian distribution at a particular time (i.e. "mu" values), predicted by the model at hand
+    ydata: list of floats
+        List with actual time series values at a particlar time that are to be fitted to the model
+    sigma: float or list of floats
+        (List of) standard deviation(s) defining the Gaussian distribution around the central value 'ymodel'. If float, the same value for the standard deviation is used for all timeseries values
+
+    Returns
+    -------
+    ll: float
+        Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
+    """
+    
+    if len(ymodel) != len(ydata):
+        raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
+    if (type(sigma) == int) or (type(sigma) == float):
+        sigma_list = np.ones(len(ymodel))*sigma
+        
+    ll = - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
+    return ll
+
+def ll_poisson(ymodel, ydata, offset=0, complete=False):
+    """Loglikelihood of Poisson distribution
+    
+    Parameters
+    ----------
+    ymodel: list of floats
+        List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
+    ydata: list of floats
+        List with actual time series values at a particlar time that are to be fitted to the model
+    offset: float
+        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
+    complete: boolean
+        If True ll_poisson calculates the actual Poisson loglikelihood (including the factorial term), rather than only the terms that vary with varying model parameter values.
+
+    Returns
+    -------
+    ll: float
+        Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
+    """
+    
+    if len(ymodel) != len(ydata):
+        raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
+        
+    if min(ymodel+offset) <= 0:
+        warnings.warn("Some values in the 'ymodel' list are not strictly positive. Consider increasing the 'offset' parameter value")
+        
+    ll = - np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+    if complete == True:
+        ll -= np.sum(gammaln(ydata+offset))
+    return ll
 
 def log_prior(thetas,bounds):
 
