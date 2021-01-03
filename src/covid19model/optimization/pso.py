@@ -254,7 +254,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,warmup=0,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1, omega=0.8, phip=0.8, phig=0.8):
+def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1, omega=0.8, phip=0.8, phig=0.8):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 

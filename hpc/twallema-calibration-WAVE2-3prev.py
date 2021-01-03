@@ -109,7 +109,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2020-12-10'
+end_calibration = '2020-12-13'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
@@ -117,13 +117,13 @@ samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/nati
 # PSO settings
 warmup=0
 maxiter = 50
-multiplier = 20
+multiplier = 10
 import multiprocessing as mp
-processes = 6
+processes = 3
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 100000
-discard = 10000
+steps_mcmc = 140000
+discard = 40000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -157,14 +157,14 @@ print('1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
 
 # set PSO optimisation settings
-parNames = ['sigma_data','beta','l','tau',
+parNames = ['beta','l','tau',
             'prev_schools', 'prev_work', 'prev_rest']
-bounds=((1,2000),(0.010,0.060),(0.1,20),(0.1,20),
+bounds=((0.010,0.060),(0.1,20),(0.1,20),
         (0.01,0.99),(0.01,0.99),(0.01,0.99))
 
 # run PSO optimisation
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                    start_date=start_calibration,warmup=warmup, processes=processes)
+                    start_date=start_calibration,warmup=warmup, processes=processes,dist='poisson')
 
 # run MCMC sampler
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
@@ -176,11 +176,11 @@ backend = emcee.backends.HDFBackend(results_folder+filename)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
-bounds_mcmc=((1,2000),(0.010,0.060),(0.001,20),(0.001,20),
+bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
-perturbations = ([1]+(ndim-1)*[1e-3]) * np.random.randn(nwalkers, ndim)
+perturbations = ([1]+(ndim-1)*[1e-5]) * np.random.randn(nwalkers, ndim)
 pos = theta + perturbations
 
 # If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
@@ -195,7 +195,7 @@ for i in range(pos.shape[0]):
 from multiprocessing import Pool
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup))
+                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup,'poisson'))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
 thin = 1
@@ -206,8 +206,8 @@ except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 from covid19model.optimization.run_optimization import checkplots
-checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='FIT_WAVE2_GOOGLE', 
-           labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$',
+checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='FIT_WAVE2_GOOGLE_', 
+           labels=['$\\beta$','l','$\\tau$',
                    'prev_schools', 'prev_work', 'prev_rest'])
 
 #############################################
