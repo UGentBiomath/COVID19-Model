@@ -1,3 +1,8 @@
+import os
+import datetime
+import pandas as pd
+import numpy as np
+
 def get_sciensano_COVID19_data(update=True):
     """Download Sciensano hospitalisation cases data
 
