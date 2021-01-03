@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm
 
-def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson'):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset
