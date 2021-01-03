@@ -36,10 +36,12 @@ from covid19model.visualization.optimization import plot_fit, traceplot
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
 levels = initN.size
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+# Update data?
+update = False
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
-df_google = google.get_google_mobility_data(update=True, plot=False)
+df_google = google.get_google_mobility_data(update=update, plot=False)
 # Model initial condition on September 1st
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
