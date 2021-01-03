@@ -417,6 +417,7 @@ def make_contact_matrix_function(df_google, Nc_all):
                   prev_rest*leisure*Nc_all['leisure'] + 
                   prev_rest*others*Nc_all['others']) 
 
+
         return CM
 
     return contact_matrix_4prev
