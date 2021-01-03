@@ -71,7 +71,7 @@ def wave2_policies_4prev(t, param, l , tau,
     t6 = pd.Timestamp('2020-10-19') # lockdown
     t7 = pd.Timestamp('2020-11-16') # schools re-open
     t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-18') # schools re-open
+    t9 = pd.Timestamp('2021-01-04') # schools re-open
 
     if t5 < t <= t6 + tau_days:
         t = pd.Timestamp(t.date())
@@ -111,7 +111,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2020-12-13'
+end_calibration = '2021-01-02'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
@@ -119,13 +119,13 @@ samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/nati
 # PSO settings
 warmup=0
 maxiter = 50
-multiplier = 10
+multiplier = 100
 import multiprocessing as mp
 processes = 5 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 200000
-discard = 40000
+steps_mcmc = 300000
+discard = 50000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -255,7 +255,7 @@ for i in range(1000):
     idx, model.parameters['beta'] = random.choice(list(enumerate(samples_dict_wave2['beta'])))
     model.parameters['l'] = samples_dict_wave2['l'][idx] 
     model.parameters['tau'] = samples_dict_wave2['tau'][idx]  
-    model.parameters['prev_home'] = model.parameters['prev_home'][idx]    
+    model.parameters['prev_home'] = samples_dict_wave2['prev_home'][idx]    
     model.parameters['prev_schools'] = samples_dict_wave2['prev_schools'][idx]    
     model.parameters['prev_work'] = samples_dict_wave2['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict_wave2['prev_rest'][idx]      
