@@ -364,7 +364,7 @@ def make_contact_matrix_function(df_google, Nc_all):
     
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def contact_matrix_4prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
-                       school=None, work=None, transport=None, leisure=None, others=None):
+                       school=None, work=None, transport=None, leisure=None, others=None,SB=False):
         """
         t : timestamp
             current date
