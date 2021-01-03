@@ -25,11 +25,11 @@ def autocorrelation_plot(samples):
     """
     # Compute autocorrelation/chain
     ndim = samples.shape[2]
-    step_autocorr = 100
-    tau_vect = np.empty((len(samples)//step_autocorr,ndim))
+    step_autocorr = math.ceil(samples.shape[0]/100)
+    tau_vect = []
     index = 0
-    for i in range(step_autocorr, len(samples), step_autocorr):
-        tau_vect[index] = emcee.autocorr.integrated_time(samples[:i], tol = 0)
+    for i in range(step_autocorr, samples.shape[0], step_autocorr):
+        tau_vect.append(emcee.autocorr.integrated_time(samples[:i], tol = 0))
         index += 1
     n = step_autocorr * np.arange(1, index + 1)
     # Make figure

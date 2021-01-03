@@ -49,6 +49,12 @@ def get_sciensano_COVID19_data(update=True):
     abs_dir = os.path.dirname(__file__)
 
     if update==True:
+        # Extract case data from source
+        df_cases = pd.read_excel(url, sheet_name="CASES_AGESEX")
+        # save a copy in the raw folder
+        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_CASES_AGESEX.csv')
+        df_cases.to_csv(rel_dir, index=False)
+
         # Extract hospitalisation data from source
         df = pd.read_excel(url, sheet_name="HOSP")
         # save a copy in the raw folder
@@ -62,6 +68,9 @@ def get_sciensano_COVID19_data(update=True):
         df_mort.to_csv(rel_dir_M, index=False)
 
     else:
+        df_cases = pd.read_csv(os.path.join(abs_dir,
+        '../../../data/raw/sciensano/COVID19BE_CASES_AGESEX.csv'), parse_dates=['DATE'])
+
         df = pd.read_csv(os.path.join(abs_dir,
         '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
 
@@ -88,4 +97,17 @@ def get_sciensano_COVID19_data(update=True):
     df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE')['DEATHS'].sum()
     df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE')['DEATHS'].sum()
 
+    # Extract total cases per day and cases per age group per day
+    #df["C_tot"] = df_cases.resample('D', on='DATE')['CASES'].sum()
+    #df["C_0_9"] = df_cases.loc[(df_cases['AGEGROUP'] == '0-9')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_10_19"] = df_cases.loc[(df_cases['AGEGROUP'] == '10-19')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_20_29"] = df_cases.loc[(df_cases['AGEGROUP'] == '20-29')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_30_39"] = df_cases.loc[(df_cases['AGEGROUP'] == '30-39')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_40_49"] = df_cases.loc[(df_cases['AGEGROUP'] == '40-49')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_50_59"] = df_cases.loc[(df_cases['AGEGROUP'] == '50-59')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_60_69"] = df_cases.loc[(df_cases['AGEGROUP'] == '60-69')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_70_79"] = df_cases.loc[(df_cases['AGEGROUP'] == '70-79')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_80_89"] = df_cases.loc[(df_cases['AGEGROUP'] == '80-89')].resample('D', on='DATE')['CASES'].sum()
+    #df["C_90+"] = df_cases.loc[(df_cases['AGEGROUP'] == '90+')].resample('D', on='DATE')['CASES'].sum()
+    
     return df.fillna(0)

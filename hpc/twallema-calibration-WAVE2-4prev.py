@@ -36,10 +36,12 @@ from covid19model.visualization.optimization import plot_fit, traceplot
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
 levels = initN.size
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+# Update data?
+update = False
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
-df_google = google.get_google_mobility_data(update=False, plot=False)
+df_google = google.get_google_mobility_data(update=update, plot=False)
 # Model initial condition on September 1st
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
@@ -109,7 +111,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2020-12-10'
+end_calibration = '2021-01-02'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
@@ -117,13 +119,13 @@ samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/nati
 # PSO settings
 warmup=0
 maxiter = 50
-multiplier = 10
+multiplier = 100
 import multiprocessing as mp
-processes = 6 #mp.cpu_count()
+processes = 5 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 5000
-discard = 2000
+steps_mcmc = 300000
+discard = 50000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -141,7 +143,7 @@ params.update({'l' : 5,
                'prev_work': 0.5,
                'prev_rest': 0.5,
                'prev_home' : 0.5,
-              })
+               's': np.ones(9)}) # Susceptiblity in young adults is not lower!
 # Initialize
 model = models.COVID19_SEIRD(initial_states, params, time_dependent_parameters={'Nc': wave2_policies_4prev})
 
@@ -158,9 +160,9 @@ print('1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
 
 # set PSO optimisation settings
-parNames = ['sigma_data','beta','l','tau',
+parNames = ['beta','l','tau',
             'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((1,2000),(0.010,0.060),(0.1,20),(0.1,20),
+bounds=((0.010,0.060),(0.1,20),(0.1,20),
         (0.01,1),(0.01,1),(0.01,1),(0.01,1))
 
 # run PSO optimisation
@@ -177,7 +179,7 @@ backend = emcee.backends.HDFBackend(results_folder+filename)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
-bounds_mcmc=((1,2000),(0.010,0.060),(0.001,20),(0.001,20),
+bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
@@ -196,7 +198,7 @@ for i in range(pos.shape[0]):
 from multiprocessing import Pool
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup))
+                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup,'poisson'))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
 thin = 1
@@ -208,7 +210,7 @@ except:
 
 from covid19model.optimization.run_optimization import checkplots
 checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='FIT_WAVE2_GOOGLE', 
-           labels=['$\sigma_{data}$','$\\beta$','l','$\\tau$',
+           labels=['$\\beta$','l','$\\tau$',
                    'prev_schools', 'prev_work', 'prev_rest', 'prev_home'])
 
 #############################################
@@ -248,18 +250,19 @@ print('4) Visualizing model fit \n')
 end_sim = '2021-05-01'
 
 fig,ax=plt.subplots(figsize=(10,4))
-for i in range(10):
+for i in range(1000):
     # Sample
     idx, model.parameters['beta'] = random.choice(list(enumerate(samples_dict_wave2['beta'])))
     model.parameters['l'] = samples_dict_wave2['l'][idx] 
-    model.parameters['tau'] = samples_dict_wave2['tau'][idx]    
+    model.parameters['tau'] = samples_dict_wave2['tau'][idx]  
+    model.parameters['prev_home'] = samples_dict_wave2['prev_home'][idx]    
     model.parameters['prev_schools'] = samples_dict_wave2['prev_schools'][idx]    
     model.parameters['prev_work'] = samples_dict_wave2['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict_wave2['prev_rest'][idx]      
     # Simulate
     y_model = model.sim(end_sim,start_date=start_calibration,warmup=0)
     # Plot
-    ax.plot(y_model['time'],y_model["H_in"].sum(dim="Nc"),color='blue',alpha=0.002)
+    ax.plot(y_model['time'],y_model["H_in"].sum(dim="Nc"),color='blue',alpha=0.01)
 
 ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration],color='black',alpha=0.6,linestyle='None',facecolors='none')
 ax = _apply_tick_locator(ax)
