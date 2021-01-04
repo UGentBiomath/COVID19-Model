@@ -183,7 +183,7 @@ bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
-perturbations = ([1]+(ndim-1)*[1e-4]) * np.random.randn(nwalkers, ndim)
+perturbations = theta*1e-1*np.random.random(size=(nwalkers,ndim))
 pos = theta + perturbations
 
 # If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
