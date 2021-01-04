@@ -187,12 +187,12 @@ perturbations = theta*1e-1*np.random.random(size=(nwalkers,ndim))
 pos = theta + perturbations
 
 # If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
-#for i in range(pos.shape[0]):
-#    for j in range(pos.shape[1]):
-#        if pos[i,j] < bounds_mcmc[j][0]:
-#            pos[i,j] = bounds_mcmc[j][0]
-#        elif pos[i,j] > bounds_mcmc[j][1]:
-#            pos[i,j] = bounds_mcmc[j][1]
+for i in range(pos.shape[0]):
+    for j in range(pos.shape[1]):
+        if pos[i,j] < bounds_mcmc[j][0]:
+            pos[i,j] = bounds_mcmc[j][0]
+        elif pos[i,j] > bounds_mcmc[j][1]:
+            pos[i,j] = bounds_mcmc[j][1]
 
 # Initialize parallel pool and run sampler
 from multiprocessing import Pool
