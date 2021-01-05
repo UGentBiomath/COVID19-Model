@@ -111,21 +111,21 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2021-01-02'
+end_calibration = '2021-01-03'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 # PSO settings
 warmup=0
-maxiter = 50
-multiplier = 100
+maxiter = 200
+multiplier = 3
 import multiprocessing as mp
-processes = 5 #mp.cpu_count()
+processes = 6 #mp.cpu_count()
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 300000
-discard = 50000
+steps_mcmc = 200000
+discard = 40000
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
@@ -163,7 +163,7 @@ print('Using ' + str(processes) + ' cores\n')
 parNames = ['beta','l','tau',
             'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 bounds=((0.010,0.060),(0.1,20),(0.1,20),
-        (0.01,1),(0.01,1),(0.01,1),(0.01,1))
+        (0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
 
 # run PSO optimisation
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
@@ -183,7 +183,7 @@ bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
-perturbations = ([1]+(ndim-1)*[1e-3]) * np.random.randn(nwalkers, ndim)
+perturbations = theta*1e-2*np.random.random(size=(nwalkers,ndim))
 pos = theta + perturbations
 
 # If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
