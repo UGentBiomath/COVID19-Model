@@ -38,8 +38,8 @@ report_version = '6.0'
 end_sim = '2021-05-01'
 start_sim = '2020-09-01'
 model = 'BIOMATH COVID-19 SEIRD national'
-n_samples = 500
-n_draws_per_sample = 5000
+n_samples = 50
+n_draws_per_sample = 100
 warmup = 0
 conf_int = 0.05
 # Upper- and lower confidence level
@@ -83,7 +83,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 #initial_states['R'] = np.array(initial_states['R']) + 0.05*np.array(initial_states['S'])
 #initial_states['S'] = np.array(initial_states['S']) - 0.05*np.array(initial_states['S']) 
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
@@ -92,9 +92,9 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
-contact_matrix_4prev, contact_matrix_3prev = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
-def report6_policy_function(t, param, l , tau, prev_schools, prev_work, prev_rest,scenario='1a'):
+def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
@@ -125,20 +125,20 @@ def report6_policy_function(t, param, l , tau, prev_schools, prev_work, prev_res
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         t = pd.Timestamp(t.date())
         policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
     elif t6 + tau_days + l_days < t <= t7:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t7 < t <= t8:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t8 < t <= t9:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     else:
         # Scenario 1: Current contact behaviour + schools open on January 18th
@@ -267,6 +267,7 @@ def draw_fcn(param_dict,samples_dict,to_sample):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['tau'] = samples_dict['tau'][idx]    
+    param_dict['prev_home'] = samples_dict['prev_home'][idx] 
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx] 
@@ -287,6 +288,7 @@ for scenario in scenarios:
     # Add the time-dependant parameter function arguments
     params.update({'l' : 5,
                 'tau' : 5,
+                'prev_home': 0.5,
                 'prev_schools': 0.5,
                 'prev_work': 0.5,
                 'prev_rest': 0.5,
