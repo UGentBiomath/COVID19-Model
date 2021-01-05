@@ -38,7 +38,7 @@ report_version = '6.0'
 end_sim = '2021-05-01'
 start_sim = '2020-09-01'
 model = 'BIOMATH COVID-19 SEIRD national'
-n_samples = 100
+n_samples = 50
 n_draws_per_sample = 100
 warmup = 0
 conf_int = 0.05
@@ -83,7 +83,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 #initial_states['R'] = np.array(initial_states['R']) + 0.05*np.array(initial_states['S'])
 #initial_states['S'] = np.array(initial_states['S']) - 0.05*np.array(initial_states['S']) 
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
@@ -125,20 +125,20 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
     elif t6 + tau_days < t <= t6 + tau_days + l_days:
         t = pd.Timestamp(t.date())
         policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
     elif t6 + tau_days + l_days < t <= t7:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t7 < t <= t8:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t8 < t <= t9:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     else:
         # Scenario 1: Current contact behaviour + schools open on January 18th
