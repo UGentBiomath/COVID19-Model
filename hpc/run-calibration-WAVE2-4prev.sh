@@ -1,10 +1,10 @@
 #!/bin/bash
 #PBS -N calibration-COVID19-SEIRD-WAVE2 ## job name
-#PBS -l nodes=1:ppn=9 ## single-node job, all available cores
+#PBS -l nodes=1:ppn=9 ## single-node job, on 9 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Change to package folder
-cd $VSC_HOME/Documents/COVID19-Model/hpc/
+cd /data/gent/vo/000/gvo00048/vsc41096/COVID19-Model/hpc/
 
 # Make script executable
 chmod +x twallema-calibration-WAVE2-4prev.py
