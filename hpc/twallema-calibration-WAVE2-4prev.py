@@ -111,7 +111,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2021-01-03'
+end_calibration = '2021-01-08'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
