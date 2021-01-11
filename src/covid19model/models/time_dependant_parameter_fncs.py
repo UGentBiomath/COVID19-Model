@@ -374,6 +374,11 @@ def make_contact_matrix_function(df_google, Nc_all):
             level of opening of these sectors
             if None, it is calculated from google mobility data
             only school cannot be None!
+        SB : str '2a', '2b' or '2c'
+            '2a': september behaviour overall
+            '2b': september behaviour, but work = lockdown behaviour
+            '2c': september behaviour, but leisure = lockdown behaviour
+
         """
 
         if t < pd.Timestamp('2020-03-15'):
