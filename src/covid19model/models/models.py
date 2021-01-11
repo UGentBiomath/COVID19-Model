@@ -88,6 +88,7 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
+        alpha : prevalence of the English variant
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -116,14 +117,14 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
+    parameter_names = ['beta', 'alpha', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+                  beta, alpha, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, e, s, a, h, c, m_C, m_ICU, v, Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -137,6 +138,7 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # beta => beta*(1-alpha)+1.6*beta*alpha
         dS  = - beta*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S
         dE  = beta*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E
         dI = (1/sigma)*E - (1/omega)*I
