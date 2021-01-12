@@ -64,7 +64,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         # download raw data
         df = pd.read_csv(url, parse_dates=['date'], dtype=dtypes)
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/google/community_mobility_data_BE.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv')
         # Extract only Belgian data: full file is over 300 Mb
         df=df[df['country_region']=='Belgium']
         # Save data
@@ -72,7 +72,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 
     else:
         df = pd.read_csv(os.path.join(abs_dir,
-            '../../../data/raw/google/community_mobility_data_BE.csv'),
+            '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv'),
             parse_dates=['date'], dtype=dtypes)
 
     # Extract values
