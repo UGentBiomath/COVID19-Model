@@ -138,9 +138,9 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # beta => beta*(1-alpha)+1.6*beta*alpha
-        dS  = - beta*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S
-        dE  = beta*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E
+        # beta => (beta*(1-alpha)+1.6*beta*alpha)
+        dS  = - (beta*(1-alpha)+1.6*beta*alpha)*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S
+        dE  = (beta*(1-alpha)+1.6*beta*alpha)*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
