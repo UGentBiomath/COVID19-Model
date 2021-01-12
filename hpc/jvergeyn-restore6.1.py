@@ -34,7 +34,7 @@ from covid19model.visualization.optimization import plot_fit, traceplot
 
 import sys, getopt
 scenarios = sys.argv[1:]
-report_version = '6.0'
+report_version = '6.1'
 end_sim = '2021-05-01'
 start_sim = '2020-09-01'
 model = 'BIOMATH COVID-19 SEIRD national'
@@ -83,7 +83,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 #initial_states['R'] = np.array(initial_states['R']) + 0.05*np.array(initial_states['S'])
 #initial_states['S'] = np.array(initial_states['S']) - 0.05*np.array(initial_states['S']) 
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-12_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
@@ -360,16 +360,16 @@ for scenario in scenarios:
     ax2.set_xlim('2020-09-01',end_sim)
     ax2 = _apply_tick_locator(ax2)
     # Save
-    fig_path =  '../results/predictions/national/restore_v6/'
-    fig.savefig(fig_path+'restore_v6_scenario_'+scenario+'.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+'restore_v6_scenario_'+scenario+'.png', dpi=400, bbox_inches='tight')
+    fig_path =  '../results/predictions/national/restore_v'+report_version+'/'
+    fig.savefig(fig_path+'restore_v'+report_version+'_scenario_'+scenario+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'restore_v'+report_version+'_scenario_'+scenario+'.png', dpi=400, bbox_inches='tight')
 
 # ---------------------
 # Write results to .csv
 # ---------------------
 
 print('3) Saving dataframe\n')
-results.to_csv(fig_path+'UGent_restore_v6.csv')
+results.to_csv(fig_path+'UGent_restore_v'+report_version+'.csv')
 
 print('#############')
 print('### DONE! ###')
