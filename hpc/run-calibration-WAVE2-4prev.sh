@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N calibration-COVID19-SEIRD-WAVE2 ## job name
-#PBS -l nodes=1:ppn=all ## single-node job, on 9 cores
+#PBS -l nodes=1:ppn=9 ## single-node job, on 9 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Change to package folder
