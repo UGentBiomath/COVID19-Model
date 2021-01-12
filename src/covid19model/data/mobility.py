@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from ..visualization.data import google_mobility
 
-def get_apple_mobility_data(update=True, plot=False, filename_plot=None):
+def get_apple_mobility_data(update=True):
     """Download Apple Mobility Trends
 
     This function downloads, formats and returns the available Apple Mobility Trends for the Provinces of Belgium.
