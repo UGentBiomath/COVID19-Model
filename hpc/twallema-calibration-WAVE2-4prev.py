@@ -37,7 +37,7 @@ initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_tot
 levels = initN.size
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 # Update data?
-update = True
+update = False
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
