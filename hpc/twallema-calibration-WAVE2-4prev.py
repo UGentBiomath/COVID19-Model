@@ -37,7 +37,7 @@ initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_tot
 levels = initN.size
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 # Update data?
-update = False
+update = True
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
@@ -111,7 +111,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2021-01-08'
+end_calibration = '2021-01-11'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
