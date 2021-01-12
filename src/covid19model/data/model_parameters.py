@@ -325,5 +325,6 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
 
     # Fitted parameters
     pars_dict['beta'] = 0.03492
+    pars_dict['alpha'] = 0
 
     return pars_dict
