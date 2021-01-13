@@ -18,7 +18,8 @@ setup(
         'sklearn',
 	    'openpyxl',
         'zarr',
-        'emcee'
+        'emcee',
+        'xarray'
     ],
     extras_require={
         "develop":  ["pytest",
