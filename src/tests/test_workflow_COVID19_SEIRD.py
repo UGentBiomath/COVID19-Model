@@ -1,239 +1,208 @@
+"""
+This script contains a one-prevention parameter, two-parameter delayed compliance ramp calibration to hospitalization data from the first COVID-19 wave in Belgium.
+Its intended use is as a test-function, i.e. to verify that the workflow of model initialization with time-dependant parameters, calibration and prediction is working.
+The script can further be used as a template.
+"""
 
+__author__      = "Tijs Alleman"
+__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+
+# ----------------------
+# Load required packages
+# ----------------------
+
+import random
+import emcee
 import numpy as np
-import pytest
+import pandas as pd
+import matplotlib.pyplot as plt
+from covid19model.models import models
+from covid19model.data import mobility, sciensano, model_parameters
+from covid19model.optimization import pso, objective_fcns
+from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.visualization.output import _apply_tick_locator 
 
-from covid19model.models.base import BaseModel
+# ---------
+# Load data
+# ---------
 
+# Contact matrices
+initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
+levels = initN.size
+# Sciensano data
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+# Google Mobility data
+df_google = mobility.get_google_mobility_data(update=False)
 
-class SIR(BaseModel):
+# ---------------------------------
+# Time-dependant parameter function
+# ---------------------------------
 
-    # state variables and parameters
-    state_names = ['S', 'I', 'R']
-    parameter_names = ['beta', 'gamma']
+def compliance_func(t, param, l, tau, prevention):
+    # Convert tau and l to dates
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+    # Measures
+    start_measures = pd.to_datetime('2020-03-15')
+    if t < start_measures + tau_days:
+        return param
+    elif start_measures + tau_days < t <= start_measures + tau_days + l_days:
+        return ramp_fun(param, prevention*param, t, tau_days, l, start_measures)
+    else:
+        return param * prevention
 
-    @staticmethod
-    def integrate(t, S, I, R, beta, gamma):
-        """Basic SIR model"""
-        N = S + I + R
-        dS = -beta*I*S/N
-        dI = beta*I*S/N - gamma*I
-        dR = gamma*I
+# --------------------
+# Initialize the model
+# --------------------
 
-        return dS, dI, dR
+# Load the model parameters dictionary
+params = model_parameters.get_COVID19_SEIRD_parameters()
+# Add the time-dependant parameter function arguments
+params.update({'l': 1, 'tau': 1, 'prevention' : 0.5})
+# Define initial states
+initial_states = {"S": initN, "E": 3*np.ones(9)}
+# Initialize model
+model = models.COVID19_SEIRD(initial_states, params,
+                        time_dependent_parameters={'Nc': compliance_func})
 
+# ---------------------------
+# Define calibration settings
+# ---------------------------
 
-def test_model_simple_sir():
-    parameters = {"beta": 0.9, "gamma": 0.2}
-    initial_states = {"S": [1_000_000 - 10], "I": [10], "R": [0]}
+# Spatial unit: Belgium
+spatial_unit = 'BE_dummy'
+# Start of data collection
+start_data = '2020-03-15'
+# Start data of recalibration ramp
+start_calibration = '2020-03-15'
+# Last datapoint used to recalibrate the ramp
+end_calibration = '2020-05-01'
+# PSO settings
+warmup=0
+maxiter = 10
+popsize = 5
+# MCMC settings
+steps_mcmc = 12
+discard = 0
+# define dataset
+data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+states = [["H_in"]]
 
-    model = SIR(initial_states, parameters)
+# ---------------------------------------
+# Perform a calibration on the first wave
+# ---------------------------------------
 
-    time = [0, 50]
-    output = model.sim(time)
+print('------------------------------')
+print('PERFORMING CALIBRATION')
+print('------------------------------\n')
+print('Using data from '+start_calibration+' until '+end_calibration+'\n')
+print('1) Particle swarm optimization\n')
 
-    np.testing.assert_allclose(output["time"], np.arange(0, 51))
+# set PSO optimisation settings
+parNames = ['warmup','beta','l','tau','prevention']
+bounds=((20,80),(0.01,0.06),(0.1,20),(0.1,20),(0.03,0.97))
 
-    # TODO look for better (analytical?) validation of the simple model
-    S = output["S"].values.squeeze()
-    assert S[0] == 1_000_000 - 10
-    assert S.shape == (51, )
-    assert S[-1] < 12000
+# run PSO optimisation
+theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
+                    start_date=start_calibration)
+warmup = int(theta[0])
+theta = theta[1:]
 
-    I = output["I"].squeeze()
-    assert I[0] == 10
-    assert I[-1] // 10 == 188
+# run MCMC sampler
+print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+# Setup parameter names, bounds, number of chains, etc.
+parNames_mcmc = ['beta','l','tau','prevention']
+bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),(0,1))
+ndim = len(theta)
+nwalkers = ndim*2
+perturbations = theta*1e-2*np.random.random(size=(nwalkers,ndim))
+pos = theta + perturbations
 
-def test_model_init_validation():
-    # valid initialization
-    parameters = {"beta": 0.9, "gamma": 0.2}
-    initial_states = {"S": [1_000_000 - 10], "I": [10], "R": [0]}
-    model = SIR(initial_states, parameters)
-    assert model.initial_states == initial_states
-    assert model.parameters == parameters
-    # model state/parameter names didn't change
-    assert model.state_names == ['S', 'I', 'R']
-    assert model.parameter_names == ['beta', 'gamma']
+# If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
+for i in range(pos.shape[0]):
+    for j in range(pos.shape[1]):
+        if pos[i,j] < bounds_mcmc[j][0]:
+            pos[i,j] = bounds_mcmc[j][0]
+        elif pos[i,j] > bounds_mcmc[j][1]:
+            pos[i,j] = bounds_mcmc[j][1]
 
-    # wrong initial states
-    initial_states2 = {"S": [1_000_000 - 10], "II": [10]}
-    with pytest.raises(ValueError, match="specified initial states don't"):
-        SIR(initial_states2, parameters)
+# Run sampler
+sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
+            args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup,'poisson'))
+sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
-    # wrong parameters
-    parameters2 = {"beta": 0.9, "gamma": 0.2, "other": 1}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIR(initial_states, parameters2)
+thin = 1
+try:
+    autocorr = sampler.get_autocorr_time()
+    thin = int(0.5 * np.min(autocorr))
+except:
+    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    # validate model class itself
-    SIR.state_names = ["S", "R"]
-    with pytest.raises(ValueError):
-        SIR(initial_states, parameters)
+print('\n3) Sending samples to dictionary')
 
-    SIR.state_names = ["S", "II", "R"]
-    with pytest.raises(ValueError):
-        SIR(initial_states, parameters)
+flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+samples_dict = {}
+for count,name in enumerate(parNames_mcmc):
+    samples_dict[name] = flat_samples[:,count].tolist()
 
-    SIR.state_names = ["S", "I", "R"]
-    SIR.parameter_names = ['beta', 'alpha']
-    with pytest.raises(ValueError):
-        SIR(initial_states, parameters)
+# ------------------------
+# Define sampling function
+# ------------------------
 
-    # ensure to set back to correct ones
-    SIR.state_names = ["S", "I", "R"]
-    SIR.parameter_names = ['beta', 'gamma']
+def draw_fcn(param_dict,samples_dict,to_sample):
+    # Sample
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['l'] = samples_dict['l'][idx] 
+    param_dict['tau'] = samples_dict['tau'][idx]      
+    param_dict['prevention'] = samples_dict['prevention'][idx]
+    return param_dict
 
+# ----------------------
+# Perform sampling
+# ----------------------
 
-class SIRstratified(BaseModel):
+print('\n4) Simulating using sampled parameters')
+start_sim = start_calibration
+end_sim = end_calibration
+n_samples = 10
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
-    # state variables and parameters
-    state_names = ['S', 'I', 'R']
-    parameter_names = ['gamma']
-    parameters_stratified_names = [['beta']]
-    stratification = ['nc']
+# ---------------------------
+# Adding binomial uncertainty
+# ---------------------------
 
-    @staticmethod
-    def integrate(t, S, I, R, gamma, beta, nc):
-        """Basic SIR model"""
+print('\n5) Adding binomial uncertainty')
 
-        # Model equations
-        N = S + I + R
-        dS = nc @ (-beta*S*I/N)
-        dI = nc @ (beta*S*I/N) - gamma*I
-        dR = gamma*I
+conf_int = 0.05
+LL = conf_int/2
+UL = 1-conf_int/2
+n_draws_per_sample=10
+H_in = out["H_in"].sum(dim="Nc").values
+# Initialize vectors
+H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
+# Loop over dimension draws
+for n in range(H_in.shape[0]):
+    binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
+    H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+# Compute mean and median
+H_in_mean = np.mean(H_in_new,axis=1)
+H_in_median = np.median(H_in_new,axis=1)
+# Compute quantiles
+H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
+H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
 
-        return dS, dI, dR
+# -----------
+# Visualizing
+# -----------
 
+print('\n6) Visualizing fit \n')
 
-def test_model_stratified_simple_sir():
-    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
-    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
-
-    model = SIRstratified(initial_states, parameters)
-
-    time = [0, 50]
-    output = model.sim(time)
-
-    np.testing.assert_allclose(output["time"], np.arange(0, 51))
-    np.testing.assert_allclose(
-        output.coords['nc'].values, np.array([0, 1])
-    )
-
-
-def test_model_stratified_init_validation():
-    # valid initialization
-    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
-    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
-
-    model = SIRstratified(initial_states, parameters)
-    assert model.initial_states == initial_states
-    assert model.parameters == parameters
-    # model state/parameter names didn't change
-    assert model.state_names == ['S', 'I', 'R']
-    assert model.parameter_names == ['gamma']
-    assert model.parameters_stratified_names == [['beta']]
-    assert model.stratification == ['nc']
-
-    # wrong initial states
-    initial_states2 = {"S": [1_000_000 - 10]*2, "II": [10]*2}
-    with pytest.raises(ValueError, match="specified initial states don't"):
-        SIRstratified(initial_states2, parameters)
-
-    # wrong parameters (stratified parameter is missing)
-    parameters2 = {"beta": [0.8, 0.9], "gamma": 0.2, "other": 1}
-    with pytest.raises(ValueError, match="stratification parameter 'nc' is missing"):
-        SIRstratified(initial_states, parameters2)
-
-    parameters2 = {"gamma": 0.9, "other": 0.2, "nc": nc}
-    with pytest.raises(ValueError, match="specified parameters don't"):
-        SIRstratified(initial_states, parameters2)
-
-    # stratified parameter of the wrong length
-    parameters2 = {"gamma": 0.2, "beta": np.array([0.8, 0.9, 0.1]), "nc": nc}
-    msg = "The stratification parameter 'nc' indicates a stratification size of 2, but"
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states, parameters2)
-
-    parameters2 = {"gamma": 0.2, "beta": 0.9, "nc": nc}
-    msg = "A stratified parameter value should be a 1D array, but"
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states, parameters2)
-
-    # initial state of the wrong length
-    initial_states2 = {"S": 600_000 - 20, "I": [20, 10], "R": [0, 0]}
-    msg = r"The stratification parameters '\['nc'\]' indicates a stratification size of \[2\], but"
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states2, parameters)
-
-    initial_states2 = {"S": [0] * 3, "I": [20, 10], "R": [0, 0]}
-    msg = r"The stratification parameters '\['nc'\]' indicates a stratification size of \[2\], but"
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states2, parameters)
-
-    # validate model class itself
-    msg = "The parameters in the 'integrate' function definition do not match"
-    SIRstratified.parameter_names = ["gamma", "alpha"]
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states, parameters)
-
-    SIRstratified.parameter_names = ["gamma"]
-    SIRstratified.parameters_stratified_names = [["beta", "alpha"]]
-    with pytest.raises(ValueError, match=msg):
-        SIRstratified(initial_states, parameters)
-
-    # ensure to set back to correct ones
-    SIRstratified.state_names = ["S", "I", "R"]
-    SIRstratified.parameter_names = ["gamma"]
-    SIRstratified.parameters_stratified_names = [["beta"]]
-    SIRstratified.stratification = ["nc"]
-
-
-def test_model_stratified_default_initial_state():
-    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
-    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10], "R": [0, 0]}
-
-    model = SIRstratified(initial_states, parameters)
-
-    # leave out one the initial states that are 0
-    initial_states2 = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
-
-    model = SIRstratified(initial_states2, parameters)
-    assert model.initial_states["R"].tolist() == [0, 0]
-
-
-def test_model_interaction_matrix_function():
-    nc = np.array([[0.9, 0.2], [0.8, 0.1]])
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc}
-    initial_states = {"S": [600_000 - 20, 400_000 - 10], "I": [20, 10]}
-
-    time = [0, 50]
-    model_without = SIRstratified(initial_states, parameters)
-    output_without = model_without.sim(time)
-
-    def compliance_func(t, param):
-        if t < 10:
-            return param
-        else:
-            return param / 3
-
-    model = SIRstratified(initial_states, parameters,
-                          time_dependent_parameters={'nc': compliance_func})
-    output = model.sim(time)
-    # without the reduction in contact, the recovered/dead pool will always be larger
-    assert (output['R'] <= output_without['R']).all()
-
-    # using a compliance function with an additional parameter
-    def compliance_func(t, param, prevention):
-        if t < 10:
-            return param
-        else:
-            return param * prevention
-
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc, "prevention": 0.2}
-    model2 = SIRstratified(initial_states, parameters,
-                           time_dependent_parameters={'nc': compliance_func})
-    output2 = model2.sim(time)
-    assert (output2['R'] <= output['R']).all()
+# Plot
+fig,ax = plt.subplots(figsize=(10,5))
+# Incidence
+ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
+ax.plot(out['time'],H_in_mean,'--', color='blue')
+ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
+ax = _apply_tick_locator(ax)
+#plt.show()
