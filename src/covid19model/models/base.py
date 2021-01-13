@@ -286,10 +286,10 @@ class BaseModel:
                     date = t
                 for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    if self._relative_time_dependent_value[i] == True:
-                        params[param] = param_func(date, pars[param], **func_params)
-                    else:
-                        params[param] = param_func(date, **func_params)
+                    #if self._relative_time_dependent_value[i] == True:
+                    #    params[param] = param_func(date, pars[param], **func_params)
+                    #else:
+                    params[param] = param_func(date, **func_params)
 
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
