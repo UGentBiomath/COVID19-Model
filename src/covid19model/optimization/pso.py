@@ -91,7 +91,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         The objective value at ``g``
     p : array
         The best known position per particle
-    pf: array
+    pf: arrray
         The objective values at each position in p
 
     """
@@ -254,9 +254,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,warmup=0,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1, omega=0.8, phip=0.8, phig=0.8, dist='poisson'):
+def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1, omega=0.8, phip=0.8, phig=0.8):
     """
-    A function to compute the mimimum of (the absolute value of) the maximum likelihood estimator using a particle swarm optimization
+    A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
     Parameters
     -----------
@@ -277,8 +277,6 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     popsize: float or int
         population size of particle swarm
         increasing this variable lowers the chance of finding local minima but slows down calculations
-    dist: str
-        Either 'gaussian' or 'poisson'. The difference is that the variable part of the loglikelihood of a Poisson distribution can be either positive or negative, so this must be handled in a different fashion.
 
     Returns
     -----------
@@ -287,11 +285,11 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
 
     Notes
     -----------
-    Use all available cores minus one by default (optimal number of processors for 2-,4- or 6-core PC's with an OS). This can be modified with the 'processes' variable
+    Use all available cores minus one by default (optimal number of processors for 2-,4- or 6-core PC's with an OS). 
 
     Example use
     -----------
-    theta_hat = pso(BaseModel,data,parNames,states,bounds)
+    theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
     if processes > mp.cpu_count():
@@ -302,7 +300,7 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     # -------------------------------------------
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup), swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup, dist), swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
     theta_hat = p_hat
 
     return theta_hat

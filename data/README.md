@@ -1,4 +1,4 @@
-## Data sets for COVID 19 model
+## Data sets for COVID-19 model
 
 ### Raw data sets
 
@@ -50,9 +50,13 @@
 
 + `TF_SOC_POP_STRUCT_2020.xlsx` contains the most recent (January 1st, 2020) structure of the Belgian population, per age and per municipality. This is used to extract the spatially and age-stratified population `initN`. Retrieved from https://statbel.fgov.be/nl/open-data/bevolking-naar-woonplaats-nationaliteit-burgerlijke-staat-leeftijd-en-geslacht-10
 
-#### Google
+#### Mobility
+##### Google
 
 + `community_mobility_data_BE.csv` contains a copy of the Google Community Mobility Report dataset downloaded by the function `get_google_mobility_data()`. Mobility data is extracted from https://www.gstatic.com/covid19/mobility/Global_Mobility_Report.csv?cachebust=2dcf78defb92930a Only data for Belgium is saved in `data/raw`, because the "global" file is over 250 Mb.
+
+##### Apple
++ `apple_mobility_trends.csv` contains a copy of the Apple Mobility Trends downloaded by the function `get_apple_mobility_data()`. Mobility data is extracted from https://covid19-static.cdn-apple.com/covid19-mobility-data/2024HotfixDev12/v3/en-us/applemobilitytrends-2021-01-10.csv
 
 #### Sciensano
 

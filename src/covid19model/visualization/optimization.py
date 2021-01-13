@@ -25,11 +25,11 @@ def autocorrelation_plot(samples):
     """
     # Compute autocorrelation/chain
     ndim = samples.shape[2]
-    step_autocorr = 100
-    tau_vect = np.empty((len(samples)//step_autocorr,ndim))
+    step_autocorr = math.ceil(samples.shape[0]/100)
+    tau_vect = []
     index = 0
-    for i in range(step_autocorr, len(samples), step_autocorr):
-        tau_vect[index] = emcee.autocorr.integrated_time(samples[:i], tol = 0)
+    for i in range(step_autocorr, samples.shape[0], step_autocorr):
+        tau_vect.append(emcee.autocorr.integrated_time(samples[:i], tol = 0))
         index += 1
     n = step_autocorr * np.arange(1, index + 1)
     # Make figure
@@ -69,8 +69,6 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
         )
     # initialise figure
     fig, axes = plt.subplots(len(labels))
-    if ndim == 1:
-        axes = [axes]
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
@@ -90,7 +88,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,T=1,
                     data_mkr=['o','v','s','*','^'],plt_clr=['blue','red','green','orange','black'],
                     legend_text=None,titleText=None,ax=None,ylabel='number of patients',
-                    plt_kwargs={},sct_kwargs={}, spatial=False):
+                    plt_kwargs={},sct_kwargs={}):
 
     """Plot model fit to user provided data
 
@@ -116,8 +114,6 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
         If provided, will use the axis to add the lines.
     ylabel : string, optional
         label for y-axis, default 'number of patients'
-    spatial : Boolean
-        Set to True if y_model is spatially explicit. False by default.
 
     Returns
     -----------
@@ -157,10 +153,7 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
                                   pd.to_datetime(end_date))
 
     # Plot model prediction
-    if spatial:
-        y_model = y_model.sum(dim='Nc').sum(dim='place')
-    else:
-        y_model = y_model.sum(dim="Nc")
+    y_model = y_model.sum(dim="Nc")
     for i in range(len(data)):
         # dummy lines for legend
         lines = ax.plot([],[],plt_clr[i],alpha=1)
