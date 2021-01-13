@@ -21,4 +21,4 @@ jobs:
         pip install -e .[develop]
     - name: Run tests
       run: |
-        pytest src/tests/test_model.py
+        pytest src/tests/test_data.py src/tests/test_model.py src/tests/test_workflow_COVID19_SEIRD.py
