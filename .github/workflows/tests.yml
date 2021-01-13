@@ -18,6 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        conda activate COVID_MODEL
         pip install -e .[develop]
     - name: Run tests
       run: |
