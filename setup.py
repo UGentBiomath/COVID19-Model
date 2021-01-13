@@ -15,11 +15,10 @@ setup(
         'networkx',
         'pandas',
         'xlrd',
-	'pyMC3',
-	'theano',
         'sklearn',
-	'openpyxl',
-        'zarr'
+	    'openpyxl',
+        'zarr',
+        'emcee'
     ],
     extras_require={
         "develop":  ["pytest",
