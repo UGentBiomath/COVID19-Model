@@ -115,7 +115,8 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
     t13 = pd.Timestamp('2020-01-04') # Opening of schools
     #t14 = pd.Timestamp('2021-01-18') # start of alternative policies
     t15 = pd.Timestamp('2021-02-15') # Start of spring break
-    t16 = pd.Timestamp('2021-02-21') # End of spring break = start of alternative policies
+    t16 = pd.Timestamp('2021-02-21') # End of spring break
+    t17 = pd.Timestamp('2021-03-01') # start of alternative policies (release date)
 
     # Average out september mobility
 
@@ -169,11 +170,14 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)
-
             elif t15 < t <= t16:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0,SB='2a')                                                    
+                                school=0,SB='2a') 
+            elif t16 < t <= t17:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0.6,SB='2a')  
             else:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, 1, 1, 
@@ -187,11 +191,14 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)
-
             elif t15 < t <= t16:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0,SB='2b')                                                                
+                                school=0,SB='2b')  
+            elif t16 < t <= t17:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0.6,SB='2b')  
             else:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, prev_work, 1, 
@@ -205,11 +212,14 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)
-
             elif t15 < t <= t16:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0,SB='2c')                                                
+                                school=0,SB='2c')                   
+            elif t16 < t <= t17:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0.6,SB='2c')                                                                                
             else:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, 1, prev_rest, 
@@ -244,7 +254,7 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
             else:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)
+                                school=0.6)
                               
 # ------------------------
 # Define sampling function
