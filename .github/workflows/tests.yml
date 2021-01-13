@@ -18,8 +18,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        source activate COVID_MODEL
         pip install -e .[develop]
     - name: Run tests
       run: |
+        conda init COVID_MODEL
         pytest src/tests/test_data.py src/tests/test_model.py src/tests/test_workflow_COVID19_SEIRD.py
