@@ -79,18 +79,16 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] == "param":
-            return keywords[2:],True
+        if keywords[1] != "param":
+            raise ValueError(
+                "The first parameter of the parameter function should be 'param'"
+            )
         else:
-            return keywords[1:],False
+            return keywords[2:]
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
-
         extra_params = []
-        self._relative_time_dependent_value = []
-
-        #all_param_names = self.parameter_names + self.parameters_stratified_names
 
         all_param_names = self.parameter_names.copy()
 
@@ -105,9 +103,8 @@ class BaseModel:
                 raise ValueError(
                     "The specified time-dependent parameter '{0}' is not an "
                     "existing model parameter".format(param))
-            kwds,relative = self._validate_parameter_function(func)
+            kwds = self._validate_parameter_function(func)
             extra_params.append(kwds)
-            self._relative_time_dependent_value.append(relative)
 
         self._function_parameters = extra_params
 
@@ -261,8 +258,6 @@ class BaseModel:
                 f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
             )
 
-
-
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
@@ -284,10 +279,7 @@ class BaseModel:
                     date = t
                 for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    if self._relative_time_dependent_value[i] == True:
-                        params[param] = param_func(date, pars[param], **func_params)
-                    else:
-                        params[param] = param_func(date, **func_params)
+                    params[param] = param_func(date, pars[param], **func_params)
 
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
