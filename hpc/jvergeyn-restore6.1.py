@@ -159,7 +159,7 @@ def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
             else:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)
+                                school=0.6)
         # Scenario 2: increases in work or leisure mobility
         elif scenario == '2a':
             if t9 < t <= t13:
