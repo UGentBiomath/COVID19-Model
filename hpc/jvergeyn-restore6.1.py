@@ -24,7 +24,7 @@ from covid19model.optimization import objective_fcns,pso
 from covid19model.models import models
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
 from covid19model.models.time_dependant_parameter_fncs import google_lockdown, ramp_fun, contact_matrix
-from covid19model.data import google, sciensano, model_parameters
+from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.visualization.output import population_status, infected, _apply_tick_locator 
 from covid19model.visualization.optimization import plot_fit, traceplot
 
@@ -75,7 +75,7 @@ Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_scho
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
-df_google = google.get_google_mobility_data(update=False, plot=False)
+df_google = mobility.get_google_mobility_data(update=False, plot=False)
 # Model initial condition on September 1st
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
@@ -83,7 +83,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 #initial_states['R'] = np.array(initial_states['R']) + 0.05*np.array(initial_states['S'])
 #initial_states['S'] = np.array(initial_states['S']) - 0.05*np.array(initial_states['S']) 
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-12_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-13_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
