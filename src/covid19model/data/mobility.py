@@ -352,6 +352,7 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
 
     # Initiate dict for remaining dates
     mmprox_dict=dict({})
+    load_dates = sorted(list(load_dates))
     for date in load_dates:
         datafile = load_datafile_proximus(date, data_location)
         mmprox_temp = datafile[['mllp_postalcode', 'postalcode', values]]
@@ -361,17 +362,13 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
         mmprox_temp = mmprox_temp.fillna(value=0)
         mmprox_dict[date] = mmprox_temp.convert_dtypes()
         if verbose==True:
-            print(f"Loaded dataframe for date {date}.")
-
+            print(f"Loaded dataframe for date {date}.    ", end='\r')
+    print(f"Loaded dataframe for date {date}.")
     return mmprox_dict
 
 
 def load_pc_to_nis():
-    """
-    Load a simple dataframe translating postal codes to NIS codes.
-    """
-    abs_dir = os.path.dirname(__file__)
-    pc_to_nis_file = os.path.join(abs_dir, '../../../data/raw/GIS/Postcode_Niscode.xlsx')
+    pc_to_nis_file = '../data/Postcode_Niscode.xlsx'
     pc_to_nis_df = pd.read_excel(pc_to_nis_file)[['Postcode', 'NISCode']]
     return pc_to_nis_df
     
@@ -611,7 +608,7 @@ def complete_data_clean(mmprox, agg='mun'):
 
 
 # Temporal aggregation/averaging
-def average_mobility(mmprox_dict, verbose=True):
+def average_mobility(mmprox_dict):
     """
     Calculates the average mobility over all dates in the mmprox_dict dictionary
     
