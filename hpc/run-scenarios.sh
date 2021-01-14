@@ -13,7 +13,7 @@ chmod +x jvergeyn-restore6.1.py
 source activate COVID_MODEL
 
 # Execute script
-python jvergeyn-restore6.1.py 1 2a 2b 2c 3 #(scenario-nummers)
+python jvergeyn-restore6.1.py 1 2a 2b 2c #(scenario-nummers)
 
 # Deactivate environment
 conda deactivate
