@@ -635,11 +635,11 @@ def average_mobility(mmprox_dict, verbose=True):
 
     first=True
     for date in mmprox_dict:
+        if not first:
+            mmprox_avg = mmprox_avg.add(mmprox_dict[date])
         if first:
             mmprox_avg = mmprox_dict[date]
             first=False
-        if not first:
-            mmprox_avg = mmprox_avg.add(mmprox_dict[date])
             
     mmprox_avg = mmprox_avg / len(mmprox_dict)
     return mmprox_avg
