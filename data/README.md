@@ -26,6 +26,8 @@
 
 + `shapefiles/BE/...` :  shapefiles of Belgian municipalities, district, provinces, regions, arronddissements
 
++ `Postcode_Niscode` : dictionary that injectively relates postal codes and NIS codes.
+
 #### Hospital data
 
 + `symptomOnsetHospitalization.xlsx` contains: 1) the date at which patients first reported having symptoms, 2) the data at which patients were hospitalized and 3) the age of the patient. Received from Ghent University hospital, contact: pascal.coorevits@uzgent.be .
