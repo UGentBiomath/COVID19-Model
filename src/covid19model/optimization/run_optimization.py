@@ -20,7 +20,6 @@ from covid19model.optimization import objective_fcns
 from covid19model.optimization import pso
 from covid19model.models import models
 from covid19model.models.time_dependant_parameter_fncs import google_lockdown
-from covid19model.data import google
 from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot, autocorrelation_plot
