@@ -368,7 +368,9 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
 
 
 def load_pc_to_nis():
-    pc_to_nis_file = '../data/Postcode_Niscode.xlsx'
+    # Data source
+    abs_dir = os.path.dirname(__file__)
+    pc_to_nis_file = os.path.join(abs_dir, '../../../data/raw/GIS/Postcode_Niscode.xlsx')
     pc_to_nis_df = pd.read_excel(pc_to_nis_file)[['Postcode', 'NISCode']]
     return pc_to_nis_df
     
