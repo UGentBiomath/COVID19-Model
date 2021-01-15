@@ -79,10 +79,10 @@ start_calibration = '2020-03-15'
 end_calibration = '2020-05-01'
 # PSO settings
 warmup=0
-maxiter = 10
-popsize = 5
+maxiter = 5
+popsize = 2
 # MCMC settings
-steps_mcmc = 12
+steps_mcmc = 5
 discard = 0
 # define dataset
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
@@ -106,7 +106,7 @@ bounds=((20,80),(0.01,0.06),(0.1,20),(0.1,20),(0.03,0.97))
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                     start_date=start_calibration)
 warmup = int(theta[0])
-theta = theta[1:]
+theta = np.array([0.02390738,0.93245834,11.76934931,0.03]) #instead of: theta[1:]
 
 # run MCMC sampler
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
@@ -165,7 +165,7 @@ def draw_fcn(param_dict,samples_dict,to_sample):
 print('\n4) Simulating using sampled parameters')
 start_sim = start_calibration
 end_sim = end_calibration
-n_samples = 10
+n_samples = 4
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
 # ---------------------------
