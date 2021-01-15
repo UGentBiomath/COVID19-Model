@@ -151,5 +151,6 @@ notebooks/dask-worker-space/
 results/calibrations/COVID19_SEIRD/national/backends/
 
 
-# Do not upload private Proximus data
+# Do not upload private Proximus data (raw and processed)
 data/raw/mobility/proximus/
+data/interim/mobility/
