@@ -141,7 +141,6 @@ class COVID19_SEIRD(BaseModel):
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))*S
         IP_British = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))*S
 
-        #print(IP_British/(IP_old+IP_British))
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         dS  = - (IP_old + IP_British) + zeta*R - v*e*S
@@ -158,9 +157,9 @@ class COVID19_SEIRD(BaseModel):
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
+        # If A and I are both zero, a division error occurs
+        dalpha = IP_British/(IP_old+IP_British) - alpha
         
-        dalpha = IP_British/(IP_old+IP_British) - alpha 
-
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
 
 class COVID19_SEIRD_sto(BaseModel):
