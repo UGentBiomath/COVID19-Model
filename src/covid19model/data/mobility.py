@@ -3,6 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from ..visualization.data import google_mobility
 
@@ -181,3 +182,462 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
             plt.show()
 
     return data
+
+
+
+####################################
+# Proximus mobility data functions #
+####################################
+
+def week_to_date(week_nr, day = 1, year=2020):
+    """
+    Function that takes a week number between 1 and 53 (or 53 for 2021) and returns the corresponding dates
+    
+    Input
+    -----
+    week_nr: int
+        Value from 1 to 54
+    day: int
+        Day of the week to return date for: 1 is first day, 7 is last day. Default is first day.
+    year: int
+        Year the week is in. Defaults to 2020.
+    
+    Returns
+    -------
+    date: datetime object
+        Date of the requested day in format YYYY-MM-DD hh:mm:ss
+    """
+    
+    if ((1 > week_nr) or (week_nr > 53)) and (year==2020):
+        raise Exception("'week_nr' parameter must be an integer value from 1 to 53 for the year 2020.")
+    if ((1 > week_nr) or (week_nr > 52)) and (year==2021):
+        raise Exception("'week_nr' parameter must be an integer value from 1 to 52 for the year 2021.")
+    if (day < 1) or (day > 7):
+        raise Exception("'day' parameter must be an integer value from 1 to 7.")
+    if day == 7:
+        day = 0
+    if year == 2020:
+        d = str(year) + "-W" + str(week_nr - 1)
+    if year == 2021:
+        d = str(year) + "-W" + str(week_nr)
+    date = datetime.strptime(d + '-' + str(day), "%Y-W%W-%w")
+    return date
+
+def make_date_list(week_nr, year=2020):
+    """
+    Makes list of dates in week 'week_nr' in the format needed for the identification of the Proximus data
+    
+    Input
+    -----
+    week_nr: int
+        Value from 1 to 54
+    year: int
+        Year the week is in. Defaults to 2020.
+        
+    Returns
+    -------
+    date_list: list of str
+        List of all 7 dates in week 'week_nr' of year 'year', in the format ['YYYYMMDD', ...]
+    """
+    if (1 > week_nr) or (week_nr > 54):
+        raise Exception("'week_nr' parameter must be an integer value from 1 to 54.")
+    date_list=[]
+    for day in range(1,8):
+        start_date = week_to_date(week_nr, day=day, year=year)
+        YYYY = start_date.strftime('%Y')
+        MM = start_date.strftime('%m')
+        DD = start_date.strftime('%d')
+        YYYYMMDD = YYYY+MM+DD
+        date_list.append(YYYYMMDD)
+    return date_list
+
+def proximus_mobility_suffix():
+    """
+    Definition of the suffix in the mobility data files of Proximus.
+    """
+    suffix = "AZUREREF001.csv"
+    return suffix
+
+def check_missing_dates(dates, data_location):
+    """
+    Checks whether the requested dates correspond to existing Proximus mobility data and returns the missing dates
+    
+    Input
+    -----
+    dates: list of str
+        Output of make_date_list. List for which the user wants to request data
+    data_location: str
+        Name of directory (relative or absolute) that contains all Proximus data files
+
+    Returns
+    -------
+    missing: set of str
+        All dates that do not correspond with a data file. Ideally, this set is empty.
+    """
+    suffix = proximus_mobility_suffix()
+    full_list = []
+    for f in os.listdir(data_location):
+        date = f[:-len(suffix)][-8:]
+        full_list.append(date)
+    missing = set(dates).difference(set(full_list))
+    return missing
+
+def load_datafile_proximus(date, data_location):
+    """
+    Load an entire raw Proximus data file
+    
+    Input
+    -----
+    date: str
+        Single date in the shape YYYYMMDD
+    data_location: str
+        Name of directory (relative or absolute) that contains all Proximus data files
+        
+    Output
+    ------
+    datafile: pandas DataFrame
+    """
+    suffix = proximus_mobility_suffix()
+    datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
+    datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
+                                                                                         'postalcode' : str,
+                                                                                         'imsisinpostalcode' : int,
+                                                                                         'habitatants' : int,
+                                                                                         'nrofimsi' : int,
+                                                                                         'visitors' : int,
+                                                                                         'est_staytime' : int,
+                                                                                         'total_est_staytime' : int,
+                                                                                         'est_staytime_perc' : float})
+    return datafile    
+    
+    
+def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True):
+    """
+    Load Proximus mobility data (number of visitors or visitor time) corresponding to the requested dates
+    
+    Input
+    -----
+    dates: str or list of str
+        Single date in YYYYMMDD form or list of these (output of make_date_list function): requested date(s)
+    data_location: str
+        Name of directory (relative or absolute) that contains all Proximus data files
+    values: str
+        Choose between absolute visitor count ('nrofimsi', default) or total time spent ('est_staytime') on one day
+    complete: boolean
+        If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
+    verbose: boolean
+        If True, print statement every time data for a date is loaded.
+    
+    Returns
+    -------
+    mmprox_dict: dict of pandas DataFrames
+        Dictionary with YYYYMMDD dates as keys and pandas DataFrames with visit counts or estimated staytime between postal codes.
+    """
+    # Check dates type and change to single-element list if needed
+    single_date = False
+    if isinstance(dates,str):
+        dates = [dates]
+        single_date = True
+    
+    missing = check_missing_dates(dates, data_location)
+    load_dates = set(dates).difference(missing)
+    dates_left = len(load_dates)
+    if dates_left == 0:
+        raise Exception("None of the requested dates correspond to a Proximus mobility file.")
+    if missing != set():
+        print(f"Warning: some or all of the requested dates do not correspond to Proximus data. Dates: {sorted(missing)}")
+        if complete:
+            raise Exception("Some requested data is not found amongst the Proximus files. Set 'complete' parameter to 'False' and rerun if you wish to proceed with an incomplete data set (not using all requested data).")
+        print(f"... proceeding with {dates_left} dates.")
+
+    # Initiate dict for remaining dates
+    mmprox_dict=dict({})
+    load_dates = sorted(list(load_dates))
+    for date in load_dates:
+        datafile = load_datafile_proximus(date, data_location)
+        mmprox_temp = datafile[['mllp_postalcode', 'postalcode', values]]
+        mmprox_temp = mmprox_temp.pivot_table(values=values,
+                                              index='mllp_postalcode',
+                                              columns='postalcode')
+        mmprox_temp = mmprox_temp.fillna(value=0)
+        mmprox_dict[date] = mmprox_temp.convert_dtypes()
+        if verbose==True:
+            print(f"Loaded dataframe for date {date}.    ", end='\r')
+    print(f"Loaded dataframe for date {date}.")
+    return mmprox_dict
+
+
+def load_pc_to_nis():
+    pc_to_nis_file = '../data/Postcode_Niscode.xlsx'
+    pc_to_nis_df = pd.read_excel(pc_to_nis_file)[['Postcode', 'NISCode']]
+    return pc_to_nis_df
+    
+def show_missing_pc(mmprox):
+    """
+    Function to return the missing postal codes in Proximus mobility data frames.
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+
+    Returns
+    -------
+    from_PCs_missing: array of str
+        Missing postal codes in the indices (missing information FROM where people are coming)
+    to_PCs_missing: array of str
+        Missing postal codes in the columns (missing information WHERE people are going)
+    """
+    pc_to_nis = load_pc_to_nis()
+    all_PCs = set(pc_to_nis['Postcode'].values)
+    index_list=list(mmprox.index.values)
+    if 'Foreigner' in index_list:
+        index_list.remove('Foreigner')
+    column_list=list(mmprox.columns.values)
+    if 'ABROAD' in column_list:
+        column_list.remove('ABROAD')
+    from_PCs = set(np.array(index_list).astype(int))
+    to_PCs = set(np.array(column_list).astype(int))
+
+    from_PCs_missing = all_PCs.difference(from_PCs)
+    to_PCs_missing = all_PCs.difference(to_PCs)
+    
+    from_PCs_missing = np.array(sorted(from_PCs_missing)).astype(str)
+    to_PCs_missing = np.array(sorted(to_PCs_missing)).astype(str)
+    
+    return from_PCs_missing, to_PCs_missing
+
+def fill_missing_pc(mmprox):
+    """
+    Function that adds the missing postal codes to the mobility matrix and fills these with zeros.
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+        
+    Returns
+    -------
+    mmprox_complete: pandas DataFrame
+        Square mobility matrix with all from/to postal codes
+    """
+    mmprox_complete = mmprox.copy()
+    from_PCs_missing, to_PCs_missing = show_missing_pc(mmprox_complete)
+    # Add missing PCs as empty rows/columns (and turn the matrix square)
+    for pc in from_PCs_missing:
+        mmprox_complete.loc[pc] = 0
+    for pc in to_PCs_missing:
+        mmprox_complete[pc] = 0
+
+    if 'Foreigner' not in mmprox_complete.index:
+        mmprox_complete.loc['Foreigner'] = 0
+    if 'ABROAD' not in mmprox_complete.columns:
+        mmprox_complete['ABROAD'] = 0
+        
+    return mmprox_complete
+    
+
+
+# What to dot with GDPR-protected <30 values
+# TO DO: this needs some work
+def GDPR_exponential_pick_visits(avg=5):
+    """
+    Choose a value ranging from 1 to 30 with an exponential distribution. Used to change the GDPR-protected value -1 for the number of visits, with an estimated number that it actually signifies.
+    
+    Input
+    -----
+    avg: int
+        Expectation value of the exponential distribution. Default: 5
+        
+    Returns
+    -------
+    number: int
+        Integer value between 1 and 30, with a higher chance for lower numbers.
+    """
+    number = np.ceil(np.random.exponential(scale=avg))
+    if number > 30:
+        number = 30
+    return number
+
+# TO BE CHANGED!
+def GDPR_exponential_pick_length(avg=10000):
+    """
+    Choose a value ranging from an exponential distribution. Used to change the GDPR-protected value -1 for the length of stay, with an estimated number that it actually signifies.
+    
+    Input
+    -----
+    avg: int
+        Expectation value of the exponential distribution. Default: 10000
+        
+    Returns
+    -------
+    number: int
+        Integer value, with a higher chance for lower numbers.
+    """
+    return
+
+def GDPR_replace(mmprox, replace_func=GDPR_exponential_pick_visits, **kwargs):
+    """
+    Function to replace the -1 values that denote small values proteted by the GDPR privacy protocol
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+    replace_func: function
+        Function used to determine the value that -1 is to be replaced with
+        
+c
+    """
+    values = mmprox.values
+    for (x,y), value in np.ndenumerate(values):
+        if value < 0:
+            values[x,y] = replace_func(**kwargs)
+    mmprox_GDPR = pd.DataFrame(values, columns=mmprox.columns, index=mmprox.index)
+
+    return mmprox_GDPR
+        
+
+# Aggregate
+
+def mm_aggregate(mmprox, agg='mun'):
+    """
+    Aggregate cleaned-up mobility dataframes at the aggregation level of municipalities, arrondissements or provinces
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+    agg: str
+        The level at which to aggregate. Choose between 'mun', 'arr' or 'prov'. Default is 'mun'.
+        
+    Output
+    ------
+    mmprox_agg: pandas DataFrame
+        Mobility dataframe aggregated at the level 'agg'
+    """
+    # validate
+    mmprox_shape = mmprox.shape
+    if mmprox_shape != (1148, 1148):
+        raise Exception(f"The input dataframe is of the shape {mmprox_shape}, not (1148, 1148) which is all 1147 postal codes + destinations/origins abroad. Fix this first.")
+    if agg not in ['mun', 'arr', 'prov']:
+        raise Exception("The aggregation level must be either municipality ('mun'), arrondissements ('arr') or provinces ('prov').")
+    
+    # copy dataframe and load the postal-code-to-NIS-value translator
+    mmprox_agg = mmprox.copy()
+    pc_to_nis = load_pc_to_nis()
+    
+    rename_abroad = 'ABROAD'
+    rename_foreigner = 'Foreigner'
+    
+    # initiate renaming dictionaries
+    rename_col_dict = dict({})
+    rename_idx_dict = dict({})
+    for pc in mmprox_agg.columns:
+        if pc != 'ABROAD':
+            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+            rename_col_dict[pc] = NIS
+    rename_col_dict['ABROAD'] = rename_abroad
+    for pc in mmprox_agg.index:
+        if pc != 'Foreigner':
+            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+            rename_idx_dict[pc] = NIS
+    rename_idx_dict['Foreigner'] = rename_foreigner
+    
+    # Rename the column names and indices to prepare for merging
+    mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
+    
+    mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
+    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+    
+    if agg in ['arr', 'prov']:
+        # Rename columns
+        for nis in mmprox_agg.columns:
+            if nis != 'ABROAD':
+                new_nis = nis[:-3] + '000'
+                mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+
+        # Rename rows
+        for nis in mmprox_agg.index:
+            if nis != 'Foreigner':
+                new_nis = nis[:-3] + '000'
+                mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+
+        # Collect rows and columns with the same NIS code, and automatically order column/row names
+        mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
+        mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+        
+        if agg == 'prov':
+            # Rename columns
+            for nis in mmprox_agg.columns:
+                if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
+                    new_nis = nis[:-4] + '0000'
+                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                if nis in ['23000', '24000']:
+                    new_nis = '20001'
+                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                if nis == '25000':
+                    new_nis = '20002'
+                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+
+            # Rename rows
+            for nis in mmprox_agg.index:
+                if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                    new_nis = nis[:-4] + '0000'
+                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                if nis in ['23000', '24000']:
+                    new_nis = '20001'
+                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                if nis == '25000':
+                    new_nis = '20002'
+                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+
+            # Collect rows and columns with the same NIS code, and automatically order column/row names
+            mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
+            mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+    
+    return mmprox_agg
+    
+def complete_data_clean(mmprox, agg='mun'):
+    """
+    Execute several standard functions at the same time
+    """
+    mmprox_clean = mm_aggregate( fill_missing_pc( GDPR_replace(mmprox) ), agg=agg)
+    return mmprox_clean
+
+
+
+# Temporal aggregation/averaging
+def average_mobility(mmprox_dict):
+    """
+    Calculates the average mobility over all dates in the mmprox_dict dictionary
+    
+    Input
+    -----
+    mmprox_dict: dict
+        Dictionary with YYYYMMDD strings as keys and pandas DataFrames with clean Proximus data as values
+        
+    Output
+    ------
+    mmprox_avg: pandas DataFrame
+        Mobility DataFrame with average values of all DataFrames in input
+    """
+    # Access first dict element and demand all are of the same shape
+    matrix_shape = list(mmprox_dict.values())[0].shape
+    for date in mmprox_dict:
+        matrix_shape_next = mmprox_dict[date].shape
+        if matrix_shape_next != matrix_shape:
+            raise Exception("All shapes of the mobility matrices must be the same.")
+        matrix_shape = matrix_shape_next
+
+    first=True
+    for date in mmprox_dict:
+        if not first:
+            mmprox_avg = mmprox_avg.add(mmprox_dict[date])
+        if first:
+            mmprox_avg = mmprox_dict[date]
+            first=False
+            
+    mmprox_avg = mmprox_avg / len(mmprox_dict)
+    return mmprox_avg
+
