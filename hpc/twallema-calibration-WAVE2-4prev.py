@@ -24,7 +24,7 @@ from covid19model.optimization import objective_fcns,pso
 from covid19model.models import models
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
 from covid19model.models.time_dependant_parameter_fncs import google_lockdown, ramp_fun, contact_matrix
-from covid19model.data import google, sciensano, model_parameters
+from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.visualization.output import population_status, infected, _apply_tick_locator 
 from covid19model.visualization.optimization import plot_fit, traceplot
 
@@ -41,7 +41,7 @@ update = False
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
-df_google = google.get_google_mobility_data(update=update, plot=False)
+df_google = mobility.get_google_mobility_data(update=update, plot=False)
 # Model initial condition on September 1st
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
