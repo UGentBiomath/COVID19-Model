@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
 colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
