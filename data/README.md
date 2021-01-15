@@ -164,7 +164,7 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 #### Economic data
 
-All economic data from the data/raw/economical was converted in the notebook `notebooks/twallema-extract-economic-data.ipynb`.
+All economic data from the data/raw/economical was converted using the script `notebooks/preprocessing/extract-economic-data.py`. Missing raw datasets are downloaded automatically, except for those of the Belgian National Bank.
 
 + `conversion_matrices.xlsx` contains conversion matrices to more easily aggregate data from different sector classifications. F.i. converting from NACE 64 to WIOD 55 classification.
 + `census2011_NACE21.csv` contains per Belgian arrondissement (43 in total) the number of employees in every sector of the NACE 21 classification.
