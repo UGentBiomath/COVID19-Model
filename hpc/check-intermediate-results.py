@@ -20,14 +20,6 @@ import emcee
 import matplotlib.pyplot as plt
 import datetime
 
-from covid19model.optimization import objective_fcns,pso
-from covid19model.models import models
-from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
-from covid19model.models.time_dependant_parameter_fncs import google_lockdown, ramp_fun, contact_matrix
-from covid19model.data import mobility, sciensano, model_parameters
-from covid19model.visualization.output import population_status, infected, _apply_tick_locator 
-from covid19model.visualization.optimization import plot_fit, traceplot
-
 # -----------------------
 # Set parameters
 # -----------------------
@@ -38,7 +30,7 @@ discard = 40000
 # -----------------------
 
 spatial_unit = 'BE_4_prev_full'
-date = '2021-01-13'
+date = '2021-01-12'
 results_folder = "../results/calibrations/COVID19_SEIRD/national/backends/"
 filename = spatial_unit+'_'+date
 sampler = emcee.backends.HDFBackend(results_folder+filename)
