@@ -17,6 +17,7 @@ import pandas as pd
 # Load the census data
 # --------------------
 
+print('1) Loading 2011 census data')
 abs_dir = os.getcwd()
 rel_dir = os.path.join(abs_dir, '../../data/interim/census_2011/Pop_LPW_NL_25FEB15_delete_unknown.xlsx')
 df = pd.read_excel(rel_dir, sheet_name="Tabel1_2011")
@@ -24,6 +25,7 @@ df = pd.read_excel(rel_dir, sheet_name="Tabel1_2011")
 # -----------
 # Format data
 # -----------
+print('2) Formatting recurrent work mobility matrix')
 
 codes=df['00.24 - Werkende bevolking volgens geslacht, verblijfplaats en plaats van tewerkstelling'].loc[5:1942].dropna().values
 codes_int = [int(i) for i in codes]
@@ -48,5 +50,5 @@ for idx in mobility_df.index:
 # ---------------------
 # Save formatted matrix
 # ---------------------
-
+print('3) Saving formatted matrix')
 mobility_df.loc[idx_arrondisement,idx_arrondisement].to_csv('../../data/interim/census_2011/recurrent_mobility.csv', index=True)
