@@ -18,7 +18,7 @@ import pandas as pd
 # --------------------
 
 abs_dir = os.getcwd()
-rel_dir = os.path.join(abs_dir, '../data/interim/census_2011/Pop_LPW_NL_25FEB15_delete_unknown.xlsx')
+rel_dir = os.path.join(abs_dir, '../../data/interim/census_2011/Pop_LPW_NL_25FEB15_delete_unknown.xlsx')
 df = pd.read_excel(rel_dir, sheet_name="Tabel1_2011")
 
 # -----------
@@ -49,4 +49,4 @@ for idx in mobility_df.index:
 # Save formatted matrix
 # ---------------------
 
-mobility_df.loc[idx_arrondisement,idx_arrondisement].to_csv('../data/interim/census_2011/recurrent_mobility.csv', index=True)
+mobility_df.loc[idx_arrondisement,idx_arrondisement].to_csv('../../data/interim/census_2011/recurrent_mobility.csv', index=True)
