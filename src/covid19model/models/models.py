@@ -53,10 +53,9 @@ from .base import BaseModel
 
 class COVID19_SEIRD(BaseModel):
     """
-    Biomath extended SEIRD model for COVID-19
-
-    Deterministic implementation
-
+    Biomath extended SEIRD model for COVID-19, Deterministic implementation
+    Can account for re-infection, vaccination and co-infection with a new COVID-19 variant.
+    
     Parameters
     ----------
     To initialise the model, provide following inputs:
@@ -80,6 +79,7 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
+        alpha : fraction of alternative COVID-19 variant
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -88,6 +88,7 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
+        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         alpha : prevalence of the English variant
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
@@ -136,15 +137,15 @@ class COVID19_SEIRD(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R
 
-        # Compute weighted average beta
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))*S
-        IP_British = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))*S
+        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))*S
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - (IP_old + IP_British) + zeta*R - v*e*S
-        dE  = IP_old + IP_British - E/sigma - v*e*E
+        dS  = - (IP_old + IP_new) + zeta*R - v*e*S
+        dE  = (IP_old + IP_new) - E/sigma - v*e*E
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
@@ -158,7 +159,8 @@ class COVID19_SEIRD(BaseModel):
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         # If A and I are both zero, a division error occurs
-        dalpha = IP_British/(IP_old+IP_British) - alpha
+        # Update fraction of new COVID-19 variant
+        dalpha = IP_new/(IP_old+IP_new) - alpha
         
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
 
