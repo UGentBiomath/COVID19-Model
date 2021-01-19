@@ -450,7 +450,7 @@ checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='COMPLIANCE',
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=int(10 * np.max(tau)),thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
