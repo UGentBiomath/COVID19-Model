@@ -124,12 +124,12 @@ end_calibration_beta = '2020-03-21'
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = 5
-multiplier = 5
+multiplier = 2
 maxiter = 20
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 50000
-discard = 10000
+steps_mcmc = 50
+discard = 0
 # Number of samples used to visualise model fit
 n_samples = 100
 # Confidence level used to visualise model fit
@@ -153,7 +153,7 @@ model = models.COVID19_SEIRD(initial_states, params,
 
 if job == None or job == 'BETA':
 
-    print('-----------------------------------------')
+    print('\n-----------------------------------------')
     print('PERFORMING CALIBRATION OF BETA AND WARMUP')
     print('-----------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
@@ -213,6 +213,7 @@ if job == None or job == 'BETA':
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
+        'warmup' : warmup,
         'start_date_beta' : start_calibration,
         'end_date_beta' : end_calibration_beta,
     })
@@ -230,7 +231,7 @@ if job == None or job == 'BETA':
     # Perform sampling
     # ----------------------
 
-    print('\n4) Simulating using sampled parameters')
+    print('4) Simulating using sampled parameters')
     start_sim = start_calibration
     end_sim = '2020-03-26'
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
@@ -239,7 +240,7 @@ if job == None or job == 'BETA':
     # Adding binomial uncertainty
     # ---------------------------
 
-    print('\n5) Adding binomial uncertainty')
+    print('5) Adding binomial uncertainty')
 
     LL = conf_int/2
     UL = 1-conf_int/2
@@ -262,7 +263,7 @@ if job == None or job == 'BETA':
     # Visualizing
     # -----------
 
-    print('\n6) Visualizing fit \n')
+    print('6) Visualizing fit \n')
 
     # Plot
     fig,ax = plt.subplots(figsize=(10,5))
@@ -284,31 +285,41 @@ if job == None or job == 'BETA':
     print('COMPUTING BASIC REPRODUCTION NUMBER')
     print('-----------------------------------\n')
 
-    print('\n1) Computing')
+    print('1) Computing')
 
     R0, R0_stratified_dict = calculate_R0(samples_dict, model, initN, Nc_total)
 
-    print('\n2) Sending samples to dictionary')
+    print('2) Sending samples to dictionary')
 
     samples_dict.update({
         'R0': R0,
         'R0_stratified_dict': R0_stratified_dict,
     })
 
-    print('\n3) Saving dictionary')
+    print('3) Saving dictionary\n')
 
     with open(samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
-    print('DONE')
+    print('DONE!')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json'+'"')
-    print('-----------------------------------------------------------------------------------------------------\n')
+    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     
     if job == 'BETA':
         sys.exit()
-        
+
 elif job == 'COMPLIANCE':
-    samples_dict = json.load(samples_path+str(spatial_unit)+'_BETA_'+str(sys.argv[2])+'.json')
+    if len(sys.argv) != 3:
+        raise ValueError(
+                "Please provide the date of the WARMUP+BETA calibration as the second script argument!"
+            )
+    else:
+        samples_dict = json.load(open(samples_path+str(spatial_unit)+'_BETA_'+str(sys.argv[2])+'.json'))
+        warmup = samples_dict['warmup']
+else:
+    raise ValueError(
+        'Illegal script argument. Valid arguments are: no arguments, "BETA", "COMPLIANCE 20xx-xx-xx"\n \nNo arguments calibrates BETA, WARMUP, L, TAU and PREVENTION \n"BETA" calibrates BETA and WARMUP only \n"COMPLIANCE 20xx-xx-xx" calibrates L, TAU and PREVENTION only\n'
+    )
 
 ############################################
 ## PART 2: COMPLIANCE RAMP AND PREVENTION ##
@@ -343,7 +354,7 @@ n_draws_per_sample=100
 # Initialize the model
 # --------------------
 
-print('---------------------------------------------------')
+print('\n---------------------------------------------------')
 print('PERFORMING CALIBRATION OF COMPLIANCE AND PREVENTION')
 print('---------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
@@ -401,7 +412,7 @@ flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
-with open(samples_path+str(spatial_unit)+'_BOTH_'+str(datetime.date.today())+'.json', 'w') as fp:
+with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+str(datetime.date.today())+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
 # ------------------------
@@ -423,7 +434,7 @@ def draw_fcn(param_dict,samples_dict):
 # Perform sampling
 # ----------------------
 
-print('\n4) Simulating using sampled parameters')
+print('4) Simulating using sampled parameters')
 start_sim = start_calibration
 end_sim = '2020-07-01'
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
@@ -432,7 +443,7 @@ out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=
 # Adding binomial uncertainty
 # ---------------------------
 
-print('\n5) Adding binomial uncertainty')
+print('5) Adding binomial uncertainty')
 
 LL = conf_int/2
 UL = 1-conf_int/2
@@ -455,7 +466,7 @@ H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
 # Visualizing
 # -----------
 
-print('\n6) Visualizing fit \n')
+print('6) Visualizing fit \n')
 
 # Plot
 fig,ax = plt.subplots(figsize=(10,5))
