@@ -237,7 +237,7 @@ def log_prior_normal(thetas, norm_params):
 
 
 
-def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_date=None,warmup=0, dist='poisson'):
+def log_probability(thetas,model,bounds,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -277,7 +277,7 @@ def log_probability(thetas,model,bounds,data,states,parNames,samples=None,start_
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
 
 def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None,dist='poisson'):
 
