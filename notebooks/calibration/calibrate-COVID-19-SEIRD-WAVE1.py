@@ -10,7 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
-
+import sys, getopt
 import json
 import random
 import emcee
@@ -20,11 +20,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from covid19model.models import models
-from covid19model.optimization.run_optimization import checkplots
+from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
+
+if len(sys.argv) > 1:
+    job = str(sys.argv[1])
+else:
+    job = None
 
 # ---------
 # Load data
@@ -38,6 +43,17 @@ levels = initN.size
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
+
+# ------------------------
+# Define results locations
+# ------------------------
+
+# Path where samples bakcend should be stored
+results_folder = "../../results/calibrations/COVID19_SEIRD/national/backends/"
+# Path where figures should be stored
+fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
+# Path where MCMC samples should be saved
+samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
 # ---------------------------------
 # Time-dependant parameter function
@@ -95,6 +111,33 @@ def policies_wave1_4prev(t, param, l , tau,
 #############################
 
 # --------------------
+# Calibration settings
+# --------------------
+
+# Start of data collection
+start_data = '2020-03-15'
+# Start data of recalibration ramp
+start_calibration = '2020-03-15'
+# Last datapoint used to calibrate warmup and beta
+end_calibration_beta = '2020-03-21'
+# Spatial unit: Belgium
+spatial_unit = 'BE_WAVE1'
+# PSO settings
+processes = 5
+multiplier = 5
+maxiter = 20
+popsize = multiplier*processes
+# MCMC settings
+steps_mcmc = 50000
+discard = 10000
+# Number of samples used to visualise model fit
+n_samples = 100
+# Confidence level used to visualise model fit
+conf_int = 0.05
+# Number of binomial draws per sample drawn used to visualize model fit
+n_draws_per_sample=100
+
+# --------------------
 # Initialize the model
 # --------------------
 
@@ -108,169 +151,164 @@ initial_states = {"S": initN, "E": np.ones(9)}
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
 
-# ------------------------
-# Define results locations
-# ------------------------
+if job == None or job == 'BETA':
 
-# Path where samples bakcend should be stored
-results_folder = "../../results/calibrations/COVID19_SEIRD/national/backends/"
-# Path where figures should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
-# Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+    print('-----------------------------------------')
+    print('PERFORMING CALIBRATION OF BETA AND WARMUP')
+    print('-----------------------------------------\n')
+    print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
+    print('1) Particle swarm optimization\n')
+    print('Using ' + str(processes) + ' cores\n')
 
-# --------------------
-# Calibration settings
-# --------------------
+    # define dataset
+    data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
+    states = [["H_in"]]
 
-# Number of samples used to visualise model fit
-n_samples = 100
-# Confidence level used to visualise model fit
-conf_int = 0.05
-LL = conf_int/2
-UL = 1-conf_int/2
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=100
-# Spatial unit: Belgium
-spatial_unit = 'BE_WAVE1_BETA'
-# Start of data collection
-start_data = '2020-03-15'
-# Start data of recalibration ramp
-start_calibration = '2020-03-15'
-# Last datapoint used to calibrate warmup and beta
-end_calibration_beta = '2020-03-21'
-# PSO settings
-processes = 5
-multiplier = 5
-maxiter = 20
-popsize = multiplier*processes
-# MCMC settings
-steps_mcmc = 50000
-discard = 10000
-# define dataset
-data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
-states = [["H_in"]]
+    # set PSO optimisation settings
+    parNames = ['warmup','beta']
+    bounds=((20,50),(0.036,0.042))
 
-print('-----------------------------------------')
-print('PERFORMING CALIBRATION OF BETA AND WARMUP')
-print('-----------------------------------------\n')
-print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
-print('1) Particle swarm optimization\n')
-print('Using ' + str(processes) + ' cores\n')
+    # run PSO optimisation
+    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
+                        start_date=start_calibration, processes=processes)
+    warmup = int(theta[0])
+    theta = theta[1:]
 
-# set PSO optimisation settings
-parNames = ['warmup','beta']
-bounds=((20,50),(0.036,0.042))
+    # run MCMC sampler
+    print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-# run PSO optimisation
-theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                    start_date=start_calibration, processes=processes)
-warmup = int(theta[0])
-theta = theta[1:]
+    # Set up the sampler backend
+    filename = spatial_unit+'_'+str(datetime.date.today())
+    backend = emcee.backends.HDFBackend(results_folder+filename)
 
-# run MCMC sampler
-print('\n2) Markov-Chain Monte-Carlo sampling\n')
+    # Setup parameter names, bounds, number of chains, etc.
+    parNames_mcmc = ['beta']
+    bounds_mcmc=((0.036,0.042),)
+    ndim = len(theta)
+    nwalkers = ndim*5
+    perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+    pos = theta + perturbations
 
-# Set up the sampler backend
-filename = spatial_unit+'_'+str(datetime.date.today())
-backend = emcee.backends.HDFBackend(results_folder+filename)
+    # Run sampler
+    from multiprocessing import Pool
+    with Pool() as pool:
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
+                        args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
+        sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
-# Setup parameter names, bounds, number of chains, etc.
-parNames_mcmc = ['beta']
-bounds_mcmc=((0.036,0.042),)
-ndim = len(theta)
-nwalkers = ndim*5
-perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-pos = theta + perturbations
-print(pos)
-# Run sampler
-from multiprocessing import Pool
-with Pool() as pool:
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
-    sampler.run_mcmc(pos, steps_mcmc, progress=True)
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = int(0.5 * np.min(autocorr))
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-thin = 1
-try:
-    autocorr = sampler.get_autocorr_time()
-    thin = int(0.5 * np.min(autocorr))
-except:
-    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+    checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
 
-checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA', 
-           labels=['$\\beta$'])
+    print('\n3) Sending samples to dictionary')
 
-print('\n3) Sending samples to dictionary')
+    flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(parNames_mcmc):
+        samples_dict[name] = flat_samples[:,count].tolist()
 
-flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
-samples_dict = {}
-for count,name in enumerate(parNames_mcmc):
-    samples_dict[name] = flat_samples[:,count].tolist()
+    samples_dict.update({
+        'start_date_beta' : start_calibration,
+        'end_date_beta' : end_calibration_beta,
+    })
 
-samples_dict.update({
-    'calibration_data' : states[0][0],
-    'start_date' : start_calibration,
-    'end_date_beta' : end_calibration_beta,
-    'maxiter' : maxiter,
-    'popsize': popsize,
-    'steps_mcmc': steps_mcmc,
-    'discard' : discard,
-})
+    # ------------------------
+    # Define sampling function
+    # ------------------------
 
-# ------------------------
-# Define sampling function
-# ------------------------
+    def draw_fcn(param_dict,samples_dict):
+        # Sample
+        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+        return param_dict
 
-def draw_fcn(param_dict,samples_dict):
-    # Sample
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    return param_dict
+    # ----------------------
+    # Perform sampling
+    # ----------------------
 
-# ----------------------
-# Perform sampling
-# ----------------------
+    print('\n4) Simulating using sampled parameters')
+    start_sim = start_calibration
+    end_sim = '2020-03-26'
+    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
-print('\n4) Simulating using sampled parameters')
-start_sim = start_calibration
-end_sim = '2020-03-26'
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+    # ---------------------------
+    # Adding binomial uncertainty
+    # ---------------------------
 
-# ---------------------------
-# Adding binomial uncertainty
-# ---------------------------
+    print('\n5) Adding binomial uncertainty')
 
-print('\n5) Adding binomial uncertainty')
+    LL = conf_int/2
+    UL = 1-conf_int/2
 
-H_in = out["H_in"].sum(dim="Nc").values
-# Initialize vectors
-H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
-# Loop over dimension draws
-for n in range(H_in.shape[0]):
-    binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
-    H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-# Compute mean and median
-H_in_mean = np.mean(H_in_new,axis=1)
-H_in_median = np.median(H_in_new,axis=1)
-# Compute quantiles
-H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
-H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
+    H_in = out["H_in"].sum(dim="Nc").values
+    # Initialize vectors
+    H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
+    # Loop over dimension draws
+    for n in range(H_in.shape[0]):
+        binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
+        H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+    # Compute mean and median
+    H_in_mean = np.mean(H_in_new,axis=1)
+    H_in_median = np.median(H_in_new,axis=1)
+    # Compute quantiles
+    H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
+    H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
 
-# -----------
-# Visualizing
-# -----------
+    # -----------
+    # Visualizing
+    # -----------
 
-print('\n6) Visualizing fit \n')
+    print('\n6) Visualizing fit \n')
 
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-# Incidence
-ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
-ax.plot(out['time'],H_in_mean,'--', color='blue')
-ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
-ax = _apply_tick_locator(ax)
-ax.set_xlim('2020-03-10',end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/FIT_BETA_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+    # Plot
+    fig,ax = plt.subplots(figsize=(10,5))
+    # Incidence
+    ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
+    ax.plot(out['time'],H_in_mean,'--', color='blue')
+    ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
+    ax = _apply_tick_locator(ax)
+    ax.set_xlim('2020-03-10',end_sim)
+    ax.set_ylabel('$H_{in}$ (-)')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+
+    #############################################
+    ####### CALCULATING R0 ######################
+    #############################################
+
+
+    print('-----------------------------------')
+    print('COMPUTING BASIC REPRODUCTION NUMBER')
+    print('-----------------------------------\n')
+
+    print('\n1) Computing')
+
+    R0, R0_stratified_dict = calculate_R0(samples_dict, model, initN, Nc_total)
+
+    print('\n2) Sending samples to dictionary')
+
+    samples_dict.update({
+        'R0': R0,
+        'R0_stratified_dict': R0_stratified_dict,
+    })
+
+    print('\n3) Saving dictionary')
+
+    with open(samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json', 'w') as fp:
+        json.dump(samples_dict, fp)
+
+    print('DONE')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json'+'"')
+    print('-----------------------------------------------------------------------------------------------------\n')
+    
+    if job == 'BETA':
+        sys.exit()
+        
+elif job == 'COMPLIANCE':
+    samples_dict = json.load(samples_path+str(spatial_unit)+'_BETA_'+str(sys.argv[2])+'.json')
 
 ############################################
 ## PART 2: COMPLIANCE RAMP AND PREVENTION ##
@@ -280,16 +318,6 @@ fig.savefig(fig_path+'others/FIT_BETA_'+spatial_unit+'_'+str(datetime.date.today
 # Calibration settings
 # --------------------
 
-# Number of samples used to visualise model fit
-n_samples = 100
-# Confidence level used to visualise model fit
-conf_int = 0.05
-LL = conf_int/2
-UL = 1-conf_int/2
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=100
-# Spatial unit: Belgium
-spatial_unit = 'BE_WAVE1_COMP'
 # Start of data collection
 start_data = '2020-03-15'
 # Start of calibration
@@ -304,9 +332,12 @@ popsize = multiplier*processes
 # MCMC settings
 steps_mcmc = 60000
 discard = 10000
-# define dataset
-data=[df_sciensano['H_in'][start_calibration:end_calibration]]
-states = [["H_in"]]
+# Number of samples used to visualise model fit
+n_samples = 100
+# Confidence level used to visualise model fit
+conf_int = 0.05
+# Number of binomial draws per sample drawn used to visualize model fit
+n_draws_per_sample=100
 
 # --------------------
 # Initialize the model
@@ -318,6 +349,10 @@ print('---------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
+
+# define dataset
+data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+states = [["H_in"]]
 
 # set PSO optimisation settings
 parNames = ['l','tau','prev_schools', 'prev_work', 'prev_rest', 'prev_home']
@@ -331,7 +366,7 @@ theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=po
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
 # Set up the sampler backend
-filename = spatial_unit+'_'+str(datetime.date.today())
+filename = spatial_unit+'_COMP_'+str(datetime.date.today())
 backend = emcee.backends.HDFBackend(results_folder+filename)
 
 # Setup parameter names, bounds, number of chains, etc.
@@ -356,9 +391,8 @@ try:
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='COMPLIANCE_', 
-           labels=['l','$\\tau$',
-                   'prev_schools', 'prev_work', 'prev_rest', 'prev_home'])
+checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='COMPLIANCE', 
+           labels=['l','$\\tau$','prev_schools', 'prev_work', 'prev_rest', 'prev_home'])
 
 print('\n3) Sending samples to dictionary')
 
@@ -367,7 +401,7 @@ flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
-with open(samples_path+str(spatial_unit)+'_'+str(datetime.date.today())+'.json', 'w') as fp:
+with open(samples_path+str(spatial_unit)+'_BOTH_'+str(datetime.date.today())+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
 # ------------------------
@@ -400,6 +434,9 @@ out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=
 
 print('\n5) Adding binomial uncertainty')
 
+LL = conf_int/2
+UL = 1-conf_int/2
+
 H_in = out["H_in"].sum(dim="Nc").values
 # Initialize vectors
 H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
@@ -429,4 +466,4 @@ ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:
 ax = _apply_tick_locator(ax)
 ax.set_xlim('2020-03-10',end_sim)
 ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/FIT_COMP_'+spatial_unit+'_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
