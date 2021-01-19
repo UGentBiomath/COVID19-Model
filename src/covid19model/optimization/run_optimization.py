@@ -42,7 +42,7 @@ def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
-    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER'+figname+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER_'+figname+'_'+str(datetime.date.today())+'.pdf',
                 dpi=400, bbox_inches='tight')
 
     return
