@@ -385,21 +385,58 @@ nwalkers = ndim*2
 perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
 pos = theta + perturbations
 
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    # Sample
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    return param_dict
+# Set up the sampler backend
+filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
+backend = emcee.backends.HDFBackend(results_folder+filename)
+backend.reset(nwalkers, ndim)
 
 # Run sampler
+# We'll track how the average autocorrelation time estimate changes
+index = 0
+autocorr = np.empty(max_n)
+# This will be useful to testing convergence
+old_tau = np.inf
+# Initialize autocorr vector and autocorrelation figure
+autocorr = np.zeros([1,ndim])
+fig,ax = plt.subplots(figsize=(10,5))
+
 from multiprocessing import Pool
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
-    sampler.run_mcmc(pos, steps_mcmc, progress=True, store=True)
+    for sample in sampler.sample(pos, iterations=max_n, progress=True):
+        # Only check convergence every 10 steps
+        if sampler.iteration % 50:
+            continue
+
+        # Compute the autocorrelation time so far
+        tau = sampler.get_autocorr_time(tol=0)
+        autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
+        index += 1
+
+        # Update autocorrelation plot
+        n = 50 * np.arange(0, index + 1)
+        y = autocorr[:index+1,:]
+
+        ax.plot(n, n / 50.0, "--k")
+        ax.plot(n, y, linewidth=2,color='red')
+        ax.set_xlim(0, n.max())
+        ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        ax.set_xlabel("number of steps")
+        ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+        
+        # Update traceplot
+        traceplot(sampler.get_chain(),['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'],
+                        filename=fig_path+'traceplots/'+spatial_unit+'TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
+                        plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+
+        # Check convergence
+        converged = np.all(tau * 100 < sampler.iteration)
+        converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+        if converged:
+            break
+        old_tau = tau
 
 thin = 1
 try:
