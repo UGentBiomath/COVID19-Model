@@ -32,17 +32,17 @@ def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
     
     # Traceplots of samples
     traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'traceplots/'+str(spatial_unit)+'_TRACE_'+figname+'_'+str(datetime.date.today())+'.pdf',
                 dpi=400, bbox_inches='tight')
 
     # Autocorrelation plots of chains
     autocorrelation_plot(samples)
-    plt.savefig(fig_path+'autocorrelation/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'autocorrelation/'+str(spatial_unit)+'_AUTOCORR_'+figname+'_'+str(datetime.date.today())+'.pdf',
                 dpi=400, bbox_inches='tight')
 
     # Cornerplots of samples
     fig = corner.corner(flatsamples,labels=labels)
-    plt.savefig(fig_path+'cornerplots/'+figname+str(spatial_unit)+'_'+str(datetime.date.today())+'.pdf',
+    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER'+figname+'_'+str(datetime.date.today())+'.pdf',
                 dpi=400, bbox_inches='tight')
 
     return
