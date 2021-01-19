@@ -64,7 +64,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, param, l , tau, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -85,24 +85,24 @@ def policies_wave1_4prev(t, param, l , tau, prev_work, prev_rest, prev_home):
     elif t1 + tau_days < t <= t1 + tau_days + l_days:
         t = pd.Timestamp(t.date())
         policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t2 < t <= t3:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t3 < t <= t4:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)                     
     else:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
 
 #############################
@@ -123,12 +123,12 @@ end_calibration_beta = '2020-03-21'
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = 5
-multiplier = 2
-maxiter = 20
+multiplier = 5
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 50
-discard = 0
+steps_mcmc = 1500
+discard = 100
 # Number of samples used to visualise model fit
 n_samples = 100
 # Confidence level used to visualise model fit
@@ -143,7 +143,7 @@ n_draws_per_sample=100
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
 # Add the time-dependant parameter function arguments
-params.update({'l': 14, 'tau': 14, 'prev_schools': 0.5, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 14, 'tau': 14, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 # Define initial states
 initial_states = {"S": initN, "E": np.ones(9)}
 # Initialize model
@@ -165,7 +165,7 @@ if job == None or job == 'BETA':
 
     # set PSO optimisation settings
     parNames = ['warmup','beta']
-    bounds=((20,50),(0.036,0.042))
+    bounds=((20,50),(0.039,0.041))
 
     # run PSO optimisation
     theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
@@ -182,9 +182,9 @@ if job == None or job == 'BETA':
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta']
-    bounds_mcmc=((0.036,0.042),)
+    bounds_mcmc=((0.039,0.041),)
     ndim = len(theta)
-    nwalkers = ndim*5
+    nwalkers = ndim*10
     perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
     pos = theta + perturbations
 
@@ -333,27 +333,21 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-07-01'
+end_calibration = '2020-09-01'
 # PSO settings
 processes = 5
-multiplier = 50
-maxiter = 50
+multiplier = 5
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 60000
-discard = 10000
+steps_mcmc = 1000
+discard = 0
 # Number of samples used to visualise model fit
 n_samples = 100
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=100
-
-# -------------------------------
-# Take out schools from inference
-# -------------------------------
-
-model.parameters.update({'prev_schools': 0})
 
 print('\n---------------------------------------------------')
 print('PERFORMING CALIBRATION OF COMPLIANCE AND PREVENTION')
@@ -388,6 +382,15 @@ ndim = len(theta)
 nwalkers = ndim*2
 perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
 pos = theta + perturbations
+
+# ------------------------
+# Define sampling function
+# ------------------------
+
+def draw_fcn(param_dict,samples_dict):
+    # Sample
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    return param_dict
 
 # Run sampler
 from multiprocessing import Pool
