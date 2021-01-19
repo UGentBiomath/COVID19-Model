@@ -349,9 +349,11 @@ conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=100
 
-# --------------------
-# Initialize the model
-# --------------------
+# -------------------------------
+# Take out schools from inference
+# -------------------------------
+
+model.parameters.update({'prev_schools': 0})
 
 print('\n---------------------------------------------------')
 print('PERFORMING CALIBRATION OF COMPLIANCE AND PREVENTION')
