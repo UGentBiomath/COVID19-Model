@@ -362,6 +362,14 @@ def make_contact_matrix_function(df_google, Nc_all):
     df_google_start = df_google.index[0]
     df_google_end = df_google.index[-1]
     
+    @lru_cache()
+    def all_contact(t):
+        return Nc_all['total']
+
+    @lru_cache()
+    def all_contact_no_schools(t):
+        return Nc_all['total'] - Nc_all['schools']
+
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def contact_matrix_4prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
                        school=None, work=None, transport=None, leisure=None, others=None,SB=False):
@@ -425,4 +433,4 @@ def make_contact_matrix_function(df_google, Nc_all):
 
         return CM
 
-    return contact_matrix_4prev
+    return contact_matrix_4prev, all_contact, all_contact_no_schools
