@@ -85,7 +85,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     if filename:
         plt.savefig(filename, dpi=600, bbox_inches='tight',
-                    orientation='portrait', papertype='a4')
+                    orientation='portrait')
 
     return ax
 
