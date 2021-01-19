@@ -15,6 +15,7 @@ import json
 import random
 import emcee
 import datetime
+import corner
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -25,6 +26,7 @@ from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
+from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 
 if len(sys.argv) > 1:
     job = str(sys.argv[1])
@@ -176,11 +178,6 @@ if job == None or job == 'BETA':
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # Set up the sampler backend
-    filename = spatial_unit+'_'+str(datetime.date.today())
-    backend = emcee.backends.HDFBackend(results_folder+filename)
-    backend.reset(nwalkers, ndim)
-    
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta']
     bounds_mcmc=((0.039,0.041),)
@@ -188,6 +185,11 @@ if job == None or job == 'BETA':
     nwalkers = ndim*10
     perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
     pos = theta + perturbations
+
+    # Set up the sampler backend
+    filename = spatial_unit+'_'+str(datetime.date.today())
+    backend = emcee.backends.HDFBackend(results_folder+filename)
+    backend.reset(nwalkers, ndim)
 
     # Run sampler
     from multiprocessing import Pool
@@ -334,15 +336,14 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-09-01'
+end_calibration = '2020-06-01'
 # PSO settings
 processes = 5
-multiplier = 5
-maxiter = 30
+multiplier = 2
+maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 2000
-discard = 0
+max_n = 2000
 # Number of samples used to visualise model fit
 n_samples = 100
 # Confidence level used to visualise model fit
@@ -357,9 +358,25 @@ print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
 
-# define dataset
+# --------------
+# Define dataset
+# --------------
+
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
+
+# ------------------------
+# Define sampling function
+# ------------------------
+
+def draw_fcn(param_dict,samples_dict):
+    # Sample
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    return param_dict
+
+# ---------------------------
+# Particle Swarm Optimization
+# ---------------------------
 
 # set PSO optimisation settings
 parNames = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
@@ -369,13 +386,11 @@ bounds=((0.1,20),(0.1,20),(0.01,0.99),(0.01,0.99),(0.01,0.99))
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                     start_date=start_calibration, processes=processes, warmup=warmup)
 
-# run MCMC sampler
-print('\n2) Markov-Chain Monte-Carlo sampling\n')
+# ------------
+# MCMC sampler
+# ------------
 
-# Set up the sampler backend
-filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
-backend = emcee.backends.HDFBackend(results_folder+filename)
-backend.reset(nwalkers, ndim)
+print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
@@ -384,6 +399,8 @@ ndim = len(theta)
 nwalkers = ndim*2
 perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
 pos = theta + perturbations
+pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
+pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
 
 # Set up the sampler backend
 filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
@@ -398,7 +415,9 @@ autocorr = np.empty(max_n)
 old_tau = np.inf
 # Initialize autocorr vector and autocorrelation figure
 autocorr = np.zeros([1,ndim])
-fig,ax = plt.subplots(figsize=(10,5))
+# Initialize figures
+fig1,ax1 = plt.subplots(figsize=(10,5))
+labels = ['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home']
 
 from multiprocessing import Pool
 with Pool() as pool:
@@ -418,18 +437,23 @@ with Pool() as pool:
         n = 50 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
 
-        ax.plot(n, n / 50.0, "--k")
-        ax.plot(n, y, linewidth=2,color='red')
-        ax.set_xlim(0, n.max())
-        ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-        ax.set_xlabel("number of steps")
-        ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+        ax1.plot(n, n / 50.0, "--k")
+        ax1.plot(n, y, linewidth=2,color='red')
+        ax1.set_xlim(0, n.max())
+        ax1.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        ax1.set_xlabel("number of steps")
+        ax1.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+        fig1.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
         
         # Update traceplot
-        traceplot(sampler.get_chain(),['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'],
+        traceplot(sampler.get_chain(),labels,
                         filename=fig_path+'traceplots/'+spatial_unit+'TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+
+        # Update cornerplot
+        fig2 = corner.corner(sampler.get_chain(flat=True,discard=int(3 * np.max(tau))),labels=labels)
+        fig2.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_COMPLIANCE'+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
 
         # Check convergence
         converged = np.all(tau * 100 < sampler.iteration)
