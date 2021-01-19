@@ -423,14 +423,14 @@ class BaseModel:
         if verbose==True:
             print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples,to_sample)
+            self.parameters = draw_fcn(self.parameters,samples)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
             if draw_fcn:
-                self.parameters = draw_fcn(self.parameters,samples,to_sample)
+                self.parameters = draw_fcn(self.parameters,samples)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary
