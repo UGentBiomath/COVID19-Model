@@ -64,8 +64,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, param, l , tau, 
-                   prev_schools, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, param, l , tau, prev_work, prev_rest, prev_home):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -86,25 +85,25 @@ def policies_wave1_4prev(t, param, l , tau,
     elif t1 + tau_days < t <= t1 + tau_days + l_days:
         t = pd.Timestamp(t.date())
         policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        policy_new = contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
                               school=0)
     elif t2 < t <= t3:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0.5)
+        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+                              school=0)
     elif t3 < t <= t4:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
                               school=0)                     
     else:
         t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+        return contact_matrix_4prev(t, prev_home, prev_work, prev_rest, 
+                              school=0)
 
 #############################
 ## PART 1: BETA AND WARMUP ##
@@ -366,8 +365,8 @@ data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
 
 # set PSO optimisation settings
-parNames = ['l','tau','prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.1,20),(0.1,20),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+parNames = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
+bounds=((0.1,20),(0.1,20),(0.01,0.99),(0.01,0.99),(0.01,0.99))
 
 # run PSO optimisation
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
@@ -382,7 +381,7 @@ backend = emcee.backends.HDFBackend(results_folder+filename)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
-bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1),(0,1))
+bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
 ndim = len(theta)
 nwalkers = ndim*2
 perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
@@ -403,7 +402,7 @@ except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='COMPLIANCE', 
-           labels=['l','$\\tau$','prev_schools', 'prev_work', 'prev_rest', 'prev_home'])
+           labels=['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
 
 print('\n3) Sending samples to dictionary')
 
@@ -424,8 +423,7 @@ def draw_fcn(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     model.parameters['l'] = samples_dict['l'][idx] 
     model.parameters['tau'] = samples_dict['tau'][idx]  
-    model.parameters['prev_home'] = samples_dict['prev_home'][idx]    
-    model.parameters['prev_schools'] = samples_dict['prev_schools'][idx]    
+    model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]      
     return param_dict
