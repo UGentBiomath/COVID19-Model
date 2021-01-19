@@ -179,7 +179,8 @@ if job == None or job == 'BETA':
     # Set up the sampler backend
     filename = spatial_unit+'_'+str(datetime.date.today())
     backend = emcee.backends.HDFBackend(results_folder+filename)
-
+    backend.reset(nwalkers, ndim)
+    
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta']
     bounds_mcmc=((0.039,0.041),)
@@ -193,7 +194,7 @@ if job == None or job == 'BETA':
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                         args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
-        sampler.run_mcmc(pos, steps_mcmc, progress=True)
+        sampler.run_mcmc(pos, steps_mcmc, progress=True, store=True)
 
     thin = 1
     try:
@@ -340,7 +341,7 @@ multiplier = 5
 maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 1000
+steps_mcmc = 2000
 discard = 0
 # Number of samples used to visualise model fit
 n_samples = 100
@@ -372,8 +373,9 @@ theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=po
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
 # Set up the sampler backend
-filename = spatial_unit+'_COMP_'+str(datetime.date.today())
+filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
 backend = emcee.backends.HDFBackend(results_folder+filename)
+backend.reset(nwalkers, ndim)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = parNames
@@ -397,7 +399,7 @@ from multiprocessing import Pool
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
-    sampler.run_mcmc(pos, steps_mcmc, progress=True)
+    sampler.run_mcmc(pos, steps_mcmc, progress=True, store=True)
 
 thin = 1
 try:
@@ -439,7 +441,7 @@ def draw_fcn(param_dict,samples_dict):
 
 print('4) Simulating using sampled parameters')
 start_sim = start_calibration
-end_sim = '2020-07-01'
+end_sim = '2020-09-01'
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
 # ---------------------------
