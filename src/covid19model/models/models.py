@@ -159,9 +159,9 @@ class COVID19_SEIRD(BaseModel):
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/(initN-V)*S
-        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E - N_vacc/(initN-V)*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
-        dI = (1/sigma)*E - (1/omega)*I - N_vacc/(initN-V)*I
-        dA = (a/omega)*I - A/da - N_vacc/(initN-V)*A
+        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
         dER = M*(h/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
@@ -172,7 +172,7 @@ class COVID19_SEIRD(BaseModel):
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        dV = N_vacc/(initN-V)*S + N_vacc/(initN-V)*E + N_vacc/(initN-V)*I + N_vacc/(initN-V)*A +N_vacc/(initN-V)*R
+        dV = N_vacc/(initN-V)*S + N_vacc/(initN-V)*R
         dV_imm = e*dV
         dV_n_imm = (1-e)*dV - beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
         
