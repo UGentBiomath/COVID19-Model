@@ -189,6 +189,24 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 # Proximus mobility data functions #
 ####################################
 
+def date_to_YYYYMMDD(datetime_object):
+    """
+    Simple function to convert a datetime object to a string representing the date in the shape YYYYMMDD
+    
+    Input
+    -----
+    datetime_object: datetime.date object
+    
+    Return
+    ------
+    YYYYMMDD: str
+    """
+    YYYY = datetime_object.strftime('%Y')
+    MM = datetime_object.strftime('%m')
+    DD = datetime_object.strftime('%d')
+    YYYYMMDD = YYYY+MM+DD
+    return YYYYMMDD
+
 def week_to_date(week_nr, day = 1, year=2020):
     """
     Function that takes a week number between 1 and 53 (or 53 for 2021) and returns the corresponding dates
@@ -244,10 +262,7 @@ def make_date_list(week_nr, year=2020):
     date_list=[]
     for day in range(1,8):
         start_date = week_to_date(week_nr, day=day, year=year)
-        YYYY = start_date.strftime('%Y')
-        MM = start_date.strftime('%m')
-        DD = start_date.strftime('%d')
-        YYYYMMDD = YYYY+MM+DD
+        YYYYMMDD = date_to_YYYYMMDD(start_date)
         date_list.append(YYYYMMDD)
     return date_list
 
