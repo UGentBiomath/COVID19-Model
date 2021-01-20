@@ -404,7 +404,7 @@ start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 end_calibration = '2020-08-01'
 # MCMC settings
-max_n = 380000
+max_n = 370000
 # Number of samples used to visualise model fit
 n_samples = 1000
 # Confidence level used to visualise model fit
