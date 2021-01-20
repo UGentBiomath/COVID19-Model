@@ -83,7 +83,7 @@ class COVID19_SEIRD(BaseModel):
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
 
         Non-stratified parameters
         -------------------------
@@ -112,6 +112,10 @@ class COVID19_SEIRD(BaseModel):
         m_ICU : mortality in ICU
         v : daily vaccination rate (percentage of population to be vaccinated)
         e : vaccine effectivity
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
 
     """
 
