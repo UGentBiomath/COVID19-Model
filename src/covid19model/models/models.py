@@ -172,7 +172,7 @@ class COVID19_SEIRD(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV = N_vacc/(initN-V)*S + N_vacc/(initN-V)*E + N_vacc/(initN-V)*I + N_vacc/(initN-V)*A - (1-e)*V
         
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV)
 
 class COVID19_SEIRD_sto(BaseModel):
     """
