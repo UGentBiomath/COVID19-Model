@@ -4,7 +4,7 @@
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Change to package folder
-cd /data/gent/426/vsc42692/COVID19-Model/hpc/
+cd /data/gent/426/vsc42692/COVID19-Model/notebooks/calibration/
 
 # Make script executable
 chmod +x calibrate-COVID-19-SEIRD-WAVE1.py
