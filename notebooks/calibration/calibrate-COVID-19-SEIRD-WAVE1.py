@@ -404,7 +404,7 @@ start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 end_calibration = '2020-08-01'
 # MCMC settings
-max_n = 200000
+max_n = 380000
 # Number of samples used to visualise model fit
 n_samples = 1000
 # Confidence level used to visualise model fit
@@ -443,7 +443,7 @@ def draw_fcn(param_dict,samples_dict):
 parNames_mcmc = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
 ndim = len(parNames_mcmc)
-nwalkers = ndim*2
+nwalkers = ndim*7
 pos=np.zeros([nwalkers,ndim])
 pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
 pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
@@ -470,7 +470,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
         # Only check convergence every 10 steps
-        if sampler.iteration % 100:
+        if sampler.iteration % 200:
             continue
 
         # Compute the autocorrelation time so far
@@ -482,7 +482,7 @@ with Pool() as pool:
         n = 100 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
         fig,ax = plt.subplots(figsize=(10,5))
-        ax.plot(n, n / 55.0, "--k")
+        ax.plot(n, n / 50.0, "--k")
         ax.plot(n, y, linewidth=2,color='red')
         ax.set_xlim(0, n.max())
         ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
@@ -500,7 +500,7 @@ with Pool() as pool:
         gc.collect()
 
         # Check convergence using mean tau
-        converged = np.all(np.mean(tau) * 55 < sampler.iteration)
+        converged = np.all(np.mean(tau) * 50 < sampler.iteration)
         converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
         if converged:
             break
@@ -513,12 +513,12 @@ try:
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-checkplots(sampler, int(20 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
+checkplots(sampler, int(10 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
            labels=['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=int(20 * np.max(tau)),thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=int(10 * np.max(tau)),thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
