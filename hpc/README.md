@@ -88,3 +88,13 @@ Copy from Linux PC to HPC:
 ```bash
 scp sim_stochastic.py test.sh vscxxxxx@login.hpc.ugent.be:/user/gent/xxx/vscxxxxx/Documents/COVID-19/
 ```
+
+Job status (R: running, C: completed):
+```bash
+qstat
+```
+
+Kill job:
+```bash
+qdel xxxxxx
+```
