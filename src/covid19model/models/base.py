@@ -264,7 +264,7 @@ class BaseModel:
             y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
         else:
             y0 = list(itertools.chain(*self.initial_states.values()))
-        result = fun(0, np.array(y0), self.parameters)
+        result = fun(pd.Timestamp('2020-09-01'), np.array(y0), self.parameters)
         if len(result) != len(y0):
             raise ValueError(
                 "The return value of the integrate function does not have the correct length."
