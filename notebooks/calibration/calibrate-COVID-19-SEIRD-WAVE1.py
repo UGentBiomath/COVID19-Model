@@ -479,7 +479,7 @@ with Pool() as pool:
         index += 1
 
         # Update autocorrelation plot
-        n = 100 * np.arange(0, index + 1)
+        n = 200 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
         fig,ax = plt.subplots(figsize=(10,5))
         ax.plot(n, n / 50.0, "--k")
@@ -586,5 +586,3 @@ ax.plot(out['time'],H_in_mean,'--', color='blue')
 ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
 ax = _apply_tick_locator(ax)
 ax.set_xlim('2020-03-10',end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
