@@ -189,23 +189,28 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 # Proximus mobility data functions #
 ####################################
 
-def date_to_YYYYMMDD(datetime_object):
+def date_to_YYYYMMDD(datetime_object, inverse=False):
     """
     Simple function to convert a datetime object to a string representing the date in the shape YYYYMMDD
     
     Input
     -----
-    datetime_object: datetime.date object
+    datetime_object: datetime.date object or str
+        datetime.date object if inverse=False, str if inverse=True
+    inverse: boolean
+        False if date is converted to YYYYMMDD, True if YYYYMMDD string is converted to datetime.date object
     
     Return
     ------
     YYYYMMDD: str
     """
-    YYYY = datetime_object.strftime('%Y')
-    MM = datetime_object.strftime('%m')
-    DD = datetime_object.strftime('%d')
-    YYYYMMDD = YYYY+MM+DD
-    return YYYYMMDD
+    if not inverse:
+        YYYYMMDD = datetime_object.strftime("%Y%m%d")
+        return YYYYMMDD
+    if inverse:
+        date = datetime.strptime('20200202', "%Y%m%d")
+        return date
+        
 
 def week_to_date(week_nr, day = 1, year=2020):
     """
