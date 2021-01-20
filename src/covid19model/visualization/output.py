@@ -49,26 +49,29 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # check if ax object is provided by user
     if ax is None:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(9,5))
 
     # create plot using xarray interface
-    data2plot = data[["S", "E", "I_total", "R"]].to_array(dim="states")
+    data2plot = data[["S", "E", "I_total", "R", "V", "D"]].to_array(dim="states")
     lines = data2plot.plot.line(x='time', hue="states", ax=ax, **kwargs)
     ax.set_xlabel('days')
     ax.set_ylabel('number of patients')
 
     # use custom defined colors
-    colors = ["black", "orange", "red", "green"]
+    colors = ["black", "orange", "red", "green", "blue", "yellow"]
     for color, line in zip(colors, lines):
         line.set_color(colorscale_okabe_ito[color])
 
     # add custom legend
     ax.legend(('susceptible', 'exposed',
-               'total infected', 'immune'),
-              loc="upper left", bbox_to_anchor=(1,1))
+               'infected+sick+hospital', 'recovered',
+               'vaccinated','dead'),
+              loc="upper center", bbox_to_anchor=(0.5,1.2), ncol=3)
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(0)
 
     if filename:
         plt.savefig(filename, dpi=600, bbox_inches='tight')
