@@ -326,7 +326,7 @@ def load_datafile_proximus(date, data_location):
     return datafile    
     
     
-def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True):
+def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True, return_missing=False):
     """
     Load Proximus mobility data (number of visitors or visitor time) corresponding to the requested dates
     
@@ -342,6 +342,8 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
         If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
     verbose: boolean
         If True, print statement every time data for a date is loaded.
+    return_missing: boolean
+        If True, return array of missing dates in form YYYYMMDD as second return. False by default.
     
     Returns
     -------
@@ -379,7 +381,11 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
         if verbose==True:
             print(f"Loaded dataframe for date {date}.    ", end='\r')
     print(f"Loaded dataframe for date {date}.")
-    return mmprox_dict
+    
+    if not return_missing:
+        return mmprox_dict
+    else:
+        return mmprox_dict, sorted(missing)
 
 
 def load_pc_to_nis():
