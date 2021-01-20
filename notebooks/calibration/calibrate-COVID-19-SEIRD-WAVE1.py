@@ -256,11 +256,11 @@ if job == None or job == 'BETA':
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'TRACE_BETA_'+str(datetime.date.today())+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+str(datetime.date.today())+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -488,11 +488,11 @@ with Pool() as pool:
         ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
         ax.set_xlabel("number of steps")
         ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
         
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
-                        filename=fig_path+'traceplots/'+spatial_unit+'TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
+                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
         # Close all figures and collect garbage to avoid memory leaks
