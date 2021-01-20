@@ -121,7 +121,6 @@ class COVID19_SEIRD(BaseModel):
 
             Real vaccination strategy
             -------------------------
-            initN : number of people in each age group
             N_vacc : daily number of people vaccinated in each age group
             e : vaccine effectivity
 
@@ -134,14 +133,14 @@ class COVID19_SEIRD(BaseModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_imm', 'V_n_imm']
     parameter_names = ['beta', 'alpha', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v', 'initN','N_vacc']]
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v','N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_imm, V_n_imm,
                   beta, alpha, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, e, s, a, h, c, m_C, m_ICU, v, initN, N_vacc, Nc):
+                  dhospital, e, s, a, h, c, m_C, m_ICU, v, N_vacc, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -151,6 +150,7 @@ class COVID19_SEIRD(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V
+        vacc_eligible = S + E + I + A + R
 
         # Compute weighted average beta
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,21 +158,21 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/(initN-V)*S
-        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
+        dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/(vacc_eligible-V)*S
+        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E - N_vacc/(vacc_eligible-V)*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
+        dI = (1/sigma)*E - (1/omega)*I - N_vacc/(vacc_eligible-V)*I
+        dA = (a/omega)*I - A/da - N_vacc/(vacc_eligible-V)*A
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
         dER = M*(h/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S + v*e*E - N_vacc/(initN-V)*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S + v*e*E - N_vacc/(vacc_eligible-V)*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        dV = N_vacc/(initN-V)*S + N_vacc/(initN-V)*R
+        dV = N_vacc/(vacc_eligible-V)*S + N_vacc/(vacc_eligible-V)*E + N_vacc/(vacc_eligible-V)*I + N_vacc/(vacc_eligible-V)*A +N_vacc/(vacc_eligible-V)*R
         dV_imm = e*dV
         dV_n_imm = (1-e)*dV - beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
         
