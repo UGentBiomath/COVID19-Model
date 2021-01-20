@@ -10,16 +10,19 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
+import gc
 import sys, getopt
 import json
 import random
 import emcee
 import datetime
 import corner
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from multiprocessing import Pool
 from covid19model.models import models
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.data import mobility, sciensano, model_parameters
@@ -27,9 +30,39 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
+import gc
 
-if len(sys.argv) > 1:
-    job = str(sys.argv[1])
+# -----------------------
+# Handle script arguments
+# -----------------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
+parser.add_argument("-j", "--job", help="Full or partial calibration")
+parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
+
+args = parser.parse_args()
+
+# Backend
+if args.backend == False:
+    backend = None
+else:
+    backend = True
+
+# Job type
+if args.job:
+    job = str(args.job)  
+    if job not in ['BETA','COMPLIANCE']:
+        raise ValueError(
+            'Illegal job argument. Valid arguments are: "BETA" or "COMPLIANCE"'
+        )     
+    if job == 'COMPLIANCE':
+        if args.date:
+            date=str(args.date)
+        else:
+            raise ValueError(
+                'Job "COMPLIANCE" requires the defenition of the calibration date of BETA!'
+            )
 else:
     job = None
 
@@ -124,15 +157,14 @@ end_calibration_beta = '2020-03-21'
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE1'
 # PSO settings
-processes = 5
+processes = mp.cpu_count()
 multiplier = 5
-maxiter = 30
+maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
-steps_mcmc = 1500
-discard = 100
+max_n = 10
 # Number of samples used to visualise model fit
-n_samples = 100
+n_samples = 10
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
@@ -187,16 +219,59 @@ if job == None or job == 'BETA':
     pos = theta + perturbations
 
     # Set up the sampler backend
-    filename = spatial_unit+'_'+str(datetime.date.today())
-    backend = emcee.backends.HDFBackend(results_folder+filename)
-    backend.reset(nwalkers, ndim)
+    if backend:
+        filename = spatial_unit+'_BETA_'+str(datetime.date.today())
+        backend = emcee.backends.HDFBackend(results_folder+filename)
+        backend.reset(nwalkers, ndim)
 
     # Run sampler
-    from multiprocessing import Pool
+    # We'll track how the average autocorrelation time estimate changes
+    index = 0
+    autocorr = np.empty(max_n)
+    # This will be useful to testing convergence
+    old_tau = np.inf
+    # Initialize autocorr vector and autocorrelation figure
+    autocorr = np.zeros([1,ndim])
+
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                         args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
-        sampler.run_mcmc(pos, steps_mcmc, progress=True, store=True)
+        for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
+            # Only check convergence every 10 steps
+            if sampler.iteration % 100:
+                continue
+
+            # Compute the autocorrelation time so far
+            tau = sampler.get_autocorr_time(tol=0)
+            autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
+            index += 1
+
+            # Update autocorrelation plot
+            n = 100 * np.arange(0, index + 1)
+            y = autocorr[:index+1,:]
+            fig,ax = plt.subplots(figsize=(10,5))
+            ax.plot(n, n / 55.0, "--k")
+            ax.plot(n, y, linewidth=2,color='red')
+            ax.set_xlim(0, n.max())
+            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            ax.set_xlabel("number of steps")
+            ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+            
+            # Update traceplot
+            traceplot(sampler.get_chain(),['$\\beta$'],
+                            filename=fig_path+'traceplots/'+spatial_unit+'TRACE_BETA_'+str(datetime.date.today())+'.pdf',
+                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+
+            plt.close('all')
+            gc.collect()
+
+            # Check convergence using mean tau
+            converged = np.all(np.mean(tau) * 55 < sampler.iteration)
+            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
+            if converged:
+                break
+            old_tau = tau
 
     thin = 1
     try:
@@ -205,11 +280,11 @@ if job == None or job == 'BETA':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
+    checkplots(sampler, int(20 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+    flat_samples = sampler.get_chain(discard=int(20 * np.min(autocorr)),thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
         samples_dict[name] = flat_samples[:,count].tolist()
@@ -311,17 +386,8 @@ if job == None or job == 'BETA':
         sys.exit()
 
 elif job == 'COMPLIANCE':
-    if len(sys.argv) != 3:
-        raise ValueError(
-                "Please provide the date of the WARMUP+BETA calibration as the second script argument!"
-            )
-    else:
-        samples_dict = json.load(open(samples_path+str(spatial_unit)+'_BETA_'+str(sys.argv[2])+'.json'))
-        warmup = samples_dict['warmup']
-else:
-    raise ValueError(
-        'Illegal script argument. Valid arguments are: no arguments, "BETA", "COMPLIANCE 20xx-xx-xx"\n \nNo arguments calibrates BETA, WARMUP, L, TAU and PREVENTION \n"BETA" calibrates BETA and WARMUP only \n"COMPLIANCE 20xx-xx-xx" calibrates L, TAU and PREVENTION only\n'
-    )
+    samples_dict = json.load(open(samples_path+str(spatial_unit)+'_BETA_'+date+'.json'))
+    warmup = samples_dict['warmup']
 
 ############################################
 ## PART 2: COMPLIANCE RAMP AND PREVENTION ##
@@ -336,26 +402,21 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-06-01'
-# PSO settings
-processes = 5
-multiplier = 2
-maxiter = 5
-popsize = multiplier*processes
+end_calibration = '2020-08-01'
 # MCMC settings
-max_n = 2000
+max_n = 200000
 # Number of samples used to visualise model fit
-n_samples = 100
+n_samples = 1000
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=100
+n_draws_per_sample=1000
 
 print('\n---------------------------------------------------')
 print('PERFORMING CALIBRATION OF COMPLIANCE AND PREVENTION')
 print('---------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-print('1) Particle swarm optimization\n')
+print('\n1) Markov-Chain Monte-Carlo sampling\n')
 print('Using ' + str(processes) + ' cores\n')
 
 # --------------
@@ -374,38 +435,24 @@ def draw_fcn(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     return param_dict
 
-# ---------------------------
-# Particle Swarm Optimization
-# ---------------------------
-
-# set PSO optimisation settings
-parNames = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.1,20),(0.1,20),(0.01,0.99),(0.01,0.99),(0.01,0.99))
-
-# run PSO optimisation
-theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                    start_date=start_calibration, processes=processes, warmup=warmup)
-
 # ------------
 # MCMC sampler
 # ------------
 
-print('\n2) Markov-Chain Monte-Carlo sampling\n')
-
 # Setup parameter names, bounds, number of chains, etc.
-parNames_mcmc = parNames
+parNames_mcmc = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
-ndim = len(theta)
+ndim = len(parNames_mcmc)
 nwalkers = ndim*2
-perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-pos = theta + perturbations
+pos=np.zeros([nwalkers,ndim])
 pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
 pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
 
 # Set up the sampler backend
-filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
-backend = emcee.backends.HDFBackend(results_folder+filename)
-backend.reset(nwalkers, ndim)
+if backend:
+    filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
+    backend = emcee.backends.HDFBackend(results_folder+filename)
+    backend.reset(nwalkers, ndim)
 
 # Run sampler
 # We'll track how the average autocorrelation time estimate changes
@@ -415,17 +462,15 @@ autocorr = np.empty(max_n)
 old_tau = np.inf
 # Initialize autocorr vector and autocorrelation figure
 autocorr = np.zeros([1,ndim])
-# Initialize figures
-fig1,ax1 = plt.subplots(figsize=(10,5))
+# Initialize the labels
 labels = ['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home']
 
-from multiprocessing import Pool
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
-    for sample in sampler.sample(pos, iterations=max_n, progress=True):
+    for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
         # Only check convergence every 10 steps
-        if sampler.iteration % 50:
+        if sampler.iteration % 100:
             continue
 
         # Compute the autocorrelation time so far
@@ -434,30 +479,29 @@ with Pool() as pool:
         index += 1
 
         # Update autocorrelation plot
-        n = 50 * np.arange(0, index + 1)
+        n = 100 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
-
-        ax1.plot(n, n / 50.0, "--k")
-        ax1.plot(n, y, linewidth=2,color='red')
-        ax1.set_xlim(0, n.max())
-        ax1.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-        ax1.set_xlabel("number of steps")
-        ax1.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig1.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+        fig,ax = plt.subplots(figsize=(10,5))
+        ax.plot(n, n / 55.0, "--k")
+        ax.plot(n, y, linewidth=2,color='red')
+        ax.set_xlim(0, n.max())
+        ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        ax.set_xlabel("number of steps")
+        ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
         
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
                         filename=fig_path+'traceplots/'+spatial_unit+'TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
-        # Update cornerplot
-        fig2 = corner.corner(sampler.get_chain(flat=True,discard=int(3 * np.max(tau))),labels=labels)
-        fig2.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_COMPLIANCE'+'_'+str(datetime.date.today())+'.pdf',
-                dpi=400, bbox_inches='tight')
+        # Close all figures and collect garbage to avoid memory leaks
+        plt.close('all')
+        gc.collect()
 
-        # Check convergence
-        converged = np.all(tau * 100 < sampler.iteration)
-        converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+        # Check convergence using mean tau
+        converged = np.all(np.mean(tau) * 55 < sampler.iteration)
+        converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
         if converged:
             break
         old_tau = tau
@@ -469,12 +513,12 @@ try:
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-checkplots(sampler, discard, thin, fig_path, spatial_unit, figname='COMPLIANCE', 
+checkplots(sampler, int(20 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
            labels=['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=int(10 * np.max(tau)),thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=int(20 * np.max(tau)),thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
