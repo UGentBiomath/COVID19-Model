@@ -12,7 +12,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 import gc
 import sys, getopt
-import json
+import ujson as json
 import random
 import emcee
 import datetime
