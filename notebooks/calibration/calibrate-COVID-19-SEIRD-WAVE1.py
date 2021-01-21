@@ -494,7 +494,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
-        if sampler.iteration % 50:
+        if sampler.iteration % 500:
             continue
 
         ##################
@@ -543,22 +543,21 @@ with Pool() as pool:
         ###############################
 
         # Write samples to dictionary every 50000 steps
-        if sampler.iteration % 50: 
-            continue
+        #if sampler.iteration % 50: 
+        #    continue
 
-        flat_samples = sampler.get_chain(flat=True)
-        for count,name in enumerate(parNames_mcmc):
-            samples_dict.update({name: flat_samples[:,count].tolist()})
+        #flat_samples = sampler.get_chain(flat=True)
+        #for count,name in enumerate(parNames_mcmc):
+        #    samples_dict.update({name: flat_samples[:,count].tolist()})
 
-        samples_dict.update({'n_samples_compliance': sampler.iteration,
-                             'tau_compliance': tau.tolist()})
+        #samples_dict.update({'n_samples_compliance': sampler.iteration,
+        #                     'tau_compliance': tau.tolist()})
 
-        with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
-            json.dump(samples_dict, fp)
-            fp.close()
-
-        # Garbage collection
-        gc.collect() 
+        #with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
+        #    json.dump(samples_dict, fp)
+        #    fp.close()
+            # Garbage collection
+        #    gc.collect() 
 
 thin = 1
 try:
