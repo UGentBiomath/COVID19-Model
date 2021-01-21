@@ -66,6 +66,7 @@ if args.job:
 else:
     job = None
 
+# Date at which script is started
 run_date = str(datetime.date.today())
 
 # ---------
@@ -164,7 +165,7 @@ multiplier = 5
 maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
-max_n = 10
+max_n = 1000
 # Number of samples used to visualise model fit
 n_samples = 10
 # Confidence level used to visualise model fit
@@ -217,6 +218,7 @@ if job == None or job == 'BETA':
     bounds_mcmc=((0.039,0.041),)
     ndim = len(theta)
     nwalkers = ndim*10
+    samples_dict.update({'n_chains_beta': int(nwalkers)})
     perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
     pos = theta + perturbations
 
@@ -240,8 +242,12 @@ if job == None or job == 'BETA':
                         args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
-            if sampler.iteration % 100:
+            if sampler.iteration % 200:
                 continue
+            
+            ##################
+            # UPDATE FIGURES #
+            ################## 
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
@@ -249,7 +255,7 @@ if job == None or job == 'BETA':
             index += 1
 
             # Update autocorrelation plot
-            n = 100 * np.arange(0, index + 1)
+            n = 200 * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
             ax.plot(n, n / 50.0, "--k")
@@ -268,12 +274,34 @@ if job == None or job == 'BETA':
             plt.close('all')
             gc.collect()
 
+            #####################
+            # CHECK CONVERGENCE #
+            ##################### 
+
             # Check convergence using mean tau
             converged = np.all(np.mean(tau) * 50 < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             if converged:
                 break
             old_tau = tau
+
+            ###############################
+            # WRITE SAMPLES TO DICTIONARY #
+            ###############################
+
+            # Write samples to dictionary every 1000 steps
+            if sampler.iteration % 1000: 
+                continue
+
+            flat_samples = sampler.get_chain(flat=True)
+            for count,name in enumerate(parNames_mcmc):
+                samples_dict.update({name: flat_samples[:,count].tolist()})
+
+            samples_dict.update({'n_samples_beta': sampler.iteration,
+                                'tau_beta': tau.tolist()})
+
+            with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json', 'w') as fp:
+                json.dump(samples_dict, fp)
 
     thin = 1
     try:
@@ -404,9 +432,9 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-06-01'
+end_calibration = '2020-08-01'
 # MCMC settings
-max_n = 30000
+max_n = 370000
 # Number of samples used to visualise model fit
 n_samples = 1000
 # Confidence level used to visualise model fit
@@ -446,7 +474,7 @@ parNames_mcmc = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
 ndim = len(parNames_mcmc)
 nwalkers = ndim*7
-samples_dict.update({'n_chains_compliance': int(nwalkers/ndim)})
+samples_dict.update({'n_chains_compliance': int(nwalkers)})
 pos=np.zeros([nwalkers,ndim])
 pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
 pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
@@ -473,7 +501,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
-        if sampler.iteration % 200: # 500
+        if sampler.iteration % 500:
             continue
 
         ##################
@@ -502,10 +530,6 @@ with Pool() as pool:
                         filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
-        fig = corner.corner(flat_samples,labels=labels)
-        plt.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_COMPLIANCE'+run_date+'.pdf',
-                dpi=400, bbox_inches='tight')
-
         # Close all figures and collect garbage to avoid memory leaks
         plt.close('all')
         gc.collect()
@@ -526,15 +550,15 @@ with Pool() as pool:
         ###############################
 
         # Write samples to dictionary every 1000 steps
-        if sampler.iteration % 1000: # 500
+        if sampler.iteration % 1000: 
             continue
 
         flat_samples = sampler.get_chain(flat=True)
         for count,name in enumerate(parNames_mcmc):
             samples_dict.update({name: flat_samples[:,count].tolist()})
 
-        samples_dict.update({'n_samples_compliance': sampler.iteration})
-        samples_dict.update({'tau_compliance': tau})
+        samples_dict.update({'n_samples_compliance': sampler.iteration,
+                             'tau_compliance': tau.tolist()})
 
         with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
            json.dump(samples_dict, fp)
