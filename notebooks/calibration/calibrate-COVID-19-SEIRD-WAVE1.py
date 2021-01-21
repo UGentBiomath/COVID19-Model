@@ -542,8 +542,8 @@ with Pool() as pool:
         # WRITE SAMPLES TO DICTIONARY #
         ###############################
 
-        # Write samples to dictionary every 1000 steps
-        if sampler.iteration % 1000: 
+        # Write samples to dictionary every 10000 steps
+        if sampler.iteration % 10000: 
             continue
 
         flat_samples = sampler.get_chain(flat=True)
@@ -554,8 +554,12 @@ with Pool() as pool:
                              'tau_compliance': tau.tolist()})
 
         with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
-           json.dump(samples_dict, fp)
-        
+            json.dump(samples_dict, fp)
+            fp.close()
+
+        # Garbage collection
+        gc.collect() 
+
 thin = 1
 try:
     autocorr = sampler.get_autocorr_time()
