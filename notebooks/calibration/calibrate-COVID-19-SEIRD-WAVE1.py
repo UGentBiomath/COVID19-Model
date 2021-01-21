@@ -252,24 +252,24 @@ if job == None or job == 'BETA':
             n = 100 * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 55.0, "--k")
+            ax.plot(n, n / 50.0, "--k")
             ax.plot(n, y, linewidth=2,color='red')
             ax.set_xlim(0, n.max())
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+str(datetime.date.today())+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
             gc.collect()
 
             # Check convergence using mean tau
-            converged = np.all(np.mean(tau) * 55 < sampler.iteration)
+            converged = np.all(np.mean(tau) * 50 < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             if converged:
                 break
@@ -282,11 +282,11 @@ if job == None or job == 'BETA':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(20 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
+    checkplots(sampler, int(5 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=int(20 * np.min(autocorr)),thin=thin,flat=True)
+    flat_samples = sampler.get_chain(discard=int(5 * np.min(autocorr)),thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
         samples_dict[name] = flat_samples[:,count].tolist()
@@ -404,7 +404,7 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-08-01'
+end_calibration = '2020-03-20'
 # MCMC settings
 max_n = 370000
 # Number of samples used to visualise model fit
@@ -471,9 +471,13 @@ with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
-        # Only check convergence every 10 steps
-        if sampler.iteration % 200:
+       
+        if sampler.iteration % 50: # 500
             continue
+
+        ##################
+        # UPDATE FIGURES #
+        ################## 
 
         # Compute the autocorrelation time so far
         tau = sampler.get_autocorr_time(tol=0)
@@ -490,16 +494,26 @@ with Pool() as pool:
         ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
         ax.set_xlabel("number of steps")
         ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
         
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
-                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+str(datetime.date.today())+'.pdf',
+                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+
+        # Update cornerplot
+        flat_samples = sampler.get_chain(flat=True,discard=int(5 * np.max(tau)))
+        fig = corner.corner(flat_samples,labels=labels)
+        plt.savefig(fig_path+'traceplots/'+spatial_unit+'_CORNER_COMPLIANCE'+run_date+'.pdf',
+                dpi=400, bbox_inches='tight')
 
         # Close all figures and collect garbage to avoid memory leaks
         plt.close('all')
         gc.collect()
+
+        #####################
+        # CHECK CONVERGENCE #
+        ##################### 
 
         # Check convergence using mean tau
         converged = np.all(np.mean(tau) * 50 < sampler.iteration)
@@ -508,6 +522,20 @@ with Pool() as pool:
             break
         old_tau = tau
 
+        ###############################
+        # WRITE SAMPLES TO DICTIONARY #
+        ###############################
+
+        # Write samples to dictionary every 1000 steps
+        if sampler.iteration % 100: # 500
+            continue
+
+        for count,name in enumerate(parNames_mcmc):
+            samples_dict.update({name: flat_samples[:,count].tolist()})
+
+        with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
+           json.dump(samples_dict, fp)
+        
 thin = 1
 try:
     autocorr = sampler.get_autocorr_time()
