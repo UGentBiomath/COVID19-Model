@@ -160,7 +160,7 @@ class COVID19_SEIRD(BaseModel):
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         dS  = - (IP_old + IP_new) + zeta*R - v*e*S - N_vacc/vacc_eligible*S
-        dE  = (IP_old + IP_new) - E/sigma - v*e*E - N_vacc/vacc_eligible*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V 
+        dE  = (IP_old + IP_new) - E/sigma - v*e*E - N_vacc/vacc_eligible*E + (IP_old + IP_new)*(1-e)*V 
         dI = (1/sigma)*E - (1/omega)*I - N_vacc/vacc_eligible*I
         dA = (a/omega)*I - A/da - N_vacc/vacc_eligible*A        
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
@@ -174,7 +174,7 @@ class COVID19_SEIRD(BaseModel):
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
-        dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V
+        dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (IP_old + IP_new)*(1-e)*V
         # If A and I are both zero, a division error occurs
         # Update fraction of new COVID-19 variant
         dalpha = IP_new/(IP_old+IP_new) - alpha
