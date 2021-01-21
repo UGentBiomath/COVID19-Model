@@ -81,8 +81,7 @@ class COVID19_SEIRD(BaseModel):
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
         V : vaccinated
-        V_imm : vaccinated people that have become immune
-        V_n_imm : vaccinated people that have not become immune
+        V_new : newly vaccinated each day
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -131,14 +130,14 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_imm', 'V_n_imm']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new']
     parameter_names = ['beta', 'alpha', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v','N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_imm, V_n_imm,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new,
                   beta, alpha, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, e, s, a, h, c, m_C, m_ICU, v, N_vacc, Nc):
         """
@@ -150,7 +149,7 @@ class COVID19_SEIRD(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V
-        vacc_eligible = S + E + I + A + R
+        vacc_eligible = S + R
 
         # Compute weighted average beta
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,27 +157,25 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/(vacc_eligible-V)*S
-        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E - N_vacc/(vacc_eligible-V)*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
-        dI = (1/sigma)*E - (1/omega)*I - N_vacc/(vacc_eligible-V)*I
-        dA = (a/omega)*I - A/da - N_vacc/(vacc_eligible-V)*A
+        dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/vacc_eligible*S
+        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E  + beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V
+        dI = (1/sigma)*E - (1/omega)*I 
+        dA = (a/omega)*I - A/da 
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
         dER = M*(h/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S + v*e*E - N_vacc/(vacc_eligible-V)*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R +  v*e*S + v*e*E - N_vacc/vacc_eligible*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        dV = N_vacc/(vacc_eligible-V)*S + N_vacc/(vacc_eligible-V)*E + N_vacc/(vacc_eligible-V)*I + N_vacc/(vacc_eligible-V)*A +N_vacc/(vacc_eligible-V)*R
-        dV_imm = e*dV
-        dV_n_imm = (1-e)*dV - beta_wa*s*np.matmul(Nc,((I+A)/T))*V_n_imm
-        
+        dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R - V_new
+        dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R - beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V
 
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV, dV_imm, dV_n_imm)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV, dV_new)
 
 class COVID19_SEIRD_sto(BaseModel):
     """
