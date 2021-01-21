@@ -542,7 +542,7 @@ with Pool() as pool:
         # WRITE SAMPLES TO DICTIONARY #
         ###############################
 
-        # Write samples to dictionary every 10000 steps
+        # Write samples to dictionary every 50000 steps
         if sampler.iteration % 10000: 
             continue
 
