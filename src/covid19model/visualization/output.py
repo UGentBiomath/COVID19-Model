@@ -66,7 +66,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
     ax.legend(('susceptible', 'exposed',
                'infected+sick+hospital', 'recovered',
                'vaccinated','dead'),
-              loc="upper center", bbox_to_anchor=(0.5,1.2), ncol=3)
+              loc="upper center", bbox_to_anchor=(0.5,1.15), ncol=3)
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
