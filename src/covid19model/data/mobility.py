@@ -213,7 +213,7 @@ def date_to_YYYYMMDD(date, inverse=False):
     if inverse:
         if not isinstance(date, str) or (len(date) != 8):
             raise Exception("First argument in function should str in form YYYYMMDD. If type is datetime.time, set inverse=False")
-        datetime_object = datetime.strptime(date, "%Y%m%d")
+        datetime_object = datetime.strptime(date, "%Y%m%d").date()
         return datetime_object
         
 
