@@ -30,7 +30,6 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
-import gc
 
 # -----------------------
 # Handle script arguments
@@ -329,10 +328,7 @@ if job == None or job == 'BETA':
     # Define sampling function
     # ------------------------
 
-    def draw_fcn(param_dict,samples_dict):
-        # Sample
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        return param_dict
+    from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
 
     # ----------------------
     # Perform sampling
@@ -432,9 +428,9 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-08-01'
+end_calibration = '2020-06-01'
 # MCMC settings
-max_n = 370000
+max_n = 400000
 # Number of samples used to visualise model fit
 n_samples = 1000
 # Confidence level used to visualise model fit
@@ -460,10 +456,7 @@ states = [["H_in"]]
 # Define sampling function
 # ------------------------
 
-def draw_fcn(param_dict,samples_dict):
-    # Sample
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    return param_dict
+from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
 
 # ------------
 # MCMC sampler
@@ -575,7 +568,7 @@ checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname=
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=int(5 * np.max(tau)),thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
