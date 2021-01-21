@@ -507,7 +507,7 @@ with Pool() as pool:
         index += 1
 
         # Update autocorrelation plot
-        n = 200 * np.arange(0, index + 1)
+        n = 500 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
         fig,ax = plt.subplots(figsize=(10,5))
         ax.plot(n, n / 50.0, "--k")
