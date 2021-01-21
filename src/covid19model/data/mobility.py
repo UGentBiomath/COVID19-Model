@@ -189,13 +189,13 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 # Proximus mobility data functions #
 ####################################
 
-def date_to_YYYYMMDD(datetime_object, inverse=False):
+def date_to_YYYYMMDD(date, inverse=False):
     """
     Simple function to convert a datetime object to a string representing the date in the shape YYYYMMDD
     
     Input
     -----
-    datetime_object: datetime.date object or str
+    date: datetime.date object or str
         datetime.date object if inverse=False, str if inverse=True
     inverse: boolean
         False if date is converted to YYYYMMDD, True if YYYYMMDD string is converted to datetime.date object
@@ -205,11 +205,16 @@ def date_to_YYYYMMDD(datetime_object, inverse=False):
     YYYYMMDD: str
     """
     if not inverse:
-        YYYYMMDD = datetime_object.strftime("%Y%m%d")
+#         Something is wrong with the exception below, not sure what
+#         if isinstance(date, datetime.date):
+#             raise Exception("First argument in function should be of type datetime.date. If type str (YYYYMMDD), set inverse=True.")
+        YYYYMMDD = date.strftime("%Y%m%d")
         return YYYYMMDD
     if inverse:
-        date = datetime.strptime('20200202', "%Y%m%d")
-        return date
+        if not isinstance(date, str) or (len(date) != 8):
+            raise Exception("First argument in function should str in form YYYYMMDD. If type is datetime.time, set inverse=False")
+        datetime_object = datetime.strptime(date, "%Y%m%d")
+        return datetime_object
         
 
 def week_to_date(week_nr, day = 1, year=2020):
