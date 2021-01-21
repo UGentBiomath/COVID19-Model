@@ -66,6 +66,8 @@ if args.job:
 else:
     job = None
 
+run_date = str(datetime.date.today())
+
 # ---------
 # Load data
 # ---------
@@ -220,7 +222,7 @@ if job == None or job == 'BETA':
 
     # Set up the sampler backend
     if backend:
-        filename = spatial_unit+'_BETA_'+str(datetime.date.today())
+        filename = spatial_unit+'_BETA_'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
@@ -351,7 +353,7 @@ if job == None or job == 'BETA':
     ax = _apply_tick_locator(ax)
     ax.set_xlim('2020-03-10',end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+str(datetime.date.today())+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
     #############################################
     ####### CALCULATING R0 ######################
@@ -375,11 +377,11 @@ if job == None or job == 'BETA':
 
     print('3) Saving dictionary\n')
 
-    with open(samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json', 'w') as fp:
+    with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+str(datetime.date.today())+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     
     if job == 'BETA':
@@ -450,7 +452,7 @@ pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
 
 # Set up the sampler backend
 if backend:
-    filename = spatial_unit+'_COMPLIANCE_'+str(datetime.date.today())
+    filename = spatial_unit+'_COMPLIANCE_'+run_date
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 
@@ -513,17 +515,17 @@ try:
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-checkplots(sampler, int(10 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
+checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
            labels=['l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=int(10 * np.max(tau)),thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=int(5 * np.max(tau)),thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
-with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+str(datetime.date.today())+'.json', 'w') as fp:
+with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
 # ------------------------
