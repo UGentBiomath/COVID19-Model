@@ -53,10 +53,9 @@ from .base import BaseModel
 
 class COVID19_SEIRD(BaseModel):
     """
-    Biomath extended SEIRD model for COVID-19
-
-    Deterministic implementation
-
+    Biomath extended SEIRD model for COVID-19, Deterministic implementation
+    Can account for re-infection, vaccination and co-infection with a new COVID-19 variant.
+    
     Parameters
     ----------
     To initialise the model, provide following inputs:
@@ -82,6 +81,7 @@ class COVID19_SEIRD(BaseModel):
         H_tot : total patients in Belgian hospitals
         V : vaccinated
         V_new : newly vaccinated each day
+        alpha : fraction of alternative COVID-19 variant
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -90,6 +90,7 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
+        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         alpha : prevalence of the English variant
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
@@ -130,15 +131,15 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new']
-    parameter_names = ['beta', 'alpha', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v','N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new,
-                  beta, alpha, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha,
+                  beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
                   dhospital, e, s, a, h, c, m_C, m_ICU, v, N_vacc, Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -151,16 +152,17 @@ class COVID19_SEIRD(BaseModel):
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V
         vacc_eligible = S + R + E + I + A
 
-        # Compute weighted average beta
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        beta_wa =  beta*(1-alpha)+1.6*beta*alpha
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))*S
+        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))*S
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - beta_wa*s*np.matmul(Nc,((I+A)/T))*S + zeta*R - v*e*S - N_vacc/vacc_eligible*S
-        dE  = beta_wa*s*np.matmul(Nc,((I+A)/T))*S - E/sigma - v*e*E - N_vacc/vacc_eligible*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V 
+        dS  = - (IP_old + IP_new) + zeta*R - v*e*S - N_vacc/vacc_eligible*S
+        dE  = (IP_old + IP_new) - E/sigma - v*e*E - N_vacc/vacc_eligible*E + beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V 
         dI = (1/sigma)*E - (1/omega)*I - N_vacc/vacc_eligible*I
-        dA = (a/omega)*I - A/da - N_vacc/vacc_eligible*A
+        dA = (a/omega)*I - A/da - N_vacc/vacc_eligible*A        
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
         dER = M*(h/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
@@ -173,9 +175,11 @@ class COVID19_SEIRD(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - beta_wa*s*np.matmul(Nc,((I+A)/T))*(1-e)*V
+        # If A and I are both zero, a division error occurs
+        # Update fraction of new COVID-19 variant
+        dalpha = IP_new/(IP_old+IP_new) - alpha
 
-
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV, dV_new)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV, dV_new, dalpha)
 
 class COVID19_SEIRD_sto(BaseModel):
     """
