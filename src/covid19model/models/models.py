@@ -154,13 +154,13 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))*S
-        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))*S
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
+        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = - (IP_old + IP_new) + zeta*R - v*e*S - N_vacc/vacc_eligible*S
-        dE  = (IP_old + IP_new) - E/sigma - v*e*E - N_vacc/vacc_eligible*E + (IP_old + IP_new)*(1-e)*V 
+        dS  = - (IP_old + IP_new)*S + zeta*R - v*e*S - N_vacc/vacc_eligible*S
+        dE  = (IP_old + IP_new)*S - E/sigma - v*e*E - N_vacc/vacc_eligible*E + (IP_old + IP_new)*(1-e)*V 
         dI = (1/sigma)*E - (1/omega)*I - N_vacc/vacc_eligible*I
         dA = (a/omega)*I - A/da - N_vacc/vacc_eligible*A        
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
