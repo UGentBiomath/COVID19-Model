@@ -494,7 +494,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
-        if sampler.iteration % 500:
+        if sampler.iteration % 50:
             continue
 
         ##################
@@ -543,7 +543,7 @@ with Pool() as pool:
         ###############################
 
         # Write samples to dictionary every 50000 steps
-        if sampler.iteration % 10000: 
+        if sampler.iteration % 50: 
             continue
 
         flat_samples = sampler.get_chain(flat=True)
