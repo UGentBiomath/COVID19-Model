@@ -404,9 +404,9 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-03-20'
+end_calibration = '2020-06-01'
 # MCMC settings
-max_n = 370000
+max_n = 30000
 # Number of samples used to visualise model fit
 n_samples = 1000
 # Confidence level used to visualise model fit
@@ -446,6 +446,7 @@ parNames_mcmc = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
 ndim = len(parNames_mcmc)
 nwalkers = ndim*7
+samples_dict.update({'n_chains_compliance': int(nwalkers/ndim)})
 pos=np.zeros([nwalkers,ndim])
 pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
 pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
@@ -472,7 +473,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
-        if sampler.iteration % 50: # 500
+        if sampler.iteration % 200: # 500
             continue
 
         ##################
@@ -495,16 +496,14 @@ with Pool() as pool:
         ax.set_xlabel("number of steps")
         ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
         fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-        
+
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
                         filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
-        # Update cornerplot
-        flat_samples = sampler.get_chain(flat=True,discard=int(5 * np.max(tau)))
         fig = corner.corner(flat_samples,labels=labels)
-        plt.savefig(fig_path+'traceplots/'+spatial_unit+'_CORNER_COMPLIANCE'+run_date+'.pdf',
+        plt.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_COMPLIANCE'+run_date+'.pdf',
                 dpi=400, bbox_inches='tight')
 
         # Close all figures and collect garbage to avoid memory leaks
@@ -527,11 +526,15 @@ with Pool() as pool:
         ###############################
 
         # Write samples to dictionary every 1000 steps
-        if sampler.iteration % 100: # 500
+        if sampler.iteration % 1000: # 500
             continue
 
+        flat_samples = sampler.get_chain(flat=True)
         for count,name in enumerate(parNames_mcmc):
             samples_dict.update({name: flat_samples[:,count].tolist()})
+
+        samples_dict.update({'n_samples_compliance': sampler.iteration})
+        samples_dict.update({'tau_compliance': tau})
 
         with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
            json.dump(samples_dict, fp)
