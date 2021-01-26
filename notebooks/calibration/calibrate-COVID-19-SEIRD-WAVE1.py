@@ -30,6 +30,7 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
+from scipy.stats import weibull_min
 
 # -----------------------
 # Handle script arguments
@@ -160,17 +161,17 @@ end_calibration_beta = '2020-03-21'
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 5
-maxiter = 5
+multiplier = 1
+maxiter = 40
 popsize = multiplier*processes
 # MCMC settings
 max_n = 1000
 # Number of samples used to visualise model fit
-n_samples = 10
+n_samples = 200
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=100
+n_draws_per_sample=1000
 
 # --------------------
 # Initialize the model
@@ -179,7 +180,7 @@ n_draws_per_sample=100
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
 # Add the time-dependant parameter function arguments
-params.update({'l': 14, 'tau': 14, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 # Define initial states
 initial_states = {"S": initN, "E": np.ones(9)}
 # Initialize model
@@ -199,13 +200,34 @@ if job == None or job == 'BETA':
     data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
     states = [["H_in"]]
 
+    # ------------------------
+    # Define sampling function
+    # ------------------------
+
+    samples_dict = {}
+    # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
+    def draw_fcn(param_dict,samples_dict):
+        # Sample time to hospitalisation
+        #param_dict['dhospital'] = np.random.gamma(shape=1.73, scale=4.36)
+        # Sample asymptomatic fraction (Davies 2020)
+        IQR = np.array([0.44-0.36, 0.29-0.23, 0.41-0.33, 0.46-0.38, 0.55-0.47, 0.62-0.55, 0.75-0.69, 0.79-0.73, 0.79-0.73])
+        sigma = (1/1.349)*IQR
+        mu = np.array([1-0.4, 1-0.25, 1-0.37, 1-0.42, 1-0.51, 1-0.59, 1-0.72, 1-0.76, 1-0.76]) 
+        param_dict['a'] = np.random.normal(mu ,sigma)
+        # Sample pre-symptomatic infectiousness from uniform distribution
+        param_dict['omega'] = np.random.uniform(low=1,high=3)
+        param_dict['sigma'] = 5.2 - param_dict['omega']
+        # Sample duration of asymptomatic infectiousness from triangular distribution
+        param_dict['da'] = np.random.triangular(0.1,0.1,14)
+        return param_dict
+
     # set PSO optimisation settings
     parNames = ['warmup','beta']
-    bounds=((20,50),(0.039,0.041))
+    bounds=((10,80),(0.020,0.060))
 
     # run PSO optimisation
     theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                        start_date=start_calibration, processes=processes)
+                        start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
     warmup = int(theta[0])
     theta = theta[1:]
 
@@ -214,10 +236,9 @@ if job == None or job == 'BETA':
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta']
-    bounds_mcmc=((0.039,0.041),)
+    bounds_mcmc=((0.020,0.060),)
     ndim = len(theta)
-    nwalkers = ndim*10
-    samples_dict.update({'n_chains_beta': int(nwalkers)})
+    nwalkers = ndim*mp.cpu_count()
     perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
     pos = theta + perturbations
 
@@ -235,10 +256,10 @@ if job == None or job == 'BETA':
     old_tau = np.inf
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
-
+    
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model, bounds_mcmc, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
+                        args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % 200:
@@ -288,19 +309,15 @@ if job == None or job == 'BETA':
             # WRITE SAMPLES TO DICTIONARY #
             ###############################
 
-            # Write samples to dictionary every 1000 steps
-            if sampler.iteration % 1000: 
+            # Write samples to dictionary every 200 steps
+            if sampler.iteration % 200: 
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            for count,name in enumerate(parNames_mcmc):
-                samples_dict.update({name: flat_samples[:,count].tolist()})
-
-            samples_dict.update({'n_samples_beta': sampler.iteration,
-                                'tau_beta': tau.tolist()})
-
-            with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json', 'w') as fp:
-                json.dump(samples_dict, fp)
+            with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.npy', 'wb') as f:
+                np.save(f,flat_samples)
+                f.close()
+                gc.collect()
 
     thin = 1
     try:
@@ -309,26 +326,47 @@ if job == None or job == 'BETA':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(5 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
+    checkplots(sampler, int(10 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=int(5 * np.min(autocorr)),thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(parNames_mcmc):
-        samples_dict[name] = flat_samples[:,count].tolist()
+    flat_samples = sampler.get_chain(discard=int(10 * np.min(autocorr)),thin=thin,flat=True)
+    #samples_dict = {}
+    #for count,name in enumerate(parNames_mcmc):
+    #    samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
         'warmup' : warmup,
         'start_date_beta' : start_calibration,
         'end_date_beta' : end_calibration_beta,
+        'n_chains_beta': int(nwalkers)
     })
 
     # ------------------------
     # Define sampling function
     # ------------------------
 
-    from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
+    #from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
+    def draw_fcn(param_dict,samples_dict):
+        # Sample from beta samples
+        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+        model.parameters['a'] = samples_dict['a'][idx] 
+        model.parameters['da'] = samples_dict['da'][idx] 
+        model.parameters['omega'] = samples_dict['omega'][idx] 
+        model.parameters['sigma'] = samples_dict['sigma'][idx] 
+        # LEGACY CODE: 
+        # Sample incubation period and duration of asymptomatic infectiousness
+        #incubation = weibull_min.rvs(1.58, scale=7.11, loc=0.01)#np.random.weibull(1.58,size=7.11)
+        #t_infection = weibull_min.rvs(1.60, scale=6.84, loc=0.01)#np.random.weibull(1.60,size=6.84)
+        #if incubation <= t_infection:
+        #    param_dict['sigma'] = incubation - 0.10
+        #    param_dict['omega'] = 0.10
+        #    param_dict['da'] = t_infection - incubation
+        #else:
+        #    param_dict['sigma'] = incubation - t_infection
+        #    param_dict['omega'] = t_infection
+        #    param_dict['da'] = 0.10
+        return param_dict
 
     # ----------------------
     # Perform sampling
@@ -428,11 +466,16 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-06-01'
+end_calibration = '2020-07-01'
+# PSO settings
+processes = mp.cpu_count()
+multiplier = 5
+maxiter = 50
+popsize = multiplier*processes
 # MCMC settings
-max_n = 400000
+max_n = 3000
 # Number of samples used to visualise model fit
-n_samples = 1000
+n_samples = 100
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
@@ -458,6 +501,19 @@ states = [["H_in"]]
 
 from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
 
+# ----------------
+# PSO optimization
+# ----------------
+
+# set PSO optimisation settings
+parNames = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
+bounds=( (0.01,20),(0.01,20),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+
+# run PSO optimisation
+theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes,
+                    draw_fcn=draw_fcn, samples=samples_dict)
+
 # ------------
 # MCMC sampler
 # ------------
@@ -466,11 +522,21 @@ from covid19model.models.utils import draw_sample_beta_COVID19_SEIRD as draw_fcn
 parNames_mcmc = ['l','tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds_mcmc=((0.001,20),(0.001,20),(0,1),(0,1),(0,1))
 ndim = len(parNames_mcmc)
-nwalkers = ndim*7
-samples_dict.update({'n_chains_compliance': int(nwalkers)})
-pos=np.zeros([nwalkers,ndim])
-pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
-pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
+nwalkers = ndim*2 # Change to 7 for HPC
+# Perturbate PSO Estimate
+perturbations = theta*1e-2*np.random.random(size=(nwalkers,ndim))
+pos = theta + perturbations
+# If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
+for i in range(pos.shape[0]):
+    for j in range(pos.shape[1]):
+        if pos[i,j] < bounds_mcmc[j][0]:
+            pos[i,j] = bounds_mcmc[j][0]
+        elif pos[i,j] > bounds_mcmc[j][1]:
+            pos[i,j] = bounds_mcmc[j][1]
+
+#pos=np.zeros([nwalkers,ndim])
+#pos[:,:2] = np.random.uniform(low=0.1,high=20,size=(nwalkers,2))
+#pos[:,2:] = np.random.random(size=(nwalkers,ndim-2))
 
 # Set up the sampler backend
 if backend:
@@ -494,7 +560,7 @@ with Pool() as pool:
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
-        if sampler.iteration % 1000:
+        if sampler.iteration % 100:
             continue
 
         ##################
@@ -507,7 +573,7 @@ with Pool() as pool:
         index += 1
 
         # Update autocorrelation plot
-        n = 500 * np.arange(0, index + 1)
+        n = 100 * np.arange(0, index + 1)
         y = autocorr[:index+1,:]
         fig,ax = plt.subplots(figsize=(10,5))
         ax.plot(n, n / 50.0, "--k")
@@ -543,7 +609,7 @@ with Pool() as pool:
         ###############################
 
         # Write samples to dictionary every 1000 steps
-        if sampler.iteration % 1000: 
+        if sampler.iteration % 100: 
             continue
 
         flat_samples = sampler.get_chain(flat=True)
@@ -551,19 +617,6 @@ with Pool() as pool:
             np.save(f,flat_samples)
             f.close()
             gc.collect()
-        # Method 1: JSON: This does not work, slows down calculations.
-
-        #for count,name in enumerate(parNames_mcmc):
-        #    samples_dict.update({name: flat_samples[:,count].tolist()})
-
-        #samples_dict.update({'n_samples_compliance': sampler.iteration,
-        #                     'tau_compliance': tau.tolist()})
-
-        #with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
-        #    json.dump(samples_dict, fp)
-        #    fp.close()
-            # Garbage collection
-        #    gc.collect() 
 
 thin = 1
 try:
@@ -577,7 +630,7 @@ checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname=
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=100,thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
