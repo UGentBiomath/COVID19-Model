@@ -79,7 +79,7 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
-        V : vaccinated
+        V : vaccinated (people that have become immune + part that is not immune but not (yet) infected)
         V_new : newly vaccinated each day
         alpha : fraction of alternative COVID-19 variant
 
