@@ -308,8 +308,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'e']]
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -318,9 +318,9 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
+                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, pi, e, N_vacc, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
@@ -337,7 +337,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         beta_old = (1-alpha)*beta
         beta_new = alpha*K*beta
-
+        
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -349,11 +349,13 @@ class COVID19_SEIRD_spatial(BaseModel):
         T_eff = np.zeros([G,N]) # initialise
         A_eff = np.zeros([G,N])
         I_eff = np.zeros([G,N])
+        alpha_eff = np.zeros([G,N])
         for g in range(G):
             for i in range(N):
                 sumT = 0
                 sumA = 0
                 sumI = 0
+                sumAlpha = 0
                 # h is taken, so iterator for a sum is gg
                 for gg in range(G):
                     term1 = (1 - pi[i]) * np.identity(G)[gg][g]
@@ -361,9 +363,11 @@ class COVID19_SEIRD_spatial(BaseModel):
                     sumT += (term1 + term2) * T[gg][i]
                     sumA += (term1 + term2) * A[gg][i]
                     sumI += (term1 + term2) * I[gg][i]
+                    sumAlpha += (term1 + term2) * alpha[gg][i]
                 T_eff[g][i] = sumT
                 A_eff[g][i] = sumA
                 I_eff[g][i] = sumI
+                alpha_eff[g][i] = sumAlpha
                 
         # The number of susceptibles from patch g that work in patch h
         Susc = np.zeros([G,G,N])
@@ -394,7 +398,8 @@ class COVID19_SEIRD_spatial(BaseModel):
             for i in range(N):
                 sumj = 0
                 for j in range(N):
-                    term = (beta_old + beta_new) * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
+                    beta_weighted_av = (1-alpha_eff[gg,j])*beta + alpha_eff[gg,j]*K*beta
+                    term = beta_weighted_av * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
                     #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
                     sumj += term
                 B[gg][i] = sumj
@@ -430,12 +435,12 @@ class COVID19_SEIRD_spatial(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (1-e)*dV_inf
-
+        dalpha = beta_new/(beta_old+beta_new) - alpha
 
         # To be added: effect of average family size (sigma^g or sg)
         
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV_new, dV, dalpha)
     
     
 class COVID19_SEIRD_sto_spatial(BaseModel):
