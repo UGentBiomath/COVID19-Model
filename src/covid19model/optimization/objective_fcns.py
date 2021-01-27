@@ -81,6 +81,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # Use previous samples
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
+
     # Perform simulation and loose the first 'warmup' days
     out = model.sim(T, start_date=start_date, warmup=warmup)
     
@@ -237,7 +238,7 @@ def log_prior_normal(thetas, norm_params):
 
 
 
-def log_probability(thetas,model,bounds,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson'):
+def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson'):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -273,7 +274,13 @@ def log_probability(thetas,model,bounds,data,states,parNames,draw_fcn=None,sampl
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Check if all provided thetas are within the user-specified bounds
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    lp = log_prior(thetas,bounds)
+    lp=[]
+    for idx,fnc in enumerate(log_prior_fnc):
+        theta = thetas[idx]
+        args = log_prior_fnc_args[idx]
+        lp.append(fnc(theta,args))
+    lp = sum(lp)
+
     if not np.isfinite(lp).all():
         return - np.inf
     else:

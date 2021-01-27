@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from scipy.stats import triang,norm,gamma
 from multiprocessing import Pool
 from covid19model.models import models
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
@@ -161,13 +162,13 @@ end_calibration_beta = '2020-03-21'
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 1
+multiplier = 30
 maxiter = 40
 popsize = multiplier*processes
 # MCMC settings
-max_n = 1000
+max_n = 120000
 # Number of samples used to visualise model fit
-n_samples = 200
+n_samples = 500
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Number of binomial draws per sample drawn used to visualize model fit
@@ -207,40 +208,70 @@ if job == None or job == 'BETA':
     samples_dict = {}
     # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
     def draw_fcn(param_dict,samples_dict):
-        # Sample time to hospitalisation
-        #param_dict['dhospital'] = np.random.gamma(shape=1.73, scale=4.36)
-        # Sample asymptomatic fraction (Davies 2020)
-        IQR = np.array([0.44-0.36, 0.29-0.23, 0.41-0.33, 0.46-0.38, 0.55-0.47, 0.62-0.55, 0.75-0.69, 0.79-0.73, 0.79-0.73])
-        sigma = (1/1.349)*IQR
-        mu = np.array([1-0.4, 1-0.25, 1-0.37, 1-0.42, 1-0.51, 1-0.59, 1-0.72, 1-0.76, 1-0.76]) 
-        param_dict['a'] = np.random.normal(mu ,sigma)
-        # Sample pre-symptomatic infectiousness from uniform distribution
-        param_dict['omega'] = np.random.uniform(low=1,high=3)
-        param_dict['sigma'] = 5.2 - param_dict['omega']
-        # Sample duration of asymptomatic infectiousness from triangular distribution
         param_dict['da'] = np.random.triangular(0.1,0.1,14)
+        param_dict['dm'] = param_dict['da']
+        param_dict['omega'] = np.random.triangular(0.1,0.1,4.2)
+        param_dict['sigma'] = 5.2 - param_dict['omega']
         return param_dict
 
     # set PSO optimisation settings
     parNames = ['warmup','beta']
-    bounds=((10,80),(0.020,0.060))
+    bounds=((10,80),(0.020,0.080))
 
     # run PSO optimisation
     theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
+    
+    #theta = np.array([38.5385722,0.04403917]) # -5523.118150522612
     warmup = int(theta[0])
     theta = theta[1:]
 
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+    # -------------
+    # Define priors
+    # -------------
+
+    def prior_uniform(x,bounds):
+        prob = 1/(bounds[1]-bounds[0])
+        condition = bounds[0] < x < bounds[1]
+        if condition == True:
+            return np.log(prob)
+        else:
+            return -np.inf
+
+    def prior_a(a,norm_params):
+        mu,sigma=args
+        norm_params = np.array(norm_params).reshape(2,9)
+        return np.sum(norm.logpdf(a, loc = norm_params[:,0], scale = norm_params[:,1]))
+
+    def prior_triangle(x,triangle_params):
+        low,high,mode = triangle_params
+        return triang.logpdf(x, loc=low, scale=high, c=mode)
+
+    def prior_gamma(x,gamma_params):
+        a,b = gamma_params
+        return gamma.logpdf(x, a=a, scale=1/b)
+
+    log_prior_fnc = [prior_uniform, prior_triangle, prior_triangle]
+    log_prior_fnc_args = [(0.01,0.10), (0.1,4.2,0.1), (0.1,14,0.1)]
+
     # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta']
-    bounds_mcmc=((0.020,0.060),)
-    ndim = len(theta)
+    parNames_mcmc = ['beta','omega','da']
+    ndim = len(parNames_mcmc)
     nwalkers = ndim*mp.cpu_count()
-    perturbations = theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-    pos = theta + perturbations
+
+    perturbations_beta = theta + theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,4.2, size=nwalkers),axis=1)
+    perturbations_da = np.expand_dims(np.random.triangular(0.1,0.1,14, size=nwalkers),axis=1)
+    #perturbations_dm = np.expand_dims(np.random.triangular(0.1,0.1,14, size=nwalkers),axis=1)
+    pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
+
+    def draw_fcn(param_dict,samples_dict):
+        param_dict['dm'] = param_dict['da']
+        param_dict['sigma'] = 5.2 - param_dict['omega']
+        return param_dict
 
     # Set up the sampler backend
     if backend:
@@ -259,7 +290,7 @@ if job == None or job == 'BETA':
     
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model, bounds_mcmc, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
+                        args=(model, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % 200:
@@ -287,7 +318,7 @@ if job == None or job == 'BETA':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta$'],
+            traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -326,14 +357,14 @@ if job == None or job == 'BETA':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(10 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$'])
+    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$','$\\omega$','$d_{a}$'])
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=int(10 * np.min(autocorr)),thin=thin,flat=True)
-    #samples_dict = {}
-    #for count,name in enumerate(parNames_mcmc):
-    #    samples_dict[name] = flat_samples[:,count].tolist()
+    flat_samples = sampler.get_chain(discard=int(2 * np.min(autocorr)),thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(parNames_mcmc):
+        samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
         'warmup' : warmup,
@@ -350,22 +381,10 @@ if job == None or job == 'BETA':
     def draw_fcn(param_dict,samples_dict):
         # Sample from beta samples
         idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        model.parameters['a'] = samples_dict['a'][idx] 
-        model.parameters['da'] = samples_dict['da'][idx] 
-        model.parameters['omega'] = samples_dict['omega'][idx] 
-        model.parameters['sigma'] = samples_dict['sigma'][idx] 
-        # LEGACY CODE: 
-        # Sample incubation period and duration of asymptomatic infectiousness
-        #incubation = weibull_min.rvs(1.58, scale=7.11, loc=0.01)#np.random.weibull(1.58,size=7.11)
-        #t_infection = weibull_min.rvs(1.60, scale=6.84, loc=0.01)#np.random.weibull(1.60,size=6.84)
-        #if incubation <= t_infection:
-        #    param_dict['sigma'] = incubation - 0.10
-        #    param_dict['omega'] = 0.10
-        #    param_dict['da'] = t_infection - incubation
-        #else:
-        #    param_dict['sigma'] = incubation - t_infection
-        #    param_dict['omega'] = t_infection
-        #    param_dict['da'] = 0.10
+        model.parameters['da'] = samples_dict['da'][idx]
+        model.parameters['dm'] = samples_dict['da'][idx]
+        model.parameters['omega'] = samples_dict['omega'][idx]
+        model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------------
