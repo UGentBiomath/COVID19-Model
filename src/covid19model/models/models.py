@@ -91,7 +91,6 @@ class COVID19_SEIRD(BaseModel):
         -------------------------
         beta : probability of infection when encountering an infected person
         K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
-        alpha : prevalence of the English variant
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -302,6 +301,40 @@ class COVID19_SEIRD_spatial(BaseModel):
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of an initially mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        der : duration of stay in emergency room/buffer ward
+        dc : average length of a hospital stay when not in ICU
+        dICU_R : average length of a hospital stay in ICU in case of recovery
+        dICU_D: average length of a hospital stay in ICU in case of death
+        dhospital : time before a patient reaches the hospital
+        xi : factor controlling the contact dependence on density f
+
+        Age-stratified parameters
+        --------------------
+        s: relative susceptibility to infection
+        a : probability of a subclinical infection
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in Cohort (non-ICU)
+        m_C : mortality in Cohort
+        m_ICU : mortality in ICU
+        pi : mobility parameter (1 by default = no measures)
+        N_vacc : daily number of people vaccinated in each age group
+        e : vaccine effectivity
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
 
     """
 
