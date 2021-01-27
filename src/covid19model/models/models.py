@@ -132,15 +132,15 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
-    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'e']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v','N_vacc']]
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e','N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha,
                   beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, e, s, a, h, c, m_C, m_ICU, v, N_vacc, Nc):
+                  dhospital, s, a, h, c, m_C, m_ICU, v, e, N_vacc, Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
