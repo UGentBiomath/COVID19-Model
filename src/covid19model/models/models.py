@@ -321,7 +321,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         xi : factor controlling the contact dependence on density f
 
         Age-stratified parameters
-        --------------------
+        -------------------------
         s: relative susceptibility to infection
         a : probability of a subclinical infection
         h : probability of hospitalisation for a mild infection
@@ -331,6 +331,13 @@ class COVID19_SEIRD_spatial(BaseModel):
         pi : mobility parameter (1 by default = no measures)
         N_vacc : daily number of people vaccinated in each age group
         e : vaccine effectivity
+
+        Spatially-stratified parameters
+        -------------------------------
+        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
+        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
+        sg : average size of a household per patch. Not used as of yet.
+
 
         Other parameters
         ----------------
