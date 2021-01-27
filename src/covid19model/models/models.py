@@ -373,12 +373,6 @@ class COVID19_SEIRD_spatial(BaseModel):
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
         vacc_eligible = S + R + E + I + A
 
-        # Beta share of both variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        beta_old = (1-alpha)*beta
-        beta_new = alpha*K*beta
-        
-
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -475,7 +469,8 @@ class COVID19_SEIRD_spatial(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (1-e)*dV_inf
-        dalpha = beta_new/(beta_old+beta_new) - alpha
+        dalpha = alpha*K/(1-alpha+alpha*K) - alpha
+
 
         # To be added: effect of average family size (sigma^g or sg)
         
