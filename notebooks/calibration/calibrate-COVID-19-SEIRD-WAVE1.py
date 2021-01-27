@@ -256,6 +256,9 @@ if job == None or job == 'BETA':
 
     log_prior_fnc = [prior_uniform, prior_triangle, prior_triangle]
     log_prior_fnc_args = [(0.01,0.10), (0.1,4.2,0.1), (0.1,14,0.1)]
+    def prior_weibull(x,weibull_params):
+        k,lam = weibull_params
+        return gamma.logpdf(x, k, shape=lam, loc=0 )        
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta','omega','da']
