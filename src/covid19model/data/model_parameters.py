@@ -250,6 +250,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         df_vacc = pd.read_csv(os.path.join(par_raw_path,"vaccination.csv"), sep=',',header='infer')
         pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
         pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
+        pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
+
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
