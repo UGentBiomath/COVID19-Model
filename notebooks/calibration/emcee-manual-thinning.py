@@ -21,7 +21,9 @@ Cornerplot of MCMC chains.
 
 Example use:
 ------------
-python emcee-manual-thinning.py
+python emcee-manual-thinning.py -f BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json -n 14 -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home' -d 1000 -t 20
+
+python emcee-manual-thinning.py 
     -f BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json
     -n 14
     -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home'
@@ -77,5 +79,6 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Cornerplots of samples
 fig = corner.corner(flat_samples,labels=args.keys)
-plt.savefig(fig_path+'cornerplots/'+'CORNER_MANUAL_THINNING_'+str(datetime.date.today())+'.pdf',
-            dpi=400, bbox_inches='tight')
+plt.show()
+#plt.savefig(fig_path+'cornerplots/'+'CORNER_MANUAL_THINNING_'+str(datetime.date.today())+'.pdf',
+#            dpi=400, bbox_inches='tight')
