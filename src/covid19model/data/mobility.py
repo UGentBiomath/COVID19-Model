@@ -348,7 +348,7 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
         Name of directory (relative or absolute) that contains all Proximus data files
     values: str
         Choose between absolute visitor count ('nrofimsi', default) or other values of interest (e.g. 'est_staytime') on one day.
-        Special case for values='total_est_staytime': the absolute value is taken
+        Special case for values='est_staytime' or 'total_est_staytime': the absolute value is taken
     complete: boolean
         If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
     verbose: boolean
@@ -388,7 +388,7 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
                                               index='mllp_postalcode',
                                               columns='postalcode')
         mmprox_temp = mmprox_temp.fillna(value=0)
-        if values == 'total_est_staytime':
+        if values in ['est_staytime', 'total_est_staytime']:
             mmprox_dict[date] = mmprox_temp.convert_dtypes().abs()
         else:
             mmprox_dict[date] = mmprox_temp.convert_dtypes()
