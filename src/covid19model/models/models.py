@@ -380,38 +380,25 @@ class COVID19_SEIRD_spatial(BaseModel):
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
-        T_eff = np.zeros([G,N]) # initialise
-        A_eff = np.zeros([G,N])
-        I_eff = np.zeros([G,N])
-        alpha_eff = np.zeros([G,N])
-        for g in range(G):
-            for i in range(N):
-                sumT = 0
-                sumA = 0
-                sumI = 0
-                sumAlpha = 0
-                # h is taken, so iterator for a sum is gg
-                for gg in range(G):
-                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
-                    term2 = pi[i] * place[gg][g]
-                    sumT += (term1 + term2) * T[gg][i]
-                    sumA += (term1 + term2) * A[gg][i]
-                    sumI += (term1 + term2) * I[gg][i]
-                    sumAlpha += (term1 + term2) * alpha[gg][i]
-                T_eff[g][i] = sumT
-                A_eff[g][i] = sumA
-                I_eff[g][i] = sumI
-                alpha_eff[g][i] = sumAlpha
+        T_eff = (1-pi)*np.matmul(np.identity(G),T) + pi*np.matmul(np.transpose(place),T)
+        A_eff = (1-pi)*np.matmul(np.identity(G),A) + pi*np.matmul(np.transpose(place),A)
+        I_eff = (1-pi)*np.matmul(np.identity(G),I) + pi*np.matmul(np.transpose(place),I)
+        alpha_eff = (1-pi)*np.matmul(np.identity(G),alpha) + pi*np.matmul(np.transpose(place),alpha)
                 
         # The number of susceptibles from patch g that work in patch h
-        Susc = np.zeros([G,G,N])
-        V_Susc = np.zeros([G,G,N]) # vaccinated people that did not reach immunity
-        for gg in range(G):
-            for hh in range(G):
-                for i in range(N):
-                    Susc[gg][hh][i] = pi[i] * place[gg][hh] * S[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * S[gg][i]       
-                    V_Susc[gg][hh][i] = pi[i] * place[gg][hh] * V[gg][i] + (1 - pi[i]) * np.identity(G)[gg][hh] * V[gg][i] 
+        Susc = (pi[np.newaxis, np.newaxis,:]*place[:,:,np.newaxis]*S[:,np.newaxis,:] + 
+         (1-pi[np.newaxis, np.newaxis,:])*np.identity(G)[:,:,np.newaxis]*S[:,np.newaxis,:])
+        V_Susc = (pi[np.newaxis, np.newaxis,:]*place[:,:,np.newaxis]*V[:,np.newaxis,:] + 
+         (1-pi[np.newaxis, np.newaxis,:])*np.identity(G)[:,:,np.newaxis]*V[:,np.newaxis,:])
 
+        ## This is what actually happens, but the above is faster:
+        # Susc = np.zeros([G,G,N])
+        # V_Susc = np.zeros([G,G,N])
+        # for i in range(N):
+        #     Susc[:,:,i] =  pi[i]*place*S[:,[i]] + (1 - pi[i])*np.identity(G)*S[:,[i]]
+        #     V_Susc[:,:,i] =  pi[i]*place*V[:,[i]] + (1 - pi[i])*np.identity(G)*V[:,[i]]
+
+        
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
@@ -420,38 +407,16 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Normalisation factor per age class: zi[age]
         # Population per age class
         Ti = T.sum(axis=0)
-        denom = np.zeros(N)
-        for gg in range(G):
-            value = f[gg] * T_eff[gg]
-            denom += value
-        zi = Ti / denom
+        zi = Ti / np.matmul(np.transpose(T_eff),f)
         
         # Define infection from the sum over contacts
-        B = np.zeros([G,N])
-        for gg in range(G):
-            for i in range(N):
-                sumj = 0
-                for j in range(N):
-                    beta_weighted_av = (1-alpha_eff[gg,j])*beta + alpha_eff[gg,j]*K*beta
-                    term = beta_weighted_av * s[i] * zi[i] * f[gg] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
-                    #term = beta * s[i] * Nc[i,j] * (I_eff[gg,j] + A_eff[gg,j]) / T_eff[gg,j]
-                    sumj += term
-                B[gg][i] = sumj
+        beta_weighted_av = (1-alpha_eff)*beta + alpha_eff*K*beta
+        multip = np.outer(f, s*zi)*(I_eff + A_eff) / T_eff
+        B = beta_weighted_av*np.matmul(multip, np.transpose(Nc))
 
         # Infection from sum over all patches
-        dS_inf = np.zeros([G,N])
-        dV_inf = np.zeros([G,N])
-        for gg in range(G):
-            for i in range(N):
-                sumhh = 0
-                sumhh_V = 0
-                for hh in range(G):
-                    term = Susc[gg][hh][i] * B[hh][i]
-                    sumhh += term
-                    term_V = V_Susc[gg][hh][i] * B[hh][i]
-                    sumhh_V += term_V                    
-                dS_inf[gg][i] = sumhh
-                dV_inf[gg][i] = sumhh_V
+        dS_inf = (Susc*B).sum(axis=1)
+        dV_inf = (V_Susc*B).sum(axis=1)
 
         dS  = -dS_inf + zeta*R - N_vacc/vacc_eligible*S
         dE  = dS_inf - E/sigma - N_vacc/vacc_eligible*E + (1-e)*dV_inf 
