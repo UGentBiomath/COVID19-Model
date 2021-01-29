@@ -586,7 +586,7 @@ def mm_aggregate(mmprox, agg='mun'):
     mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
     
     mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     if agg in ['arr', 'prov']:
         # Rename columns
@@ -603,7 +603,7 @@ def mm_aggregate(mmprox, agg='mun'):
 
         # Collect rows and columns with the same NIS code, and automatically order column/row names
         mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-        mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+        mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
         
         if agg == 'prov':
             # Rename columns
@@ -632,7 +632,7 @@ def mm_aggregate(mmprox, agg='mun'):
 
             # Collect rows and columns with the same NIS code, and automatically order column/row names
             mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-            mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+            mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     return mmprox_agg
     
