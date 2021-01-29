@@ -326,12 +326,12 @@ def load_datafile_proximus(date, data_location):
     datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
     datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
                                                                                          'postalcode' : str,
-                                                                                         'imsisinpostalcode' : int,
-                                                                                         'habitatants' : int,
-                                                                                         'nrofimsi' : int,
-                                                                                         'visitors' : int,
-                                                                                         'est_staytime' : int,
-                                                                                         'total_est_staytime' : int,
+                                                                                         'imsisinpostalcode' : float,
+                                                                                         'habitatants' : float,
+                                                                                         'nrofimsi' : float,
+                                                                                         'visitors' : float,
+                                                                                         'est_staytime' : float,
+                                                                                         'total_est_staytime' : float,
                                                                                          'est_staytime_perc' : float})
     return datafile    
     
