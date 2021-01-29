@@ -324,6 +324,7 @@ def load_datafile_proximus(date, data_location):
     """
     suffix = proximus_mobility_suffix()
     datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
+    # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
     datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
                                                                                          'postalcode' : str,
                                                                                          'imsisinpostalcode' : float,
