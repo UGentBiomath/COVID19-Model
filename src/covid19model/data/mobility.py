@@ -445,6 +445,8 @@ def missing_seconds_per_pc(datafile):
     
     return missing_seconds_per_pc
 
+
+
 def load_pc_to_nis():
     # Data source
     abs_dir = os.path.dirname(__file__)
@@ -576,7 +578,53 @@ c
     mmprox_GDPR = pd.DataFrame(values, columns=mmprox.columns, index=mmprox.index)
 
     return mmprox_GDPR
-        
+
+
+def est_hidden_staytime_per_pc(datafile):
+    """
+    Replace all staytime values that are protected by GDPR protocol (-1 values) with an estimate.
+    TODO: include several estimate types.
+    
+    Input
+    -----
+    datafile: pandas DataFrame
+        Raw data: output of load_datafile_proximus function
+    
+    Returns
+    -------
+    est_hidden_staytime: pandas.DataFrame
+        DataFrame with postal codes as indices and estimated staytimes as values (replacements for -1 values for that particular postal code)
+    """
+    # Load missing seconds per postal code
+    missing_seconds = missing_seconds_per_pc(datafile)
+    
+    # Simple "raw" grid of "people from g spend x time in h". 0 values means none are registered, -1 means it is protected
+    staytime_matrix = pd.pivot_table(datafile, index='mllp_postalcode', columns='postalcode', \
+                                         values='est_staytime').fillna(value=0)
+
+    # Total non-GDPR protected time per PC (should be smaller than total_est_time)
+    est_staytime_noGDPR = staytime_matrix[staytime_matrix>0].fillna(value=0).sum(axis=1)    
+
+    # Number of times -1 occurs per PC (i.e. number of postal codes for which data is protected)
+    # Note: this is a lot! The maximum is 700 (which is more than half of all 1148 PCs)
+    small_number_freq = staytime_matrix[staytime_matrix==-1].fillna(value=0).sum(axis=1).astype(int).abs()
+
+    # Average time difference per GDPR-protected postalcode, between total registered time and the sum of the individually registered times
+    est_staytime_GDPR = (missing_seconds['total_est_staytime'] - est_staytime_noGDPR) / small_number_freq
+    
+    # Raise exception if some of these values are negative
+    if (est_staytime_GDPR<0).any():
+        raise Exception("The total_est_staytime value is bigger than the sum of all non-GDPR-protected est_staytime values. Are your sure you used the raw data as input?")
+
+    # For most mllp_postalcode, est_staytime_GDPR is not a big value (order of couple hours)
+    # For foreigners it is of the order of a few days. Reasoning:
+    #   1. The registered total_est_staytime is large
+    #   2. The est_staytimes that are registered are low (just over threshold)
+    # This is due to the nature of foreigners visiting Belgium: they travel around much (truckers) and typically don't
+    # Stay at a particular place for a long time.
+    
+    est_hidden_staytime = pd.DataFrame(est_staytime_GDPR, columns=['est_hidden_staytime'])
+    return est_hidden_staytime
 
 # Aggregate
 
