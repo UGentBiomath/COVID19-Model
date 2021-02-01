@@ -368,6 +368,8 @@ def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
         Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
     missing_seconds: pandas DataFrame
         Output of missing_seconds_per_pc
+    minus_sleep: boolean
+        True if we do not include the time asleep as the active time of the day. Time asleep set to 8 hours.
         
     Returns
     -------
@@ -375,15 +377,18 @@ def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
         Same as input, but with added value for home patch
     """
     sleep_time= 8*60*60
-    if minus_sleep == False:
+    if not minus_sleep:
         sleep_time = 0
+        print('no sleep')
     
     mmprox_added_home_staytime = mmprox.copy()
     for pc in mmprox_added_home_staytime.index:
         if pc != 'Foreigner':
-            mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] - sleep_time
+            mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                        - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
         else:
-            mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] - sleep_time
+            mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                        - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
             
     return mmprox_added_home_staytime
 
