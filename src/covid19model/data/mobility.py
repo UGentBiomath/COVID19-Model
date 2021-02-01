@@ -216,7 +216,6 @@ def date_to_YYYYMMDD(date, inverse=False):
         datetime_object = datetime.strptime(date, "%Y%m%d")
         return datetime_object
         
-        
 # I think week_to_date() is obsolete
 def week_to_date(week_nr, day = 1, year=2020):
     """
@@ -404,6 +403,47 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
     else:
         return mmprox_dict, sorted(missing)
 
+def missing_seconds_per_pc(datafile):
+    """
+    For all postalcodes (mllp_postalcode) mentioned in datafile, calculate (or estimate, if GDPR-protection is in force) the discrepancy between the total available time (i.e. imsisinpostalcode * 24 hours * 60 minutes * 60 seconds) and the time on record (total_est_staytime). This time must have gone SOMEwhere, so we may add it to e.g. the diagonal elements (time spent from X in X). Additionally, this function estimates imsisinpostalcode when it is GDPR-protected.
+    
+    Input
+    -----
+    datafile: pandas DataFrame
+        Raw data: output of load_datafile_proximus function
+        
+    Returns
+    -------
+    missing_seconds_per_pc: pandas DataFrame
+        DataFrame with all mllp_postalcodes from datafile as indices. Column "imsisinpostalcode" contains the (estimated) number of clients in the postal code. "total_est_staytime" the total estimated staytime (copied from datafile). "total_available_time" is imsisinpostalcode * 24 * 60 * 60. "missing_seconds" is total - registered amount of time.
+    """
+    # Pivot table such that postalcodes are indices (~1120 entries)
+    missing_seconds_per_pc = pd.pivot_table(datafile, index='mllp_postalcode', \
+                                     values=['imsisinpostalcode', 'total_est_staytime'], aggfunc='first')
+
+    # Filter those entries with non-censored data and make a copy
+    missing_seconds_per_pc_available = missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']>0].copy()
+    
+    # Create new column with number of people per second of total staytime (0 < number < 1)
+    missing_seconds_per_pc_available['pop_per_staytime'] = missing_seconds_per_pc_available['imsisinpostalcode'] \
+        / missing_seconds_per_pc_available['total_est_staytime']
+
+    # calculate median number of people per staytime (0 < number < 1)
+    median_people_per_staytime = missing_seconds_per_pc_available['pop_per_staytime'].median()
+    #print("Median number of people per staytime:", median_people_per_staytime)
+
+    # Change negative values with estimated number of people living somewhere
+    missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']<0, 'imsisinpostalcode'] \
+        = missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']<0, 'total_est_staytime'] * median_people_per_staytime
+    
+    # Add column with the maximum number of seconds available for all registered clients combined
+    missing_seconds_per_pc['total_available_time'] = missing_seconds_per_pc['imsisinpostalcode'] * 24 * 60 * 60
+    
+    # Add column with the missing seconds for every entry (i.e. for every postal code mentioned in datafile)
+    missing_seconds_per_pc['missing_seconds'] = missing_seconds_per_pc['total_available_time'] \
+                                                    - missing_seconds_per_pc['total_est_staytime']
+    
+    return missing_seconds_per_pc
 
 def load_pc_to_nis():
     # Data source
