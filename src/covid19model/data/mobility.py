@@ -583,7 +583,7 @@ c
 def est_hidden_staytime_per_pc(datafile):
     """
     Replace all staytime values that are protected by GDPR protocol (-1 values) with an estimate.
-    TODO: include several estimate types.
+    TODO: include several estimate types. Uses missing_seconds_per_pc as input to find total_est_staytime.
     
     Input
     -----
