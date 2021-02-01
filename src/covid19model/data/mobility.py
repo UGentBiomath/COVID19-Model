@@ -337,6 +337,63 @@ def load_datafile_proximus(date, data_location):
                                                                                          'est_staytime_perc' : float})
     return datafile    
     
+def load_mmprox(datafile, values='nrofimsi'):
+    """
+    Process raw Proximus datafile into a mobility matrix for either nrofimsi values or est_staytime values
+    
+    Input
+    -----
+    datafile: pandas.DataFrame
+        loaded from load_datafile_proximus
+    values: str
+        Either 'nrofimsi' (visit counts) or 'est_staytime' (estimated staytime)
+    
+    Output
+    ------
+    mmprox: pandas.DataFrame
+        pandas DataFrames with visit counts or estimated staytime between postal codes.
+    """
+    mmprox = datafile.pivot_table(values=values,
+                                  index='mllp_postalcode',
+                                  columns='postalcode').fillna(value=0)
+    return mmprox
+
+def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
+    """
+    Add missing seconds to home patch staytime
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+    missing_seconds: pandas DataFrame
+        Output of missing_seconds_per_pc
+        
+    Returns
+    -------
+    mmprox_added_home_staytime: pandas DataFrame
+        Same as input, but with added value for home patch
+    """
+    sleep_time= 8*60*60
+    if minus_sleep == False:
+        sleep_time = 0
+    
+    mmprox_added_home_staytime = mmprox.copy()
+    for pc in mmprox_added_home_staytime.index:
+        if pc != 'Foreigner':
+            mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] - sleep_time
+        else:
+            mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] - sleep_time
+            
+    return mmprox_added_home_staytime
+
+def GDPR_staytime(mmprox, est_hidden_staytime):
+    mmprox_added_hidden_staytime = mmprox.copy()
+    for pc in mmprox_added_hidden_staytime.index:
+        mmprox_added_hidden_staytime.loc[pc, mmprox_added_hidden_staytime.loc[pc]<0] = est_hidden_staytime.loc[pc].values[0]
+    return mmprox_added_hidden_staytime
+    
+    
     
 def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True, return_missing=False):
     """
