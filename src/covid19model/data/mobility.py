@@ -216,7 +216,8 @@ def date_to_YYYYMMDD(date, inverse=False):
         datetime_object = datetime.strptime(date, "%Y%m%d")
         return datetime_object
         
-
+        
+# I think week_to_date() is obsolete
 def week_to_date(week_nr, day = 1, year=2020):
     """
     Function that takes a week number between 1 and 53 (or 53 for 2021) and returns the corresponding dates
