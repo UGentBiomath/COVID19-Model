@@ -252,6 +252,7 @@ def week_to_date(week_nr, day = 1, year=2020):
     date = datetime.strptime(d + '-' + str(day), "%Y-W%W-%w")
     return date
 
+# I think make_date_list is obsolete
 def make_date_list(week_nr, year=2020):
     """
     Makes list of dates in week 'week_nr' in the format needed for the identification of the Proximus data
