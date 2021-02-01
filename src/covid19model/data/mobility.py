@@ -382,19 +382,19 @@ def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
         print('no sleep')
     
     mmprox_added_home_staytime = mmprox.copy()
-    for pc in mmprox_added_home_staytime.index:
-        if pc != 'Foreigner':
-            mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] \
-                                                        - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
-        else:
-            mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] \
-                                                        - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
+    for pc in missing_seconds.index:
+            if pc != 'Foreigner':
+                mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                            - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
+            else:
+                mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                            - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
             
     return mmprox_added_home_staytime
 
 def GDPR_staytime(mmprox, est_hidden_staytime):
     mmprox_added_hidden_staytime = mmprox.copy()
-    for pc in mmprox_added_hidden_staytime.index:
+    for pc in est_hidden_staytime.index:
         mmprox_added_hidden_staytime.loc[pc, mmprox_added_hidden_staytime.loc[pc]<0] = est_hidden_staytime.loc[pc].values[0]
     return mmprox_added_hidden_staytime
     
