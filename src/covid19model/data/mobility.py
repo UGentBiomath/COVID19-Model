@@ -393,9 +393,27 @@ def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
     return mmprox_added_home_staytime
 
 def GDPR_staytime(mmprox, est_hidden_staytime):
-    mmprox_added_hidden_staytime = mmprox.copy()
-    for pc in est_hidden_staytime.index:
-        mmprox_added_hidden_staytime.loc[pc, mmprox_added_hidden_staytime.loc[pc]<0] = est_hidden_staytime.loc[pc].values[0]
+    """
+    Changes every -1 value for the staytime in the origin-destination matrix with the corresponding estimated value
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and est_staytime as values
+    est_hidden_staytime: pandas DataFrame
+        Output of est_hidden_staytime_per_pc: indices are origin postal codes, column contains estimated staytime values
+        
+    Returns
+    -------
+    mmprox_added_hidden_staytime: pandas DataFrame
+        Dataframe identical to mmprox (input), but with every -1 value changed by the corresponding estimated time
+    """
+    # Make series from est_hidden_staytime
+    est_hidden_series = pd.Series(data=est_hidden_staytime['est_hidden_staytime'], index=est_hidden_staytime.index)
+    
+    # Replace every -1 value with the corresponding estimated value that is protected
+    mmprox_added_hidden_staytime = mmprox.mask(mmprox==-1, other=est_hidden_series, axis=0)
+    
     return mmprox_added_hidden_staytime
     
     
