@@ -416,6 +416,71 @@ def GDPR_staytime(mmprox, est_hidden_staytime):
     
     return mmprox_added_hidden_staytime
     
+def load_Pmatrix_staytime(dates, data_location, complete=False, verbose=True, return_missing=False, agg='mun'):
+    """
+    Load clean mobility P matrices in a big dictionary, and return missing dates if needed
+    
+    Input
+    -----
+    dates: str or list of str
+        Single date in YYYYMMDD form or list of these (output of make_date_list function): requested date(s)
+    data_location: str
+        Name of directory (relative or absolute) that contains all processed (interim) mobility matrices
+    complete: boolean
+        If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
+    verbose: boolean
+        If True, print statement every time data for a date is loaded.
+    return_missing: boolean
+        If True, return array of missing dates in form YYYYMMDD as second return. False by default.
+    agg: str
+        Aggregation level: 'mun', 'arr' or 'prov'
+    
+    Returns
+    -------
+    mmprox_dict: dict of pandas DataFrames
+        Dictionary with YYYYMMDD dates as keys and pandas DataFrames with fractional mobility (from staytime) as values
+    """
+    # Check dates type and change to single-element list if needed
+    single_date = False
+    if isinstance(dates,str):
+        dates = [dates]
+        single_date = True
+
+    # Make list of dates in data_location and save the difference
+    suffix = ".csv"
+    full_list = []
+    for f in os.listdir(data_location):
+        date = f[:-len(suffix)][-8:]
+        full_list.append(date)
+    missing = set(dates).difference(set(full_list))
+    
+    # Dates to be loaded are all dates, except the ones that are missing
+    load_dates = set(dates).difference(missing)
+    dates_left = len(load_dates)
+    if dates_left == 0:
+        raise Exception("None of the requested dates correspond to a fractional staytime origin-destination matrix.")
+    if missing != set():
+        print(f"Warning: some or all of the requested dates do not correspond to a fractional staytime origin-destination matrix. Dates: {sorted(missing)}")
+        if complete:
+            raise Exception("Some requested data is not found amongst the fractional staytime origin-destination matrices. Set 'complete' parameter to 'False' and rerun if you wish to proceed with an incomplete data set (not using all requested data).")
+        print(f"... proceeding with {dates_left} dates.")
+
+    # Initiate dict for remaining dates and load files
+    mmprox_dict=dict({})
+    filename = 'fractional-mobility-matrix_staytime_' + agg + '_'
+    load_dates = sorted(list(load_dates))
+    for date in load_dates:
+        datafile = pd.read_csv(data_location + filename + date + ".csv", index_col = 'mllp_postalcode')
+        mmprox_dict[date] = datafile
+        if verbose==True:
+            print(f"Loaded dataframe for date {date}.    ", end='\r')
+    print(f"Loaded dataframe for date {date}.")
+    
+    if not return_missing:
+        return mmprox_dict
+    else:
+        return mmprox_dict, sorted(missing)
+    
     
     
 def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True, return_missing=False):
