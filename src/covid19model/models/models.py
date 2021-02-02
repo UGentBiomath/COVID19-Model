@@ -419,7 +419,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         dV_inf = (V_Susc*B).sum(axis=1)
 
         dS  = -dS_inf + zeta*R - N_vacc/vacc_eligible*S
-        dE  = dS_inf - E/sigma - N_vacc/vacc_eligible*E + (1-e)*dV_inf 
+        dE  = dS_inf - E/sigma - N_vacc/vacc_eligible*E + (1-e)*dV_inf # Unsuccesful vaccinations are added to Exposed population
         dI = (1/sigma)*E - (1/omega)*I - N_vacc/vacc_eligible*I
         dA = (a/omega)*I - A/da - N_vacc/vacc_eligible*A
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
@@ -435,9 +435,6 @@ class COVID19_SEIRD_spatial(BaseModel):
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (1-e)*dV_inf
         dalpha = alpha*K/(1-alpha+alpha*K) - alpha
-
-
-        # To be added: effect of average family size (sigma^g or sg)
         
 
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV_new, dV, dalpha)
