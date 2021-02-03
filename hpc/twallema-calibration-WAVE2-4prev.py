@@ -37,7 +37,7 @@ initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_tot
 levels = initN.size
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 # Update data?
-update = False
+update = True
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=update)
 # Google Mobility data
@@ -111,7 +111,7 @@ start_data = '2020-09-01'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to recalibrate the ramp
-end_calibration = '2021-01-11'
+end_calibration = '2021-01-27'
 # Path where figures should be stored
 fig_path = '../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
@@ -182,7 +182,7 @@ parNames_mcmc = parNames
 bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),
              (0,1),(0,1),(0,1),(0,1))
 ndim = len(theta)
-nwalkers = ndim*2
+nwalkers = 36 #ndim*2
 perturbations = theta*1e-2*np.random.random(size=(nwalkers,ndim))
 pos = theta + perturbations
 
@@ -197,7 +197,7 @@ for i in range(pos.shape[0]):
 # Initialize parallel pool and run sampler
 from multiprocessing import Pool
 with Pool() as pool:
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,pool=pool,#backend=backend,
                     args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup,'poisson'))
     sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
