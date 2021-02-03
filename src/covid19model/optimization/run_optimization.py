@@ -628,3 +628,64 @@ def full_calibration_wave2(model, timeseries, spatial_unit, start_date, end_beta
 
     plt.ion()
     return samples_dict
+
+def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
+    """
+    A function to convert a samples dictionary into a 2D and 3D np.array, similar to using the emcee method `sampler.get_chain()`
+
+    Parameters
+    ----------
+    samples_dict : dict
+        Dictionary containing MCMC samples
+    
+    keys : lst
+        List containing the names of the sampled parameters
+
+    n_chains: int
+        Number of parallel Markov Chains run during the inference
+
+    discard: int
+        Number of samples to be discarded from the start of each Markov chain (=burn-in).
+
+    thin: int
+        Thinning factor of the Markov Chain. F.e. thin = 5 extracts every fifth sample from each chain.
+
+    Returns
+    -------
+    samples : np.array
+        A 3D np.array with dimensions:
+            x: number of samples per Markov chain
+            y: number of parallel Markov chains
+            z: number of parameters
+    flat_samples : np.array
+        A 2D np.array with dimensions:
+            x: total number of samples per Markov chain (= user defined number of samples per Markov Chain * number of parallel chains)
+            y: number of parameters
+
+    Example use
+    -----------
+    samples, flat_samples = samples_dict_to_emcee_chain(samples_dict, ['l', 'tau'], 4, discard=1000, thin=20)
+    """
+
+    # Convert to raw flat samples
+    flat_samples_raw = np.zeros([len(samples_dict[keys[0]]),len(keys)])
+    for idx,key in enumerate(keys):
+        flat_samples_raw[:,idx] = samples_dict[key]
+    # Convert to raw samples
+    samples_raw = np.zeros([int(flat_samples_raw.shape[0]/n_chains),n_chains,flat_samples_raw.shape[1]])
+    for i in range(flat_samples_raw.shape[1]):
+        split_chains = np.split(flat_samples_raw[:,i], n_chains)
+        for j,chain in enumerate(split_chains):
+            samples_raw[:,j,i] = split_chains[j]
+    # Do discard
+    samples_discard = np.zeros([(samples_raw.shape[0]-discard),n_chains,flat_samples_raw.shape[1]])
+    for i in range(samples_raw.shape[1]):
+        for j in range(flat_samples_raw.shape[1]):
+            samples_discard[:,i,j] = samples_raw[discard:,i,j]  
+    # Do thin
+    samples = samples_discard[::thin,:,:]
+    # Convert to flat samples
+    flat_samples = samples[:,0,:]
+    for i in range(1,samples.shape[1]):
+        flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
+    return samples,flat_samples
