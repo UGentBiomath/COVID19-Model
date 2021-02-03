@@ -117,13 +117,10 @@ class COVID19_SEIRD(BaseModel):
 
             Hypothetical vaccination study
             ------------------------------
-            v : daily vaccination rate (percentage of population to be vaccinated)
-            e : vaccine effectivity
-
-            Real vaccination strategy
-            -------------------------
-            N_vacc : daily number of people vaccinated in each age group
-            e : vaccine effectivity
+        v : daily vaccination rate (percentage of population to be vaccinated); used for hypothetical vaccination study
+        e : vaccine effectivity
+        N_vacc : daily number of people vaccinated in each age group; used for real vaccination study
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Other parameters
         ----------------
@@ -136,14 +133,14 @@ class COVID19_SEIRD(BaseModel):
                     'V', 'V_new','alpha']
     parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e','N_vacc']]
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e','N_vacc', 'leakiness']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha,
                   beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, 
-                  s, a, h, c, m_C, m_ICU, v, e, N_vacc, 
+                  s, a, h, c, m_C, m_ICU, v, e, N_vacc, leakiness,
                   Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -158,8 +155,8 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
-        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A)/T))
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+leakiness*V)/T)) # leakiness
+        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A+leakiness*V)/T))
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -344,6 +341,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         pi : mobility parameter (1 by default = no measures)
         N_vacc : daily number of people vaccinated in each age group
         e : vaccine effectivity
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially-stratified parameters
         -------------------------------
@@ -363,7 +361,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
     parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc']]
+    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc', 'leakiness']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -372,7 +370,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha, # time + SEIRD classes
-                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
+                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
+                        dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio, leakiness,# SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -397,6 +396,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         T_eff = (1-pi)*np.matmul(np.identity(G),T) + pi*np.matmul(np.transpose(place),T)
         A_eff = (1-pi)*np.matmul(np.identity(G),A) + pi*np.matmul(np.transpose(place),A)
         I_eff = (1-pi)*np.matmul(np.identity(G),I) + pi*np.matmul(np.transpose(place),I)
+        V_eff = (1-pi)*np.matmul(np.identity(G),V) + pi*np.matmul(np.transpose(place),V)
         alpha_eff = (1-pi)*np.matmul(np.identity(G),alpha) + pi*np.matmul(np.transpose(place),alpha)
                 
         # The number of susceptibles from patch g that work in patch h
@@ -425,7 +425,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         
         # Define infection from the sum over contacts
         beta_weighted_av = (1-alpha_eff)*beta + alpha_eff*K*beta
-        multip = np.outer(f, s*zi)*(I_eff + A_eff) / T_eff
+        multip = np.outer(f, s*zi)*(I_eff + A_eff + leakiness*V_eff) / T_eff
         B = beta_weighted_av*np.matmul(multip, np.transpose(Nc))
 
         # Infection from sum over all patches

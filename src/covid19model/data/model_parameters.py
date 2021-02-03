@@ -202,6 +202,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pi : mobility parameter per age class. Only loads when spatial is not None
         v : daily vaccination rate (percentage of population to be vaccinated)
         e : vaccine effectivity
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially stratified parameters
         -------------------------------
@@ -253,6 +254,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
         pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
         pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
+        pars_dict['leakiness'] =  np.array(df_vacc.loc[:,'leakiness'].astype(float).tolist())
+
 
 
     else:
