@@ -103,6 +103,8 @@ class COVID19_SEIRD(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         --------------------
@@ -130,16 +132,19 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
-    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 
+                    'V', 'V_new','alpha']
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e','N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha,
-                  beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, v, e, N_vacc, Nc):
+                  beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, 
+                  s, a, h, c, m_C, m_ICU, v, e, N_vacc, 
+                  Nc):
         """
         Biomath extended SEIRD model for COVID-19
 
@@ -178,6 +183,10 @@ class COVID19_SEIRD(BaseModel):
         # Update fraction of new COVID-19 variant
         dalpha = IP_new/(IP_old+IP_new) - alpha
 
+        # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
+        if (t >= injection_day) & (alpha.sum().sum()==0):
+            dalpha += injection_ratio
+
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV, dV_new, dalpha)
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -200,8 +209,10 @@ class COVID19_SEIRD_sto(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 
+                   'R', 'D', 'H_in', 'H_out', 'H_tot']
+    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 
+                       'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 

@@ -188,6 +188,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f (spatial only)
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         -------------------------
@@ -329,5 +331,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     pars_dict['beta'] = 0.03492
     # Co-infection model: infectivity gain
     pars_dict['K'] = 0
-    
+    pars_dict['injection_day'] = 0
+    pars_dict['injection_ratio'] = 0
+
     return pars_dict
