@@ -67,7 +67,7 @@ args = parser.parse_args()
 # Load samples dictionary
 # -----------------------
 
-samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
+samples_dict = json.load(open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
 
 # ------------------------------------------
 # Convert samples dictionary to emcee format
@@ -99,6 +99,6 @@ if args.save:
         if key not in args.keys:
             samples_dict_new[key] = samples_dict[key]
 
-    with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename), 'w') as fp:
+    with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)+'_thinned', 'w') as fp:
             json.dump(samples_dict_new, fp)
 
