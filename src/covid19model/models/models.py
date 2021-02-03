@@ -371,9 +371,9 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha, # time + SEIRD classes
                   beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio, leakiness,# SEIRD parameters
+                        dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, leakiness, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
