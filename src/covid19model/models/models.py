@@ -330,6 +330,8 @@ class COVID19_SEIRD_spatial(BaseModel):
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         -------------------------
@@ -359,7 +361,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
-    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
+                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', , 'injection_day', 'injection_ratio']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -369,7 +372,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha, # time + SEIRD classes
-                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
+                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -446,6 +449,10 @@ class COVID19_SEIRD_spatial(BaseModel):
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (1-e)*dV_inf
         dalpha = alpha*K/(1-alpha+alpha*K) - alpha
+
+        # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
+        if (t >= injection_day) & (alpha.sum().sum()==0):
+            dalpha += injection_ratio
         
 
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV_new, dV, dalpha)
