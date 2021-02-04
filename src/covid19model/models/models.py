@@ -383,7 +383,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V # calculate total population per age bin using 2D array
         vacc_eligible = S + R + E + I + A
 
         # Define all the parameters needed to determine the rates of change
