@@ -91,21 +91,22 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
         flat_samples_raw[:,idx] = samples_dict[key]
     # Convert to raw samples
     samples_raw = np.zeros([int(flat_samples_raw.shape[0]/n_chains),n_chains,flat_samples_raw.shape[1]])
-    for i in range(flat_samples_raw.shape[1]):
-        split_chains = np.split(flat_samples_raw[:,i], n_chains)
-        for j,chain in enumerate(split_chains):
-            samples_raw[:,j,i] = split_chains[j]
+    for i in range(samples_raw.shape[0]): # length of chain
+        for j in range(samples_raw.shape[1]): # chain number
+            samples_raw[i,:,:] = flat_samples_raw[i*n_chains:(i+1)*n_chains,:]
     # Do discard
     samples_discard = np.zeros([(samples_raw.shape[0]-discard),n_chains,flat_samples_raw.shape[1]])
     for i in range(samples_raw.shape[1]):
         for j in range(flat_samples_raw.shape[1]):
             samples_discard[:,i,j] = samples_raw[discard:,i,j]  
+
     # Do thin
     samples = samples_discard[::thin,:,:]
     # Convert to flat samples
     flat_samples = samples[:,0,:]
     for i in range(1,samples.shape[1]):
         flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
+
     return samples,flat_samples
 
 def calculate_R0(samples_beta, model, initN, Nc_total):
