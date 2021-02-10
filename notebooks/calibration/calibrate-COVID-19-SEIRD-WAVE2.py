@@ -195,7 +195,7 @@ start_data = '2020-03-15'
 # Start data of recalibration ramp
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate warmup and beta
-end_calibration_beta = '2020-10-19'
+end_calibration_beta = '2020-10-24'
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE2'
 # PSO settings
@@ -223,6 +223,8 @@ params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_re
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
+# Samples dict of WAVE1
+samples_dict_WAVE1 = json.load(open(samples_path+'BE_WAVE1_BETA_COMPLIANCE_2021-02-07.json'))
 
 if job == None or job == 'BETA':
 
@@ -244,32 +246,43 @@ if job == None or job == 'BETA':
     samples_dict = {}
     # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
     def draw_fcn(param_dict,samples_dict):
+        idx,param_dict['da'] = random.choice(list(enumerate(samples_dict['da'])))
+        param_dict['omega'] = samples_dict['omega'][idx]
         param_dict['sigma'] = 5.2 - param_dict['omega']
         return param_dict
 
     # set PSO optimisation settings
-    parNames = ['beta','omega','da']
-    bounds=((0.020,0.100),(0.1,5.1),(0.1,14))
+    parNames = ['beta']
+    bounds=((0.020,0.100),)
 
     # run PSO optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                        start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
-    #[0.04598843 0.1        4.10059223] -17313.178339943777
-    
+    #theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
+    #                    start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict_WAVE1)
+    theta = np.array([0.04217637]) #-30485.662884105484
+
+
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
+    # Prior omega
+    density_omega, bins_omega = np.histogram(samples_dict_WAVE1['omega'], bins=20, density=True)
+    density_omega_norm = density_omega/np.sum(density_omega)
+
+    #Prior da
+    density_da, bins_da = np.histogram(samples_dict_WAVE1['da'], bins=20, density=True)
+    density_da_norm = density_da/np.sum(density_da)
+
+    log_prior_fnc = [prior_uniform, prior_custom, prior_custom]
+    log_prior_fnc_args = [(0.01,0.10), (bins_omega,density_omega_norm), (bins_da,density_da_norm)]
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta','omega','da']
     ndim = len(parNames_mcmc)
     nwalkers = ndim*mp.cpu_count()
 
-    perturbations_beta = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_omega = np.expand_dims(np.random.triangular(0.1,theta[1],3, size=nwalkers),axis=1)
-    perturbations_da = np.expand_dims(np.random.triangular(1,theta[2],14, size=nwalkers),axis=1)
+    perturbations_beta = theta[0] + theta[0]*0.5e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbations_omega = np.expand_dims(np.random.choice(samples_dict_WAVE1['omega'], size=nwalkers),axis=1)
+    perturbations_da = np.expand_dims(np.random.choice(samples_dict_WAVE1['da'], size=nwalkers),axis=1)
     pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
 
     # Set up the sampler backend
@@ -287,6 +300,10 @@ if job == None or job == 'BETA':
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
     
+    def draw_fcn(param_dict,samples_dict):
+        param_dict['sigma'] = 5.2 - param_dict['omega']
+        return param_dict
+
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                         args=(model, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
@@ -360,7 +377,7 @@ if job == None or job == 'BETA':
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+    flat_samples = sampler.get_chain(discard=100,thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
         samples_dict[name] = flat_samples[:,count].tolist()
@@ -389,7 +406,7 @@ if job == None or job == 'BETA':
 
     print('4) Simulating using sampled parameters')
     start_sim = start_calibration
-    end_sim = '2020-10-26'
+    end_sim = '2020-11-10'
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
     # ---------------------------
@@ -429,7 +446,7 @@ if job == None or job == 'BETA':
     ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
-    ax.set_xlim('2020-03-10',end_sim)
+    ax.set_xlim(start_sim,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
@@ -480,9 +497,9 @@ elif job == 'COMPLIANCE':
 # Start of data collection
 start_data = '2020-03-15'
 # Start of calibration
-start_calibration = '2020-03-15'
+start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-07-01'
+end_calibration = '2021-02-01'
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 3
@@ -527,14 +544,13 @@ def draw_fcn(param_dict,samples_dict):
 # ----------------
 
 # set PSO optimisation settings
-parNames = ['l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,20),(0.01,20),(0.01,0.10),(0.01,0.99),(0.01,0.99))
+parNames = ['l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+bounds=((0.01,20),(0.01,20),(0.01,0.10),(0.01,0.10),(0.01,0.99),(0.01,0.99))
 
 # run PSO optimisation
-#theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples=samples_dict)
-theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254
+theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes,
+                    draw_fcn=draw_fcn, samples=samples_dict)
 
 # ------------
 # MCMC sampler
@@ -553,9 +569,9 @@ density_da, bins_da = np.histogram(samples_dict['da'], bins=20, density=True)
 density_da_norm = density_da/np.sum(density_da)
 
 # Setup parameter names, bounds, number of chains, etc.
-parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
-log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
+parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*mp.cpu_count()
 # Perturbate PSO Estimate
@@ -582,7 +598,7 @@ old_tau = np.inf
 # Initialize autocorr vector and autocorrelation figure
 autocorr = np.zeros([1,ndim])
 # Initialize the labels
-labels = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
+labels = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 
 def draw_fcn(param_dict,samples_dict):
     param_dict['sigma'] = 5.2 - param_dict['omega']
@@ -659,11 +675,11 @@ except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
-           labels=['$\\beta$','$\\omega$','$d_{a}$','l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
+           labels=['$\\beta$','$\\omega$','$d_{a}$','l','$\\tau$', '$G_{schools}$', '$G_{work}$', '$G_{rest}$', '$G_{home}$'])
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=1000,thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
@@ -684,6 +700,7 @@ def draw_fcn(param_dict,samples_dict):
     # Sample second calibration
     param_dict['tau'] = samples_dict['tau'][idx] 
     param_dict['l'] = samples_dict['l'][idx] 
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx]      
