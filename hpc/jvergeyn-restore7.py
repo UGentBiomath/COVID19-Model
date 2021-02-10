@@ -394,6 +394,7 @@ scenario_settings = scenario_settings.set_index('Scenario_name')
 
 results = pd.DataFrame()
 for scen in scenario_settings.index:
+    print(scen)
     scenario = scenario_settings.loc[scen,'scenario']
     effectivity = scenario_settings.loc[scen,'effectivity']
     K = scenario_settings.loc[scen,'K']
