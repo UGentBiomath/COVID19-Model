@@ -60,7 +60,7 @@ params = model_parameters.get_COVID19_SEIRD_parameters()
 # Add the time-dependant parameter function arguments
 params.update({'l': 1, 'tau': 1, 'prevention' : 0.5})
 # Define initial states
-initial_states = {"S": initN, "E": 3*np.ones(9)}
+initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': compliance_func})
@@ -106,30 +106,32 @@ bounds=((20,80),(0.01,0.06),(0.1,20),(0.1,20),(0.03,0.97))
 theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                     start_date=start_calibration)
 warmup = int(theta[0])
-theta = np.array([0.02390738,0.93245834,11.76934931,0.03]) #instead of: theta[1:]
+theta = np.array([0.02390738,0.93245834,11.76934931,0.03]) # this is a good result, obtained after a very long PSO run
 
 # run MCMC sampler
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+# Define prior
+def prior_uniform(x, bounds):
+    prob = 1/(bounds[1]-bounds[0])
+    condition = bounds[0] < x < bounds[1]
+    if condition == True:
+        return np.log(prob)
+    else:
+        return -np.inf
+
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','l','tau','prevention']
-bounds_mcmc=((0.010,0.060),(0.001,20),(0.001,20),(0,1))
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.010,0.060),(0.001,20),(0.001,20),(0,1)]
 ndim = len(theta)
 nwalkers = ndim*2
 perturbations = theta*1e-2*np.random.random(size=(nwalkers,ndim))
 pos = theta + perturbations
 
-# If the pertubations place a MC starting point outside of bounds, replace with upper-or lower bound
-for i in range(pos.shape[0]):
-    for j in range(pos.shape[1]):
-        if pos[i,j] < bounds_mcmc[j][0]:
-            pos[i,j] = bounds_mcmc[j][0]
-        elif pos[i,j] > bounds_mcmc[j][1]:
-            pos[i,j] = bounds_mcmc[j][1]
-
 # Run sampler
 sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,
-            args=(model, bounds_mcmc, data, states, parNames_mcmc, None, start_calibration, warmup,'poisson'))
+            args=(model, log_prior_fcn, log_prior_fcn_args, data, states, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
 sampler.run_mcmc(pos, steps_mcmc, progress=True)
 
 thin = 1
@@ -150,7 +152,7 @@ for count,name in enumerate(parNames_mcmc):
 # Define sampling function
 # ------------------------
 
-def draw_fcn(param_dict,samples_dict,to_sample):
+def draw_fcn(param_dict,samples_dict):
     # Sample
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l'] = samples_dict['l'][idx] 

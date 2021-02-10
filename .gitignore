@@ -154,3 +154,6 @@ results/calibrations/COVID19_SEIRD/national/backends/
 # Do not upload private Proximus data (raw and processed)
 data/raw/mobility/proximus/
 data/interim/mobility/
+
+
+data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-13_WAVE2_GOOGLE.json

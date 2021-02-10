@@ -258,6 +258,27 @@ class BaseModel:
                 f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
             )
 
+        # Call integrate function with initial values to check if the function returns all states
+        fun = self._create_fun(None)
+        if self.spatial:
+            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
+        else:
+            y0 = list(itertools.chain(*self.initial_states.values()))
+        check = True
+        try:
+            result = fun(pd.Timestamp('2020-09-01'), np.array(y0), self.parameters)
+        except:
+            try:
+                result = fun(1, np.array(y0), self.parameters)
+            except:
+                check = False
+        if check:
+            if len(result) != len(y0):
+                raise ValueError(
+                    "The return value of the integrate function does not have the correct length."
+                )
+                
+
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
@@ -295,6 +316,7 @@ class BaseModel:
             return np.array(dstates).flatten()
 
         return func
+
 
     def _sim_single(self, time, actual_start_date=None):
         """"""
@@ -423,14 +445,14 @@ class BaseModel:
         if verbose==True:
             print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples,to_sample)
+            self.parameters = draw_fcn(self.parameters,samples)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
             if draw_fcn:
-                self.parameters = draw_fcn(self.parameters,samples,to_sample)
+                self.parameters = draw_fcn(self.parameters,samples)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary
