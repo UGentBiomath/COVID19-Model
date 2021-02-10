@@ -155,6 +155,8 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if Nc is None:
+            print(t)
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+leakiness*V)/T)) # leakiness
         IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A+leakiness*V)/T))
 
@@ -176,9 +178,10 @@ class COVID19_SEIRD(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - V_new
         dV = N_vacc/vacc_eligible*S + N_vacc/vacc_eligible*R + N_vacc/vacc_eligible*E + N_vacc/vacc_eligible*I + N_vacc/vacc_eligible*A - (IP_old + IP_new)*(1-e)*V
-        # If A and I are both zero, a division error occurs
         # Update fraction of new COVID-19 variant
         dalpha = IP_new/(IP_old+IP_new) - alpha
+         # If A and I are both zero, a division error occurs
+        dalpha[np.isnan(dalpha)] = 0
 
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
         if (t >= injection_day) & (alpha.sum().sum()==0):
