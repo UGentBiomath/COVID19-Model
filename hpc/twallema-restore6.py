@@ -79,9 +79,7 @@ df_google = google.get_google_mobility_data(update=False, plot=False)
 # Model initial condition on September 1st
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
-# Manually bump up immunity by 5%
-#initial_states['R'] = np.array(initial_states['R']) + 0.05*np.array(initial_states['S'])
-#initial_states['S'] = np.array(initial_states['S']) - 0.05*np.array(initial_states['S']) 
+
 # Load samples dictionary of the second wave, 3 prevention parameters
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
@@ -94,7 +92,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
-def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
+def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1'):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
@@ -303,7 +301,6 @@ for scenario in scenarios:
     print('\tsimulating')
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict,verbose=True)
     results['Date'] = out['time']
-    #print(out["R"].sum(dim="Nc").values[-1]/11000000*100)
 
     # ---------------------------------
     # Sample from binomial distribution

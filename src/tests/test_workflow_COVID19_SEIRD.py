@@ -60,7 +60,7 @@ params = model_parameters.get_COVID19_SEIRD_parameters()
 # Add the time-dependant parameter function arguments
 params.update({'l': 1, 'tau': 1, 'prevention' : 0.5})
 # Define initial states
-initial_states = {"S": initN, "E": 3*np.ones(9)}
+initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': compliance_func})
