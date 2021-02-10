@@ -805,14 +805,14 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     # Draw everything in week_colour in currently open plt environment
     ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha)
     
-    # Draw weekends
+    # Overdraw weekends
     for d in range(days_count):
         d_datetime = sdate + datetime.timedelta(days=d)
         # if Saturday
         if d_datetime.isoweekday() == 6:
             ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=2), facecolor=weekend_color, alpha=alpha)
     
-    # Draw vacation
+    # Overdraw vacation
     vacation_dict = school_vacations_dict()
     for d in range(days_count):
         d_datetime = sdate + datetime.timedelta(days=d)
@@ -822,6 +822,68 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     
     return
     
+def check_dtype(datum):
+    # Load vacation information
+    vacation_dict = school_vacations_dict()
     
+    datum_type=None
+    if datum.isoweekday() in [6,7]:
+        datum_type = 'weekend'
+    else:
+        datum_type = 'business'
+    # overwrite if sdate is a vacation day
+    for d in vacation_dict:
+        if (datum >= d) and (datum < d + datetime.timedelta(days=vacation_dict[d])):
+            datum_type = 'vacation'
+    return datum_type
+
+def draw_baseline(sdate, edate, baselines, ax=None):
+    """
+    Draw dotted line representing the baseline mobility calculated from pre-lockdown scenario
     
+    Input
+    -----
+    sdate: datetime object
+        Start date of baseline drawing
+    edate: datetime object
+        End date of baseline drawing
+    baselines: tuple
+        Tuple with (business, weekend, vacation) baseline values, in that order
+    """
+    # Determine total number of days
+    days_count = (edate-sdate).days+1
     
+    # Get specified or current axis
+    ax = ax or plt.gca()
+    
+    # Choose properties
+    color='k'
+    linestyle='dashed'
+    linewidth=1
+    alpha=.5
+    
+    # Copy baselines into dict
+    baselines_dict = dict({'business' : baselines[0], 'weekend' : baselines[1], 'vacation' : baselines[2]})
+    
+    # Check type of sdate
+    sdate_type = check_dtype(sdate)
+            
+    # Draw lines
+    previous_type = sdate_type
+    previous_d = 0
+    for d in range(days_count):
+        d_datetime = sdate + datetime.timedelta(days=d)
+        new_type = check_dtype(d_datetime)
+        if new_type != previous_type:
+            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
+            ax.plot((previous_d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            ax.plot((d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[new_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            
+            previous_type = new_type
+            previous_d = d
+        elif (d == days_count-1):
+            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
+            ax.plot((previous_d_datetime, d_datetime + datetime.timedelta(days=1)), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            
+
+    return
