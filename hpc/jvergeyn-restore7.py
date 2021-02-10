@@ -392,6 +392,8 @@ scenario_settings = pd.DataFrame({
 
 scenario_settings = scenario_settings.set_index('Scenario_name')
 
+import pickle
+
 results = pd.DataFrame()
 for scen in scenario_settings.index:
     scenario = scenario_settings.loc[scen,'scenario']
@@ -404,6 +406,7 @@ for scen in scenario_settings.index:
                              Nc_fun=report7_policy_function, N_vacc_fun=vacc_fun)
     scenario_model.parameters.update({'K':K})
     out = scenario_model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict,verbose=True)
+    with open('../results/temp/'+scen+'_out.pkl', 'wb') as handle: pickle.dump(out, handle)
 
     H_in_binom = sample_from_binomial(out, 'H_in', n_draws_per_sample, n_samples)
     H_tot_binom = sample_from_binomial(out, 'H_tot', n_draws_per_sample, n_samples)
