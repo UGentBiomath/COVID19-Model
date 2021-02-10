@@ -60,6 +60,9 @@
 ##### Apple
 + `apple_mobility_trends.csv` contains a copy of the Apple Mobility Trends downloaded by the function `get_apple_mobility_data()`. Mobility data is extracted from https://covid19-static.cdn-apple.com/covid19-mobility-data/2024HotfixDev12/v3/en-us/applemobilitytrends-2021-01-10.csv
 
+##### Proximus
++ `outputPROXIMUS122747coronaYYYYMMDDAZUREREF001.csv`: complete origin-destination data saved on SFTP server and locally but NOT uploaded to GitHub.
+
 #### Sciensano
 
 + `COVID19BE_HOSP.csv` contains a copy of the "HOSP" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
@@ -174,6 +177,11 @@ All economic data from the data/raw/economical was converted using the script `n
 + `IO_NACE64.csv` contains the input-output table for Belgium, formatted to NACE 64 classification.
 + `IHS_critical_NACE64.csv` contains the IHS Market Analysts data, reformatted from WIOD 55 to the NACE 64 classification.
 
+#### mobility
+
+Note: only saved locally and on S-drive (not on Git due to NDA). Contains processed origin-destination matrices at the level of municipalities, arrondissements and provinces:
++ staytime: `fractional-mobility-matrix_staytime_*_*.csv`: origin-destination matrices in terms of estimated length of stay, normalised over the total available time. Subtracted 8 hours of sleep per day, and corrected for the GDPR-protected -1 values
++ baseline: `fractional-mobility-matrix_staytime_arr_baseline-*.csv`: normalised origin-destination matrix for three distinct periods: business days, weekends and vacation days. These may be used to distinguish how many additional people were forced to stay at home, and/or to estimate the goal of travel (work/leisure/...)
 
 ### simulated
 

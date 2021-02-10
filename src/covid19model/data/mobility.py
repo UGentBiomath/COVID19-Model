@@ -189,6 +189,34 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 # Proximus mobility data functions #
 ####################################
 
+def date_to_YYYYMMDD(date, inverse=False):
+    """
+    Simple function to convert a datetime object to a string representing the date in the shape YYYYMMDD
+    
+    Input
+    -----
+    date: datetime.date object or str
+        datetime.date object if inverse=False, str if inverse=True
+    inverse: boolean
+        False if date is converted to YYYYMMDD, True if YYYYMMDD string is converted to datetime.date object
+    
+    Return
+    ------
+    YYYYMMDD: str
+    """
+    if not inverse:
+#         Something is wrong with the exception below, not sure what
+#         if isinstance(date, datetime.date):
+#             raise Exception("First argument in function should be of type datetime.date. If type str (YYYYMMDD), set inverse=True.")
+        YYYYMMDD = date.strftime("%Y%m%d")
+        return YYYYMMDD
+    if inverse:
+        if not isinstance(date, str) or (len(date) != 8):
+            raise Exception("First argument in function should str in form YYYYMMDD. If type is datetime.time, set inverse=False")
+        datetime_object = datetime.strptime(date, "%Y%m%d")
+        return datetime_object
+        
+# I think week_to_date() is obsolete
 def week_to_date(week_nr, day = 1, year=2020):
     """
     Function that takes a week number between 1 and 53 (or 53 for 2021) and returns the corresponding dates
@@ -223,6 +251,7 @@ def week_to_date(week_nr, day = 1, year=2020):
     date = datetime.strptime(d + '-' + str(day), "%Y-W%W-%w")
     return date
 
+# I think make_date_list is obsolete
 def make_date_list(week_nr, year=2020):
     """
     Makes list of dates in week 'week_nr' in the format needed for the identification of the Proximus data
@@ -244,10 +273,7 @@ def make_date_list(week_nr, year=2020):
     date_list=[]
     for day in range(1,8):
         start_date = week_to_date(week_nr, day=day, year=year)
-        YYYY = start_date.strftime('%Y')
-        MM = start_date.strftime('%m')
-        DD = start_date.strftime('%d')
-        YYYYMMDD = YYYY+MM+DD
+        YYYYMMDD = date_to_YYYYMMDD(start_date)
         date_list.append(YYYYMMDD)
     return date_list
 
@@ -299,19 +325,165 @@ def load_datafile_proximus(date, data_location):
     """
     suffix = proximus_mobility_suffix()
     datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
+    # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
     datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
                                                                                          'postalcode' : str,
-                                                                                         'imsisinpostalcode' : int,
-                                                                                         'habitatants' : int,
-                                                                                         'nrofimsi' : int,
-                                                                                         'visitors' : int,
-                                                                                         'est_staytime' : int,
-                                                                                         'total_est_staytime' : int,
+                                                                                         'imsisinpostalcode' : float,
+                                                                                         'habitatants' : float,
+                                                                                         'nrofimsi' : float,
+                                                                                         'visitors' : float,
+                                                                                         'est_staytime' : float,
+                                                                                         'total_est_staytime' : float,
                                                                                          'est_staytime_perc' : float})
     return datafile    
     
+def load_mmprox(datafile, values='nrofimsi'):
+    """
+    Process raw Proximus datafile into a mobility matrix for either nrofimsi values or est_staytime values
     
-def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True):
+    Input
+    -----
+    datafile: pandas.DataFrame
+        loaded from load_datafile_proximus
+    values: str
+        Either 'nrofimsi' (visit counts) or 'est_staytime' (estimated staytime)
+    
+    Output
+    ------
+    mmprox: pandas.DataFrame
+        pandas DataFrames with visit counts or estimated staytime between postal codes.
+    """
+    mmprox = datafile.pivot_table(values=values,
+                                  index='mllp_postalcode',
+                                  columns='postalcode').fillna(value=0)
+    return mmprox
+
+def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
+    """
+    Add missing seconds to home patch staytime
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
+    missing_seconds: pandas DataFrame
+        Output of missing_seconds_per_pc
+    minus_sleep: boolean
+        True if we do not include the time asleep as the active time of the day. Time asleep set to 8 hours.
+        
+    Returns
+    -------
+    mmprox_added_home_staytime: pandas DataFrame
+        Same as input, but with added value for home patch
+    """
+    sleep_time= 8*60*60
+    if not minus_sleep:
+        sleep_time = 0
+        print('no sleep')
+    
+    mmprox_added_home_staytime = mmprox.copy()
+    for pc in missing_seconds.index:
+            if pc != 'Foreigner':
+                mmprox_added_home_staytime.loc[pc, pc] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                            - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
+            else:
+                mmprox_added_home_staytime.loc[pc, 'ABROAD'] += missing_seconds.loc[pc, 'missing_seconds'] \
+                                                            - sleep_time * missing_seconds.loc[pc, 'imsisinpostalcode']
+            
+    return mmprox_added_home_staytime
+
+def GDPR_staytime(mmprox, est_hidden_staytime):
+    """
+    Changes every -1 value for the staytime in the origin-destination matrix with the corresponding estimated value
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with postal codes as indices and as column heads, and est_staytime as values
+    est_hidden_staytime: pandas DataFrame
+        Output of est_hidden_staytime_per_pc: indices are origin postal codes, column contains estimated staytime values
+        
+    Returns
+    -------
+    mmprox_added_hidden_staytime: pandas DataFrame
+        Dataframe identical to mmprox (input), but with every -1 value changed by the corresponding estimated time
+    """
+    # Make series from est_hidden_staytime
+    est_hidden_series = pd.Series(data=est_hidden_staytime['est_hidden_staytime'], index=est_hidden_staytime.index)
+    
+    # Replace every -1 value with the corresponding estimated value that is protected
+    mmprox_added_hidden_staytime = mmprox.mask(mmprox==-1, other=est_hidden_series, axis=0)
+    
+    return mmprox_added_hidden_staytime
+    
+def load_Pmatrix_staytime(dates, data_location, complete=False, verbose=True, return_missing=False, agg='mun'):
+    """
+    Load clean mobility P matrices in a big dictionary, and return missing dates if needed
+    
+    Input
+    -----
+    dates: str or list of str
+        Single date in YYYYMMDD form or list of these (output of make_date_list function): requested date(s)
+    data_location: str
+        Name of directory (relative or absolute) that contains all processed (interim) mobility matrices
+    complete: boolean
+        If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
+    verbose: boolean
+        If True, print statement every time data for a date is loaded.
+    return_missing: boolean
+        If True, return array of missing dates in form YYYYMMDD as second return. False by default.
+    agg: str
+        Aggregation level: 'mun', 'arr' or 'prov'
+    
+    Returns
+    -------
+    mmprox_dict: dict of pandas DataFrames
+        Dictionary with YYYYMMDD dates as keys and pandas DataFrames with fractional mobility (from staytime) as values
+    """
+    # Check dates type and change to single-element list if needed
+    single_date = False
+    if isinstance(dates,str):
+        dates = [dates]
+        single_date = True
+
+    # Make list of dates in data_location and save the difference
+    suffix = ".csv"
+    full_list = []
+    for f in os.listdir(data_location):
+        date = f[:-len(suffix)][-8:]
+        full_list.append(date)
+    missing = set(dates).difference(set(full_list))
+    
+    # Dates to be loaded are all dates, except the ones that are missing
+    load_dates = set(dates).difference(missing)
+    dates_left = len(load_dates)
+    if dates_left == 0:
+        raise Exception("None of the requested dates correspond to a fractional staytime origin-destination matrix.")
+    if missing != set():
+        print(f"Warning: some or all of the requested dates do not correspond to a fractional staytime origin-destination matrix. Dates: {sorted(missing)}")
+        if complete:
+            raise Exception("Some requested data is not found amongst the fractional staytime origin-destination matrices. Set 'complete' parameter to 'False' and rerun if you wish to proceed with an incomplete data set (not using all requested data).")
+        print(f"... proceeding with {dates_left} dates.")
+
+    # Initiate dict for remaining dates and load files
+    mmprox_dict=dict({})
+    filename = 'fractional-mobility-matrix_staytime_' + agg + '_'
+    load_dates = sorted(list(load_dates))
+    for date in load_dates:
+        datafile = pd.read_csv(data_location + filename + date + ".csv", index_col = 'mllp_postalcode')
+        mmprox_dict[date] = datafile
+        if verbose==True:
+            print(f"Loaded dataframe for date {date}.    ", end='\r')
+    print(f"Loaded dataframe for date {date}.")
+    
+    if not return_missing:
+        return mmprox_dict
+    else:
+        return mmprox_dict, sorted(missing)
+    
+    
+    
+def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=False, verbose=True, return_missing=False):
     """
     Load Proximus mobility data (number of visitors or visitor time) corresponding to the requested dates
     
@@ -322,11 +494,14 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
     data_location: str
         Name of directory (relative or absolute) that contains all Proximus data files
     values: str
-        Choose between absolute visitor count ('nrofimsi', default) or total time spent ('est_staytime') on one day
+        Choose between absolute visitor count ('nrofimsi', default) or other values of interest (e.g. 'est_staytime') on one day.
+        Special case for values='est_staytime' or 'total_est_staytime': the absolute value is taken
     complete: boolean
         If True, this function raises an exception when 'dates' contains a date that does not correspond to a data file.
     verbose: boolean
         If True, print statement every time data for a date is loaded.
+    return_missing: boolean
+        If True, return array of missing dates in form YYYYMMDD as second return. False by default.
     
     Returns
     -------
@@ -360,11 +535,61 @@ def load_mobility_proximus(dates, data_location, values='nrofimsi', complete=Fal
                                               index='mllp_postalcode',
                                               columns='postalcode')
         mmprox_temp = mmprox_temp.fillna(value=0)
-        mmprox_dict[date] = mmprox_temp.convert_dtypes()
+        if values in ['est_staytime', 'total_est_staytime']:
+            mmprox_dict[date] = mmprox_temp.convert_dtypes().abs()
+        else:
+            mmprox_dict[date] = mmprox_temp.convert_dtypes()
         if verbose==True:
             print(f"Loaded dataframe for date {date}.    ", end='\r')
     print(f"Loaded dataframe for date {date}.")
-    return mmprox_dict
+    
+    if not return_missing:
+        return mmprox_dict
+    else:
+        return mmprox_dict, sorted(missing)
+
+def missing_seconds_per_pc(datafile):
+    """
+    For all postalcodes (mllp_postalcode) mentioned in datafile, calculate (or estimate, if GDPR-protection is in force) the discrepancy between the total available time (i.e. imsisinpostalcode * 24 hours * 60 minutes * 60 seconds) and the time on record (total_est_staytime). This time must have gone SOMEwhere, so we may add it to e.g. the diagonal elements (time spent from X in X). Additionally, this function estimates imsisinpostalcode when it is GDPR-protected.
+    
+    Input
+    -----
+    datafile: pandas DataFrame
+        Raw data: output of load_datafile_proximus function
+        
+    Returns
+    -------
+    missing_seconds_per_pc: pandas DataFrame
+        DataFrame with all mllp_postalcodes from datafile as indices. Column "imsisinpostalcode" contains the (estimated) number of clients in the postal code. "total_est_staytime" the total estimated staytime (copied from datafile). "total_available_time" is imsisinpostalcode * 24 * 60 * 60. "missing_seconds" is total - registered amount of time.
+    """
+    # Pivot table such that postalcodes are indices (~1120 entries)
+    missing_seconds_per_pc = pd.pivot_table(datafile, index='mllp_postalcode', \
+                                     values=['imsisinpostalcode', 'total_est_staytime'], aggfunc='first')
+
+    # Filter those entries with non-censored data and make a copy
+    missing_seconds_per_pc_available = missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']>0].copy()
+    
+    # Create new column with number of people per second of total staytime (0 < number < 1)
+    missing_seconds_per_pc_available['pop_per_staytime'] = missing_seconds_per_pc_available['imsisinpostalcode'] \
+        / missing_seconds_per_pc_available['total_est_staytime']
+
+    # calculate median number of people per staytime (0 < number < 1)
+    median_people_per_staytime = missing_seconds_per_pc_available['pop_per_staytime'].median()
+    #print("Median number of people per staytime:", median_people_per_staytime)
+
+    # Change negative values with estimated number of people living somewhere
+    missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']<0, 'imsisinpostalcode'] \
+        = missing_seconds_per_pc.loc[missing_seconds_per_pc['imsisinpostalcode']<0, 'total_est_staytime'] * median_people_per_staytime
+    
+    # Add column with the maximum number of seconds available for all registered clients combined
+    missing_seconds_per_pc['total_available_time'] = missing_seconds_per_pc['imsisinpostalcode'] * 24 * 60 * 60
+    
+    # Add column with the missing seconds for every entry (i.e. for every postal code mentioned in datafile)
+    missing_seconds_per_pc['missing_seconds'] = missing_seconds_per_pc['total_available_time'] \
+                                                    - missing_seconds_per_pc['total_est_staytime']
+    
+    return missing_seconds_per_pc
+
 
 
 def load_pc_to_nis():
@@ -498,7 +723,53 @@ c
     mmprox_GDPR = pd.DataFrame(values, columns=mmprox.columns, index=mmprox.index)
 
     return mmprox_GDPR
-        
+
+
+def est_hidden_staytime_per_pc(datafile):
+    """
+    Replace all staytime values that are protected by GDPR protocol (-1 values) with an estimate.
+    TODO: include several estimate types. Uses missing_seconds_per_pc as input to find total_est_staytime.
+    
+    Input
+    -----
+    datafile: pandas DataFrame
+        Raw data: output of load_datafile_proximus function
+    
+    Returns
+    -------
+    est_hidden_staytime: pandas.DataFrame
+        DataFrame with postal codes as indices and estimated staytimes as values (replacements for -1 values for that particular postal code)
+    """
+    # Load missing seconds per postal code
+    missing_seconds = missing_seconds_per_pc(datafile)
+    
+    # Simple "raw" grid of "people from g spend x time in h". 0 values means none are registered, -1 means it is protected
+    staytime_matrix = pd.pivot_table(datafile, index='mllp_postalcode', columns='postalcode', \
+                                         values='est_staytime').fillna(value=0)
+
+    # Total non-GDPR protected time per PC (should be smaller than total_est_time)
+    est_staytime_noGDPR = staytime_matrix[staytime_matrix>0].fillna(value=0).sum(axis=1)    
+
+    # Number of times -1 occurs per PC (i.e. number of postal codes for which data is protected)
+    # Note: this is a lot! The maximum is 700 (which is more than half of all 1148 PCs)
+    small_number_freq = staytime_matrix[staytime_matrix==-1].fillna(value=0).sum(axis=1).astype(int).abs()
+
+    # Average time difference per GDPR-protected postalcode, between total registered time and the sum of the individually registered times
+    est_staytime_GDPR = (missing_seconds['total_est_staytime'] - est_staytime_noGDPR) / small_number_freq
+    
+    # Raise exception if some of these values are negative
+    if (est_staytime_GDPR<0).any():
+        raise Exception("The total_est_staytime value is bigger than the sum of all non-GDPR-protected est_staytime values. Are your sure you used the raw data as input?")
+
+    # For most mllp_postalcode, est_staytime_GDPR is not a big value (order of couple hours)
+    # For foreigners it is of the order of a few days. Reasoning:
+    #   1. The registered total_est_staytime is large
+    #   2. The est_staytimes that are registered are low (just over threshold)
+    # This is due to the nature of foreigners visiting Belgium: they travel around much (truckers) and typically don't
+    # Stay at a particular place for a long time.
+    
+    est_hidden_staytime = pd.DataFrame(est_staytime_GDPR, columns=['est_hidden_staytime'])
+    return est_hidden_staytime
 
 # Aggregate
 
@@ -550,7 +821,7 @@ def mm_aggregate(mmprox, agg='mun'):
     mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
     
     mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     if agg in ['arr', 'prov']:
         # Rename columns
@@ -567,7 +838,7 @@ def mm_aggregate(mmprox, agg='mun'):
 
         # Collect rows and columns with the same NIS code, and automatically order column/row names
         mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-        mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+        mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
         
         if agg == 'prov':
             # Rename columns
@@ -596,7 +867,7 @@ def mm_aggregate(mmprox, agg='mun'):
 
             # Collect rows and columns with the same NIS code, and automatically order column/row names
             mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-            mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum().astype(int)
+            mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     return mmprox_agg
     

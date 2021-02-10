@@ -177,5 +177,4 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
                         samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total,axis=1)[i]
                 R0_list.append(R0_temp)
             R0_stratified_dict[i] = R0_list
-
     return R0, R0_stratified_dict
