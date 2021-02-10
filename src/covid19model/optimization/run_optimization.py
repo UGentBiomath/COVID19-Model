@@ -99,7 +99,6 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     for i in range(samples_raw.shape[1]):
         for j in range(flat_samples_raw.shape[1]):
             samples_discard[:,i,j] = samples_raw[discard:,i,j]  
-
     # Do thin
     samples = samples_discard[::thin,:,:]
     # Convert to flat samples

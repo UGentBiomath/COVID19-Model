@@ -30,12 +30,8 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 
 import json
-import corner
 import argparse
-import datetime
 import numpy as np
-import matplotlib.pyplot as plt
-from covid19model.optimization.run_optimization import samples_dict_to_emcee_chain
 
 # -----------------------
 # Handle script arguments
