@@ -69,9 +69,13 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
         )
     # initialise figure
     fig, axes = plt.subplots(len(labels))
+    # Error when only one parameter is calibrated: axes not suscribable
+    if ndim == 1:
+        axes = [axes]
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
+
     for i in range(ndim):
         ax = axes[i]
         ax.plot(samples[:, :, i], **plt_kwargs)
@@ -81,7 +85,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     if filename:
         plt.savefig(filename, dpi=600, bbox_inches='tight',
-                    orientation='portrait', papertype='a4')
+                    orientation='portrait')
 
     return ax
 
