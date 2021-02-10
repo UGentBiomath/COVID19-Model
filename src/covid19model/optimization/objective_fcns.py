@@ -170,6 +170,20 @@ def ll_poisson(ymodel, ydata, offset=0, complete=False):
     return ll
 
 def prior_uniform(x, bounds):
+    """ Uniform prior distribution
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    bounds: tuple
+        Tuple containg the upper and lower bounds of the parameter value.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a uniform prior distribution.
+
+    """
     prob = 1/(bounds[1]-bounds[0])
     condition = bounds[0] < x < bounds[1]
     if condition == True:
@@ -178,6 +192,28 @@ def prior_uniform(x, bounds):
         return -np.inf
 
 def prior_custom(x, args):
+    """ Custom prior distribution: computes the likelihood of a sample in light of a list containing samples from a previous MCMC run
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    bounds: tuple
+        Tuple containg the upper and lower bounds of the parameter value.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a list with previously sampled parameter values.
+
+    Example use:
+    ------------
+    # Posterior of 'my_par' in samples_dict['my_par']
+    density_my_par, bins_my_par = np.histogram(samples_dict['my_par'], bins=20, density=True)
+    density_my_par__norm = density_my_par/np.sum(density_my_par)
+    prior_fcn = prior_custom
+    prior_fcn_args = (bins_my_par, density_my_par_norm)
+    # Prior_fcn and prior_fcn_args must then be passed on to the function log_probability
+    """
     bins, density = args
     if x < bins.min() or x > bins.max():
         return -np.inf
@@ -186,19 +222,75 @@ def prior_custom(x, args):
         return np.log(density[idx-1])
 
 def prior_normal(x,norm_params):
-    mu,sigma=norm_params
+    """ Normal prior distribution
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    norm_params: tuple
+        Tuple containg mu and sigma.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a normal prior distribution.
+
+    """
+    #mu,sigma=norm_params
     norm_params = np.array(norm_params).reshape(2,9)
     return np.sum(norm.logpdf(x, loc = norm_params[:,0], scale = norm_params[:,1]))
 
 def prior_triangle(x,triangle_params):
+    """ Triangle prior distribution
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    triangle_params: tuple
+        Tuple containg lower bound, upper bound and mode of the triangle distribution.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a triangle prior distribution.
+
+    """
     low,high,mode = triangle_params
     return triang.logpdf(x, loc=low, scale=high, c=mode)
 
 def prior_gamma(x,gamma_params):
+    """ Gamma prior distribution
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    gamma_params: tuple
+        Tuple containg gamma parameters alpha and beta.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a gamma prior distribution.
+
+    """
     a,b = gamma_params
     return gamma.logpdf(x, a=a, scale=1/b)
 
 def prior_weibull(x,weibull_params):
+    """ Weibull prior distribution
+
+    Parameters
+    ----------
+    x: float
+        Parameter value whos likelihood we want to test.
+    weibull_params: tuple
+        Tuple containg weibull parameters k and lambda.
+
+    Returns
+    -------
+    Log likelihood of sample x in light of a weibull prior distribution.
+
+    """
     k,lam = weibull_params
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
