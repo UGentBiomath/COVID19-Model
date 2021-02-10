@@ -22,16 +22,15 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from scipy.stats import triang,norm,gamma
 from multiprocessing import Pool
 from covid19model.models import models
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
-from scipy.stats import weibull_min
 
 # -----------------------
 # Handle script arguments
@@ -225,35 +224,6 @@ if job == None or job == 'BETA':
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # -------------
-    # Define priors
-    # -------------
-
-    def prior_uniform(x,bounds):
-        prob = 1/(bounds[1]-bounds[0])
-        condition = bounds[0] < x < bounds[1]
-        if condition == True:
-            return np.log(prob)
-        else:
-            return -np.inf
-
-    def prior_a(a,norm_params):
-        mu,sigma=args
-        norm_params = np.array(norm_params).reshape(2,9)
-        return np.sum(norm.logpdf(a, loc = norm_params[:,0], scale = norm_params[:,1]))
-
-    def prior_triangle(x,triangle_params):
-        low,high,mode = triangle_params
-        return triang.logpdf(x, loc=low, scale=high, c=mode)
-
-    def prior_gamma(x,gamma_params):
-        a,b = gamma_params
-        return gamma.logpdf(x, a=a, scale=1/b)
-
-    def prior_weibull(x,weibull_params):
-        k,lam = weibull_params
-        return gamma.logpdf(x, k, shape=lam, loc=0 )    
-
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
     log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
 
@@ -266,10 +236,6 @@ if job == None or job == 'BETA':
     perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
     pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
-
-    def draw_fcn(param_dict,samples_dict):
-        param_dict['sigma'] = 5.2 - param_dict['omega']
-        return param_dict
 
     # Set up the sampler backend
     if backend:
@@ -359,7 +325,7 @@ if job == None or job == 'BETA':
 
     print('\n3) Sending samples to dictionary')
 
-    flat_samples = sampler.get_chain(discard=1000,thin=thin,flat=True)
+    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
         samples_dict[name] = flat_samples[:,count].tolist()
@@ -537,23 +503,6 @@ theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # 
 # ------------
 # MCMC sampler
 # ------------
-
-# Define priors
-def prior_uniform(x, bounds):
-    prob = 1/(bounds[1]-bounds[0])
-    condition = bounds[0] < x < bounds[1]
-    if condition == True:
-        return np.log(prob)
-    else:
-        return -np.inf
-
-def prior_custom(x, args):
-    bins, density = args
-    if x < bins.min() or x > bins.max():
-        return -np.inf
-    else:
-        idx = np.digitize(x, bins)
-        return np.log(density[idx-1])
 
 # Prior beta
 density_beta, bins_beta = np.histogram(samples_dict['beta'], bins=20, density=True)

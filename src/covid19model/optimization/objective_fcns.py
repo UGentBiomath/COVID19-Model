@@ -1,6 +1,6 @@
 import numpy as np
 import warnings
-from scipy.stats import norm
+from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
 def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0):
@@ -169,73 +169,38 @@ def ll_poisson(ymodel, ydata, offset=0, complete=False):
         ll -= np.sum(gammaln(ydata+offset))
     return ll
 
-def log_prior(thetas,bounds):
-
-    """
-    A function to compute a uniform prior distribution for a given set of parameters and bounds.
-
-    Parameters
-    -----------
-    thetas: array
-        vector containing estimated parameter values
-    bounds: tuple
-        contains one tuples with the lower and upper bounds of each parameter theta
-
-    Returns
-    -----------
-    lp : float
-        returns 0 if all parameters fall within the user-provided bounds
-        return - np.inf if one parameter doesn't fall in the user-provided bounds
-
-
-    Example use
-    -----------
-    thetas = [1,1]
-
-    bounds = ((0,1),(1,8))
-
-    lp = log_prior(thetas,bounds)
-    """
-
-    lp=[]
-    for i in range(len(bounds)):
-        prob = 1/(bounds[i][1]-bounds[i][0])
-        condition = bounds[i][0] < thetas[i] < bounds[i][1]
-        if condition == True:
-            lp.append(np.log(prob))
-        else:
-            lp.append(-np.inf)
-    if not np.isfinite(lp).all():
-        return - np.inf
+def prior_uniform(x, bounds):
+    prob = 1/(bounds[1]-bounds[0])
+    condition = bounds[0] < x < bounds[1]
+    if condition == True:
+        return np.log(prob)
     else:
-        return 0
+        return -np.inf
 
-def log_prior_normal(thetas, norm_params):
-    """
-    A function to compute the log of a multivariate normal prior density from a given parameter vector.
-    The parameters are assumed to be independent (i.e. the MVN is a product of marginal normal distributions)
+def prior_custom(x, args):
+    bins, density = args
+    if x < bins.min() or x > bins.max():
+        return -np.inf
+    else:
+        idx = np.digitize(x, bins)
+        return np.log(density[idx-1])
 
-    Parameters
-    -----------
-    thetas: array
-        parameter vector
-    norm_params: tuple
-        contains tuples with mean and standard deviation for each theta in the parameter vector
-    Returns
-    -----------
-    lp : float
-        log of normal prior density
-    Example use
-    -----------
-    thetas = [1.2,2]
-    norm_params = ((1,0.5),(1,2))
-    lp = log_prior_normal(thetas,norm_params)
-    """
-    thetas = np.array(thetas)
-    norm_params = np.array(norm_params).reshape(len(thetas),2)
-    lp = norm.logpdf(thetas, loc = norm_params[:,0], scale = norm_params[:,1])
-    return np.sum(lp)
+def prior_normal(x,norm_params):
+    mu,sigma=norm_params
+    norm_params = np.array(norm_params).reshape(2,9)
+    return np.sum(norm.logpdf(x, loc = norm_params[:,0], scale = norm_params[:,1]))
 
+def prior_triangle(x,triangle_params):
+    low,high,mode = triangle_params
+    return triang.logpdf(x, loc=low, scale=high, c=mode)
+
+def prior_gamma(x,gamma_params):
+    a,b = gamma_params
+    return gamma.logpdf(x, a=a, scale=1/b)
+
+def prior_weibull(x,weibull_params):
+    k,lam = weibull_params
+    return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
 
 def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson'):
@@ -285,41 +250,3 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
         return - np.inf
     else:
         return lp - MLE(thetas,model,data,states,parNames,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
-
-def log_probability_normal(thetas,BaseModel,norm_params,data,states,parNames,checkpoints=None,samples=None,dist='poisson'):
-
-    """
-    A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
-
-    Parameters
-    -----------
-    BaseModel: model object
-        correctly initialised model to be fitted to the dataset
-    thetas: np.array
-        vector containing estimated parameter values
-    norm_params: tuple
-        contains tuples with mean and standard deviation for each theta in the parameter vector
-    thetas: array
-        names of parameters to be fitted
-    data: array
-        list containing dataseries
-    states: array
-        list containg the names of the model states to be fitted to data
-    dist : str
-        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
-
-    Returns
-    -----------
-    lp : float
-        returns normal prior density from a given parameter vector
-
-    Example use
-    -----------
-    lp = log_probability(BaseModel,thetas,norm_params,data,states,parNames,weights,checkpoints=None,method='MLE')
-    """
-
-    lp = log_prior_normal(thetas,norm_params)
-    if not np.isfinite(lp).all():
-        return - np.inf
-    else:
-        return lp - MLE(thetas,BaseModel,data,states,parNames,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
