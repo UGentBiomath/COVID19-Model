@@ -57,6 +57,13 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states_sept = json.load(fp) 
 
+# Set initial states of VE (vaccine elegible)
+initial_states_sept['VE'] = (np.array(initial_states_sept['S'])+
+                             np.array(initial_states_sept['R'])+
+                             np.array(initial_states_sept['E'])+
+                             np.array(initial_states_sept['I'])+
+                             np.array(initial_states_sept['A'])).squeeze()
+
 
 # ## Settings
 
@@ -82,24 +89,22 @@ NH['85+'] = (0.137+0.267)/2
 # # Functions
 
 
-def vacc_strategy(t, param, d, NH, initN):
+def vacc_strategy(t, states, param, d, NH):
     """
     time-dependent function for vaccination strategy
     
+    states : dictionary
+        model states, VE = vaccine eligible states = S+R+E+I+A
     d : dictionary
         daily number of doses for that month
     NH : dictionary
         proportion of residents in nursing homes per age group
-    initN : 2D array
-        if needed, add a dimension with initN[np.newaxis]
     
     """
-    
-    if len(initN.shape) == 1:
-         raise ValueError(
-                "initN should have 2 dimensions"
-            )    
-    N_vacc = np.zeros(initN.shape)
+    if states['VE'].ndim == 1:
+        states['VE'] = states['VE'][np.newaxis]
+    N_vacc = np.zeros(states['VE'].shape)
+
     delay = pd.Timedelta('30D')
     
     t1 = pd.Timestamp('2021-01-01') + delay
@@ -108,13 +113,13 @@ def vacc_strategy(t, param, d, NH, initN):
     t4 = pd.Timestamp('2021-05-01') + delay
     
     if t < t1:
-        N_vacc = np.zeros(initN.shape)
+        N_vacc = N_vacc
     
     elif t1 <= t < t2: # January : nursing homes + part of care personnel
         # daily vaccinated persons on immunity date = daily dose on vaccination date / 2
-        daily_85 = (NH['85+']*initN[:,[8]])/31
-        daily_75 = (NH['75+']*initN[:,[7]])/31
-        daily_65 = (NH['65+']*initN[:,[6]])/31
+        daily_85 = (NH['85+']*states['VE'][:,[8]])/31
+        daily_75 = (NH['75+']*states['VE'][:,[7]])/31
+        daily_65 = (NH['65+']*states['VE'][:,[6]])/31
         care_personnel_daily_jan = d['jan']/2-daily_85-daily_75-daily_65
         N_vacc[:,[8]] = daily_85
         N_vacc[:,[7]] = daily_75
@@ -125,9 +130,11 @@ def vacc_strategy(t, param, d, NH, initN):
         N_vacc[:,[5,4,3,2]] = d['feb']/2/4
         
     elif t3 <= t < t4: # March-April : 65+ and risico patients
-        plus_65_left_daily = ((1-NH['85+'])*initN[:,[8]] + (1-NH['75+'])*initN[:,[7]] + (1-NH['65+'])*initN[:,[6]])/60
-        rest_daily = d['mar-apr']/2 - plus_65_left_daily
-        N_vacc[:,[8,7,6]] = plus_65_left_daily/3
+        plus_65_left_daily = (1-NH['65+'])*states['VE'][:,[6]]/61
+        plus_75_left_daily = (1-NH['75+'])*states['VE'][:,[7]]/61
+        plus_85_left_daily = (1-NH['85+'])*states['VE'][:,[8]]/61
+        rest_daily = d['mar-apr']/2 - plus_65_left_daily - plus_75_left_daily - plus_85_left_daily
+        N_vacc[:,[8,7,6]] = np.array([plus_85_left_daily, plus_75_left_daily, plus_65_left_daily]).squeeze()
         N_vacc[:,[5,4,3,2]] = rest_daily/4
     
     else: # May-August : all 18+
@@ -135,30 +142,6 @@ def vacc_strategy(t, param, d, NH, initN):
         
     return N_vacc.squeeze()
     
-
-def check_overtake_duration(sim, dims):
-    """
-    sim : data array resulting from simulation
-    dims : list of dimensions over which to average
-    
-    Returns
-    -------
-    N_days : number of days before new strain takes over (99%)
-    """
-    end = sim['alpha'].mean(dim=dims)[sim['alpha'].mean(dim=dims)<0.99]['time'][-1].values
-    start = sim['alpha'].mean(dim=dims)[sim['alpha'].mean(dim=dims)<0.99]['time'][0].values
-    
-    N_days = (pd.to_datetime(end)-pd.to_datetime(start))/pd.Timedelta('1D')
-    
-    return N_days
-
-
-def get_date_of_exceeding_alpha(sim, dims, alpha_limit):
-    """
-    sim : data array resulting from simulation
-    dims : list of dimensions over which to average
-    """
-    return pd.Timestamp(sim['alpha'].mean(dim=dims)[sim['alpha'].mean(dim=dims)>alpha_limit]['time'][0].values)
 
 def sample_from_binomial(sim_result, variable, n_draws_per_sample, n_samples,
                          Y0_new=None):
@@ -184,12 +167,6 @@ def sample_from_binomial(sim_result, variable, n_draws_per_sample, n_samples,
     return Y_new
     
     
-def plot_band_binom(ax, time, Y_binom, color, label, axis=1):
-    ax.fill_between(time, np.quantile(Y_binom, q = LL, axis = axis), 
-                    np.quantile(Y_binom, q = UL, axis = axis),alpha=0.30, facecolor = color)
-    ax.plot(time,np.mean(Y_binom,axis=axis), color=color, label=label, lw=2, linestyle='--')
-    return
-
 def draw_fcn(param_dict,samples_dict,to_sample):
     # Sample
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
@@ -202,20 +179,12 @@ def draw_fcn(param_dict,samples_dict,to_sample):
     #param_dict['K'] = np.random.uniform(infectivity_gain_lower,infectivity_gain_upper)
     return param_dict
 
-def plot_band(ax, y_model, var, color, label):
-    ax.fill_between(pd.to_datetime(y_model['time'].values),
-                    y_model[var].sum(dim="Nc").quantile(LL,dim="draws"), 
-                    y_model[var].sum(dim="Nc").quantile(UL,dim="draws"),alpha=0.30, facecolor = color)
-    ax.plot(y_model['time'],y_model[var].sum(dim="Nc").mean(dim="draws"), color=color, label=label, lw=2)
-    return
-
-
 # # Time-dep functions
 
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
-def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
+def report7_policy_function(t, states, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
@@ -228,18 +197,16 @@ def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
     t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
     t6 = pd.Timestamp('2020-10-19') # lockdown
     t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2020-12-24')
-    t10 = pd.Timestamp('2020-12-26')
-    t11 = pd.Timestamp('2020-12-31')
-    t12 = pd.Timestamp('2021-01-01')
-    t13 = pd.Timestamp('2020-01-04') # Opening of schools
+    t8 = pd.Timestamp('2020-12-18') # start Christmas holidays (schools close)
+    t13 = pd.Timestamp('2020-01-04') # end Christmas holidays (schools open)
     #t14 = pd.Timestamp('2021-01-18') # start of alternative policies
-    t15 = pd.Timestamp('2021-02-15') # Start of Krokus break
-    t16 = pd.Timestamp('2021-02-21') # End of Krokus break
+    t15 = pd.Timestamp('2021-02-15') # Start of Krokus holidays (schools close)
+    t16 = pd.Timestamp('2021-02-21') # End of Krokus holidays (schools open)
     t17 = pd.Timestamp('2021-03-01') # release to SB March 1
     t18 = pd.Timestamp('2021-04-01') # release to SB April 1
-    t19 = pd.Timestamp('2021-05-01') # release to SB May 1
+    t19 = pd.Timestamp('2021-04-05') # start Eastern Holidays (schools close)
+    t20 = pd.Timestamp('2021-04-19') # end Eastern Holidays (schools open)
+    t21 = pd.Timestamp('2021-05-01') # release to SB May 1
 
     # Average out september mobility
 
@@ -260,14 +227,10 @@ def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
-    elif t8 < t <= t9:
+    elif t8 < t <= t13:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
-    elif t9 < t <= t13:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                        school=0)
     elif t13 < t <= t15:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
@@ -277,10 +240,17 @@ def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                         school=0)    
     else:
-        # Scenario 1: Current contact behaviour + schools open on January 18th
+        # Scenario 1: Current contact behaviour
         if scenario == '1':
-                                
-            if t > t16:
+            if t16 < t <= t19:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0.6)
+            elif t19 < t <= t20:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+            elif t20 < t:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)
@@ -293,7 +263,15 @@ def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)  
-            elif t > t17:
+            elif t17 < t <= t19:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, 1, 1, 1, 1, 
+                                school=0.6,SB='2a')
+            elif t19 < t <= t20:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, 1, 1, 1, 1, 
+                                school=0,SB='2a')
+            elif t20 < t:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, 1, 1, 
                                 school=0.6,SB='2a')
@@ -305,19 +283,37 @@ def report7_policy_function(t, param, l , tau, prev_home, prev_schools, prev_wor
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)  
-            elif t > t18:
+            elif t18 < t <= t19:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, 1, 1, 
                                 school=0.6,SB='2a')
+            elif t19 < t <= t20:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, 1, 1, 1, 1, 
+                                school=0,SB='2a')
+            elif t20 < t:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, 1, 1, 1, 1, 
+                                school=0.6,SB='2a')
+            
             else:
                 raise Exception ('scenario '+scenario+' t:'+str(t))
         # Scenario 4: increases in work or leisure mobility on May 1
         elif scenario == '4':
+            
             if t16 < t <= t19:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0.6)  
-            elif t > t19:
+            elif t19 < t <= t20:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)  
+            elif t20 < t <= t21:
+                t = pd.Timestamp(t.date())
+                return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0.6) 
+            elif t > t21:
                 t = pd.Timestamp(t.date())
                 return contact_matrix_4prev(t, 1, 1, 1, 1, 
                                 school=0.6,SB='2a')
@@ -354,11 +350,9 @@ def vaccin_model(initial_states, scenario, effectivity=None, injection_day=0, in
         params.update({
             'd' : d,
             'NH' : NH,
-            'e' : np.array([effectivity]*levels),
-            'initN' : initN[np.newaxis]
+            'e' : np.array([effectivity]*levels)
         })
     return models.COVID19_SEIRD(initial_states, params, time_dependent_parameters=tdp)
-
 
 ## Scenarios
 
@@ -392,7 +386,7 @@ scenario_settings = pd.DataFrame({
 
 scenario_settings = scenario_settings.set_index('Scenario_name')
 
-import pickle
+#import pickle
 
 results = pd.DataFrame()
 for scen in scenario_settings.index:
@@ -407,7 +401,7 @@ for scen in scenario_settings.index:
                              Nc_fun=report7_policy_function, N_vacc_fun=vacc_fun)
     scenario_model.parameters.update({'K':K})
     out = scenario_model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict,verbose=True)
-    with open('../results/temp/'+scen+'_out.pkl', 'wb') as handle: pickle.dump(out, handle)
+    #with open('../results/temp/'+scen+'_out.pkl', 'wb') as handle: pickle.dump(out, handle)
 
     H_in_binom = sample_from_binomial(out, 'H_in', n_draws_per_sample, n_samples)
     H_tot_binom = sample_from_binomial(out, 'H_tot', n_draws_per_sample, n_samples)
