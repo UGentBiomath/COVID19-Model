@@ -79,12 +79,16 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "param":
+        if keywords[1] != "states":
             raise ValueError(
-                "The first parameter of the parameter function should be 'param'"
+                "The second parameter of the parameter function should be 'states'"
+            )
+        if keywords[2] != "param":
+            raise ValueError(
+                "The second parameter of the parameter function should be 'param'"
             )
         else:
-            return keywords[2:]
+            return keywords[3:]
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
@@ -290,6 +294,14 @@ class BaseModel:
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
+            # for the moment assume sequence of parameters, vars,... is correct
+            size_lst=[len(self.state_names)]
+            for size in self.stratification_size:
+                size_lst.append(size)
+            y_reshaped = y.reshape(tuple(size_lst))
+
+            state_params = dict(zip(self.state_names, y_reshaped))
+
             # update time-dependent parameter values
             params = pars.copy()
 
@@ -300,18 +312,14 @@ class BaseModel:
                     date = t
                 for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = param_func(date, pars[param], **func_params)
+                    params[param] = param_func(date, state_params, pars[param], **func_params)
 
             if self._n_function_params > 0:
                 model_pars = list(params.values())[:-self._n_function_params]
             else:
                 model_pars = list(params.values())
+            
 
-            # for the moment assume sequence of parameters, vars,... is correct
-            size_lst=[len(self.state_names)]
-            for size in self.stratification_size:
-                size_lst.append(size)
-            y_reshaped = y.reshape(tuple(size_lst))
             dstates = self.integrate(t, *y_reshaped, *model_pars)
             return np.array(dstates).flatten()
 
@@ -451,9 +459,12 @@ class BaseModel:
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
+
             if draw_fcn:
                 self.parameters = draw_fcn(self.parameters,samples,to_sample)
-            out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
+
+            out_draw = self._sim_single(time, actual_start_date)
+            out = xarray.concat([out, out_draw], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
