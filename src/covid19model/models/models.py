@@ -79,6 +79,7 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
+        VE : vaccination eligible states (S + R + E + I + A), needed in time-dependent vaccination function
         V : vaccinated (people that have become immune + part that is not immune but not (yet) infected)
         V_new : newly vaccinated each day
         alpha : fraction of alternative COVID-19 variant
@@ -151,7 +152,7 @@ class COVID19_SEIRD(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V
-        # vaccination eligble states
+        # vaccination eligible states
         VE = S + R + E + I + A
 
         # Compute infection pressure (IP) of both variants
