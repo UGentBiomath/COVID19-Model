@@ -38,7 +38,7 @@ df_google = mobility.get_google_mobility_data(update=False)
 # Time-dependant parameter function
 # ---------------------------------
 
-def compliance_func(t, param, l, tau, prevention):
+def compliance_func(t, states, param, l, tau, prevention):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
