@@ -26,7 +26,7 @@ class BaseModel:
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
     time_dependent_parameters : dictionary, optional
         Optionally specify a function for time-dependent parameters. The
-        signature of the function should be ``fun(t, param, ...)`` taking
+        signature of the function should be ``fun(t, states, param, ...)`` taking
         the time, the initial parameter value, and potentially additional
         keyword argument, and should return the new parameter value for
         time `t`.

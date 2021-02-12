@@ -94,7 +94,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
-def report6_policy_function(t, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
+def report6_policy_function(t, states, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1a'):
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
