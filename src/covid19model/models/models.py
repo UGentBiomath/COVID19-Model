@@ -454,8 +454,13 @@ class COVID19_SEIRD_spatial(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
         dV_new = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - V_new
         dV = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - (1-e)*dV_inf
-        dalpha = alpha*K/(1-alpha+alpha*K) - alpha
         dVE = dS + dR + dE + dI + dA
+        dalpha = alpha*K/(1-alpha+alpha*K) - alpha
+        # If A and I are both zero, a division error occurs
+        dalpha[np.isnan(dalpha)] = 0
+        
+
+
 
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
         if (t >= injection_day) & (alpha.sum().sum()==0):
