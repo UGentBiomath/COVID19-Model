@@ -364,7 +364,7 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'V', 'V_new','alpha']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'VE', 'V', 'V_new','alpha']
     parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc', 'leakiness']]
@@ -375,7 +375,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, V, V_new, alpha, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, VE, V, V_new, alpha, # time + SEIRD classes
                   beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
                         dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
@@ -455,13 +455,14 @@ class COVID19_SEIRD_spatial(BaseModel):
         dV_new = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - V_new
         dV = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - (1-e)*dV_inf
         dalpha = alpha*K/(1-alpha+alpha*K) - alpha
+        dVE = dS + dR + dE + dI + dA
 
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
         
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dV_new, dV, dalpha)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dVE, dV_new, dV, dalpha)
     
     
 class COVID19_SEIRD_sto_spatial(BaseModel):
