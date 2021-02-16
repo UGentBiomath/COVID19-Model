@@ -204,7 +204,7 @@ multiplier = 3
 maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
-max_n = 200
+max_n = 300000
 # Number of samples used to visualise model fit
 n_samples = 100
 # Confidence level used to visualise model fit
@@ -280,7 +280,7 @@ if job == None or job == 'BETA':
     ndim = len(parNames_mcmc)
     nwalkers = ndim*mp.cpu_count()
 
-    perturbations_beta = theta[0] + theta[0]*0.5e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbations_beta = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     perturbations_omega = np.expand_dims(np.random.choice(samples_dict_WAVE1['omega'], size=nwalkers),axis=1)
     perturbations_da = np.expand_dims(np.random.choice(samples_dict_WAVE1['da'], size=nwalkers),axis=1)
     pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
@@ -503,7 +503,7 @@ end_calibration = '2021-02-01'
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 3
-maxiter = 100
+maxiter = 500
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -528,29 +528,20 @@ print('Using ' + str(processes) + ' cores\n')
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = [["H_in"]]
 
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
-    return param_dict
-
 # ----------------
 # PSO optimization
 # ----------------
 
 # set PSO optimisation settings
-parNames = ['l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,20),(0.01,20),(0.01,0.10),(0.01,0.10),(0.01,0.99),(0.01,0.99))
+parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+bounds=((0.01,0.10),(0.5,2.1),(2,8),(0.01,10),(0.01,10),(0.80,0.99),(0.01,0.99),(0.01,0.99),(0.80,0.99))
 
 # run PSO optimisation
 theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes,
-                    draw_fcn=draw_fcn, samples=samples_dict)
+                    draw_fcn=None, samples=None)
+#theta = np.array([0.02520874, 0.5908867, 7.54873678, 3.16858683, 0.22840117, 0.99, 0.09266227, 0.76026119, 0.62815982]) #-153561.23285318824
+#theta = np.array([0.02977059, 0.1, 6.61852851, 1.00377532, 1.99622528, 0.94350923, 0.07046688, 0.83317682, 0.87125693]) #-153544.3229208678
 
 # ------------
 # MCMC sampler
@@ -570,18 +561,22 @@ density_da_norm = density_da/np.sum(density_da)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
+log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fnc_args = [(0.005, 0.10),(0.1, 5.1),(0.1, 14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*mp.cpu_count()
+nwalkers = ndim*2
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
-perturbations = theta + theta*1e-2*np.random.random(size=(nwalkers,ndim-3))
-pos[:,3:] = perturbations
-for i in range(nwalkers):
-    idx,pos[i,0] = random.choice(list(enumerate(samples_dict['beta'])))
-    pos[i,1] = samples_dict['omega'][idx]
-    pos[i,2] = samples_dict['da'][idx]
+# Beta
+pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# Omega and da
+pos[:,1:3] = theta[1:3] + theta[1:3]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+# l and tau
+pos[:,3:5] = theta[3:5] + theta[3:5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+# prevention schools
+pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# other prevention
+pos[:,6:] = theta[6:] + theta[6:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[6:])))
 
 # Set up the sampler backend
 if backend:
@@ -606,7 +601,7 @@ def draw_fcn(param_dict,samples_dict):
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
@@ -628,7 +623,11 @@ with Pool() as pool:
         ax.plot(n, n / 50.0, "--k")
         ax.plot(n, y, linewidth=2,color='red')
         ax.set_xlim(0, n.max())
-        ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        try:
+            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        except:
+            print('\n Could not set axis limits because autocorrelation is equal to infinity.\n')
+            print('This most likely indicates your chains are completely stuck in their initial values.\n')
         ax.set_xlabel("number of steps")
         ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
         fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
@@ -679,7 +678,7 @@ checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname=
 
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=200,thin=thin,flat=True)
 
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
@@ -712,7 +711,7 @@ def draw_fcn(param_dict,samples_dict):
 
 print('4) Simulating using sampled parameters')
 start_sim = start_calibration
-end_sim = '2020-09-01'
+end_sim = '2021-06-01'
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
 # ---------------------------
@@ -749,7 +748,8 @@ fig,ax = plt.subplots(figsize=(10,5))
 # Incidence
 ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
 ax.plot(out['time'],H_in_mean,'--', color='blue')
-ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
+ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax = _apply_tick_locator(ax)
-ax.set_xlim('2020-03-10',end_sim)
+ax.set_xlim(start_calibration,end_sim)
 fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')

@@ -447,11 +447,11 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-07-01'
+end_calibration = '2020-05-01'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 3
-maxiter = 100
+multiplier = 10
+maxiter = 500
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -481,10 +481,11 @@ states = [["H_in"]]
 # ------------------------
 
 def draw_fcn(param_dict,samples_dict):
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
+    #idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    #param_dict['da'] = samples_dict['da'][idx]
+    #param_dict['omega'] = samples_dict['omega'][idx]
+    #param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
+    param_dict['sigma'] = 5.2 - param_dict['omega']
     return param_dict
 
 # ----------------
@@ -492,14 +493,18 @@ def draw_fcn(param_dict,samples_dict):
 # ----------------
 
 # set PSO optimisation settings
-parNames = ['l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,20),(0.01,20),(0.01,0.10),(0.01,0.99),(0.01,0.99))
+parNames = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
+bounds=((0.01,0.10),(0.1,3),(0.1,7),(0.01,20),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99))
 
 # run PSO optimisation
 #theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples=samples_dict)
-theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254
+#                    draw_fcn=draw_fcn, samples={})
+#theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254 calibration until 2020-07-01
+#theta = np.array([0.07483995, 0.1, 5.46754858, 10, 0.01, 0.0106490, 0.33680392,  0.33470686]) #-60968.5788714604 calibration until 2020-04-15
+#theta = np.array([0.08123533, 0.1, 4.42884154, 9.72942578, 0.01, 0.18277287, 0.36254125, 0.33299897]) #-41532.115553405034 calibration until 2020-04-04
+theta = np.array([0.06024783, 0.6001464, 5.58126417, 8.95809293, 0.01, 0.16470763, 0.34932575, 0.43147353]) #-75222.82579435152
+
 
 # ------------
 # MCMC sampler
@@ -519,18 +524,26 @@ density_da_norm = density_da/np.sum(density_da)
 
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
-log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
+#log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+#log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
+log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fnc_args = [(0.01,0.12),(0.1,5.1),(0.1,14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*mp.cpu_count()
+nwalkers = ndim*2#mp.cpu_count()
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
-perturbations = theta + theta*1e-2*np.random.random(size=(nwalkers,ndim-3))
-pos[:,3:] = perturbations
-for i in range(nwalkers):
-    idx,pos[i,0] = random.choice(list(enumerate(samples_dict['beta'])))
-    pos[i,1] = samples_dict['omega'][idx]
-    pos[i,2] = samples_dict['da'][idx]
+# Beta
+pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# Omega and da
+pos[:,1] = theta[1] + theta[1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# l and tau
+theta[4] = 0.1
+pos[:,3:5] = theta[3:5] + theta[3:5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+# prevention work
+pos[:,5] = theta[5] + theta[5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# other prevention
+pos[:,6:] = theta[6:] + theta[6:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[6:])))
 
 # Set up the sampler backend
 if backend:
