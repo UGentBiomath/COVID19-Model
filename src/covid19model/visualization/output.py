@@ -823,6 +823,18 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     return
     
 def check_dtype(datum):
+    """
+    Check the type of the date.
+    
+    Input
+    -----
+    datum: datetime object
+    
+    Returns
+    -------
+    datum_type: str
+        'weekend', 'business' or 'vacation'
+    """
     # Load vacation information
     vacation_dict = school_vacations_dict()
     

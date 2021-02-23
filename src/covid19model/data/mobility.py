@@ -189,6 +189,73 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 # Proximus mobility data functions #
 ####################################
 
+
+def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True):
+    """
+    Function that turns the raw Proximus mobility data into interim mobility matrices P for the staytime. CURRENTLY NOT YET ACCOMODATING NEW DISTRICT-DISTRICT PROXIMUS DATA.
+    
+    Input
+    -----
+    raw_dir: str
+        Directory that contains the raw Proximus data
+    interim_dir: str
+        Goal directory that contains the processed mobility P matrix data
+    verbose: boolean
+        If True (default), print current status
+    """
+    
+    # Find new dates that need to be processed
+    dates_already_processed=[]
+    if verbose:
+        print(f"\nScanning interim directory {interim_dir}.")
+    for csv in os.listdir(interim_dir):
+        # take YYYYMMDD information from processed CSVs
+        datum = csv[-12:-4]
+        dates_already_processed.append(datum)
+        
+    if verbose:
+        print(f"Scanning raw directory {raw_dir}.")
+    dates_available=[]
+    suffix_len = len(proximus_mobility_suffix())
+    for csv in os.listdir(raw_dir):
+        # Take YYYYMMDD information from raw CSVs
+        os.rename(raw_dir + csv, raw_dir + csv.replace("_", "")) # newest files have unnecessary underscores
+        datum = csv[-suffix_len-8:-suffix_len]
+        dates_available.append(datum)
+    raw_prefix = csv[0:-suffix_len-8]
+    dates_new = sorted(np.setdiff1d(dates_available, dates_already_processed))
+    if verbose:
+        print(f"\nNew dates to be processed: {dates_new}\n")
+    
+    # Load and process data for new dates
+    savename = 'fractional-mobility-matrix_staytime_'
+    for d in dates_new:
+        raw_data = load_datafile_proximus(d, raw_dir)
+        # Some seconds went missing. Show this per PC
+        missing_seconds = missing_seconds_per_pc(raw_data)
+        # Some est_staytime values were GDPR-protected. Estimate the value this should be changed with
+        est_hidden_staytime = est_hidden_staytime_per_pc(raw_data)
+        # Pivot unprocessed data into correct origin-destination mobility matrix
+        mmprox_staytime = load_mmprox(raw_data, values='est_staytime')
+        # Add missing postal codes (with value 0)
+        mmprox_staytime = fill_missing_pc(mmprox_staytime)
+        # Add missing seconds to 'stay at home' patch and subtract time spent asleep
+        mmprox_staytime = complete_home_staytime(mmprox_staytime, missing_seconds)
+        # Change GDPR-protected -1 values to estimated staytime value
+        mmprox_staytime = GDPR_staytime(mmprox_staytime, est_hidden_staytime)
+        # Aggregate staytime values at the level of agg (user-defined)
+        mmprox_staytime_agg = mm_aggregate(mmprox_staytime, agg=agg)
+        # Normalise the matrix
+        P = mmprox_staytime_agg.div(mmprox_staytime_agg.sum(axis=1), axis=0)
+        
+        # Save matrix with descriptive name
+        filename = savename + agg + '_' + d + '.csv'
+        P.to_csv(interim_dir + filename)
+        if verbose:
+            print(f"Saved P for date {d}: {filename}", end='\r')
+
+    return
+            
 def date_to_YYYYMMDD(date, inverse=False):
     """
     Simple function to convert a datetime object to a string representing the date in the shape YYYYMMDD
