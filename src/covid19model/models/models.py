@@ -318,7 +318,9 @@ class COVID19_SEIRD_spatial(BaseModel):
 
         Non-stratified parameters
         -------------------------
-        beta : probability of infection when encountering an infected person
+        beta_R : probability of infection when encountering an infected person in rural environment
+        beta_U : probability of infection when encountering an infected person in urban environment
+        beta_M : probability of infection when encountering an infected person in metropolitan environment
         K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
@@ -365,7 +367,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ...state variables and parameters
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'VE', 'V', 'V_new','alpha']
-    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio']
     parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc', 'leakiness']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
@@ -376,7 +378,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, VE, V, V_new, alpha, # time + SEIRD classes
-                  beta, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
+                  beta_R, beta_U, beta_M, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
                         dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
                   area, sg,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, leakiness, # age-stratified parameters
@@ -394,7 +396,7 @@ class COVID19_SEIRD_spatial(BaseModel):
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        
         # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
@@ -428,6 +430,20 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Population per age class
         Ti = T.sum(axis=0)
         zi = Ti / np.matmul(np.transpose(T_eff),f)
+        
+        # infer aggregation (prov, arr or mun)
+        agg = None
+        if G == 11:
+            agg = 'prov'
+        elif G == 43:
+            agg = 'arr'
+        elif G == 581:
+            agg = 'mun'
+        else:
+            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at province, arrondissement, or municipality level.")
+        
+        # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg)
         
         # Define infection from the sum over contacts
         beta_weighted_av = (1-alpha_eff)*beta + alpha_eff*K*beta
