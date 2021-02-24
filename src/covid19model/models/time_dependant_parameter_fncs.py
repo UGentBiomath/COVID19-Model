@@ -68,6 +68,10 @@ def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     
     t : timestamp
         current date
+    states : 
+        Model states, required parameter for time_dependant functions
+    param : 
+        Currently obsolete parameter that may be used in a future stage
     policy0 : matrix
         policy before lockdown (= no policy)
     policy1 : matrix
@@ -311,6 +315,8 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     ----------
     t : int
         Time parameter. Runs simultaneously with simulation time
+    states : 
+        Model states, required parameter for time_dependant functions
     param : 
         Currently obsolete parameter that may be used in a future stage
     policy_time : int
