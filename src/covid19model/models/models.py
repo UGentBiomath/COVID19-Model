@@ -21,7 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-from .utils import read_coordinates_nis, dens_dep
+from .utils import stratify_beta # read_coordinates_nis, dens_dep
 from ..optimization import pso
 from .QALY import create_life_table 
 
