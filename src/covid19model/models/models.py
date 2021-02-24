@@ -446,9 +446,9 @@ class COVID19_SEIRD_spatial(BaseModel):
         beta = stratify_beta(beta_R, beta_U, beta_M, agg)
         
         # Define infection from the sum over contacts
-        beta_weighted_av = (1-alpha_eff)*beta + alpha_eff*K*beta
-        multip = np.outer(f*beta_weighted_av, s*zi)*(I_eff + A_eff + leakiness*V_eff) / T_eff
-        B = np.matmul(multip, np.transpose(Nc))
+        beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K*beta[:,np.newaxis]
+        multip = np.outer(f, s*zi)*(I_eff + A_eff + leakiness*V_eff) / T_eff
+        B = beta_weighted_av*np.matmul(multip, np.transpose(Nc))
 
         # Infection from sum over all patches
         dS_inf = (Susc*B).sum(axis=1)
