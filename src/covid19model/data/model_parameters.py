@@ -289,6 +289,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
                     )
 
         # Read recurrent mobility matrix per region
+        # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
         mobility_df=pd.read_csv(os.path.join(abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
@@ -326,7 +327,13 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
-    pars_dict['beta'] = 0.03492
+    if not spatial:
+        pars_dict['beta'] = 0.03492
+    else:
+        pars_dict['beta_R'] = 0.03492 # rural
+        pars_dict['beta_U'] = 0.03492 # urban
+        pars_dict['beta_M'] = 0.03492 # metropolitan
+        
     # Co-infection model: infectivity gain
     pars_dict['K'] = 0
     
