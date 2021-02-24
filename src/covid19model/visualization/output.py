@@ -5,6 +5,8 @@ import matplotlib.colors as colors
 from .utils import colorscale_okabe_ito
 from .utils import _apply_tick_locator
 import datetime
+import numpy as np
+import pandas as pd
 
 def population_status(data, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the population as function of time
@@ -173,7 +175,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         Geopandas dataframe from Belgian shapefiles whose entries correspond to the values in the model output's 'place' dimension. NISCode values are strings.
     ts_geo : string
         The SEIR compartment time series that is plotted into the color map on the chosen day. Either S, E (default), I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, or H_tot.
-    day : int
+    day : int or Timestamp
         The simulated day that is to be plotted in the color map. Iterate over this value to create an animation. Default is start date.
     lin : Boolean
         Plots a linear representation of the values in the map if True. Otherwise the values are shown with a symlog representation (default).
@@ -215,7 +217,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         raise Exception(f"The NIS values in the model output and the geopandas dataframe do not correspond (function parameters 'data' and 'geo')")
         
     # Check whether the model output has recognisable compartments
-    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H'}
+    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H', 'V', 'VE', 'alpha', 'V_new'}
     data_comp_set = set(data.data_vars)
     if not data_comp_set.issubset(full_comp_set):
         diff = data_comp_set.difference(full_comp_set)
@@ -226,11 +228,14 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         print(f"Compartments whose time series are included in the data: {data_comp_set}")
     
     # Check if the day is not out of reach
-    maxday = data.time.values[-1]
-    if (day < 0) or (day > maxday) or (type(day) != int):
-        raise Exception(f"Choose an integer value day between (and including) 0 and {maxday}")
+    first_day = data.time.values[0]
+    last_day = data.time.values[-1]
+#     if not isinstance(day, type(first_day)):
+#         raise Exception(f"Day types do not match. Show_map function has taken type(day) = {type(day)}, but days in simulation are of type {type(first_day)}.")
+    if (day < first_day) or (day > last_day):
+        raise Exception(f"Requested day {day} out of reach. Choose a day between {first_day} and {last_day}")
     if verbose:
-        print(f"Working on day {day} of {maxday}")
+        print(f"Working on day {day}. Working toward {last_day}")
     
     # Check if the chosen nis value (if any) is legitimate
     if nis:
@@ -418,9 +423,9 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                     ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                     graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
                 else:
-                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
+                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').values
                     label1='national'
-                    graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
+                    graph = ax_graph_dict[ts].plot(range(len(tlist)), ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graphs.append(graph)
             if (nis and (len(nis) == 1)) or not nis:
                 ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size})
@@ -430,9 +435,15 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=2)
         else:
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=1)
-        plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=18)
+        if isinstance(day, int):
+            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=18)
+        else:
+            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} on {day}", backgroundcolor='whitesmoke', fontsize=18)
     else:
-        plt.figtext(.12, .2, f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=22)
+        if isinstance(day, int):
+            plt.figtext(.12, .2, f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=22)
+        else:
+            plt.figtext(.12, .2, f"People in compartment {ts_geo} on {day}", backgroundcolor='whitesmoke', fontsize=22)
 
     # Save figure
     if figname:
