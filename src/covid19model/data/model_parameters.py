@@ -188,6 +188,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f (spatial only)
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         -------------------------
@@ -200,6 +202,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pi : mobility parameter per age class. Only loads when spatial is not None
         v : daily vaccination rate (percentage of population to be vaccinated)
         e : vaccine effectivity
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially stratified parameters
         -------------------------------
@@ -251,6 +254,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
         pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
         pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
+        pars_dict['leakiness'] =  np.array(df_vacc.loc[:,'leakiness'].astype(float).tolist())
+
 
 
     else:
@@ -336,5 +341,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         
     # Co-infection model: infectivity gain
     pars_dict['K'] = 0
-    
+    pars_dict['injection_day'] = 0
+    pars_dict['injection_ratio'] = 0
+
     return pars_dict

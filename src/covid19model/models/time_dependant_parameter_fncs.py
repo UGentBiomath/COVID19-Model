@@ -62,7 +62,7 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
-def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
+def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     """
     Lockdown function handling t as datetime
     
@@ -88,7 +88,7 @@ def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
     else:
         return prevention*policy1
     
-def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
+def policies_until_september(t,states,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
                                policy6,policy7,policy8,policy9,l,tau,prevention):
     """
     t : timestamp
@@ -157,7 +157,7 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
     elif t8 < t:
         return prevention*policy9
 
-def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
+def google_lockdown(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -230,7 +230,7 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
     
-def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
+def google_lockdown_no_prev(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -303,7 +303,7 @@ def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau
         school = 1
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
-def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
+def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     """
     Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
     
