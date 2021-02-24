@@ -49,6 +49,52 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
+def stratify_beta(beta_R, beta_U, beta_M, agg):
+    """
+    Function that returns a spatially stratified infectivity parameter. IMPORTANT: this assumes that throughout the model, all NIS values are in order (e.g. 11000 to 93000). Currently hard-coded on threshold densities of 400/km2 and 4000/km2. Indices indicated in order of density.
+    
+    Input
+    -----
+    beta_R : float
+        Infecitivity in rural areas
+    beta_U : float
+        Infectivity in urban areas
+    beta_M : float
+        Infectivity in metropolitan areas
+    agg : str
+        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
+
+    Returns
+    -------
+    beta : np.array of floats
+        Array with length fitting to aggregation level agg, and three degrees of freedom depending on beta_R, beta_U, beta_M
+    """
+    if agg not in ['prov', 'arr', 'mun']:
+        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
+        
+    if agg == 'prov':
+        beta = np.zeros(11)
+        for i in [9, 10, 7, 6, 8, 2, 4]: # rural: 80000, 90000, 60000, 50000, 70000, 20002, 30000
+            beta[i] = beta_R
+        for i in [5, 1, 0]: # urban: 40000, 20001, 10000
+            beta[i] = beta_U
+        for i in [3]: # metropolitan: 21000
+            beta[i] = beta_M
+            
+    elif agg == 'arr':
+        beta = np.zeros(43)
+        for i in [36, 38, 37, 39, 40, 42, 25, 8, 30, 28, 21, 9, 35, 31, 14, 17, 41, 33, 13, 24, 19, 26, 34, 2, 6]: # rural: 82000, 84000, 83000, 85000, 91000, 93000, 56000, 32000, 63000, 61000, 51000, 33000, 81000, 64000, 38000, 43000, 92000, 72000, 37000, 55000, 45000, 57000, 73000, 13000, 25000
+            beta[i] = beta_R
+        for i in [7, 5, 23, 32, 11, 20, 12, 16, 18, 15, 27, 1, 4, 10, 29, 22, 0]: # urban: 31000, 24000, 53000, 71000, 35000, 46000, 36000, 42000, 44000, 41000, 58000, 12000, 23000, 34000, 62000, 52000, 11000
+            beta[i] = beta_U
+        for i in [3]: # metropolitan: 21000
+            beta[i] = beta_M
+            
+#     elif agg == 'mun':
+#         ...
+
+    return beta
+        
 def read_coordinates_nis(spatial='arr'):
     """
     A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
