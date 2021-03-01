@@ -86,6 +86,13 @@ warmup = 0
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
 
+initial_states.update({
+    'V': np.zeros(9),
+    'V_new': np.zeros(9),
+    'alpha': np.zeros(9)
+})
+initial_states['ICU_tot'] = initial_states.pop('ICU')
+
 # ------------------------
 # Define results locations
 # ------------------------
@@ -119,14 +126,15 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
     t4 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     # Define key dates of second wave
-    t5 = pd.Timestamp('2020-10-19') # lockdown
-    t6 = pd.Timestamp('2020-11-16') # schools re-open
-    t7 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-    t8 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-    t9 = pd.Timestamp('2021-02-15') # Spring break starts
-    t10 = pd.Timestamp('2021-02-21') # Spring break ends
-    t11 = pd.Timestamp('2021-04-05') # Easter holiday starts
-    t12 = pd.Timestamp('2021-04-18') # Easter holiday ends
+    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
+    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
+    t7 = pd.Timestamp('2020-11-16') # schools re-open
+    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+    t10 = pd.Timestamp('2021-02-15') # Spring break starts
+    t11 = pd.Timestamp('2021-02-21') # Spring break ends
+    t12 = pd.Timestamp('2021-04-05') # Easter holiday starts
+    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
 
     t = pd.Timestamp(t.date())
     # First wave
@@ -146,37 +154,39 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t3 < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+        return contact_matrix_4prev(t, school=0)
     # Second wave
     elif t4 < t <= t5 + tau_days:
         return contact_matrix_4prev(t, school=1)
     elif t5 + tau_days < t <= t5 + tau_days + l_days:
         policy_old = contact_matrix_4prev(t, school=1)
         policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
-                                    school=0)
+                                    school=1)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
     elif t5 + tau_days + l_days < t <= t6:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
     elif t6 < t <= t7:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+                              school=0)
     elif t7 < t <= t8:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0) 
+                              school=1) 
     elif t8 < t <= t9:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+                              school=0)
     elif t9 < t <= t10:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
     elif t10 < t <= t11:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)    
+                              school=0)    
     elif t11 < t <= t12:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                                                                                                                             
+                              school=1)
+    elif t12 < t <= t13:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)                                                                                                                                                     
     else:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
@@ -193,15 +203,15 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
 # Start of data collection
 start_data = '2020-03-15'
 # Start data of recalibration ramp
-start_calibration = '2020-09-01'
+start_calibration = '2020-09-30'
 # Last datapoint used to calibrate warmup and beta
-end_calibration_beta = '2020-10-24'
+end_calibration_beta = '2020-10-23'
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE2'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 3
-maxiter = 30
+multiplier = 5
+maxiter = 20
 popsize = multiplier*processes
 # MCMC settings
 max_n = 300000
@@ -224,7 +234,7 @@ params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_re
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
 # Samples dict of WAVE1
-samples_dict_WAVE1 = json.load(open(samples_path+'BE_WAVE1_BETA_COMPLIANCE_2021-02-07.json'))
+samples_dict_WAVE1 = json.load(open(samples_path+'BE_WAVE1_BETA_COMPLIANCE_2021-02-22.json'))
 
 if job == None or job == 'BETA':
 
@@ -246,44 +256,55 @@ if job == None or job == 'BETA':
     samples_dict = {}
     # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
     def draw_fcn(param_dict,samples_dict):
-        idx,param_dict['da'] = random.choice(list(enumerate(samples_dict['da'])))
-        param_dict['omega'] = samples_dict['omega'][idx]
         param_dict['sigma'] = 5.2 - param_dict['omega']
         return param_dict
 
     # set PSO optimisation settings
-    parNames = ['beta']
-    bounds=((0.020,0.100),)
+    parNames = ['warmup','beta','omega','da']
+    bounds=((5,30),(0.010,0.100),(0.1,2.0),(3,8))
 
     # run PSO optimisation
     #theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-    #                    start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict_WAVE1)
-    theta = np.array([0.04217637]) #-30485.662884105484
+    #                    start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples={})
+    theta = np.array([26.49300974, 0.0277392, 1.54274339, 4.78543434]) #-25299.093816290682
 
+    warmup = int(theta[0])
+    model.parameters['beta'] = theta[1]
+    model.parameters['omega'] = theta[2]
+    model.parameters['da'] = theta[3]
+
+    # Visualise the PSO fit
+    start_sim = start_calibration
+    end_sim = '2020-10-31'
+    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
+
+    # Plot
+    fig,ax = plt.subplots(figsize=(10,5))
+    # Incidence
+    ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
+    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax = _apply_tick_locator(ax)
+    ax.set_xlim(start_sim,end_sim)
+    ax.set_ylabel('$H_{in}$ (-)')
+    plt.show()
 
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # Prior omega
-    density_omega, bins_omega = np.histogram(samples_dict_WAVE1['omega'], bins=20, density=True)
-    density_omega_norm = density_omega/np.sum(density_omega)
-
-    #Prior da
-    density_da, bins_da = np.histogram(samples_dict_WAVE1['da'], bins=20, density=True)
-    density_da_norm = density_da/np.sum(density_da)
-
-    log_prior_fnc = [prior_uniform, prior_custom, prior_custom]
-    log_prior_fnc_args = [(0.01,0.10), (bins_omega,density_omega_norm), (bins_da,density_da_norm)]
-
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta','omega','da']
     ndim = len(parNames_mcmc)
-    nwalkers = ndim*mp.cpu_count()
+    nwalkers = ndim*4
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(0.1, 14)]
 
-    perturbations_beta = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_omega = np.expand_dims(np.random.choice(samples_dict_WAVE1['omega'], size=nwalkers),axis=1)
-    perturbations_da = np.expand_dims(np.random.choice(samples_dict_WAVE1['da'], size=nwalkers),axis=1)
-    pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
+    # Perturbate PSO Estimate
+    pos = np.zeros([nwalkers,ndim])
+    # Beta
+    pos[:,0] = theta[1] + theta[1]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+    # Omega and da
+    pos[:,1:3] = theta[2:] + theta[2:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
 
     # Set up the sampler backend
     if backend:
@@ -497,13 +518,13 @@ elif job == 'COMPLIANCE':
 # Start of data collection
 start_data = '2020-03-15'
 # Start of calibration
-start_calibration = '2020-09-01'
+start_calibration = '2020-09-30'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2021-02-01'
+end_calibration = '2021-02-07'
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 3
-maxiter = 500
+maxiter = 100
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -534,14 +555,51 @@ states = [["H_in"]]
 
 # set PSO optimisation settings
 parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,0.10),(0.5,2.1),(2,8),(0.01,10),(0.01,10),(0.80,0.99),(0.01,0.99),(0.01,0.99),(0.80,0.99))
+bounds=((0.02,0.09),(0.1,2),(3,6),(4,10),(0.1,2),(0.05,1.3),(0.05,1),(0.05,1),(0.05,1.3))
 
 # run PSO optimisation
 theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes,
                     draw_fcn=None, samples=None)
+# Calibration until 2021-02-01
 #theta = np.array([0.02520874, 0.5908867, 7.54873678, 3.16858683, 0.22840117, 0.99, 0.09266227, 0.76026119, 0.62815982]) #-153561.23285318824
-#theta = np.array([0.02977059, 0.1, 6.61852851, 1.00377532, 1.99622528, 0.94350923, 0.07046688, 0.83317682, 0.87125693]) #-153544.3229208678
+# [0.02751193 1.         5.16157345 6.76398559 0.90783608 2.
+#  0.68541914 0.05285296 1.25573921] -159553.78248521767
+
+# Calibration until 2020-11-16
+#theta = np.array([0.04463705, 0.13275703, 3.35365264, 9.71239977, 0.1, 0.87725368, 0.91702074, 0.41036883, 0.09275467]) # -99028.25703611995
+#theta = np.array([0.05230687, 0.47126374, 2.07289006, 0.1, 5, 0.47877545, 0.88442966, 0.46150047, 0.99]) # -99035.92564359006
+# Calibration until 2020-12-18
+#theta = np.array([0.03126882, 0.74213375, 4.3947722,  0.60772632, 3.80987428, 0.9725074, 0.97767155, 0.23587966, 0.7530272]) #-129997.88991388638
+
+model.parameters['beta'] = theta[0]
+model.parameters['omega'] = theta[1]
+model.parameters['da'] = theta[2]
+model.parameters['l'] = theta[3]
+model.parameters['tau'] = theta[4]
+model.parameters['prev_schools'] = theta[5]
+model.parameters['prev_work'] = theta[6]
+model.parameters['prev_rest'] = theta[7]
+model.parameters['prev_home'] =  theta[8]
+
+def draw_fcn(param_dict,samples_dict):
+    param_dict['sigma'] = 5.2 - param_dict['omega']
+    return param_dict
+
+start_sim = start_calibration
+end_sim = '2021-04-01'
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
+
+# Plot
+fig,ax = plt.subplots(figsize=(10,5))
+# Incidence
+ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
+ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax = _apply_tick_locator(ax)
+ax.set_xlim(start_sim,end_sim)
+ax.set_ylabel('$H_{in}$ (-)')
+plt.show()
 
 # ------------
 # MCMC sampler
@@ -562,21 +620,21 @@ density_da_norm = density_da/np.sum(density_da)
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.005, 0.10),(0.1, 5.1),(0.1, 14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
+log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(0.1, 14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*2
+nwalkers = ndim*4
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
 pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # Omega and da
-pos[:,1:3] = theta[1:3] + theta[1:3]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+pos[:,1:3] = theta[1:3] + theta[1:3]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
 # l and tau
-pos[:,3:5] = theta[3:5] + theta[3:5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+pos[:,3:5] = theta[3:5] + theta[3:5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
 # prevention schools
 pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # other prevention
-pos[:,6:] = theta[6:] + theta[6:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[6:])))
+pos[:,6:] = theta[6:] + theta[6:]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[6:])))
 
 # Set up the sampler backend
 if backend:
