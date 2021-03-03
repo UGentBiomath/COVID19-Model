@@ -397,7 +397,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
+        # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by pi[age]
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
