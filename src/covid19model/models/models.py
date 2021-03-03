@@ -380,8 +380,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, VE, V, V_new, alpha, # time + SEIRD classes
                   beta_R, beta_U, beta_M, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
                         dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
-                  area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, pi, v, e, N_vacc, leakiness, # age-stratified parameters
+                  area, sg, p,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, v, e, N_vacc, leakiness, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
@@ -401,17 +401,20 @@ class COVID19_SEIRD_spatial(BaseModel):
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
-        T_eff = (1-pi)*np.matmul(np.identity(G),T) + pi*np.matmul(np.transpose(place),T)
-        A_eff = (1-pi)*np.matmul(np.identity(G),A) + pi*np.matmul(np.transpose(place),A)
-        I_eff = (1-pi)*np.matmul(np.identity(G),I) + pi*np.matmul(np.transpose(place),I)
-        V_eff = (1-pi)*np.matmul(np.identity(G),V) + pi*np.matmul(np.transpose(place),V)
-        alpha_eff = (1-pi)*np.matmul(np.identity(G),alpha) + pi*np.matmul(np.transpose(place),alpha)
+        
+        # Define actual mobility matrix place
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
+        # TO DO: add age stratification for p
+        
+        T_eff = np.matmul(np.transpose(place_eff), T)
+        A_eff = np.matmul(np.transpose(place_eff), A)
+        I_eff = np.matmul(np.transpose(place_eff), I)
+        V_eff = np.matmul(np.transpose(place_eff), V)
+        alpha_eff = np.matmul(np.transpose(place_eff), alpha)
                 
-        # The number of susceptibles from patch g that work in patch h
-        Susc = (pi[np.newaxis, np.newaxis,:]*place[:,:,np.newaxis]*S[:,np.newaxis,:] + 
-         (1-pi[np.newaxis, np.newaxis,:])*np.identity(G)[:,:,np.newaxis]*S[:,np.newaxis,:])
-        V_Susc = (pi[np.newaxis, np.newaxis,:]*place[:,:,np.newaxis]*V[:,np.newaxis,:] + 
-         (1-pi[np.newaxis, np.newaxis,:])*np.identity(G)[:,:,np.newaxis]*V[:,np.newaxis,:])
+        # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
+        Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
+        V_Susc = place_eff[:,:,np.newaxis]*V[:,np.newaxis,:]
 
         ## This is what actually happens, but the above is faster:
         # Susc = np.zeros([G,G,N])
@@ -443,11 +446,22 @@ class COVID19_SEIRD_spatial(BaseModel):
             raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
         
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
+        # Default values for RU_threshold and UM_threshold are taken. beta[patch]
         beta = stratify_beta(beta_R, beta_U, beta_M, agg)
         
-        # Define infection from the sum over contacts
+        # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age], 
         beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K*beta[:,np.newaxis]
-        multip = np.outer(f, s*zi)*(I_eff + A_eff + leakiness*V_eff) / T_eff
+        
+        # Define the number of contacts multiplier per patch and age, multip[patch,age]
+        multip = np.matmul( (I_eff + A_eff + leakiness*V)/T_eff , np.transpose(Nc) )
+        
+        # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
+        multip *= np.outer(f, s*zi)
+        
+        # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
+        # We need to make another matrix multiplication with the number of susceptibles from g in h, Susc.
+        
+        
         B = beta_weighted_av*np.matmul(multip, np.transpose(Nc))
 
         # Infection from sum over all patches
