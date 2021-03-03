@@ -73,8 +73,11 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, RU_threshold=400, UM_threshold=40
     beta : np.array of floats
         Array with length fitting to aggregation level agg, and three degrees of freedom depending on beta_R, beta_U, beta_M
     """
+    # Exceptions
     if agg not in ['prov', 'arr', 'mun']:
         raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
+    if (RU_threshold >= UM_threshold) or (RU_threshold < 0) or (UM_threshold < 0):
+        raise Exception(f"RU_threshold ({RU_threshold}) must be smaller than UM_threshold ({UM_threshold}) and both values must be positive (units of people/km2).")
 
     # Load areas in ordered array in km2
     areas = (pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + agg + '.csv'))['area']/1e6).values
