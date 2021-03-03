@@ -233,8 +233,6 @@ params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_re
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
-# Samples dict of WAVE1
-samples_dict_WAVE1 = json.load(open(samples_path+'BE_WAVE1_BETA_COMPLIANCE_2021-02-22.json'))
 
 if job == None or job == 'BETA':
 
@@ -518,13 +516,13 @@ elif job == 'COMPLIANCE':
 # Start of data collection
 start_data = '2020-03-15'
 # Start of calibration
-start_calibration = '2020-09-30'
+start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2021-02-07'
+end_calibration = '2021-02-01'
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 3
-maxiter = 100
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -555,23 +553,21 @@ states = [["H_in"]]
 
 # set PSO optimisation settings
 parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.02,0.09),(0.1,2),(3,6),(4,10),(0.1,2),(0.05,1.3),(0.05,1),(0.05,1),(0.05,1.3))
+bounds=((0.01,0.03),(0.1,1.0),(10,14),(3,7),(0.1,2),(0.70,0.99),(0.01,0.50),(0.01,0.50),(0.70,0.99))
+
+def draw_fcn(param_dict,samples_dict):
+    param_dict['sigma'] = 5.2 - param_dict['omega']
+    return param_dict
 
 # run PSO optimisation
-theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
-                    start_date=start_calibration, warmup=warmup, processes=processes,
-                    draw_fcn=None, samples=None)
+#theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes,
+#                    draw_fcn=draw_fcn, samples={})
+
 # Calibration until 2021-02-01
-#theta = np.array([0.02520874, 0.5908867, 7.54873678, 3.16858683, 0.22840117, 0.99, 0.09266227, 0.76026119, 0.62815982]) #-153561.23285318824
-# [0.02751193 1.         5.16157345 6.76398559 0.90783608 2.
-#  0.68541914 0.05285296 1.25573921] -159553.78248521767
+theta = np.array([2.42597349e-02, 2.00000000e-01, 1.3000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 10.0e-02, 7.49952898e-01]) #-159676.96370239937
 
-# Calibration until 2020-11-16
-#theta = np.array([0.04463705, 0.13275703, 3.35365264, 9.71239977, 0.1, 0.87725368, 0.91702074, 0.41036883, 0.09275467]) # -99028.25703611995
-#theta = np.array([0.05230687, 0.47126374, 2.07289006, 0.1, 5, 0.47877545, 0.88442966, 0.46150047, 0.99]) # -99035.92564359006
-# Calibration until 2020-12-18
-#theta = np.array([0.03126882, 0.74213375, 4.3947722,  0.60772632, 3.80987428, 0.9725074, 0.97767155, 0.23587966, 0.7530272]) #-129997.88991388638
-
+# Visualize fit
 model.parameters['beta'] = theta[0]
 model.parameters['omega'] = theta[1]
 model.parameters['da'] = theta[2]
@@ -581,10 +577,6 @@ model.parameters['prev_schools'] = theta[5]
 model.parameters['prev_work'] = theta[6]
 model.parameters['prev_rest'] = theta[7]
 model.parameters['prev_home'] =  theta[8]
-
-def draw_fcn(param_dict,samples_dict):
-    param_dict['sigma'] = 5.2 - param_dict['omega']
-    return param_dict
 
 start_sim = start_calibration
 end_sim = '2021-04-01'
@@ -620,7 +612,7 @@ density_da_norm = density_da/np.sum(density_da)
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(0.1, 14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1), (0,1)]
+log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(0.1, 20),(0.1,20), (0.1,20), (0,1), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*4
 # Perturbate PSO Estimate
@@ -652,10 +644,6 @@ old_tau = np.inf
 autocorr = np.zeros([1,ndim])
 # Initialize the labels
 labels = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-
-def draw_fcn(param_dict,samples_dict):
-    param_dict['sigma'] = 5.2 - param_dict['omega']
-    return param_dict
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
