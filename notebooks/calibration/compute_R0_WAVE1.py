@@ -55,22 +55,19 @@ params = model_parameters.get_COVID19_SEIRD_parameters()
 
 N = initN.size
 sample_size = len(samples_dict['beta'])
-
-R0 =[]
-# Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
-for j in range(sample_size):
-    som = 0
-    for i in range(N):
-        som += (params['a'][i] * samples_dict['da'][j] + samples_dict['omega'][j]) * samples_dict['beta'][j] * \
-                np.sum(Nc_total, axis=1)[i] * initN[i]
-    R0_temp = som / np.sum(initN)
-    R0.append(R0_temp)
-
-print(np.mean(R0))
+R0 = np.zeros([N,sample_size])
+R0_norm = np.zeros([N,sample_size])
+for i in range(N):
+    for j in range(sample_size):
+        R0[i,j] = (params['a'][i] * samples_dict['da'][j] + samples_dict['omega'][j]) * samples_dict['beta'][j] * np.sum(Nc_total, axis=1)[i]
+    R0_norm[i,:] = R0[i,:]*(initN[i]/sum(initN))
+    
+R0_age = np.mean(R0,axis=1)
+R0_overall = np.mean(np.sum(R0_norm,axis=0))
 
 # ------------
 # Visualize R0
 # ------------
 
-plt.hist(R0,bins=20)
+plt.hist(np.sum(R0_norm,axis=0),bins=20)
 plt.show()
