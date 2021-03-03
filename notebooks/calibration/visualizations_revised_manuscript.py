@@ -43,6 +43,10 @@ parser.add_argument("-n", "--n_samples", help="Number of samples used to visuali
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1000, type=int)
 args = parser.parse_args()
 
+#####################################################
+## PART 1: Calibration robustness figure of WAVE 1 ##
+#####################################################
+
 n_calibrations = 6
 n_prevention = 3
 conf_int = 0.05
@@ -64,9 +68,9 @@ warmup = int(samples_dicts[0]['warmup'])
 
 # Start of data collection
 start_data = '2020-03-15'
-# Start of calibration warmup and beta
+# First datapoint used in inference
 start_calibration = '2020-03-15'
-# Last datapoint used to calibrate warmup and beta
+# Last datapoint used in inference
 end_calibrations = ['2020-04-04', '2020-04-15', '2020-05-01', '2020-05-15', '2020-06-01', '2020-07-01']
 # Start- and enddate of plotfit
 start_sim = start_calibration
@@ -100,11 +104,26 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
 
-    # Define additional dates where intensity or school policy changes
+    # Define key dates of first wave
     t1 = pd.Timestamp('2020-03-15') # start of lockdown
     t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
     t3 = pd.Timestamp('2020-07-01') # start of summer holidays
     t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+    # Define key dates of second wave
+    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
+    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
+    t7 = pd.Timestamp('2020-11-16') # schools re-open
+    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+    t10 = pd.Timestamp('2021-02-15') # Spring break starts
+    t11 = pd.Timestamp('2021-02-21') # Spring break ends
+    t12 = pd.Timestamp('2021-04-05') # Easter holiday starts
+    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
+
+    # ------
+    # WAVE 1
+    # ------
 
     if t <= t1:
         t = pd.Timestamp(t.date())
@@ -129,11 +148,47 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
     elif t3 < t <= t4:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                     
+                              school=0)
+
+    # ------
+    # WAVE 2
+    # ------
+
+    elif t4 < t <= t5 + tau_days:
+        return contact_matrix_4prev(t, school=1)
+    elif t5 + tau_days < t <= t5 + tau_days + l_days:
+        policy_old = contact_matrix_4prev(t, school=1)
+        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                    school=1)
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
+    elif t5 + tau_days + l_days < t <= t6:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=1)
+    elif t6 < t <= t7:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t7 < t <= t8:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=1) 
+    elif t8 < t <= t9:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t9 < t <= t10:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=1)
+    elif t10 < t <= t11:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)    
+    elif t11 < t <= t12:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=1)
+    elif t12 < t <= t13:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)                                                                                                                                                     
     else:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
 
 # --------------------
 # Initialize the model
@@ -196,7 +251,7 @@ def plot_fit(ax, state_name, state_label, data_df, time, vector_mean, vector_LL,
     ax.scatter(data_df[start_calibration:end_calibration].index,data_df[state_name][start_calibration:end_calibration], color='black', alpha=0.5, linestyle='None', facecolors='none', s=30, linewidth=1)
     ax.scatter(data_df[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,data_df[state_name][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.5, linestyle='None', facecolors='none', s=30, linewidth=1)
     ax = _apply_tick_locator(ax)
-    ax.set_xlim('2020-03-10',end_sim)
+    ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel(state_label)
     return ax
 
@@ -213,7 +268,7 @@ row_labels = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
 pad = 5 # in points
 
 for i in range(n_calibrations):
-    print('Simulating model')
+    print('Simulation no. {} out of {}'.format(i+1,n_calibrations))
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dicts[i])
     vector_mean, vector_median, vector_LL, vector_UL = add_poisson('H_in', out, args.n_samples, args.n_draws_per_sample)
     for j in range(n_prevention+1):
@@ -242,11 +297,133 @@ for i in range(n_calibrations):
 plt.tight_layout()
 plt.show()
 
+model_results_WAVE1 = {'time': out['time'].values, 'vector_mean': vector_mean, 'vector_median': vector_median, 'vector_LL': vector_LL, 'vector_UL': vector_UL}
+
+#########################################
+## Part 2: Robustness figure of WAVE 2 ##
+#########################################
+
+n_calibrations = 2
+n_prevention = 4
+conf_int = 0.05
+
+# -------------------------
+# Load samples dictionaries
+# -------------------------
+
+samples_dicts = [
+    json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-03.json')), # 2020-12-24
+    json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-02.json')), # 2021-02-01
+]
+
+warmup = int(samples_dicts[0]['warmup'])
+
+# Start of data collection
+start_data = '2020-03-15'
+# First datapoint used in inference
+start_calibration = '2020-09-01'
+# Last datapoint used in inference
+end_calibrations = ['2020-12-24','2021-02-01']
+# Start- and enddate of plotfit
+start_sim = start_calibration
+end_sim = '2021-02-14'
+
+# --------------------
+# Initialize the model
+# --------------------
+
+# Load the model parameters dictionary
+params = model_parameters.get_COVID19_SEIRD_parameters()
+# Add the time-dependant parameter function arguments
+params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+# Model initial condition on September 1st
+warmup = 0
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+    initial_states = json.load(fp)    
+initial_states.update({
+    'V': np.zeros(9),
+    'V_new': np.zeros(9),
+    'alpha': np.zeros(9)
+})
+initial_states['ICU_tot'] = initial_states.pop('ICU')
+# Initialize model
+model = models.COVID19_SEIRD(initial_states, params,
+                        time_dependent_parameters={'Nc': policies_wave1_4prev})
+
+# ------------------------
+# Define sampling function
+# ------------------------
+
+def draw_fcn(param_dict,samples_dict):
+    # Sample first calibration
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['da'] = samples_dict['da'][idx]
+    param_dict['omega'] = samples_dict['omega'][idx]
+    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
+    # Sample second calibration
+    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['tau'] = samples_dict['tau'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]   
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    return param_dict
+
+# -------------------------------
+# Visualize prevention parameters
+# -------------------------------
+
+# Method 1: all in on page
+
+fig,axes= plt.subplots(nrows=n_calibrations,ncols=n_prevention+1, figsize=(13,8.27), gridspec_kw={'width_ratios': [1, 1, 1, 1, 3]})
+prevention_labels = ['$\Omega_{home}$ (-)', '$\Omega_{schools}$ (-)', '$\Omega_{work}$ (-)', '$\Omega_{rest}$ (-)']
+prevention_names = ['prev_home', 'prev_schools', 'prev_work', 'prev_rest']
+row_labels = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
+pad = 5 # in points
+
+for i in range(n_calibrations):
+    print('Simulation no. {} out of {}'.format(i+1,n_calibrations))
+    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dicts[i])
+    vector_mean, vector_median, vector_LL, vector_UL = add_poisson('H_in', out, args.n_samples, args.n_draws_per_sample)
+    for j in range(n_prevention+1):
+        if j != n_prevention:
+            n, bins, patches = axes[i,j].hist(samples_dicts[i][prevention_names[j]], color='blue', bins=15, density=True, alpha=0.6)
+            axes[i,j].axvline(np.mean(samples_dicts[i][prevention_names[j]]), ymin=0, ymax=1, linestyle='--', color='black')
+            max_n = 1.05*max(n)
+            axes[i,j].annotate('$\hat{\mu} = $'+"{:.2f}".format(np.mean(samples_dicts[i][prevention_names[j]])), xy=(np.mean(samples_dicts[i][prevention_names[j]]),max_n),
+                            rotation=0,va='bottom', ha='center',annotation_clip=False,fontsize=10)
+            if j == 0:
+                axes[i,j].annotate(row_labels[i], xy=(0, 0.5), xytext=(-axes[i,j].yaxis.labelpad - pad, 0),
+                    xycoords=axes[i,j].yaxis.label, textcoords='offset points',
+                    ha='right', va='center')
+            axes[i,j].set_xlim([0,1])
+            axes[i,j].set_xticks([0.0, 0.5, 1.0])
+            axes[i,j].set_yticks([])
+            axes[i,j].grid(False)
+            if i == n_calibrations-1:
+                axes[i,j].set_xlabel(prevention_labels[j])
+        else:
+            axes[i,j] = plot_fit(axes[i,j], 'H_in','$H_{in}$ (-)', df_sciensano, out['time'].values, vector_median, vector_LL, vector_UL, start_calibration = start_calibration, end_calibration=end_calibrations[i], end_sim=end_sim)
+            axes[i,j].xaxis.set_major_locator(plt.MaxNLocator(3))
+            axes[i,j].set_yticks([0,200, 400, 600, 800])
+            axes[i,j].set_ylim([0,850])
+
+plt.tight_layout()
+plt.show()
+
+model_results_WAVE2 = {'time': out['time'].values, 'vector_mean': vector_mean, 'vector_median': vector_median, 'vector_LL': vector_LL, 'vector_UL': vector_UL}
+model_results = [model_results_WAVE1, model_results_WAVE2]
+
+################################################################
+## Part 3: Relative contributions of each contact: both waves ##
+################################################################
+
 # ----------------------
 # Pre-allocate dataframe
 # ----------------------
 
 samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_BETA_COMPLIANCE_2021-02-22.json'))
+samples_dict_WAVE2 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-02.json'))
 
 index=df_google.index
 columns = [['1','1','1','1','2','2','2','2'],['work','schools','rest','home','work','schools','rest','home']]
@@ -256,9 +433,9 @@ data = np.zeros([len(df_google.index),8])
 df_rel = pd.DataFrame(data=data, index=df_google.index, columns=columns)
 df_abs = pd.DataFrame(data=data, index=df_google.index, columns=columns)
 
-samples_dicts = [samples_dict_WAVE1]
-start_dates =[pd.to_datetime('2020-03-15')]
-waves=["1"]
+samples_dicts = [samples_dict_WAVE1, samples_dict_WAVE2]
+start_dates =[pd.to_datetime('2020-03-15'), pd.to_datetime('2020-10-19')]
+waves=["1", "2"]
 
 for j,samples_dict in enumerate(samples_dicts):
     print('\n WAVE: ' + str(j)+'\n')
@@ -543,33 +720,38 @@ for j,samples_dict in enumerate(samples_dicts):
 #  Plot absolute contributions
 # ----------------------------
 
-xlims = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-07-14')],]
-no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],]
+xlims = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-07-14')],[pd.to_datetime('2020-09-01'), pd.to_datetime('2021-02-01')]]
+no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],[pd.to_datetime('2020-09-01'), pd.to_datetime('2020-10-19')]]
 
-fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(12,5))
-idx=0
-ax.plot(df_abs.index, df_abs[waves[idx],"rest"],  color='blue')
-ax.plot(df_abs.index, df_abs[waves[idx],"work"], color='red')
-ax.plot(df_abs.index, df_abs[waves[idx],"home"], color='green')
-ax.plot(df_abs.index, df_abs[waves[idx],"schools"], color='orange')
-ax.xaxis.grid(False)
-ax.yaxis.grid(False)
-ax.set_ylabel('Absolute contacts (-)')
-ax.legend(['leisure','work','home','schools'], bbox_to_anchor=(1.20, 1), loc='upper left')
-ax.set_xlim(xlims[idx])
-ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
+fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
+for idx,ax in enumerate(axes):
+    ax.plot(df_abs.index, df_abs[waves[idx],"rest"],  color='blue', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"work"], color='red', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"home"], color='green', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"schools"], color='orange', linewidth=2)
+    ax.xaxis.grid(False)
+    ax.yaxis.grid(False)
+    ax.set_ylabel('Absolute contacts (-)')
+    if idx == 0:
+        ax.legend(['leisure','work','home','schools'], bbox_to_anchor=(1.20, 1), loc='upper left')
+    ax.set_xlim(xlims[idx])
+    ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
 
-ax2 = ax.twinx()
-ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=60, linewidth=2)
-ax2.plot(out['time'].values,vector_mean,'--', color='black', alpha = 0.60)
-ax2.fill_between(out['time'].values,vector_LL, vector_UL,alpha=0.20, color = 'black')
-ax2.xaxis.grid(False)
-ax2.yaxis.grid(False)
-ax2.set_xlim(xlims[idx])
-ax2.set_ylabel('New hospitalisations (-)')
+    ax2 = ax.twinx()
+    time = model_results[idx]['time']
+    vector_mean = model_results[idx]['vector_mean']
+    vector_LL = model_results[idx]['vector_LL']
+    vector_UL = model_results[idx]['vector_UL']
+    ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+    ax2.plot(time,vector_mean,'--', color='black', linewidth=1.5)
+    ax2.fill_between(time,vector_LL, vector_UL,alpha=0.20, color = 'black')
+    ax2.xaxis.grid(False)
+    ax2.yaxis.grid(False)
+    ax2.set_xlim(xlims[idx])
+    ax2.set_ylabel('New hospitalisations (-)')
 
-ax = _apply_tick_locator(ax)
-ax2 = _apply_tick_locator(ax2)
+    ax = _apply_tick_locator(ax)
+    ax2 = _apply_tick_locator(ax2)
 
 plt.tight_layout()
 plt.show()
@@ -579,33 +761,37 @@ plt.close()
 #  Plot relative contributions
 # ----------------------------
 
-xlims = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-07-14')],]
-no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],]
+fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
+for idx,ax in enumerate(axes):
+    ax.plot(df_rel.index, df_rel[waves[idx],"rest"],  color='blue', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"work"], color='red', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"home"], color='green', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"schools"], color='orange', linewidth=1.5)
+    ax.xaxis.grid(False)
+    ax.yaxis.grid(False)
+    ax.set_ylabel('Relative contacts (-)')
+    if idx == 0:
+        ax.legend(['leisure','work','home','schools'], bbox_to_anchor=(1.20, 1), loc='upper left')
+    ax.set_xlim(xlims[idx])
+    ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
+    ax.set_yticks([0,0.25,0.50,0.75])
+    ax.set_ylim([0,0.85])
 
-fig,ax=plt.subplots(nrows=1,ncols=1,figsize=(12,5))
-idx=0
-ax.plot(df_rel.index, df_rel[waves[idx],"rest"],  color='blue')
-ax.plot(df_rel.index, df_rel[waves[idx],"work"], color='red')
-ax.plot(df_rel.index, df_rel[waves[idx],"home"], color='green')
-ax.plot(df_rel.index, df_rel[waves[idx],"schools"], color='orange')
-ax.xaxis.grid(False)
-ax.yaxis.grid(False)
-ax.set_ylabel('Relative contacts (-)')
-ax.legend(['leisure','work','home','schools'], bbox_to_anchor=(1.20, 1), loc='upper left')
-ax.set_xlim(xlims[idx])
-ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
+    ax2 = ax.twinx()
+    time = model_results[idx]['time']
+    vector_mean = model_results[idx]['vector_mean']
+    vector_LL = model_results[idx]['vector_LL']
+    vector_UL = model_results[idx]['vector_UL']
+    ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+    ax2.plot(time,vector_mean,'--', color='black', linewidth=1.5)
+    ax2.fill_between(time,vector_LL, vector_UL,alpha=0.20, color = 'black')
+    ax2.xaxis.grid(False)
+    ax2.yaxis.grid(False)
+    ax2.set_xlim(xlims[idx])
+    ax2.set_ylabel('New hospitalisations (-)')
 
-ax2 = ax.twinx()
-ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=60, linewidth=2)
-ax2.plot(out['time'].values,vector_mean,'--', color='black', alpha = 0.60)
-ax2.fill_between(out['time'].values,vector_LL, vector_UL,alpha=0.20, color = 'black')
-ax2.xaxis.grid(False)
-ax2.yaxis.grid(False)
-ax2.set_xlim(xlims[idx])
-ax2.set_ylabel('New hospitalisations (-)')
-
-ax = _apply_tick_locator(ax)
-ax2 = _apply_tick_locator(ax2)
+    ax = _apply_tick_locator(ax)
+    ax2 = _apply_tick_locator(ax2)
 
 plt.tight_layout()
 plt.show()
