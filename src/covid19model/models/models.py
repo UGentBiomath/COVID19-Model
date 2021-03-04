@@ -369,7 +369,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'VE', 'V', 'V_new','alpha']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi', 'v', 'e', 'N_vacc', 'leakiness']]
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e', 'N_vacc', 'leakiness']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -397,7 +397,6 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by pi[age]
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
@@ -406,6 +405,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
         # TO DO: add age stratification for p
         
+        # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
         T_eff = np.matmul(np.transpose(place_eff), T)
         A_eff = np.matmul(np.transpose(place_eff), A)
         I_eff = np.matmul(np.transpose(place_eff), I)
@@ -451,7 +451,15 @@ class COVID19_SEIRD_spatial(BaseModel):
         multip *= np.outer(f, s*zi)
         
         # Multiply with beta_weighted_av[patch,age]
-        multip *= beta_weighted_av
+        # if infectivity depends on VISITED region (beta^h), beta_localised = True
+        # if infectivity depends on region of origin (beta^g), beta_localised = False
+        # Change this in hard-code depending on preference
+        beta_localised = True
+        if beta_localised:
+            multip *= beta_weighted_av
+        else:
+            Susc *= beta_weighted_av[:,np.newaxis,:]
+            V_Susc *= beta_weighted_av[:,np.newaxis,:]
         
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age] and dV_inf[patch,age].
