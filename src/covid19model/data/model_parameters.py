@@ -199,7 +199,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        pi : mobility parameter per age class. Only loads when spatial is not None
+        p : mobility parameter per region. Only loads when spatial is not None
         v : daily vaccination rate (percentage of population to be vaccinated)
         e : vaccine effectivity
         leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
@@ -314,11 +314,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         area=area_df.values[:,0]
         pars_dict['area'] = area * 1e-6 # in square kilometer
 
-        # Load mobility parameter, which is age-stratified and 1 by default (no measures)
-        pi = np.ones(pars_dict['Nc'].shape[0])
-        pars_dict['pi'] = pi
+        # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
+        p = np.ones(pars_dict['place'].shape[0])
+        pars_dict['p'] = p
 
         # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
+        # NB Currently not used
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
         
