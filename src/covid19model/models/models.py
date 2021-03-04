@@ -402,7 +402,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
         
-        # Define actual mobility matrix place
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
         # TO DO: add age stratification for p
         
