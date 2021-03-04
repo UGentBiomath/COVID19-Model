@@ -415,14 +415,6 @@ class COVID19_SEIRD_spatial(BaseModel):
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         V_Susc = place_eff[:,:,np.newaxis]*V[:,np.newaxis,:]
-
-        ## This is what actually happens, but the above is faster:
-        # Susc = np.zeros([G,G,N])
-        # V_Susc = np.zeros([G,G,N])
-        # for i in range(N):
-        #     Susc[:,:,i] =  pi[i]*place*S[:,[i]] + (1 - pi[i])*np.identity(G)*S[:,[i]]
-        #     V_Susc[:,:,i] =  pi[i]*place*V[:,[i]] + (1 - pi[i])*np.identity(G)*V[:,[i]]
-
         
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
