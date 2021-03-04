@@ -458,15 +458,13 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
         multip *= np.outer(f, s*zi)
         
+        # Multiply with beta_weighted_av[patch,age]
+        multip *= beta_weighted_av
+        
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
-        # We need to make another matrix multiplication with the number of susceptibles from g in h, Susc.
-        
-        
-        B = beta_weighted_av*np.matmul(multip, np.transpose(Nc))
-
-        # Infection from sum over all patches
-        dS_inf = (Susc*B).sum(axis=1)
-        dV_inf = (V_Susc*B).sum(axis=1)
+        # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age] and dV_inf[patch,age].
+        dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
+        dV_inf = (V_Susc * multip[np.newaxis,:,:]).sum(axis=1)
 
         dS  = -dS_inf + zeta*R - N_vacc/VE*S
         dE  = dS_inf - E/sigma - N_vacc/VE*E + (1-e)*dV_inf # Unsuccesful vaccinations are added to Exposed population
@@ -502,6 +500,8 @@ class COVID19_SEIRD_spatial(BaseModel):
     
 class COVID19_SEIRD_sto_spatial(BaseModel):
     """
+    TO DO: this needs to be entirely updated!
+    
     BIOMATH stochastic extended SEIRD model for COVID-19, spatially explicit. Note: enable discrete=True in model simulation.
 
     Parameters
