@@ -239,7 +239,7 @@ def read_areas(spatial='arr'):
 
     return areas
 
-def read_pops(spatial='arr'):
+def read_pops(spatial='arr',return_matrix=False,drop_total=False):
     """
     Reads initial population per age and per area
 
@@ -247,6 +247,10 @@ def read_pops(spatial='arr'):
     ----------
     spatial : str
         choose geographical aggregation. Pick between 'arr', 'mun', 'prov', or 'test'. Default is 'arr'.
+    return_matrix : boolean
+        if True, return np.array instead of dictionary
+    drop_total : boolean
+        if True, drop the 10th column containing the sums of the rows (total population)
 
     Returns
     -------
@@ -257,7 +261,12 @@ def read_pops(spatial='arr'):
     """
 
     pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col='NIS')
-    pops = pops_df.T.to_dict()
+    if drop_total:
+        pops_df.drop(columns='total', inplace=True)
+    if return_matrix:
+        pops = pops_df.values
+    else:
+        pops = pops_df.T.to_dict()
 
     return pops
 
