@@ -518,7 +518,7 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2021-02-01'
+end_calibration = '2020-11-07'
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 3
@@ -565,7 +565,7 @@ def draw_fcn(param_dict,samples_dict):
 #                    draw_fcn=draw_fcn, samples={})
 
 # Calibration until 2021-02-01
-theta = np.array([2.42597349e-02, 2.00000000e-01, 1.3000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 10.0e-02, 7.49952898e-01]) #-159676.96370239937
+theta = np.array([2.42597349e-02, 2.00000000e-01, 1.4000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 5.0e-02, 7.49952898e-01]) #-159676.96370239937
 
 # Visualize fit
 model.parameters['beta'] = theta[0]
@@ -612,7 +612,7 @@ density_da_norm = density_da/np.sum(density_da)
 # Setup parameter names, bounds, number of chains, etc.
 parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(0.1, 20),(0.1,20), (0.1,20), (0,1), (0,1), (0,1), (0,1)]
+log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(13.5, 20),(0.1,20), (0.1,20), (0,1), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*4
 # Perturbate PSO Estimate
