@@ -3,7 +3,7 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
-def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', agg=None, poisson_offset=0):
+def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset.
