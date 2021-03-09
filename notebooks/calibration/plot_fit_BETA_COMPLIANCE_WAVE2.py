@@ -58,7 +58,7 @@ start_data = '2020-03-15'
 # Start of calibration warmup and beta
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate warmup and beta
-end_calibration = '2020-11-16'
+end_calibration = '2020-11-07'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -105,14 +105,15 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
     t4 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     # Define key dates of second wave
-    t5 = pd.Timestamp('2020-10-19') # lockdown
-    t6 = pd.Timestamp('2020-11-16') # schools re-open
-    t7 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-    t8 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-    t9 = pd.Timestamp('2021-02-15') # Spring break starts
-    t10 = pd.Timestamp('2021-02-21') # Spring break ends
-    t11 = pd.Timestamp('2021-04-05') # Easter holiday starts
-    t12 = pd.Timestamp('2021-04-18') # Easter holiday ends
+    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
+    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
+    t7 = pd.Timestamp('2020-11-16') # schools re-open
+    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+    t10 = pd.Timestamp('2021-02-15') # Spring break starts
+    t11 = pd.Timestamp('2021-02-21') # Spring break ends
+    t12 = pd.Timestamp('2021-04-05') # Easter holiday starts
+    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
 
     t = pd.Timestamp(t.date())
     # First wave
@@ -132,37 +133,39 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t3 < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+        return contact_matrix_4prev(t, school=0)
     # Second wave
     elif t4 < t <= t5 + tau_days:
         return contact_matrix_4prev(t, school=1)
     elif t5 + tau_days < t <= t5 + tau_days + l_days:
         policy_old = contact_matrix_4prev(t, school=1)
         policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
-                                    school=0)
+                                    school=1)
         return ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
     elif t5 + tau_days + l_days < t <= t6:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
     elif t6 < t <= t7:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+                              school=0)
     elif t7 < t <= t8:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0) 
+                              school=1) 
     elif t8 < t <= t9:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+                              school=0)
     elif t9 < t <= t10:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
     elif t10 < t <= t11:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)    
+                              school=0)    
     elif t11 < t <= t12:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                                                                                                                             
+                              school=1)
+    elif t12 < t <= t13:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)                                                                                                                                                     
     else:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
