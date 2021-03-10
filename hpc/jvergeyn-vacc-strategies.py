@@ -70,7 +70,7 @@ start_sim = '2020-09-01'
 end_sim = '2021-09-01'
 start_fig = '2021-01-01'
 warmup = 0
-n_samples = 2#100
+n_samples = 100
 n_draws_per_sample = 1000
 
 Re_1feb = 0.958*1.4
