@@ -659,6 +659,8 @@ for scen in scenario_settings.index:
     out_single = out.sel(draws=1)
     dates = pd.date_range(start_fig, end_sim, periods=5)
 
+    plt.ioff()
+
     fig,ax = plt.subplots(figsize=(9,15), nrows=9, sharex=True)
     for i in range(9):
         ax[i].plot(out_single['time'], out_single['V_new'].sel(Nc=i), c='green', linestyle='--', label='model')
