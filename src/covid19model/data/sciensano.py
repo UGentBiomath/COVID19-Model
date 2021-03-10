@@ -124,6 +124,8 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', movi
     
     TO DO: function currently does *not* support loading data at level of postal codes (from all_nonpublic_timeseries_Postcode.csv).
     
+    TO DO: currently gives a pandas copy warning if values='all' and moving_avg=True.
+    
     Parameters
     ----------
     agg : str
@@ -144,7 +146,7 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', movi
         raise Exception(f"Aggregation level {agg} not recognised. Choose between agg = 'prov', 'arr' or 'mun'.")
         
     accepted_values=['confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', 'ICU_per_100k']
-    if values not in accepted_values.append('all'):
+    if values not in (accepted_values + ['all']):
         raise Exception(f"Value type {values} not recognised. Choose between 'confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', or 'ICU_per_100k'. Choose 'all' to return full data.")
 
     # Data location
