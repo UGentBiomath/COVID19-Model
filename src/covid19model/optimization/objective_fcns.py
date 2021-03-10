@@ -133,9 +133,11 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         if dist == 'poisson':
             MLE = 0
             for NIS in NIS_list:
+                # Note: only works with single state [[state]]
                 # calculate loglikelihood function based on Poisson distribution for only H_in
                 ymodel = out[states[0][0]].sel(place=NIS).sum(dim="Nc").values[warmup:]
-                MLE += ll_poisson(ymodel, data[0][NIS], offset=poisson_offset) # multiplication of likelihood is sum of loglikelihoods
+                MLE_add = ll_poisson(ymodel, data[0][NIS], offset=poisson_offset)
+                MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
     
     return -MLE # must be positive for pso, which attempts to minimises MLE
 
