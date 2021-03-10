@@ -111,3 +111,46 @@ def get_sciensano_COVID19_data(update=True):
     #df["C_90+"] = df_cases.loc[(df_cases['AGEGROUP'] == '90+')].resample('D', on='DATE')['CASES'].sum()
     
     return df.fillna(0)
+
+def get_sciensano_COVID19_data_spatial(agg='arr', column='hospitalised_IN', moving_avg=True):
+    """
+    This function returns the spatially explicit private Sciensano data
+    on COVID-19 related confirmed cases, hospitalisations, or hospital deaths.
+    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    
+    NOTE that this raw data is NOT automatically uploaded to the Git repository, considering it is nonpublic data.
+    Instead, download the processed data from the S-drive (data/interim/sciensano) and copy it to data/interim/nonpublic_timeseries.
+    The nonpublic_timeseries directory is added to the .gitignore, so it is not uploaded to the repository.
+    
+    Parameters
+    ----------
+    agg : str
+        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively. Note that not all data is available on every aggregation level.
+    column : str
+        Choose which time series is to be loaded. Options are 'confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN' (default), 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', 'ICU_per_100k'. Choose 'all' to return full data.
+    moving_avg : boolean
+        If True (default), the 7-day moving average of the data is taken to smooth out the weekend effect.
+    
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame with the sciensano data of the chosen column on daily basis (with or without 7-day averaging).
+    """
+
+    # Exceptions
+    if agg not in ['prov', 'arr', 'mun']:
+        raise Exception(f"Aggregation level {agg} not recognised. Choose between agg = 'prov', 'arr' or 'mun'.")
+    if column not in ['confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', 'ICU_per_100k', 'all']:
+        raise Exception(f"Column type {column} not recognised. Choose between 'confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', or 'ICU_per_100k'. Choose 'all' to return full data.")
+        
+
+        
+    
+    
+    return
+
+    
+    
+    
+    
+    
