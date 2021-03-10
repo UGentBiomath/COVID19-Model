@@ -12,7 +12,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 import gc
 import sys, getopt
-import ujson as json
+# import ujson as json
 import random
 import emcee
 import datetime
@@ -157,7 +157,7 @@ start_calibration = '2020-03-05' # first available date
 end_calibration = '2020-07-01'
 
 # PSO settings
-processes = mp.cpu_count()-1 # -1 if running on local machine
+processes = 2 #mp.cpu_count()-1 # -1 if running on local machine
 multiplier = 10
 maxiter = 40
 popsize = multiplier*processes
@@ -230,7 +230,7 @@ theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,
 warmup = int(theta[0])
 theta = theta[1:] # rest of the best-fit parameter values
 
-return theta_pso
+print(theta_pso)
 
     
 # #############################
