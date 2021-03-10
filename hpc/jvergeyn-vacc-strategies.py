@@ -163,6 +163,16 @@ def find_nearest_idx(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
+def calc_N_vacc(N_vacc, age, prev_age, VE_states, dose, leftover, flag):
+    if (VE_states[:,[age]] > leftover) and flag:
+        dose = dose-N_vacc[:,[prev_age]]
+        N_vacc[:,[age]] = dose 
+        flag=False
+        if (VE_states[:,[age]]-leftover) <= dose:
+            N_vacc[:,[age]] = VE_states[:,[age]]-leftover 
+            flag=True
+    return N_vacc[:,[age]], flag
+
 ## Vaccination functions
 
 NH_8_to_vacc = NH['85+']*initial_states_sept['VE'][8]
@@ -233,44 +243,31 @@ def vacc_strategy(t, states, param, d, NH, order, elder):
         
     elif t3 <= t < t4: # March-April : 65+ and risk patients
         t_num = (t-t3)/pd.Timedelta('1D')
-        if VE_states[:,[8]] > leftover:
+        if VE_states[:,[elder[0]]] > leftover:
             ts, doses = smooth_dose_ts_open_end(daily_dose_ma_ap, 0, spread=2)
-            N_vacc[:,[8]] = doses[find_nearest_idx(ts, t_num)]
+            N_vacc[:,[elder[0]]] = doses[find_nearest_idx(ts, t_num)]
             ## One daily dose before all 80+ are vaccinated, start building down
-            if (VE_states[:,[8]]-leftover) <= daily_dose_ma_ap:
-                N_vacc[:,[8]] = VE_states[:,[8]]-leftover
-                if VE_states[:,[7]] > leftover:
-                    # start buildup
-                    daily_dose_ma_ap = daily_dose_ma_ap-N_vacc[:,[8]]
-                    N_vacc[:,[7]] = daily_dose_ma_ap
-                    ## One daily dose before all 70+ vaccinated, start building down
-                    if (VE_states[:,[7]]-leftover) <= daily_dose_ma_ap:
-                        N_vacc[:,[7]] = VE_states[:,[7]]-leftover
-                        if VE_states[:,[6]] > leftover:
-                            daily_dose_ma_ap = daily_dose_ma_ap-N_vacc[:,[7]]
-                            N_vacc[:,[6]] = daily_dose_ma_ap    
-                            ## One daily dose before all 60+ vaccinated, start building down
-                            if (VE_states[:,[6]]-leftover) <= daily_dose_ma_ap:
-                                N_vacc[:,[6]] = VE_states[:,[6]]-leftover
-                                N_vacc[:,[5,4,3,2]] = (daily_dose_ma_ap - N_vacc[:,[6]])/4
+            if (VE_states[:,[elder[0]]]-leftover) <= daily_dose_ma_ap:
+                N_vacc[:,[elder[0]]] = VE_states[:,[elder[0]]]-leftover
+                
+                flag = True
+                N_vacc[:,[elder[1]]],flag = calc_N_vacc(N_vacc, elder[1], elder[0], VE_states, daily_dose_ma_ap, leftover,flag)
+                N_vacc[:,[elder[2]]],flag = calc_N_vacc(N_vacc, elder[2], elder[1], VE_states, daily_dose_ma_ap, leftover,flag)
+                if flag==True and len(np.unique(elder))==3:
+                    N_vacc[:,[5,4,3,2]] = (daily_dose_ma_ap - N_vacc[:,[elder[2]]])/4
+                if flag==True and len(np.unique(elder))==2:
+                    N_vacc[:,[6,5,4,3,2]] = (daily_dose_ma_ap - N_vacc[:,[elder[2]]])/5
                                 
 
     else: # May-August : all 18+ 
         t_num = (t-t4)/pd.Timedelta('1D')
         ts, doses = smooth_dose_ts_open_end(daily_dose_may_aug, 0, spread=3)#, start_dose=daily_dose_ma_ap/4
-        N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
-        
+        if len(np.unique(elder))==3:
+            N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
+        elif len(np.unique(elder))==2:
+            N_vacc[:,[6,5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/5
     return N_vacc.squeeze()
 
-def calc_N_vacc(N_vacc, age, prev_age, VE_states, dose, leftover, flag):
-    if (VE_states[:,[age]] > leftover) and flag:
-        dose = dose-N_vacc[:,[prev_age]]
-        N_vacc[:,[age]] = dose 
-        flag=False
-        if (VE_states[:,[age]]-leftover) <= dose:
-            N_vacc[:,[age]] = VE_states[:,[age]]-leftover 
-            flag=True
-    return N_vacc[:,[age]], flag
 
 def vacc_strategy_priors(t, states, param, d, NH, order, elder):
     """
