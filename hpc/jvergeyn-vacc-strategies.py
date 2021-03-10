@@ -13,7 +13,7 @@ import datetime
 import scipy
 import json
 import random
-from math import floor
+from math import floor, ceil
 
 from covid19model.optimization import objective_fcns
 from covid19model.models import models
@@ -56,7 +56,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states_sept = json.load(fp) 
-
+    
 # Set initial states of VE (vaccine elegible)
 initial_states_sept['VE'] = (np.array(initial_states_sept['S'])+
                              np.array(initial_states_sept['R'])+
@@ -64,8 +64,25 @@ initial_states_sept['VE'] = (np.array(initial_states_sept['S'])+
                              np.array(initial_states_sept['I'])+
                              np.array(initial_states_sept['A'])).squeeze()
 
+## Scenarios
 
-# ## Settings
+start_sim = '2020-09-01'
+end_sim = '2021-09-01'
+start_fig = '2021-01-01'
+warmup = 0
+n_samples = 2#100
+n_draws_per_sample = 1000
+
+Re_1feb = 0.958*1.4
+# current estimation of UK prevalence between 20 and 40% => take 30%
+current_UK = 0.3
+# 5-6 days incubation
+incubation_period = 5
+n_periods = 30/incubation_period
+# How much on January 1? (30 days ago)
+portion_new_strain_introduced = current_UK/(Re_1feb**n_periods) #0.001
+injection_day = (pd.Timestamp('2021-01-01') - pd.Timestamp(start_sim))/pd.Timedelta('1D')
+
 UL = 0.975
 LL = 0.025
 
@@ -83,13 +100,76 @@ NH['65+'] = 0.007
 NH['75+'] = (0.05+0.029)/2
 NH['85+'] = (0.137+0.267)/2
 
-## Vaccination unctions
+## Helpfunction vaccination
+
+def smoothclamp(x, mi, mx): 
+    return mi + (mx-mi)*(lambda t: np.where(t < 0 , 0, np.where( t <= 1 , 3*t**2-2*t**3, 1 ) ) )( (x-mi)/(mx-mi) )
+
+def smooth_dose(dose, sense, start_dose=0, end_dose=0, N=1000):
+    if sense == 'up':
+        x = np.linspace(start_dose, dose, num=N)
+        return smoothclamp(x, start_dose, dose)
+    elif sense == 'down':
+        x = np.linspace(dose, end_dose, num=N)
+        return smoothclamp(x, dose, end_dose)
+    else:
+        raise ValueError(
+                "sense must be 'up' or 'down' "
+            )
+
+def smooth_dose_ts(daily_dose, start_t, end_t, spread, start_dose=0, end_dose=0, N=1000):
+    """
+    max_to_vacc : max number to vaccinate
+    daily_dose : daily number of vaccinations
+    spread : number of days at start and end to spread out step function
+    N : resolution of the smoothed step function
+    start_dose : level to start smoothing from (0 or previous daily dose)
+    
+    """
+    constant_period = np.linspace(start_t+spread, end_t-spread, num=ceil(end_t))
+    
+    ts = np.concatenate((np.linspace(start_t, start_t+spread, num=N), 
+                         constant_period,
+                         np.linspace(end_t-spread, end_t, num=N)  
+                         )) 
+    
+    doses = np.concatenate((smooth_dose(daily_dose, 'up', start_dose=start_dose, N=N),
+                    np.repeat(np.array(daily_dose), len(constant_period)),
+                    smooth_dose(daily_dose, 'down', end_dose=end_dose, N=N)))
+    return ts, doses
+
+def smooth_dose_ts_open_end(daily_dose, start_t, spread, start_dose=0, N_days=100, N=1000):
+    """
+    max_to_vacc : max number to vaccinate
+    daily_dose : daily number of vaccinations
+    N_days : number of days to spread out open end
+    spread : number of days at start/end to spread out step function
+    N : resolution of the smoothed step function
+    
+    """
+    constant_period = np.linspace(start_t+spread, 100, num=N_days)
+    
+    ts = np.concatenate((np.linspace(start_t, start_t+spread, num=N), 
+                         constant_period
+                         )) 
+    
+    doses = np.concatenate((smooth_dose(daily_dose, 'up', start_dose=start_dose, N=N),
+                            np.repeat(np.array(daily_dose), len(constant_period))
+                            ))
+    return ts, doses
+
+def find_nearest_idx(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+## Vaccination functions
 
 NH_8_to_vacc = NH['85+']*initial_states_sept['VE'][8]
 NH_7_to_vacc = NH['75+']*initial_states_sept['VE'][7]
 NH_6_to_vacc = NH['65+']*initial_states_sept['VE'][6]
 
-def vacc_strategy(t, states, param, d, NH, order):
+def vacc_strategy(t, states, param, d, NH, order, elder):
     """
     time-dependent function for vaccination strategy
     
@@ -102,12 +182,14 @@ def vacc_strategy(t, states, param, d, NH, order):
         proportion of residents in nursing homes per age group
     
     """
+    
+    leftover = 100
+    
     VE_states = states['VE'].copy()
-    V_states = states['V'].copy()
+    
     if VE_states.ndim == 1:
         VE_states = VE_states[np.newaxis]
-        V_states = V_states[np.newaxis]
-        
+
     N_vacc = np.zeros(VE_states.shape)
 
     delay = pd.Timedelta('30D')
@@ -116,209 +198,187 @@ def vacc_strategy(t, states, param, d, NH, order):
     t2 = pd.Timestamp('2021-02-01') + delay
     t3 = pd.Timestamp('2021-03-01') + delay
     t4 = pd.Timestamp('2021-05-01') + delay
+    daily_dose_jan = d['jan']/2
+    daily_dose_feb = d['feb']/2
+    daily_dose_ma_ap = d['mar-apr']/2
+    daily_dose_may_aug = d['may-aug']/2
     
     if t < t1:
         N_vacc = N_vacc
     
     elif t1 <= t < t2: # January : nursing homes + part of care personnel
-        if V_states[:,[8]] < NH_8_to_vacc:
-            N_vacc[:,[8]] = d['jan']/2
-        elif V_states[:,[7]] < NH_7_to_vacc:
-            N_vacc[:,[7]] = d['jan']/2
-        elif V_states[:,[6]] < NH_6_to_vacc:
-            N_vacc[:,[6]] = d['jan']/2 
-        else:
-            N_vacc[:,[5,4,3,2]] = d['jan']/2/4
+        t_num = (t-t1)/pd.Timedelta('1D')
+        end_phase1 = NH_8_to_vacc/daily_dose_jan
+        end_phase2 = end_phase1 + NH_7_to_vacc/daily_dose_jan
+        end_phase3 = end_phase2 + NH_6_to_vacc/daily_dose_jan
+        end_t2 = (t2-t1)/pd.Timedelta('1D')
+        if t_num < end_phase1:
+            ts, doses = smooth_dose_ts(daily_dose_jan, 0, end_phase1, spread=2)
+            N_vacc[:,[8]] = doses[find_nearest_idx(ts, t_num)]
+        elif t_num < end_phase2:
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase1, end_phase2, spread=1)
+            N_vacc[:,[7]] = doses[find_nearest_idx(ts, t_num)]
+        elif t_num < end_phase3:
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase2, end_phase3, spread=0.3)
+            N_vacc[:,[6]] = doses[find_nearest_idx(ts, t_num)]
+        else: 
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase3, end_t2, spread=4, end_dose=daily_dose_feb)
+            N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
 
     elif t2 <= t < t3: # February : care personnel
-        N_vacc[:,[5,4,3,2]] = d['feb']/2/4
+        t_num = (t-t2)/pd.Timedelta('1D')
+        end_t3 = (t3-t2)/pd.Timedelta('1D')
+        ts, doses = smooth_dose_ts(daily_dose_feb, 0, end_t3, spread=4, start_dose=daily_dose_jan)
+        N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
         
-    elif t3 <= t < t4: # March-April : 65+ and risico patients
-        if VE_states[:,[8]] > 100:
-            N_vacc[:,[8]] = d['mar-apr']/2
-        elif VE_states[:,[7]] > 100:
-            N_vacc[:,[7]] = d['mar-apr']/2
-        elif VE_states[:,[6]] > 100:
-            N_vacc[:,[6]] = d['mar-apr']/2
-        else:
-            N_vacc[:,[5,4,3,2]] = d['mar-apr']/2/4
+    elif t3 <= t < t4: # March-April : 65+ and risk patients
+        t_num = (t-t3)/pd.Timedelta('1D')
+        if VE_states[:,[8]] > leftover:
+            ts, doses = smooth_dose_ts_open_end(daily_dose_ma_ap, 0, spread=2)
+            N_vacc[:,[8]] = doses[find_nearest_idx(ts, t_num)]
+            ## One daily dose before all 80+ are vaccinated, start building down
+            if (VE_states[:,[8]]-leftover) <= daily_dose_ma_ap:
+                N_vacc[:,[8]] = VE_states[:,[8]]-leftover
+                if VE_states[:,[7]] > leftover:
+                    # start buildup
+                    daily_dose_ma_ap = daily_dose_ma_ap-N_vacc[:,[8]]
+                    N_vacc[:,[7]] = daily_dose_ma_ap
+                    ## One daily dose before all 70+ vaccinated, start building down
+                    if (VE_states[:,[7]]-leftover) <= daily_dose_ma_ap:
+                        N_vacc[:,[7]] = VE_states[:,[7]]-leftover
+                        if VE_states[:,[6]] > leftover:
+                            daily_dose_ma_ap = daily_dose_ma_ap-N_vacc[:,[7]]
+                            N_vacc[:,[6]] = daily_dose_ma_ap    
+                            ## One daily dose before all 60+ vaccinated, start building down
+                            if (VE_states[:,[6]]-leftover) <= daily_dose_ma_ap:
+                                N_vacc[:,[6]] = VE_states[:,[6]]-leftover
+                                N_vacc[:,[5,4,3,2]] = (daily_dose_ma_ap - N_vacc[:,[6]])/4
+                                
+
+    else: # May-August : all 18+ 
+        t_num = (t-t4)/pd.Timedelta('1D')
+        ts, doses = smooth_dose_ts_open_end(daily_dose_may_aug, 0, spread=3)#, start_dose=daily_dose_ma_ap/4
+        N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
+        
+    return N_vacc.squeeze()
+
+def calc_N_vacc(N_vacc, age, prev_age, VE_states, dose, leftover, flag):
+    if (VE_states[:,[age]] > leftover) and flag:
+        dose = dose-N_vacc[:,[prev_age]]
+        N_vacc[:,[age]] = dose 
+        flag=False
+        if (VE_states[:,[age]]-leftover) <= dose:
+            N_vacc[:,[age]] = VE_states[:,[age]]-leftover 
+            flag=True
+    return N_vacc[:,[age]], flag
+
+def vacc_strategy_priors(t, states, param, d, NH, order, elder):
+    """
+    time-dependent function for vaccination strategy
     
+    states : dictionary
+        model states, VE = vaccine eligible states = S+R+E+I+A
+    d : dictionary
+        daily number of doses for that month
+        daily vaccinated persons on immunity date = daily dose on vaccination date / 2
+    NH : dictionary
+        proportion of residents in nursing homes per age group
+    order : list
+        order of age categories to be vaccinated after the elderly
+    elder : list
+        order of elderly age categories ([8,7,6] or if 60+ not prioritised [8,7,7])
+    
+    """
+    if len(order)!=7:
+        raise ValueError(
+                "order must have length 7"
+            )
+    if len(elder)!=3:
+        raise ValueError(
+                "elder must have length 3"
+            )        
+    
+    leftover = 100
+    
+    VE_states = states['VE'].copy()
+    if VE_states.ndim == 1:
+        VE_states = VE_states[np.newaxis]
+
+    N_vacc = np.zeros(VE_states.shape)
+
+    delay = pd.Timedelta('30D')
+    
+    t1 = pd.Timestamp('2021-01-01') + delay
+    t2 = pd.Timestamp('2021-02-01') + delay
+    t3 = pd.Timestamp('2021-03-01') + delay
+    t4 = pd.Timestamp('2021-05-01') + delay
+    daily_dose_jan = d['jan']/2
+    daily_dose_feb = d['feb']/2
+    daily_dose_ma_ap = d['mar-apr']/2
+    daily_dose_may_aug = d['may-aug']/2
+    
+    if t < t1:
+        N_vacc = N_vacc
+    
+    elif t1 <= t < t2: # January : nursing homes + part of care personnel
+        t_num = (t-t1)/pd.Timedelta('1D')
+        end_phase1 = NH_8_to_vacc/daily_dose_jan
+        end_phase2 = end_phase1 + NH_7_to_vacc/daily_dose_jan
+        end_phase3 = end_phase2 + NH_6_to_vacc/daily_dose_jan
+        end_t2 = (t2-t1)/pd.Timedelta('1D')
+        if t_num < end_phase1:
+            ts, doses = smooth_dose_ts(daily_dose_jan, 0, end_phase1, spread=2)
+            N_vacc[:,[8]] = doses[find_nearest_idx(ts, t_num)]
+        elif t_num < end_phase2:
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase1, end_phase2, spread=1)
+            N_vacc[:,[7]] = doses[find_nearest_idx(ts, t_num)]
+        elif t_num < end_phase3:
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase2, end_phase3, spread=0.3)
+            N_vacc[:,[6]] = doses[find_nearest_idx(ts, t_num)]
+        else: 
+            ts, doses = smooth_dose_ts(daily_dose_jan, end_phase3, end_t2, spread=4, end_dose=daily_dose_feb)
+            N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
+
+    elif t2 <= t < t3: # February : care personnel
+        t_num = (t-t2)/pd.Timedelta('1D')
+        end_t3 = (t3-t2)/pd.Timedelta('1D')
+        ts, doses = smooth_dose_ts(daily_dose_feb, 0, end_t3, spread=4, start_dose=daily_dose_jan)
+        N_vacc[:,[5,4,3,2]] = doses[find_nearest_idx(ts, t_num)]/4
+         
+    elif t3 <= t < t4: # March-April : 65+ and risk patients
+        t_num = (t-t3)/pd.Timedelta('1D')
+        if VE_states[:,[elder[0]]] > leftover:
+            ts, doses = smooth_dose_ts_open_end(daily_dose_ma_ap, 0, spread=2)
+            N_vacc[:,[elder[0]]] = doses[find_nearest_idx(ts, t_num)]
+            ## One daily dose before all 80+ are vaccinated, start building down
+            if (VE_states[:,[elder[0]]]-leftover) <= daily_dose_ma_ap:
+                N_vacc[:,[elder[0]]] = VE_states[:,[elder[0]]]-leftover
+                
+                flag = True
+                N_vacc[:,[elder[1]]],flag = calc_N_vacc(N_vacc, elder[1], elder[0], VE_states, daily_dose_ma_ap, leftover,flag)
+                N_vacc[:,[elder[2]]],flag = calc_N_vacc(N_vacc, elder[2], elder[1], VE_states, daily_dose_ma_ap, leftover,flag)
+                N_vacc[:,[order[0]]],flag = calc_N_vacc(N_vacc, order[0], elder[2], VE_states, daily_dose_ma_ap, leftover,flag)
+                N_vacc[:,[order[1]]],flag = calc_N_vacc(N_vacc, order[1], order[0], VE_states, daily_dose_ma_ap, leftover,flag)
+                N_vacc[:,[order[2]]],flag = calc_N_vacc(N_vacc, order[2], order[1], VE_states, daily_dose_ma_ap, leftover,flag)          
+                
     else: # May-August : all 18+
-        N_vacc[:,[5,4,3,2]] = d['may-aug']/2/4
         
-    return N_vacc.squeeze()
-
-def vacc_strategy_60(t, states, param, d, NH, order):
-    """
-    time-dependent function for vaccination strategy
-    
-    states : dictionary
-        model states, VE = vaccine eligible states = S+R+E+I+A
-    d : dictionary
-        daily number of doses for that month
-        daily vaccinated persons on immunity date = daily dose on vaccination date / 2
-    NH : dictionary
-        proportion of residents in nursing homes per age group
-    
-    """
-    leftover = 500
-    
-    VE_states = states['VE'].copy()
-    V_states = states['V'].copy()
-    if VE_states.ndim == 1:
-        VE_states = VE_states[np.newaxis]
-        V_states = V_states[np.newaxis]
-        
-    N_vacc = np.zeros(VE_states.shape)
-
-    delay = pd.Timedelta('30D')
-    
-    t1 = pd.Timestamp('2021-01-01') + delay
-    t2 = pd.Timestamp('2021-02-01') + delay
-    t3 = pd.Timestamp('2021-03-01') + delay
-    t4 = pd.Timestamp('2021-05-01') + delay
-    
-    if t < t1:
-        N_vacc = N_vacc
-    
-    elif t1 <= t < t2: # January : nursing homes + part of care personnel
-        if V_states[:,[8]] < NH_8_to_vacc:
-            N_vacc[:,[8]] = d['jan']/2
-        elif V_states[:,[7]] < NH_7_to_vacc:
-            N_vacc[:,[7]] = d['jan']/2
-        elif V_states[:,[6]] < NH_6_to_vacc:
-            N_vacc[:,[6]] = d['jan']/2 
-        else:
-            N_vacc[:,[5,4,3,2]] = d['jan']/2/4
-
-    elif t2 <= t < t3: # February : care personnel
-        N_vacc[:,[5,4,3,2]] = d['feb']/2/4
-        
-    elif t3 <= t < t4: # March-April : 60+ and risk patients
-        if VE_states[:,[8]] > leftover:
-            N_vacc[:,[8]] = d['mar-apr']/2
-        elif VE_states[:,[7]] > leftover:
-            N_vacc[:,[7]] = d['mar-apr']/2
-        elif VE_states[:,[6]] > leftover:
-            N_vacc[:,[6]] = d['mar-apr']/2
-        elif VE_states[:,[order[0]]] > leftover:
-            N_vacc[:,[order[0]]] = d['mar-apr']/2
-        elif VE_states[:,[order[1]]] > leftover:
-            N_vacc[:,[order[1]]] = d['mar-apr']/2
-        elif VE_states[:,[order[2]]] > leftover:
-            N_vacc[:,[order[2]]] = d['mar-apr']/2
-        elif VE_states[:,[order[3]]] > leftover:
-            N_vacc[:,[order[3]]] = d['mar-apr']/2
-        elif len(order) > 4:
-            if VE_states[:,[order[4]]] > leftover:
-                N_vacc[:,[order[4]]] = d['mar-apr']/2
-            elif len(order) > 5:
-                if VE_states[:,[order[5]]] > leftover:
-                    N_vacc[:,[order[5]]] = d['mar-apr']/2   
-                
-    else: # May-August : 
+        t_num = (t-t4)/pd.Timedelta('1D')
         if VE_states[:,[order[0]]] > leftover:
-            N_vacc[:,[order[0]]] = d['may-aug']/2
-        elif VE_states[:,[order[1]]] > leftover:
-            N_vacc[:,[order[1]]] = d['may-aug']/2
-        elif VE_states[:,[order[2]]] > leftover:
-            N_vacc[:,[order[2]]] = d['may-aug']/2
-        elif VE_states[:,[order[3]]] > leftover:
-            N_vacc[:,[order[3]]] = d['may-aug']/2 
-        elif len(order) > 4:
-            if VE_states[:,[order[4]]] > leftover:
-                N_vacc[:,[order[4]]] = d['may-aug']/2
-            elif len(order) > 5:
-                if VE_states[:,[order[5]]] > leftover:
-                    N_vacc[:,[order[5]]] = d['may-aug']/2 
+            ts, doses = smooth_dose_ts_open_end(daily_dose_may_aug, 0, spread=2)
+            N_vacc[:,[order[0]]] = doses[find_nearest_idx(ts, t_num)]
+            ## One daily dose before all 80+ are vaccinated, start building down
+            if (VE_states[:,[order[0]]]-leftover) <= daily_dose_may_aug:
+                N_vacc[:,[order[0]]] = VE_states[:,[order[0]]]-leftover  
                 
-    return N_vacc.squeeze()
+                flag = True
+                N_vacc[:,[order[1]]],flag = calc_N_vacc(N_vacc, order[1], order[0], VE_states, daily_dose_may_aug, leftover,flag)
+                N_vacc[:,[order[2]]],flag = calc_N_vacc(N_vacc, order[2], order[1], VE_states, daily_dose_may_aug, leftover,flag)
+                N_vacc[:,[order[3]]],flag = calc_N_vacc(N_vacc, order[3], order[2], VE_states, daily_dose_may_aug, leftover,flag)
+                N_vacc[:,[order[4]]],flag = calc_N_vacc(N_vacc, order[4], order[3], VE_states, daily_dose_may_aug, leftover,flag)
+                N_vacc[:,[order[5]]],flag = calc_N_vacc(N_vacc, order[5], order[4], VE_states, daily_dose_may_aug, leftover,flag)
+                N_vacc[:,[order[6]]],flag = calc_N_vacc(N_vacc, order[6], order[5], VE_states, daily_dose_may_aug, leftover,flag)
 
-def vacc_strategy_70(t, states, param, d, NH, order):
-    """
-    time-dependent function for vaccination strategy
-    
-    states : dictionary
-        model states, VE = vaccine eligible states = S+R+E+I+A
-    d : dictionary
-        daily number of doses for that month
-        daily vaccinated persons on immunity date = daily dose on vaccination date / 2
-    NH : dictionary
-        proportion of residents in nursing homes per age group
-    
-    """
-    leftover = 500
-    
-    VE_states = states['VE'].copy()
-    V_states = states['V'].copy()
-    if VE_states.ndim == 1:
-        VE_states = VE_states[np.newaxis]
-        V_states = V_states[np.newaxis]
-        
-    N_vacc = np.zeros(VE_states.shape)
-
-    delay = pd.Timedelta('30D')
-    
-    t1 = pd.Timestamp('2021-01-01') + delay
-    t2 = pd.Timestamp('2021-02-01') + delay
-    t3 = pd.Timestamp('2021-03-01') + delay
-    t4 = pd.Timestamp('2021-05-01') + delay
-    
-    if t < t1:
-        N_vacc = N_vacc
-    
-    elif t1 <= t < t2: # January : nursing homes + part of care personnel
-        if V_states[:,[8]] < NH_8_to_vacc:
-            N_vacc[:,[8]] = d['jan']/2
-        elif V_states[:,[7]] < NH_7_to_vacc:
-            N_vacc[:,[7]] = d['jan']/2
-        elif V_states[:,[6]] < NH_6_to_vacc:
-            N_vacc[:,[6]] = d['jan']/2 
-        else:
-            N_vacc[:,[5,4,3,2]] = d['jan']/2/4
-
-    elif t2 <= t < t3: # February : care personnel
-        N_vacc[:,[5,4,3,2]] = d['feb']/2/4
-        
-    elif t3 <= t < t4: # March-April : 70+ and risk patients
-        if VE_states[:,[8]] > leftover:
-            N_vacc[:,[8]] = d['mar-apr']/2
-        elif VE_states[:,[7]] > leftover:
-            N_vacc[:,[7]] = d['mar-apr']/2
-        elif VE_states[:,[order[0]]] > leftover:
-            N_vacc[:,[order[0]]] = d['mar-apr']/2
-        elif VE_states[:,[order[1]]] > leftover:
-            N_vacc[:,[order[1]]] = d['mar-apr']/2
-        elif VE_states[:,[order[2]]] > leftover:
-            N_vacc[:,[order[2]]] = d['mar-apr']/2
-        elif VE_states[:,[order[3]]] > leftover:
-            N_vacc[:,[order[3]]] = d['mar-apr']/2
-        elif VE_states[:,[order[4]]] > leftover:
-            N_vacc[:,[order[4]]] = d['mar-apr']/2
-        elif len(order) > 5:
-            if VE_states[:,[order[5]]] > leftover:
-                N_vacc[:,[order[5]]] = d['mar-apr']/2
-            elif len(order) > 6:
-                if VE_states[:,[order[6]]] > leftover:
-                    N_vacc[:,[order[6]]] = d['mar-apr']/2   
-                
-    else: # May-August : rest
-        if VE_states[:,[order[0]]] > leftover:
-            N_vacc[:,[order[0]]] = d['may-aug']/2
-        elif VE_states[:,[order[1]]] > leftover:
-            N_vacc[:,[order[1]]] = d['may-aug']/2
-        elif VE_states[:,[order[2]]] > leftover:
-            N_vacc[:,[order[2]]] = d['may-aug']/2
-        elif VE_states[:,[order[3]]] > leftover:
-            N_vacc[:,[order[3]]] = d['may-aug']/2 
-        elif VE_states[:,[order[4]]] > leftover:
-            N_vacc[:,[order[4]]] = d['may-aug']/2
-        elif len(order) > 5:
-            if VE_states[:,[order[5]]] > leftover:
-                N_vacc[:,[order[5]]] = d['may-aug']/2
-            elif len(order) > 6:
-                if VE_states[:,[order[6]]] > leftover:
-                    N_vacc[:,[order[6]]] = d['may-aug']/2  
                 
     return N_vacc.squeeze()
 
@@ -511,8 +571,8 @@ def report7_policy_function(t, states, param, l , tau, prev_home, prev_schools, 
             raise Exception ('scenario '+scenario+' non-existing')
 
 
-def vaccin_model(initial_states, scenario, order=None, effectivity=None, injection_day=0, 
-                 injection_ratio=0, Nc_fun=None, N_vacc_fun=vacc_strategy, levels=levels):
+def vaccin_model(initial_states, scenario, order=None, elder=None, effectivity=None, injection_day=0, injection_ratio=0,
+                 Nc_fun=None, N_vacc_fun=vacc_strategy, levels=levels):
     """
     Function to initialize the model given a certain vaccination strategy
     """
@@ -539,29 +599,10 @@ def vaccin_model(initial_states, scenario, order=None, effectivity=None, injecti
             'd' : d,
             'NH' : NH,
             'e' : np.array([effectivity]*levels),
-            'order': order
+            'order': order,
+            'elder': elder
         })
     return models.COVID19_SEIRD(initial_states, params, time_dependent_parameters=tdp)
-
-## Scenarios
-
-start_sim = '2020-09-01'
-end_sim = '2021-09-01'
-start_fig = '2021-01-01'
-warmup = 0
-n_samples = 100
-n_draws_per_sample = 1000
-
-Re_1feb = 0.958*1.4
-# current estimation of UK prevalence between 20 and 40% => take 30%
-current_UK = 0.3
-# 5-6 days incubation
-incubation_period = 5
-n_periods = 30/incubation_period
-# How much on January 1? (30 days ago)
-portion_new_strain_introduced = current_UK/(Re_1feb**n_periods) #0.001
-injection_day = (pd.Timestamp('2021-01-01') - pd.Timestamp(start_sim))/pd.Timedelta('1D')
-
 
 # ## Run and save all scenarios
 
@@ -573,8 +614,9 @@ scenario_settings = pd.DataFrame({
     'opening':(5*['3']+5*['4']+5*['3']+5*['4']),
     'effectivity':20*[0.7],
     'K':20*[1.5],
-    'order':2*[None,[5,4,3,2],[2,3,4,5],[3,4,2,5],[0,1,2,3,4,5]]+2*[None,[6,5,4,3,2],[2,3,4,5,6],[3,4,2,5,6],[0,1,2,3,4,5,6]],
-    'vacc_fun':2*([vacc_strategy]+4*[vacc_strategy_60])+2*([vacc_strategy]+4*[vacc_strategy_70])
+    'order':2*[None,[5,4,3,2,2,2,2],[2,3,4,5,5,5,5],[3,4,2,5,5,5,5],[0,1,2,3,4,5,5]]+2*[None,[6,5,4,3,2,2],[2,3,4,5,6,6],[3,4,2,5,6,6],[0,1,2,3,4,5,6]],
+    'elder': 10*[[8,7,6]]+10*[[8,7,7]],
+    'vacc_fun':4*([vacc_strategy]+4*[vacc_strategy_priors])
 })
 
 scenario_settings = scenario_settings.set_index('Scenario_name')
@@ -589,8 +631,9 @@ for scen in scenario_settings.index:
     K = scenario_settings.loc[scen,'K']
     vacc_fun = scenario_settings.loc[scen,'vacc_fun']
     order = scenario_settings.loc[scen,'order']
+    elder = scenario_settings.loc[scen,'elder']
 
-    scenario_model = vaccin_model(initial_states_sept, scenario=scenario, order=order, effectivity=effectivity, 
+    scenario_model = vaccin_model(initial_states_sept, scenario=scenario, order=order, elder=elder, effectivity=effectivity, 
                              injection_day=injection_day, injection_ratio=portion_new_strain_introduced,
                              Nc_fun=report7_policy_function, N_vacc_fun=vacc_fun)
     scenario_model.parameters.update({'K':K})
