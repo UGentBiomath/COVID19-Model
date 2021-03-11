@@ -343,6 +343,7 @@ def google_lockdown_no_prev(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, 
         school = 1
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
+    
 def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     """
     Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
@@ -385,6 +386,42 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
         if tt > tau + l:
             state = policy2
     return state
+
+
+# Define policy function
+def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
+                   prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
+
+    # Convert tau and l to dates
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+
+    # Define additional dates where intensity or school policy changes
+    t1 = pd.Timestamp('2020-03-15') # start of lockdown
+    t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
+    t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
+    t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
+
+    if t <= t1 + tau_days:
+        return contact_matrix(t, df_google, Nc_all, school=1)
+    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        policy_old = contact_matrix(t, df_google, Nc_all, school=1)
+        policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                                    prev_leisure, prev_others, school=0)
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+    elif t1 + tau_days + l_days < t <= t2:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0)
+    elif t2 < t <= t3:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0.15)
+    elif t3 < t <= t4:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0.65)
+    else:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0)
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Optimized google lockdown function below
