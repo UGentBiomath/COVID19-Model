@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from multiprocessing import Pool
 from covid19model.models import models
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun, mobility_update_func, contact_matrix
+from covid19model.models.time_dependant_parameter_fncs import ramp_fun, mobility_update_func, contact_matrix, wave1_policies
 from covid19model.models.utils import initial_state
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
@@ -34,203 +34,202 @@ from covid19model.visualization.output import _apply_tick_locator
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.visualization.utils import moving_avg
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+# On Windows the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
+if __name__ == '__main__':    
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-# parser.add_argument("-j", "--job", help="Full or partial calibration")
-# parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
+    # -----------------------
+    # Handle script arguments
+    # -----------------------
 
-args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
+    # parser.add_argument("-j", "--job", help="Full or partial calibration")
+    # parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
 
-# Backend
-if args.backend == False:
-    backend = None
-else:
-    backend = True
+    args = parser.parse_args()
 
-# # Job type
-# if args.job:
-#     job = str(args.job)  
-#     if job not in ['BETA','COMPLIANCE']:
-#         raise ValueError(
-#             'Illegal job argument. Valid arguments are: "BETA" or "COMPLIANCE"'
-#         )     
-#     if job == 'COMPLIANCE':
-#         if args.date:
-#             date=str(args.date)
-#         else:
-#             raise ValueError(
-#                 'Job "COMPLIANCE" requires the definition of the calibration date of BETA!'
-#             )
-# else:
-#     job = None
-
-# Date at which script is started (for bookkeeping)
-run_date = str(datetime.date.today())
-
-# ---------
-# Load data
-# ---------
-
-# Aggregation level is arrondissement (NUTS3)
-agg='arr'
-
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
-
-# Sciensano data: *hospitalisations* (H_in) moving average at spatial level {agg}. Column per NIS code
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=True, values='hospitalised_IN')
-
-# Google Mobility data
-df_google = mobility.get_google_mobility_data(update=False)
-
-# ------------------------
-# Define results locations
-# ------------------------
-
-# Path where samples bakcend should be stored
-results_folder = f"../../results/calibrations/COVID19_SEIRD/{agg}/backends/"
-# Path where figures should be stored
-fig_path = f'../../results/calibrations/COVID19_SEIRD/{agg}/'
-# Path where MCMC samples should be saved
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
-
-# ---------------------------------
-# Time-dependant parameter function
-# ---------------------------------
-
-# # Extract build contact matrix function
-# from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
-# contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
-
-# Define policy function
-def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
-                   prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
-    t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
-    t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
-
-    if t <= t1 + tau_days:
-        return contact_matrix(t, df_google, Nc_all, school=1)
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        policy_old = contact_matrix(t, df_google, Nc_all, school=1)
-        policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                                    prev_leisure, prev_others, school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0)
-    elif t2 < t <= t3:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0.15)
-    elif t3 < t <= t4:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0.65)
+    # Backend
+    if args.backend == False:
+        backend = None
     else:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0)
+        backend = True
 
-###############################################
-## CALIBRATE BETA, WARMUP, PREVENTION PARAMS ##
-###############################################
-    
-# --------------------
-# Calibration settings
-# --------------------
+    # # Job type
+    # if args.job:
+    #     job = str(args.job)  
+    #     if job not in ['BETA','COMPLIANCE']:
+    #         raise ValueError(
+    #             'Illegal job argument. Valid arguments are: "BETA" or "COMPLIANCE"'
+    #         )     
+    #     if job == 'COMPLIANCE':
+    #         if args.date:
+    #             date=str(args.date)
+    #         else:
+    #             raise ValueError(
+    #                 'Job "COMPLIANCE" requires the definition of the calibration date of BETA!'
+    #             )
+    # else:
+    #     job = None
 
-# Spatial unit: identifier
-spatial_unit = f'{agg}_willem2012_prev_thin'
-# Date of first data collection
-start_calibration = '2020-03-05' # first available date
-# Last datapoint used to calibrate
-end_calibration = '2020-07-01'
+    # Date at which script is started (for bookkeeping)
+    run_date = str(datetime.date.today())
 
-# PSO settings
-processes = 2 #mp.cpu_count()-1 # -1 if running on local machine
-multiplier = 10
-maxiter = 40
-popsize = multiplier*processes
+    # ---------
+    # Load data
+    # ---------
 
-# MCMC settings
-max_n = 300000
-# Number of samples used to visualise model fit
-n_samples = 1000
-# Confidence level used to visualise model fit
-conf_int = 0.05
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=1000
+    # Aggregation level is arrondissement (NUTS3)
+    agg='arr'
 
-# --------------------
-# Initialize the model
-# --------------------
+    # Contact matrices
+    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
+    Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 
-# Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
-# Add the time-dependant parameter function arguments
-params.update({'df_google': df_google,
-               'Nc_all' : Nc_all,
-               'l' : 5,
-               'tau' : 5,
-               'prev_schools': 0.5,
-               'prev_work': 0.5,
-               'prev_transport': 0.5,
-               'prev_leisure': 0.5,
-               'prev_others': 0.5,
-               'prev_home' : 0.5
-              })
-# Add parameters for the daily update of proximus mobility
-# mobility defaults to average mobility of 2020 if no data is available
-params.update({'agg' : agg,
-               'default_mobility' : None})
+    # Sciensano data: *hospitalisations* (H_in) moving average at spatial level {agg}. Column per NIS code
+    df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=True, values='hospitalised_IN')
 
-# Initial states: single 40 year old exposed individual in Brussels
-initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
-initial_states = {'S': initN, 'E': initE}
+    # Google Mobility data
+    df_google = mobility.get_google_mobility_data(update=False)
 
-# Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
-model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : wave1_policies, 'place' : mobility_update_func}, spatial=agg)
+    # ------------------------
+    # Define results locations
+    # ------------------------
 
-# ---------------------------
-# Particle Swarm Optimization
-# ---------------------------
+    # Path where samples bakcend should be stored
+    results_folder = f"../../results/calibrations/COVID19_SEIRD/{agg}/backends/"
+    # Path where figures should be stored
+    fig_path = f'../../results/calibrations/COVID19_SEIRD/{agg}/'
+    # Path where MCMC samples should be saved
+    samples_path = f'../../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
 
-print('\n------------------------------------------------------')
-print('PERFORMING CALIBRATION OF BETA, WARMUP, and PREVENTION')
-print('------------------------------------------------------\n')
-print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-print('1) Particle swarm optimization\n')
-print('Using ' + str(processes) + ' cores\n')
+    # ---------------------------------
+    # Time-dependant parameter function
+    # ---------------------------------
 
-# define dataset
-data=[df_sciensano[start_calibration:end_calibration]]
-states = [["H_in"]]
+#     # Define policy function
+#     def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
+#                        prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
 
-# set PSO parameters and boundaries
-parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'tau']
-bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20))
+#         # Convert tau and l to dates
+#         tau_days = pd.Timedelta(tau, unit='D')
+#         l_days = pd.Timedelta(l, unit='D')
 
-# Initial value for warmup time
-init_warmup = 30
+#         # Define additional dates where intensity or school policy changes
+#         t1 = pd.Timestamp('2020-03-15') # start of lockdown
+#         t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
+#         t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
+#         t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
 
-theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                    start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=1, agg=agg)
+#         if t <= t1 + tau_days:
+#             return contact_matrix(t, df_google, Nc_all, school=1)
+#         elif t1 + tau_days < t <= t1 + tau_days + l_days:
+#             policy_old = contact_matrix(t, df_google, Nc_all, school=1)
+#             policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+#                                         prev_leisure, prev_others, school=0)
+#             return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+#         elif t1 + tau_days + l_days < t <= t2:
+#             return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+#                                   prev_leisure, prev_others, school=0)
+#         elif t2 < t <= t3:
+#             return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+#                                   prev_leisure, prev_others, school=0.15)
+#         elif t3 < t <= t4:
+#             return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+#                                   prev_leisure, prev_others, school=0.65)
+#         else:
+#             return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+#                                   prev_leisure, prev_others, school=0)
 
-warmup = int(theta[0])
-theta = theta[1:] # rest of the best-fit parameter values
+    ###############################################
+    ## CALIBRATE BETA, WARMUP, PREVENTION PARAMS ##
+    ###############################################
 
-print(theta_pso)
+    # --------------------
+    # Calibration settings
+    # --------------------
+
+    # Spatial unit: identifier
+    spatial_unit = f'{agg}_willem2012_prev_thin'
+    # Date of first data collection
+    start_calibration = '2020-03-05' # first available date
+    # Last datapoint used to calibrate
+    end_calibration = '2020-07-01'
+
+    # PSO settings
+    processes = mp.cpu_count()-1 # -1 if running on local machine
+    multiplier = 10
+    maxiter = 40
+    popsize = multiplier*processes
+
+    # MCMC settings
+    max_n = 300000
+    # Number of samples used to visualise model fit
+    n_samples = 1000
+    # Confidence level used to visualise model fit
+    conf_int = 0.05
+    # Number of binomial draws per sample drawn used to visualize model fit
+    n_draws_per_sample=1000
+
+    # --------------------
+    # Initialize the model
+    # --------------------
+
+    # Load the model parameters dictionary
+    params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
+    # Add the time-dependant parameter function arguments
+    params.update({'df_google': df_google,
+                   'Nc_all' : Nc_all,
+                   'l' : 5,
+                   'tau' : 5,
+                   'prev_schools': 0.5, # values for time-dependant function wave1_policies
+                   'prev_work': 0.5,
+                   'prev_transport': 0.5,
+                   'prev_leisure': 0.5,
+                   'prev_others': 0.5,
+                   'prev_home' : 0.5
+                  })
+    # Add parameters for the daily update of proximus mobility
+    # mobility defaults to average mobility of 2020 if no data is available
+    params.update({'agg' : agg,
+                   'default_mobility' : None})
+
+    # Initial states: single 40 year old exposed individual in Brussels
+    initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
+    initial_states = {'S': initN, 'E': initE}
+
+    # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
+    model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
+                                               {'Nc' : wave1_policies, 'place' : mobility_update_func}, spatial=agg)
+
+    # ---------------------------
+    # Particle Swarm Optimization
+    # ---------------------------
+
+    print('\n------------------------------------------------------')
+    print('PERFORMING CALIBRATION OF BETA, WARMUP, and PREVENTION')
+    print('------------------------------------------------------\n')
+    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
+    print('1) Particle swarm optimization\n')
+    print('Using ' + str(processes) + ' cores\n')
+
+    # define dataset
+    data=[df_sciensano[start_calibration:end_calibration]]
+    states = [["H_in"]]
+
+    # set PSO parameters and boundaries
+    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'tau']
+    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20))
+
+    # Initial value for warmup time
+    init_warmup = 30
+
+    theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
+                        start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=1, agg=agg)
+
+    warmup = int(theta[0])
+    theta = theta[1:] # rest of the best-fit parameter values
+
+    print(theta_pso)
 
     
 # #############################
