@@ -309,7 +309,12 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
     
+# MLE signature:
+# def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):    
+    
     p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+
     theta_hat = p_hat
 
     return theta_hat
+
