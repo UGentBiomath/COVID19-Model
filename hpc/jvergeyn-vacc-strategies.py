@@ -100,6 +100,11 @@ NH['65+'] = 0.007
 NH['75+'] = (0.05+0.029)/2
 NH['85+'] = (0.137+0.267)/2
 
+NH_to_vacc = {}
+NH_to_vacc[8] = NH['85+']*initial_states_sept['VE'][8]
+NH_to_vacc[7] = NH['75+']*initial_states_sept['VE'][7]
+NH_to_vacc[6]= NH['65+']*initial_states_sept['VE'][6]
+
 ## Helpfunction vaccination
 
 def smoothclamp(x, mi, mx): 
@@ -175,11 +180,7 @@ def calc_N_vacc(N_vacc, age, prev_age, VE_states, dose, leftover, flag):
 
 ## Vaccination functions
 
-NH_8_to_vacc = NH['85+']*initial_states_sept['VE'][8]
-NH_7_to_vacc = NH['75+']*initial_states_sept['VE'][7]
-NH_6_to_vacc = NH['65+']*initial_states_sept['VE'][6]
-
-def vacc_strategy(t, states, param, d, NH, order, elder):
+def vacc_strategy(t, states, param, d, NH_to_vacc, order, elder):
     """
     time-dependent function for vaccination strategy
     
@@ -188,8 +189,9 @@ def vacc_strategy(t, states, param, d, NH, order, elder):
     d : dictionary
         daily number of doses for that month
         daily vaccinated persons on immunity date = daily dose on vaccination date / 2
-    NH : dictionary
-        proportion of residents in nursing homes per age group
+    NH_to_vacc : dictionary
+        keys = 3 age groups
+        elements = number of nursing homes residents to vaccinate (per spatial unit)
     
     """
     
@@ -218,9 +220,9 @@ def vacc_strategy(t, states, param, d, NH, order, elder):
     
     elif t1 <= t < t2: # January : nursing homes + part of care personnel
         t_num = (t-t1)/pd.Timedelta('1D')
-        end_phase1 = NH_8_to_vacc/daily_dose_jan
-        end_phase2 = end_phase1 + NH_7_to_vacc/daily_dose_jan
-        end_phase3 = end_phase2 + NH_6_to_vacc/daily_dose_jan
+        end_phase1 = NH_to_vacc[8]/daily_dose_jan
+        end_phase2 = end_phase1 + NH_to_vacc[7]/daily_dose_jan
+        end_phase3 = end_phase2 + NH_to_vacc[6]/daily_dose_jan
         end_t2 = (t2-t1)/pd.Timedelta('1D')
         if t_num < end_phase1:
             ts, doses = smooth_dose_ts(daily_dose_jan, 0, end_phase1, spread=2)
@@ -269,7 +271,7 @@ def vacc_strategy(t, states, param, d, NH, order, elder):
     return N_vacc.squeeze()
 
 
-def vacc_strategy_priors(t, states, param, d, NH, order, elder):
+def vacc_strategy_priors(t, states, param, d, NH_to_vacc, order, elder):
     """
     time-dependent function for vaccination strategy
     
@@ -278,8 +280,9 @@ def vacc_strategy_priors(t, states, param, d, NH, order, elder):
     d : dictionary
         daily number of doses for that month
         daily vaccinated persons on immunity date = daily dose on vaccination date / 2
-    NH : dictionary
-        proportion of residents in nursing homes per age group
+    NH_to_vacc : dictionary
+        keys = 3 age groups
+        elements = number of nursing homes residents to vaccinate (per spatial unit)
     order : list
         order of age categories to be vaccinated after the elderly
     elder : list
@@ -319,9 +322,9 @@ def vacc_strategy_priors(t, states, param, d, NH, order, elder):
     
     elif t1 <= t < t2: # January : nursing homes + part of care personnel
         t_num = (t-t1)/pd.Timedelta('1D')
-        end_phase1 = NH_8_to_vacc/daily_dose_jan
-        end_phase2 = end_phase1 + NH_7_to_vacc/daily_dose_jan
-        end_phase3 = end_phase2 + NH_6_to_vacc/daily_dose_jan
+        end_phase1 = NH_to_vacc[8]/daily_dose_jan
+        end_phase2 = end_phase1 + NH_to_vacc[7]/daily_dose_jan
+        end_phase3 = end_phase2 + NH_to_vacc[6]/daily_dose_jan
         end_t2 = (t2-t1)/pd.Timedelta('1D')
         if t_num < end_phase1:
             ts, doses = smooth_dose_ts(daily_dose_jan, 0, end_phase1, spread=2)
@@ -378,7 +381,6 @@ def vacc_strategy_priors(t, states, param, d, NH, order, elder):
 
                 
     return N_vacc.squeeze()
-
 ## Functions
 
 def sample_from_binomial(sim_result, variable, n_draws_per_sample, n_samples,
@@ -594,7 +596,7 @@ def vaccin_model(initial_states, scenario, order=None, elder=None, effectivity=N
         tdp.update({'N_vacc':N_vacc_fun})
         params.update({
             'd' : d,
-            'NH' : NH,
+            'NH_to_vacc' : NH_to_vacc,
             'e' : np.array([effectivity]*levels),
             'order': order,
             'elder': elder
