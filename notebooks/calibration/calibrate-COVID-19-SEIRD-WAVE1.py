@@ -608,10 +608,6 @@ autocorr = np.zeros([1,ndim])
 # Initialize the labels
 labels = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
 
-def draw_fcn(param_dict,samples_dict):
-    param_dict['sigma'] = 5.2 - param_dict['omega']
-    return param_dict
-
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                     args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
@@ -713,9 +709,9 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx]      
     return param_dict
 
-# ----------------------
+# ----------------
 # Perform sampling
-# ----------------------
+# ----------------
 
 print('4) Simulating using sampled parameters')
 start_sim = start_calibration
