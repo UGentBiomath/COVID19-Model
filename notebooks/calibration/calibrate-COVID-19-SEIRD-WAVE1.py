@@ -10,6 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
+
 import gc
 import sys, getopt
 import ujson as json
@@ -39,7 +40,8 @@ from covid19model.visualization.optimization import autocorrelation_plot, tracep
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-j", "--job", help="Full or partial calibration")
-parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
+parser.add_argument("-w", "--warmup", help="Warmup must be defined for job = FULL")
+parser.add_argument("-e", "--enddate", help="Calibration enddate")
 
 args = parser.parse_args()
 
@@ -52,19 +54,25 @@ else:
 # Job type
 if args.job:
     job = str(args.job)  
-    if job not in ['BETA','COMPLIANCE']:
+    if job not in ['BETA','FULL']:
         raise ValueError(
-            'Illegal job argument. Valid arguments are: "BETA" or "COMPLIANCE"'
-        )     
-    if job == 'COMPLIANCE':
-        if args.date:
-            date=str(args.date)
+            'Illegal job argument. Valid arguments are: "BETA" or "FULL"'
+        )
+    elif job == 'FULL':
+        if args.warmup:
+            warmup=int(args.warmup)
         else:
             raise ValueError(
-                'Job "COMPLIANCE" requires the defenition of the calibration date of BETA!'
-            )
+                'Job "FULL" requires the defenition of warmup (-w)'
+            )     
 else:
     job = None
+    if args.warmup:
+            warmup=int(args.warmup)
+    else:
+        raise ValueError(
+            'Job "None" requires the defenition of warmup (-w)'
+        )     
 
 # Date at which script is started
 run_date = str(datetime.date.today())
@@ -143,9 +151,29 @@ def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, 
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
 
-#############################
-## PART 1: BETA AND WARMUP ##
-#############################
+# ------------------------------
+# Function to add binomial draws
+# ------------------------------
+
+def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5, LL=0.05*0.5):
+    data = output[state_name].sum(dim="Nc").values
+    # Initialize vectors
+    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
+    # Loop over dimension draws
+    for n in range(data.shape[0]):
+        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
+        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+    # Compute mean and median
+    mean = np.mean(vector,axis=1)
+    median = np.median(vector,axis=1)    
+    # Compute quantiles
+    LL = np.quantile(vector, q = LL, axis = 1)
+    UL = np.quantile(vector, q = UL, axis = 1)
+    return mean, median, LL, UL
+
+################
+## JOB: BETA  ##
+################
 
 # --------------------
 # Calibration settings
@@ -156,22 +184,23 @@ start_data = '2020-03-15'
 # Start data of recalibration ramp
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate warmup and beta
-end_calibration_beta = '2020-03-21'
+if not args.enddate:
+    end_calibration_beta = '2020-03-21'
+else:
+    end_calibration_beta = str(args.enddate)
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 10
-maxiter = 40
+multiplier = 5
+maxiter = 20
 popsize = multiplier*processes
 # MCMC settings
-max_n = 300000
+max_n = 500
 # Number of samples used to visualise model fit
-n_samples = 1000
-# Confidence level used to visualise model fit
-conf_int = 0.05
+n_samples = 100
 # Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=1000
+n_draws_per_sample=1
 
 # --------------------
 # Initialize the model
@@ -187,16 +216,19 @@ initial_states = {"S": initN, "E": np.ones(9)}
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
 
-if job == None or job == 'BETA':
+if job == 'BETA':
 
-    print('\n-----------------------------------------')
-    print('PERFORMING CALIBRATION OF BETA AND WARMUP')
-    print('-----------------------------------------\n')
+    print('\n--------------------------------------------------')
+    print('PERFORMING CALIBRATION OF WARMUP, BETA, OMEGA AND DA')
+    print('----------------------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
     print('1) Particle swarm optimization\n')
     print('Using ' + str(processes) + ' cores\n')
 
+    # --------------
     # define dataset
+    # --------------
+
     data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
     states = [["H_in"]]
 
@@ -210,20 +242,51 @@ if job == None or job == 'BETA':
         param_dict['sigma'] = 5.2 - param_dict['omega']
         return param_dict
 
-    # set PSO optimisation settings
-    parNames = ['warmup','beta']
-    bounds=((10,80),(0.020,0.060))
+    # -----------
+    # Perform PSO
+    # -----------
 
-    # run PSO optimisation
-    #theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-    #                    start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
-    theta = np.array([37.79031293, 0.05536335]) # -5522.909488825322 for beta, omega, da (with dm constant)
+    # set optimisation settings
+    parNames = ['warmup','beta', 'omega', 'da']
+    bounds=((10,80),(0.020,0.10), (0.1,3.2), (3.0,9.0))
+
+    # run optimisation
+    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
+                        start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
+    
+    # assign results
     warmup = int(theta[0])
     theta = theta[1:]
 
-    # run MCMC sampler
+    model.parameters['beta'] = theta[0]
+    model.parameters['omega'] = theta[1]
+    model.parameters['da'] = theta[2]
+
+    # -----------------
+    # Visualise PSO fit
+    # -----------------
+
+    # Simulate
+    start_sim ='2020-03-10'
+    end_sim = '2020-03-27'
+    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
+    # Plot
+    fig,ax = plt.subplots(figsize=(10,5))
+    ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
+    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax = _apply_tick_locator(ax)
+    ax.set_xlim(start_sim,end_sim)
+    ax.set_ylabel('$H_{in}$ (-)')
+    plt.show()
+
+    # ------------------
+    # Setup MCMC sampler
+    # ------------------
+
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+    # Define priors
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
     log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
 
@@ -232,18 +295,22 @@ if job == None or job == 'BETA':
     ndim = len(parNames_mcmc)
     nwalkers = ndim*mp.cpu_count()
 
-    perturbations_beta = theta + theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
-    perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
+    # Perturbate the PSO estimates
+    perturbations_beta = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,5.1, size=nwalkers),axis=1)
+    perturbations_da = np.expand_dims(np.random.triangular(1,4,14, size=nwalkers),axis=1)
     pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
 
-    # Set up the sampler backend
+    # Set up the sampler backend if needed
     if backend:
         filename = spatial_unit+'_BETA_'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
-    # Run sampler
+    # ----------------
+    # Run MCMC sampler
+    # ----------------
+
     # We'll track how the average autocorrelation time estimate changes
     index = 0
     autocorr = np.empty(max_n)
@@ -256,7 +323,7 @@ if job == None or job == 'BETA':
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                         args=(model, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
-            # Only check convergence every 10 steps
+            # Only check convergence every 100 steps
             if sampler.iteration % 100:
                 continue
             
@@ -300,9 +367,9 @@ if job == None or job == 'BETA':
                 break
             old_tau = tau
 
-            ###############################
-            # WRITE SAMPLES TO DICTIONARY #
-            ###############################
+            ################################
+            # WRITE SAMPLES TO BINARY FILE #
+            ################################
 
             # Write samples to dictionary every 200 steps
             if sampler.iteration % 100: 
@@ -320,8 +387,6 @@ if job == None or job == 'BETA':
         thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$','$\\omega$','$d_{a}$'])
 
     print('\n3) Sending samples to dictionary')
 
@@ -363,65 +428,21 @@ if job == None or job == 'BETA':
 
     print('5) Adding binomial uncertainty')
 
-    LL = conf_int/2
-    UL = 1-conf_int/2
-
-    H_in = out["H_in"].sum(dim="Nc").values
-    # Initialize vectors
-    H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
-    # Loop over dimension draws
-    for n in range(H_in.shape[0]):
-        binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
-        H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-    # Compute mean and median
-    H_in_mean = np.mean(H_in_new,axis=1)
-    H_in_median = np.median(H_in_new,axis=1)
-    # Compute quantiles
-    H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
-    H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
-
-    # -----------
-    # Visualizing
-    # -----------
+    mean, median, LL, UL = add_poisson('H_in', out, n_samples, n_draws_per_sample)
 
     print('6) Visualizing fit \n')
 
     # Plot
     fig,ax = plt.subplots(figsize=(10,5))
     # Incidence
-    ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
-    ax.plot(out['time'],H_in_mean,'--', color='blue')
+    ax.fill_between(pd.to_datetime(out['time'].values), LL, UL,alpha=0.20, color = 'blue')
+    ax.plot(out['time'], mean,'--', color='blue')
     ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
     ax.set_xlim('2020-03-10',end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
-    #############################################
-    ####### CALCULATING R0 ######################
-    #############################################
-
-
-    print('-----------------------------------')
-    print('COMPUTING BASIC REPRODUCTION NUMBER')
-    print('-----------------------------------\n')
-
-    print('1) Computing')
-
-    R0, R0_stratified_dict = calculate_R0(samples_dict, model, initN, Nc_total)
-
-    print('2) Sending samples to dictionary')
-
-    samples_dict.update({
-        'R0': R0,
-        'R0_stratified_dict': R0_stratified_dict,
-    })
-
-    print('3) Saving dictionary\n')
-
-    with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json', 'w') as fp:
-        json.dump(samples_dict, fp)
 
     print('DONE!')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json'+'"')
@@ -430,9 +451,6 @@ if job == None or job == 'BETA':
     if job == 'BETA':
         sys.exit()
 
-elif job == 'COMPLIANCE':
-    samples_dict = json.load(open(samples_path+str(spatial_unit)+'_BETA_'+date+'.json'))
-    warmup = int(samples_dict['warmup'])
 
 ############################################
 ## PART 2: COMPLIANCE RAMP AND PREVENTION ##
@@ -447,24 +465,25 @@ start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
-end_calibration = '2020-05-01'
+if not args.enddate:
+    end_calibration = '2020-07-01'
+else:
+    end_calibration = str(args.enddate)
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 10
-maxiter = 500
+multiplier = 3
+maxiter = 10
 popsize = multiplier*processes
 # MCMC settings
-max_n = 500000
+max_n = 50
 # Number of samples used to visualise model fit
-n_samples = 200
-# Confidence level used to visualise model fit
-conf_int = 0.05
+n_samples = 20
 # Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=100
+n_draws_per_sample=1
 
-print('\n---------------------------------------------------')
-print('PERFORMING CALIBRATION OF COMPLIANCE AND PREVENTION')
-print('---------------------------------------------------\n')
+print('\n------------------------------------------------------------------')
+print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND PREVENTION')
+print('--------------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('\n1) Markov-Chain Monte-Carlo sampling\n')
 print('Using ' + str(processes) + ' cores\n')
@@ -481,55 +500,78 @@ states = [["H_in"]]
 # ------------------------
 
 def draw_fcn(param_dict,samples_dict):
-    #idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    #param_dict['da'] = samples_dict['da'][idx]
-    #param_dict['omega'] = samples_dict['omega'][idx]
-    #param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
     param_dict['sigma'] = 5.2 - param_dict['omega']
     return param_dict
 
-# ----------------
-# PSO optimization
-# ----------------
+# -----------
+# Perform PSO
+# -----------
 
-# set PSO optimisation settings
+# optimisation settings
 parNames = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
 bounds=((0.01,0.10),(0.1,3),(0.1,7),(0.01,20),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99))
 
-# run PSO optimisation
-#theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples={})
+# run optimization
+theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes,
+                    draw_fcn=draw_fcn, samples={})
 #theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254 calibration until 2020-07-01
 #theta = np.array([0.07483995, 0.1, 5.46754858, 10, 0.01, 0.0106490, 0.33680392,  0.33470686]) #-60968.5788714604 calibration until 2020-04-15
 #theta = np.array([0.08123533, 0.1, 4.42884154, 9.72942578, 0.01, 0.18277287, 0.36254125, 0.33299897]) #-41532.115553405034 calibration until 2020-04-04
-theta = np.array([0.06024783, 0.6001464, 5.58126417, 8.95809293, 0.01, 0.16470763, 0.34932575, 0.43147353]) #-75222.82579435152
+#theta = np.array([0.06024783, 0.6001464, 5.58126417, 8.95809293, 0.01, 0.16470763, 0.34932575, 0.43147353]) #-75222.8257943515
+                   
+# assign results
+model.parameters['beta'] = theta[0]
+model.parameters['omega'] = theta[1]
+model.parameters['da'] = theta[2]
+model.parameters['l'] = theta[3]
+model.parameters['tau'] = theta[4]
+model.parameters['prev_work'] = theta[5]
+model.parameters['prev_rest'] = theta[6]
+model.parameters['prev_home'] =  theta[7]   
 
+# -----------------
+# Visualise PSO fit
+# -----------------
 
-# ------------
-# MCMC sampler
-# ------------
+# Simulate
+start_sim = '2020-03-10'
+end_sim = '2020-08-01'
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
+# Plot
+fig,ax = plt.subplots(figsize=(10,5))
+ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
+ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax = _apply_tick_locator(ax)
+ax.set_xlim(start_sim,end_sim)
+ax.set_ylabel('$H_{in}$ (-)')
+plt.show()
 
+# ------------------
+# Setup MCMC sampler
+# ------------------
+
+# Example code to pass custom distributions as priors (Overwritten)
 # Prior beta
-density_beta, bins_beta = np.histogram(samples_dict['beta'], bins=20, density=True)
-density_beta_norm = density_beta/np.sum(density_beta)
-
+#density_beta, bins_beta = np.histogram(samples_dict['beta'], bins=20, density=True)
+#density_beta_norm = density_beta/np.sum(density_beta)
 # Prior omega
-density_omega, bins_omega = np.histogram(samples_dict['omega'], bins=20, density=True)
-density_omega_norm = density_omega/np.sum(density_omega)
-
+#density_omega, bins_omega = np.histogram(samples_dict['omega'], bins=20, density=True)
+#density_omega_norm = density_omega/np.sum(density_omega)
 #Prior da
-density_da, bins_da = np.histogram(samples_dict['da'], bins=20, density=True)
-density_da_norm = density_da/np.sum(density_da)
-
-# Setup parameter names, bounds, number of chains, etc.
-parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
+#density_da, bins_da = np.histogram(samples_dict['da'], bins=20, density=True)
+#density_da_norm = density_da/np.sum(density_da)
 #log_prior_fnc = [prior_custom, prior_custom, prior_custom, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 #log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
+
+# Setup uniform priors
+parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fnc_args = [(0.01,0.12),(0.1,5.1),(0.1,14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*2#mp.cpu_count()
+nwalkers = ndim*2
+
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
@@ -538,7 +580,6 @@ pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalke
 pos[:,1] = theta[1] + theta[1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,2] = theta[2] + theta[2]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l and tau
-theta[4] = 0.1
 pos[:,3:5] = theta[3:5] + theta[3:5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
 # prevention work
 pos[:,5] = theta[5] + theta[5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
@@ -551,7 +592,10 @@ if backend:
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 
-# Run sampler
+# ----------------
+# Run MCMC sampler
+# ----------------
+
 # We'll track how the average autocorrelation time estimate changes
 index = 0
 autocorr = np.empty(max_n)
@@ -568,7 +612,7 @@ def draw_fcn(param_dict,samples_dict):
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
@@ -636,15 +680,17 @@ try:
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-checkplots(sampler, int(5 * np.max(tau)), thin, fig_path, spatial_unit, figname='COMPLIANCE', 
-           labels=['$\\beta$','$\\omega$','$d_{a}$','l','$\\tau$', 'prev_work', 'prev_rest', 'prev_home'])
-
 print('\n3) Sending samples to dictionary')
 
-flat_samples = sampler.get_chain(discard=1000,thin=thin,flat=True)
+flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
 
+samples_dict={}
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
+
+samples_dict.update({'n_chains_beta_compliance': nwalkers,
+                    'start_calibration': start_calibration,
+                    'end_calibration': end_calibration})
 
 with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
@@ -654,12 +700,10 @@ with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', '
 # ------------------------
 
 def draw_fcn(param_dict,samples_dict):
-    # Sample first calibration
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['da'] = samples_dict['da'][idx]
     param_dict['omega'] = samples_dict['omega'][idx]
     param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
-    # Sample second calibration
     param_dict['tau'] = samples_dict['tau'][idx] 
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
@@ -682,35 +726,25 @@ out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=
 
 print('5) Adding binomial uncertainty')
 
-LL = conf_int/2
-UL = 1-conf_int/2
+mean, median, LL, UL = add_poisson('H_in', out, n_samples, n_draws_per_sample)
 
-H_in = out["H_in"].sum(dim="Nc").values
-# Initialize vectors
-H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
-# Loop over dimension draws
-for n in range(H_in.shape[0]):
-    binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
-    H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-# Compute mean and median
-H_in_mean = np.mean(H_in_new,axis=1)
-H_in_median = np.median(H_in_new,axis=1)
-# Compute quantiles
-H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
-H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
-
-# -----------
-# Visualizing
-# -----------
+# ---------------
+# Visualizing fit
+# ---------------
 
 print('6) Visualizing fit \n')
 
 # Plot
 fig,ax = plt.subplots(figsize=(10,5))
-# Incidence
-ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
-ax.plot(out['time'],H_in_mean,'--', color='blue')
-ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
+ax.fill_between(pd.to_datetime(out['time'].values), LL, UL,alpha=0.20, color = 'blue')
+ax.plot(out['time'], mean,'--', color='blue')
+ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax = _apply_tick_locator(ax)
 ax.set_xlim('2020-03-10',end_sim)
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+ax.set_ylabel('$H_{in}$ (-)')
+fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+
+print('DONE!')
+print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json'+'"')
+print('-----------------------------------------------------------------------------------------------------------------------------------\n')
