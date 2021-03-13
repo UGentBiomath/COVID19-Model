@@ -54,9 +54,9 @@ else:
 # Job type
 if args.job:
     job = str(args.job)  
-    if job not in ['BETA','FULL']:
+    if job not in ['R0','FULL']:
         raise ValueError(
-            'Illegal job argument. Valid arguments are: "BETA" or "FULL"'
+            'Illegal job argument. Valid arguments are: "R0" or "FULL"'
         )
     elif job == 'FULL':
         if args.warmup:
@@ -172,7 +172,7 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5
     return mean, median, LL, UL
 
 ################
-## JOB: BETA  ##
+## JOB: R0  ##
 ################
 
 # --------------------
@@ -216,9 +216,9 @@ initial_states = {"S": initN, "E": np.ones(9)}
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
 
-if job == 'BETA':
+if job == 'R0':
 
-    print('\n--------------------------------------------------')
+    print('\n----------------------------------------------------')
     print('PERFORMING CALIBRATION OF WARMUP, BETA, OMEGA AND DA')
     print('----------------------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
@@ -303,7 +303,7 @@ if job == 'BETA':
 
     # Set up the sampler backend if needed
     if backend:
-        filename = spatial_unit+'_BETA_'+run_date
+        filename = spatial_unit+'_R0_'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
@@ -346,11 +346,11 @@ if job == 'BETA':
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+run_date+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -376,7 +376,7 @@ if job == 'BETA':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -397,10 +397,13 @@ if job == 'BETA':
 
     samples_dict.update({
         'warmup' : warmup,
-        'start_date_beta' : start_calibration,
-        'end_date_beta' : end_calibration_beta,
-        'n_chains_beta': int(nwalkers)
+        'start_date_R0' : start_calibration,
+        'end_date_R0' : end_calibration_beta,
+        'n_chains_R0': int(nwalkers)
     })
+
+    with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.json', 'w') as fp:
+        json.dump(samples_dict, fp)
 
     # ------------------------
     # Define sampling function
@@ -442,14 +445,13 @@ if job == 'BETA':
     ax = _apply_tick_locator(ax)
     ax.set_xlim('2020-03-10',end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    
-    if job == 'BETA':
-        sys.exit()
+
+    sys.exit()
 
 
 ############################################
@@ -481,9 +483,9 @@ n_samples = 20
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=1
 
-print('\n------------------------------------------------------------------')
-print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND PREVENTION')
-print('--------------------------------------------------------------------\n')
+print('\n---------------------------------------------------------------------')
+print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
+print('---------------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('\n1) Markov-Chain Monte-Carlo sampling\n')
 print('Using ' + str(processes) + ' cores\n')
@@ -588,7 +590,7 @@ pos[:,6:] = theta[6:] + theta[6:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwa
 
 # Set up the sampler backend
 if backend:
-    filename = spatial_unit+'_COMPLIANCE_'+run_date
+    filename = spatial_unit+'_R0_COMP_EFF_'+run_date
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 
@@ -637,11 +639,11 @@ with Pool() as pool:
         ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
         ax.set_xlabel("number of steps")
         ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_COMPLIANCE_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
-                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_COMPLIANCE_'+run_date+'.pdf',
+                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
         # Close all figures and collect garbage to avoid memory leaks
@@ -668,7 +670,7 @@ with Pool() as pool:
             continue
 
         flat_samples = sampler.get_chain(flat=True)
-        with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.npy', 'wb') as f:
+        with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
             np.save(f,flat_samples)
             f.close()
             gc.collect()
@@ -688,11 +690,11 @@ samples_dict={}
 for count,name in enumerate(parNames_mcmc):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
-samples_dict.update({'n_chains_beta_compliance': nwalkers,
+samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
                     'start_calibration': start_calibration,
                     'end_calibration': end_calibration})
 
-with open(samples_path+str(spatial_unit)+'_BETA_COMPLIANCE_'+run_date+'.json', 'w') as fp:
+with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
 # ------------------------
@@ -743,8 +745,8 @@ ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=
 ax = _apply_tick_locator(ax)
 ax.set_xlim('2020-03-10',end_sim)
 ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_COMP_EFF'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
 print('DONE!')
-print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETA_'+run_date+'.json'+'"')
+print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
 print('-----------------------------------------------------------------------------------------------------------------------------------\n')
