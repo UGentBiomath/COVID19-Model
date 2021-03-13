@@ -246,6 +246,8 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         it += 1
 
     print('Stopping search: maximum iterations reached --> {:}'.format(maxiter))
+    
+    mp_pool.close()
 
     if not is_feasible(g):
         print("However, the optimization couldn't find a feasible design. Sorry")
