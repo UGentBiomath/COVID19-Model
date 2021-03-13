@@ -742,8 +742,8 @@ ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=
 ax = _apply_tick_locator(ax)
 ax.set_xlim('2020-03-10',end_sim)
 ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_COMP_EFF'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
 print('DONE!')
-print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
+print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.json'+'"')
 print('-----------------------------------------------------------------------------------------------------------------------------------\n')
