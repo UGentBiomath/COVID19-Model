@@ -213,7 +213,7 @@ def test_model_interaction_matrix_function():
     model_without = SIRstratified(initial_states, parameters)
     output_without = model_without.sim(time)
 
-    def compliance_func(t, param):
+    def compliance_func(t, states, param):
         if t < 10:
             return param
         else:
@@ -226,7 +226,7 @@ def test_model_interaction_matrix_function():
     assert (output['R'] <= output_without['R']).all()
 
     # using a compliance function with an additional parameter
-    def compliance_func(t, param, prevention):
+    def compliance_func(t, states, param, prevention):
         if t < 10:
             return param
         else:

@@ -53,7 +53,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def wave2_policies_3prev(t, param, l , tau, 
+def wave2_policies_3prev(t, states, param, l , tau, 
                    prev_schools, prev_work, prev_rest):
     
     # Convert tau and l to dates
