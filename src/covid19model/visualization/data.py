@@ -24,7 +24,7 @@ def google_mobility(data):
     fig, ax = plt.subplots(3, 2, figsize=(15, 12))
     for i in range(3):
         for j in range(2):
-            ax[i,j].plot(data.index, data[data_lst[i][j]], color='blue')
+            ax[i,j].plot(data.index, data[data_lst[i][j]])
             ax[i,j].axvline(x=pd.Timestamp('2020-03-13'), color='k', linestyle='--')
             ax[i,j].axvline(x=pd.Timestamp('2020-10-19'), color='k', linestyle='--')
             ax[i,j].set_ylabel('% compared to baseline')
