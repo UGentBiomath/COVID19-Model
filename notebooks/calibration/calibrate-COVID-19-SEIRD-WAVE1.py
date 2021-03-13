@@ -487,7 +487,7 @@ print('\n---------------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
 print('---------------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-print('\n1) Markov-Chain Monte-Carlo sampling\n')
+print('\n1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
 
 # --------------
@@ -553,6 +553,7 @@ plt.show()
 # ------------------
 # Setup MCMC sampler
 # ------------------
+print('\n2) Markov Chain Monte Carlo sampling\n')
 
 # Example code to pass custom distributions as priors (Overwritten)
 # Prior beta
