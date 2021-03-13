@@ -73,7 +73,7 @@ class COVID19_SEIRD(BaseModel):
         ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
-        ICU : intensive care
+        ICU_tot : intensive care
         R : recovered
         D : deceased
         H_in : new hospitalizations
@@ -182,7 +182,10 @@ class COVID19_SEIRD(BaseModel):
         dV = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - (IP_old + IP_new)*(1-e)*V
         dVE = dS + dR + dE + dI + dA
         # Update fraction of new COVID-19 variant
-        dalpha = IP_new/(IP_old+IP_new) - alpha
+        if np.all((IP_old == 0)) and np.all((IP_new == 0)):
+            dalpha = np.zeros(9)
+        else:
+            dalpha = IP_new/(IP_old+IP_new) - alpha
          # If A and I are both zero, a division error occurs
         dalpha[np.isnan(dalpha)] = 0
 
