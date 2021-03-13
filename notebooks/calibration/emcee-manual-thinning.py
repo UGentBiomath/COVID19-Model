@@ -82,15 +82,15 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # Optional: remove chains stuck in undesired local minima
 # -------------------------------------------------------
 
-# Chains beta
-idx = np.mean(samples[:,:,0],axis=0) >= 0.042
-print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undersired chains\n')
-samples=samples[:,idx,:]
+# # Chains beta
+# idx = np.mean(samples[:,:,0],axis=0) >= 0.065
+# print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undersired chains\n')
+# samples=samples[:,idx,:]
 
-# Convert to flat samples
-flat_samples = samples[:,0,:]
-for i in range(1,samples.shape[1]):
-    flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
+# # Convert to flat samples
+# flat_samples = samples[:,0,:]
+# for i in range(1,samples.shape[1]):
+#     flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
 
 # -----------------
 # Make a cornerplot
@@ -107,7 +107,8 @@ CORNER_KWARGS = dict(
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    range=[(0,0.10),(0,2.5),(0,12),(0,12),(0,2.5),(0,1),(0,1),(0,1)]
+    range=[(0,0.12),(0,5.2),(0,15),(0,12),(0,2.5),(0,1),(0,1),(0,1),(0,1)],
+    title_fmt=".3" 
 )
 
 # Path where figures should be stored
@@ -115,7 +116,7 @@ fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Cornerplots of samples
 fig = corner.corner(flat_samples, labels=args.labels, **CORNER_KWARGS)
 # for control of labelsize of x,y-ticks:
-ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]]
+ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
 for idx,ax in enumerate(fig.get_axes()):
     ax.tick_params(axis='both', labelsize=12, rotation=0)
 
