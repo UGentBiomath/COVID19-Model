@@ -62,7 +62,47 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
-def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
+def mobility_update_func(t,states,param,agg,default_mobility=None):
+    """
+    Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/staytime.
+    
+    Input
+    -----
+    t : timestamp
+        current date as datetime object
+    states : formal necessity (not used)
+    param : formal necessity (not used)
+    agg : str
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+        
+    Returns
+    -------
+    place : matrix
+        square matrix with floating points between 0 and 1, dimension depending on agg
+    """
+    
+    # Import date_to_YYYYMMD function
+    from ..data.mobility import date_to_YYYYMMDD
+    
+    # Define absolute location of this file
+    abs_dir = os.path.dirname(__file__)
+    # Define data location for this particular aggregation level
+    data_location = '../../../data/interim/mobility/' + agg + '/staytime/'
+    # Define YYYYMMDD date
+    YYYYMMDD = date_to_YYYYMMDD(t)
+    filename = 'fractional-mobility-matrix_staytime_' + agg + '_' + str(YYYYMMDD) + '.csv'
+    try: # if there is data available for this date
+        place = pd.read_csv(os.path.join(abs_dir, data_location+filename), \
+                        index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
+    except:
+        if default_mobility: # If there is no data available and a user-defined input is given
+            place = default_mobility
+        else: # No data and no user input: fall back on average mobility
+            place = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/mobility/' + agg + '/quick-average_staytime_' + agg + \
+                                             '.csv'), index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
+    return place
+
+def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     """
     Lockdown function handling t as datetime
     
@@ -88,7 +128,7 @@ def lockdown_func(t,param,policy0,policy1,l,tau,prevention,start_date):
     else:
         return prevention*policy1
     
-def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
+def policies_until_september(t,states,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
                                policy6,policy7,policy8,policy9,l,tau,prevention):
     """
     t : timestamp
@@ -157,7 +197,7 @@ def policies_until_september(t,param,start_date,policy0,policy1,policy2,policy3,
     elif t8 < t:
         return prevention*policy9
 
-def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
+def google_lockdown(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -230,7 +270,7 @@ def google_lockdown(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, preven
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
     
-def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
+def google_lockdown_no_prev(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -303,7 +343,7 @@ def google_lockdown_no_prev(t,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau
         school = 1
         return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
-def social_policy_func(t,param,policy_time,policy1,policy2,tau,l):
+def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     """
     Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
     

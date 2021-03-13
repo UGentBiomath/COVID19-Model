@@ -363,6 +363,7 @@ BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-09,-41.0,-3.0,6.0,-40.0,-37.
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-10,-40.0,-4.0,-6.0,-41.0,-34.0,14.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-11,-42.0,1.0,0.0,-41.0,-35.0,16.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-12,-44.0,2.0,-5.0,-40.0,-34.0,16.0
+<<<<<<< HEAD
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-13,-37.0,1.0,26.0,-32.0,-13.0,10.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-14,-43.0,-4.0,43.0,-32.0,-9.0,7.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-15,-33.0,-6.0,-7.0,-45.0,-45.0,15.0
@@ -377,6 +378,8 @@ BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-23,-30.0,5.0,55.0,-29.0,-26.
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-24,-27.0,4.0,92.0,-24.0,-24.0,9.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-25,-35.0,5.0,26.0,-30.0,-25.0,12.0
 BE,Belgium,,,,,,ChIJl5fz7WR9wUcR8g_mObTy60c,2021-02-26,-37.0,10.0,27.0,-28.0,-23.0,12.0
+=======
+>>>>>>> master
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2020-02-15,11.0,8.0,89.0,18.0,1.0,-1.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2020-02-16,-1.0,-2.0,-1.0,8.0,-5.0,1.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2020-02-17,2.0,1.0,15.0,4.0,4.0,0.0
@@ -741,6 +744,7 @@ BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-09,-53.0,-10.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-10,-55.0,-10.0,-16.0,-49.0,-46.0,16.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-11,-55.0,-8.0,-11.0,-49.0,-46.0,17.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-12,-54.0,-9.0,-16.0,-45.0,-45.0,18.0
+<<<<<<< HEAD
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-13,-48.0,-11.0,23.0,-32.0,-24.0,9.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-14,-54.0,-13.0,37.0,-36.0,-24.0,6.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-15,-49.0,-18.0,-22.0,-50.0,-57.0,17.0
@@ -755,6 +759,8 @@ BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-23,-48.0,-3.0,
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-24,-46.0,1.0,116.0,-37.0,-40.0,12.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-25,-51.0,-5.0,18.0,-43.0,-41.0,14.0
 BE,Belgium,Brussels,,,BE-BRU,,ChIJ_58PdIbEw0cRMIBML6uZAAE,2021-02-26,-48.0,1.0,33.0,-36.0,-40.0,14.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2020-02-15,2.0,1.0,15.0,6.0,1.0,-1.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2020-02-16,-11.0,-3.0,-42.0,-5.0,-3.0,1.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2020-02-17,0.0,2.0,10.0,6.0,3.0,0.0
@@ -1119,6 +1125,7 @@ BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-09,-41.0,0.0,9
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-10,-41.0,-1.0,1.0,-44.0,-36.0,15.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-11,-44.0,3.0,6.0,-44.0,-37.0,17.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-12,-46.0,4.0,-3.0,-43.0,-36.0,18.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-13,-39.0,4.0,27.0,-34.0,-12.0,11.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-14,-44.0,-1.0,36.0,-29.0,-6.0,8.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-15,-33.0,-4.0,-2.0,-47.0,-44.0,16.0
@@ -1133,6 +1140,8 @@ BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-23,-29.0,8.0,5
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-24,-26.0,5.0,97.0,-25.0,-23.0,9.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-25,-36.0,8.0,25.0,-31.0,-24.0,13.0
 BE,Belgium,Flanders,,,BE-VLG,,ChIJpeuHbqSSw0cRIIBML6uZAAE,2021-02-26,-39.0,13.0,27.0,-29.0,-22.0,13.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2020-02-15,2.0,1.0,6.0,0.0,1.0,-1.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2020-02-16,-9.0,-4.0,-38.0,-6.0,-5.0,1.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2020-02-17,-3.0,0.0,1.0,4.0,3.0,0.0
@@ -1497,6 +1506,7 @@ BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-09,-44.
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-10,-45.0,-2.0,6.0,-43.0,-36.0,15.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-11,-46.0,1.0,15.0,-44.0,-38.0,17.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-12,-48.0,3.0,14.0,-43.0,-36.0,17.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-13,-44.0,1.0,41.0,-38.0,-12.0,11.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-14,-46.0,-4.0,53.0,-28.0,-6.0,8.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-15,-38.0,-8.0,-13.0,-47.0,-44.0,15.0
@@ -1511,6 +1521,8 @@ BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-23,-32.
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-24,-28.0,5.0,89.0,-26.0,-22.0,9.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-25,-39.0,4.0,25.0,-34.0,-24.0,12.0
 BE,Belgium,Flanders,Antwerp,,BE-VAN,,ChIJYxqH-B5VwUcRT7U_zWa6lgg,2021-02-26,-40.0,11.0,39.0,-30.0,-22.0,12.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2020-02-15,1.0,0.0,15.0,4.0,1.0,-1.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2020-02-16,-3.0,0.0,-35.0,-4.0,0.0,1.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2020-02-17,3.0,3.0,5.0,8.0,4.0,0.0
@@ -1875,6 +1887,7 @@ BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-10,-38.0,2.0,-2.0,-41.0,-36.0,15.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-11,-41.0,5.0,3.0,-41.0,-38.0,17.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-12,-43.0,8.0,-14.0,-38.0,-36.0,18.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-13,-37.0,5.0,26.0,-28.0,-9.0,11.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-14,-40.0,1.0,36.0,-18.0,-3.0,7.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-15,-32.0,-1.0,-15.0,-43.0,-45.0,16.0
@@ -1889,6 +1902,8 @@ BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-2
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-24,-26.0,7.0,80.0,-19.0,-23.0,9.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-25,-34.0,9.0,12.0,-23.0,-25.0,13.0
 BE,Belgium,Flanders,East Flanders,,BE-VOV,,ChIJi-0kywZ2w0cRsIBML6uZAAI,2021-02-26,-36.0,18.0,8.0,-20.0,-23.0,13.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2020-02-15,-1.0,-1.0,13.0,5.0,0.0,-1.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2020-02-16,-10.0,-3.0,-31.0,0.0,-3.0,1.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2020-02-17,4.0,3.0,7.0,8.0,5.0,0.0
@@ -2253,6 +2268,7 @@ BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-10,-40.0,-4.0,3.0,-54.0,-43.0,17.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-11,-41.0,0.0,-1.0,-52.0,-43.0,19.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-12,-44.0,0.0,-8.0,-48.0,-41.0,20.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-13,-36.0,-4.0,44.0,-38.0,-11.0,11.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-14,-41.0,-9.0,84.0,-47.0,-4.0,7.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-15,-31.0,-7.0,-11.0,-56.0,-53.0,18.0
@@ -2267,6 +2283,8 @@ BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-24,-28.0,1.0,132.0,-41.0,-34.0,12.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-25,-34.0,3.0,29.0,-42.0,-34.0,15.0
 BE,Belgium,Flanders,Flemish Brabant,,BE-VBR,,ChIJ7diwvtdgwUcRYrEzvCLYu-M,2021-02-26,-36.0,8.0,26.0,-38.0,-32.0,15.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2020-02-15,2.0,-1.0,18.0,9.0,-1.0,-1.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2020-02-16,-4.0,0.0,-39.0,-6.0,-3.0,1.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2020-02-17,0.0,0.0,11.0,5.0,3.0,0.0
@@ -2631,6 +2649,7 @@ BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-09,-38.
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-10,-39.0,-1.0,9.0,-40.0,-30.0,14.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-11,-39.0,5.0,20.0,-40.0,-32.0,16.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-12,-42.0,6.0,20.0,-42.0,-33.0,16.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-13,-37.0,5.0,58.0,-33.0,-16.0,11.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-14,-43.0,-3.0,73.0,-16.0,-10.0,8.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-15,-32.0,-7.0,10.0,-42.0,-38.0,15.0
@@ -2645,6 +2664,8 @@ BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-23,-26.
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-24,-24.0,3.0,113.0,-13.0,-16.0,8.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-25,-30.0,8.0,54.0,-23.0,-19.0,10.0
 BE,Belgium,Flanders,Limburg,,BE-VLI,,ChIJfZxmPSmTwEcRi9wBzMI5EzY,2021-02-26,-33.0,11.0,45.0,-25.0,-18.0,11.0
+=======
+>>>>>>> master
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2020-02-15,5.0,1.0,11.0,10.0,2.0,-1.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2020-02-16,-13.0,-7.0,-43.0,-12.0,-2.0,2.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2020-02-17,2.0,1.0,17.0,4.0,3.0,1.0
@@ -3009,6 +3030,7 @@ BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-10,-37.0,4.0,-12.0,-35.0,-31.0,13.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-11,-40.0,11.0,-13.0,-35.0,-30.0,15.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-12,-44.0,12.0,-19.0,-32.0,-30.0,16.0
+<<<<<<< HEAD
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-13,-34.0,14.0,-8.0,-19.0,-11.0,11.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-14,-36.0,17.0,18.0,-4.0,-9.0,8.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-15,-24.0,10.0,11.0,-32.0,-38.0,14.0
@@ -3023,6 +3045,8 @@ BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-2
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-24,-20.0,12.0,83.0,2.0,-16.0,8.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-25,-31.0,18.0,11.0,-12.0,-16.0,11.0
 BE,Belgium,Flanders,West Flanders,,BE-VWV,,ChIJVXM8b7e03EcRoIBML6uZAAI,2021-02-26,-36.0,23.0,23.0,-11.0,-15.0,11.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2020-02-15,3.0,1.0,25.0,7.0,2.0,-1.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2020-02-16,0.0,-4.0,-14.0,-3.0,-2.0,1.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2020-02-17,1.0,2.0,4.0,1.0,2.0,0.0
@@ -3387,6 +3411,7 @@ BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-09,-33.0,-7.0,
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-10,-33.0,-5.0,-17.0,-32.0,-26.0,12.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-11,-30.0,-1.0,-6.0,-31.0,-26.0,12.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-12,-35.0,0.0,-8.0,-32.0,-26.0,14.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-13,-29.0,1.0,26.0,-31.0,-12.0,9.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-14,-30.0,-6.0,62.0,-31.0,-10.0,6.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-15,-24.0,-7.0,1.0,-42.0,-45.0,14.0
@@ -3401,6 +3426,8 @@ BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-23,-23.0,1.0,4
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-24,-22.0,3.0,66.0,-16.0,-21.0,8.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-25,-23.0,5.0,34.0,-19.0,-22.0,9.0
 BE,Belgium,Wallonia,,,BE-WAL,,ChIJlzHhZWvxwUcRQIBML6uZAAE,2021-02-26,-28.0,8.0,17.0,-22.0,-20.0,11.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2020-02-15,2.0,-1.0,13.0,5.0,1.0,0.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2020-02-16,-3.0,-4.0,-29.0,-6.0,-3.0,1.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2020-02-17,1.0,1.0,2.0,2.0,2.0,0.0
@@ -3765,6 +3792,7 @@ BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-09,-34.
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-10,-32.0,-5.0,-20.0,-37.0,-24.0,11.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-11,-28.0,-3.0,-11.0,-36.0,-24.0,12.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-12,-33.0,-1.0,-21.0,-37.0,-24.0,13.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-13,-31.0,-4.0,7.0,-39.0,-11.0,9.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-14,-33.0,-8.0,35.0,-45.0,-7.0,6.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-15,-22.0,-9.0,-25.0,-49.0,-41.0,13.0
@@ -3779,6 +3807,8 @@ BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-23,-22.
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-24,-21.0,1.0,61.0,-23.0,-17.0,7.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-25,-21.0,2.0,18.0,-25.0,-19.0,9.0
 BE,Belgium,Wallonia,Hainaut,,BE-WHT,,ChIJXWuHtA0mwkcRkEtWu-NC1GE,2021-02-26,-25.0,9.0,7.0,-27.0,-17.0,10.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2020-02-15,3.0,-1.0,25.0,7.0,1.0,0.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2020-02-16,0.0,-6.0,-8.0,1.0,-2.0,0.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2020-02-17,1.0,1.0,5.0,-1.0,0.0,1.0
@@ -4143,6 +4173,7 @@ BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-09,-31.0,
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-10,-33.0,-8.0,-31.0,-30.0,-25.0,12.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-11,-31.0,-4.0,-17.0,-29.0,-25.0,12.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-12,-37.0,0.0,-17.0,-30.0,-25.0,13.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-13,-29.0,3.0,17.0,-27.0,-13.0,9.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-14,-31.0,-9.0,51.0,-19.0,-10.0,6.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-15,-25.0,-8.0,-10.0,-40.0,-45.0,14.0
@@ -4157,6 +4188,8 @@ BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-23,-23.0,
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-24,-23.0,2.0,58.0,-12.0,-21.0,8.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-25,-24.0,3.0,33.0,-15.0,-22.0,9.0
 BE,Belgium,Wallonia,Liege,,BE-WLG,,ChIJQxJV245ewEcR0IBML6uZAAI,2021-02-26,-32.0,8.0,10.0,-19.0,-19.0,11.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2020-02-15,4.0,1.0,22.0,2.0,2.0,-1.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2020-02-16,0.0,-2.0,2.0,-1.0,0.0,0.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2020-02-17,3.0,2.0,15.0,-1.0,0.0,1.0
@@ -4521,6 +4554,7 @@ BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-09,-
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-10,-29.0,2.0,12.0,-20.0,-24.0,11.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-11,-30.0,8.0,15.0,-20.0,-20.0,12.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-12,-32.0,8.0,5.0,-24.0,-24.0,14.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-13,-31.0,9.0,32.0,-36.0,-10.0,9.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-14,-36.0,9.0,81.0,-29.0,-11.0,7.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-15,-19.0,8.0,88.0,-29.0,-43.0,14.0
@@ -4535,6 +4569,8 @@ BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-23,-
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-24,-23.0,3.0,75.0,-10.0,-21.0,8.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-25,-22.0,11.0,58.0,-9.0,-19.0,9.0
 BE,Belgium,Wallonia,Luxembourg,,BE-WLX,,ChIJXemZE4cmwEcR8IBML6uZAAI,2021-02-26,-27.0,13.0,21.0,-19.0,-22.0,12.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2020-02-15,4.0,3.0,26.0,12.0,2.0,-1.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2020-02-16,-2.0,-2.0,-7.0,-2.0,0.0,1.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2020-02-17,0.0,1.0,13.0,1.0,4.0,0.0
@@ -4899,6 +4935,7 @@ BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-10,-32.0,-2.0,0.0,-29.0,-27.0,12.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-11,-32.0,1.0,-2.0,-29.0,-27.0,13.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-12,-34.0,5.0,7.0,-28.0,-26.0,14.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-13,-25.0,10.0,26.0,-25.0,-8.0,9.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-14,-22.0,1.0,75.0,-20.0,-9.0,6.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-15,-23.0,-7.0,25.0,-39.0,-47.0,14.0
@@ -4913,6 +4950,8 @@ BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-24,-21.0,7.0,78.0,-14.0,-22.0,8.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-25,-23.0,10.0,44.0,-20.0,-23.0,10.0
 BE,Belgium,Wallonia,Province of Namur,,BE-WNA,,ChIJGVmGENGUwUcRorXKNtkQZS0,2021-02-26,-28.0,16.0,29.0,-21.0,-21.0,11.0
+=======
+>>>>>>> master
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2020-02-15,3.0,1.0,21.0,10.0,1.0,-1.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2020-02-16,-5.0,-3.0,-51.0,-6.0,-7.0,1.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2020-02-17,3.0,2.0,5.0,0.0,4.0,0.0
@@ -5277,6 +5316,7 @@ BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-10,-33.0,-5.0,25.0,-33.0,-35.0,15.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-11,-33.0,1.0,39.0,-33.0,-37.0,17.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-12,-35.0,2.0,32.0,-26.0,-37.0,17.0
+<<<<<<< HEAD
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-13,-26.0,2.0,74.0,-19.0,-13.0,10.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-14,-24.0,2.0,86.0,-6.0,-7.0,6.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-15,-25.0,-6.0,37.0,-39.0,-53.0,17.0
@@ -5291,3 +5331,5 @@ BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-24,-21.0,5.0,,-18.0,-30.0,11.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-25,-28.0,5.0,78.0,-21.0,-32.0,14.0
 BE,Belgium,Wallonia,Walloon Brabant,,BE-WBR,,ChIJ0_zn8gF-wUcRgZgO3C88Rng,2021-02-26,-29.0,9.0,69.0,-16.0,-32.0,14.0
+=======
+>>>>>>> master

@@ -92,7 +92,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
