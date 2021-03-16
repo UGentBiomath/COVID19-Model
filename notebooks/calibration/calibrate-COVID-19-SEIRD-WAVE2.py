@@ -94,11 +94,12 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
     initial_states = json.load(fp)    
 
 initial_states.update({
+    'VE': np.zeros(9),
     'V': np.zeros(9),
     'V_new': np.zeros(9),
     'alpha': np.zeros(9)
 })
-initial_states['ICU_tot'] = initial_states.pop('ICU')
+#initial_states['ICU_tot'] = initial_states.pop('ICU')
 
 # ------------------------
 # Define results locations
@@ -120,7 +121,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -566,11 +567,11 @@ parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_r
 bounds=((0.01,0.03),(0.1,1.0),(10,14),(3,7),(0.1,2),(0.70,0.99),(0.01,0.50),(0.01,0.50),(0.70,0.99))
 
 # run optimization
-#theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples={})
+theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes,
+                    draw_fcn=draw_fcn, samples={})
 # Calibration until 2021-02-01
-theta = np.array([2.42597349e-02, 2.00000000e-01, 1.4000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 5.0e-02, 7.49952898e-01]) #-159676.96370239937
+#theta = np.array([2.42597349e-02, 2.00000000e-01, 1.4000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 5.0e-02, 7.49952898e-01]) #-159676.96370239937
 
 # assign results
 model.parameters['beta'] = theta[0]
