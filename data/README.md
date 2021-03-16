@@ -70,6 +70,9 @@
 #### Sciensano
 
 + `COVID19BE_HOSP.csv` contains a copy of the "HOSP" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
++ `COVID19BE_MORT.csv` contains a copy of the "MORT" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
++ `COVID19BE_CASES.csv` contains a copy of the "CASES_AGESEX" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
++ `COVID19BE_VACC.csv` contains a copy of the "VACC" sheet from the publically available Sciensano data. Data is extracted from https://epistat.sciensano.be/Data/COVID19BE.xlsx
 + `ObsInf.txt` contains cumulative observed infections from 1 March on
  (note that this is an underestimation since especially in the beginning, only sick people
    were tested)
