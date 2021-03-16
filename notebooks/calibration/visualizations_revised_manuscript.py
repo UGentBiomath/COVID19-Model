@@ -47,7 +47,7 @@ plt.rcParams.update({
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
-parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1000, type=int)
+parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 args = parser.parse_args()
 
 #################################################
@@ -205,7 +205,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
     
     # Convert tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
@@ -500,11 +500,12 @@ warmup = 0
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
 initial_states.update({
+    'VE': np.zeros(9),
     'V': np.zeros(9),
     'V_new': np.zeros(9),
     'alpha': np.zeros(9)
 })
-initial_states['ICU_tot'] = initial_states.pop('ICU')
+#initial_states['ICU_tot'] = initial_states.pop('ICU')
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
@@ -634,18 +635,20 @@ def compute_R0(initN, Nc, samples_dict, model_parameters):
         R0_norm[i,:] = R0[i,:]*(initN[i]/sum(initN))
         
     R0_age = np.mean(R0,axis=1)
-    R0_overall = np.mean(np.sum(R0_norm,axis=0))
-    return R0, R0_overall
+    R0_mean = np.sum(R0_norm,axis=0)
+    return R0, R0_mean
 
 # -----------------------
 # Pre-allocate dataframes
 # -----------------------
 
 index=df_google.index
-columns = [['1','1','1','1','1','2','2','2','2','2'],['work','schools','rest','home','total','work','schools','rest','home','total']]
+columns = [['1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','2','2','2','2','2','2','2','2','2','2','2','2','2','2','2'],['work_mean','work_LL','work_UL','schools_mean','schools_LL','schools_UL','rest_mean','rest_LL','rest_UL',
+            'home_mean','home_LL','home_UL','total_mean','total_LL','total_UL','work_mean','work_LL','work_UL','schools_mean','schools_LL','schools_UL',
+            'rest_mean','rest_LL','rest_UL','home_mean','home_LL','home_UL','total_mean','total_LL','total_UL']]
 tuples = list(zip(*columns))
 columns = pd.MultiIndex.from_tuples(tuples, names=["WAVE", "Type"])
-data = np.zeros([len(df_google.index),10])
+data = np.zeros([len(df_google.index),30])
 df_rel = pd.DataFrame(data=data, index=df_google.index, columns=columns)
 df_abs = pd.DataFrame(data=data, index=df_google.index, columns=columns)
 df_Re = pd.DataFrame(data=data, index=df_google.index, columns=columns)
@@ -710,10 +713,9 @@ for j,samples_dict in enumerate(samples_dicts):
                             + 0.01*(100+df_google['grocery'][date])* (np.sum(Nc_others,axis=1)),axis=1)*np.array(samples_dict['prev_rest'])
             R0, Re_rest[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
-    data_rest_mean = np.mean(data_rest,axis=1)
-    data_rest_LL = np.quantile(data_rest,LL,axis=1)
-    data_rest_UL = np.quantile(data_rest,UL,axis=1)
-    Re_rest_mean=(np.mean(Re_rest,axis=1))
+    Re_rest_mean = np.mean(Re_rest,axis=1)
+    Re_rest_LL = np.quantile(Re_rest,q=0.05/2,axis=1)
+    Re_rest_UL = np.quantile(Re_rest,q=1-0.05/2,axis=1)
 
     # ---------------
     # Work prevention
@@ -748,10 +750,9 @@ for j,samples_dict in enumerate(samples_dicts):
             contacts = np.expand_dims(0.01*(100+df_google['work'][date])* (np.sum(Nc_work,axis=1)),axis=1)*np.array(samples_dict['prev_work'])
             R0, Re_work[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
-    data_work_mean = np.mean(data_work,axis=1)
-    data_work_LL = np.quantile(data_work,LL,axis=1)
-    data_work_UL = np.quantile(data_work,UL,axis=1)
-    Re_work_mean = (np.mean(Re_work,axis=1))
+    Re_work_mean = np.mean(Re_work,axis=1)
+    Re_work_LL = np.quantile(Re_work, q=0.05/2, axis=1)
+    Re_work_UL = np.quantile(Re_work, q=1-0.05/2, axis=1)
 
     # ----------------
     #  Home prevention
@@ -787,10 +788,9 @@ for j,samples_dict in enumerate(samples_dicts):
             contacts = np.expand_dims((np.sum(Nc_home,axis=1)),axis=1)*np.array(samples_dict['prev_home'])
             R0, Re_home[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
-    data_home_mean = np.mean(data_home,axis=1)
-    data_home_LL = np.quantile(data_home,LL,axis=1)
-    data_home_UL = np.quantile(data_home,UL,axis=1)
-    Re_home_mean = (np.mean(Re_home,axis=1))
+    Re_home_mean = np.mean(Re_home,axis=1)
+    Re_home_LL = np.quantile(Re_home, q=0.05/2, axis=1)
+    Re_home_UL = np.quantile(Re_home, q=1-0.05/2, axis=1)
 
     # ------------------
     #  School prevention
@@ -827,7 +827,7 @@ for j,samples_dict in enumerate(samples_dicts):
                 R0, Re_schools[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
             else:
-                data_schools[idx,:] = 1 * (np.sum(np.mean(Nc_schools,axis=0)))*np.array(samples_dict['prev_work'])
+                data_schools[idx,:] = 1 * (np.sum(np.mean(Nc_schools,axis=0)))*np.array(samples_dict['prev_work']) # This is wrong, but is never used
                 contacts = 1*np.expand_dims(np.sum(Nc_schools,axis=1),axis=1)*np.ones([1,len(samples_dict['prev_home'])])
                 R0, Re_schools[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
@@ -886,10 +886,19 @@ for j,samples_dict in enumerate(samples_dicts):
                 contacts = 1*np.expand_dims(np.sum(Nc_schools,axis=1),axis=1)*np.ones([1,len(samples_dict['prev_schools'])])
                 R0, Re_schools[idx,:] = compute_R0(initN, contacts, samples_dict, params)
 
-    data_schools_mean = np.mean(data_schools,axis=1)
-    data_schools_LL = np.quantile(data_schools,LL,axis=1)
-    data_schools_UL = np.quantile(data_schools,UL,axis=1)
-    Re_schools_mean = (np.mean(Re_schools,axis=1))
+    Re_schools_mean = np.mean(Re_schools,axis=1)
+    Re_schools_LL = np.quantile(Re_schools, q=0.05/2, axis=1)
+    Re_schools_UL = np.quantile(Re_schools, q=1-0.05/2, axis=1)
+
+    # -----
+    # Total
+    # -----
+    data_total = data_rest + data_work + data_home + data_schools
+    Re_total = Re_rest + Re_work + Re_home + Re_schools
+
+    Re_total_mean = np.mean(Re_total,axis=1)
+    Re_total_LL = np.quantile(Re_total, q=0.05/2, axis=1)
+    Re_total_UL = np.quantile(Re_total, q=1-0.05/2, axis=1)
 
     # -----------------------
     #  Absolute contributions
@@ -899,6 +908,7 @@ for j,samples_dict in enumerate(samples_dicts):
     abs_work = np.zeros(data_rest.shape)
     abs_home = np.zeros(data_rest.shape)
     abs_schools = np.zeros(data_schools.shape)
+    abs_total = data_total
     for i in range(data_rest.shape[0]):
         abs_rest[i,:] = data_rest[i,:]
         abs_work[i,:] = data_work[i,:]
@@ -921,6 +931,10 @@ for j,samples_dict in enumerate(samples_dicts):
     abs_home_LL = np.quantile(abs_home,LL,axis=1)
     abs_home_UL = np.quantile(abs_home,UL,axis=1)
 
+    abs_total_mean = np.mean(abs_total,axis=1)
+    abs_total_LL = np.quantile(abs_total,LL,axis=1)
+    abs_total_UL = np.quantile(abs_total,UL,axis=1)
+
     # -----------------------
     #  Relative contributions
     # -----------------------
@@ -929,12 +943,14 @@ for j,samples_dict in enumerate(samples_dicts):
     rel_work = np.zeros(data_rest.shape)
     rel_home = np.zeros(data_rest.shape)
     rel_schools = np.zeros(data_schools.shape)
+    rel_total = np.zeros(data_schools.shape)
     for i in range(data_rest.shape[0]):
         total = data_schools[i,:] + data_rest[i,:] + data_work[i,:] + data_home[i,:]
         rel_rest[i,:] = data_rest[i,:]/total
         rel_work[i,:] = data_work[i,:]/total
         rel_home[i,:] = data_home[i,:]/total
         rel_schools[i,:] = data_schools[i,:]/total
+        rel_total[i,:] = total/total
 
     rel_schools_mean = np.mean(rel_schools,axis=1)
     rel_schools_LL = np.quantile(rel_schools,LL,axis=1)
@@ -952,45 +968,91 @@ for j,samples_dict in enumerate(samples_dicts):
     rel_home_LL = np.quantile(rel_home,LL,axis=1)
     rel_home_UL = np.quantile(rel_home,UL,axis=1)
 
+    rel_total_mean = np.mean(rel_total,axis=1)
+    rel_total_LL = np.quantile(rel_total,LL,axis=1)
+    rel_total_UL = np.quantile(rel_total,UL,axis=1)
+
     # ---------------------
     # Append to dataframe
     # ---------------------
 
-    df_rel[waves[j],"work"] = rel_work_mean
-    df_rel[waves[j], "rest"] = rel_rest_mean
-    df_rel[waves[j], "home"] = rel_home_mean
-    df_rel[waves[j],"schools"] = rel_schools_mean
-    df_rel[waves[j],"total"] = rel_work_mean + rel_rest_mean + rel_home_mean + rel_schools_mean
+    df_rel[waves[j],"work_mean"] = rel_work_mean
+    df_rel[waves[j],"work_LL"] = rel_work_LL
+    df_rel[waves[j],"work_UL"] = rel_work_UL
+    df_rel[waves[j], "rest_mean"] = rel_rest_mean
+    df_rel[waves[j], "rest_LL"] = rel_rest_LL
+    df_rel[waves[j], "rest_UL"] = rel_rest_UL
+    df_rel[waves[j], "home_mean"] = rel_home_mean
+    df_rel[waves[j], "home_LL"] = rel_home_LL
+    df_rel[waves[j], "home_UL"] = rel_home_UL
+    df_rel[waves[j],"schools_mean"] = rel_schools_mean
+    df_rel[waves[j],"schools_LL"] = rel_schools_LL
+    df_rel[waves[j],"schools_UL"] = rel_schools_UL
+    df_rel[waves[j],"total_mean"] = rel_total_mean
+    df_rel[waves[j],"total_LL"] = rel_total_LL
+    df_rel[waves[j],"total_UL"] = rel_total_UL
     copy1 = df_rel.copy(deep=True)
 
-    df_Re[waves[j],"work"] = Re_work_mean
-    df_Re[waves[j], "rest"] = Re_rest_mean
-    df_Re[waves[j], "home"] = Re_home_mean
-    df_Re[waves[j],"schools"] = Re_schools_mean
-    df_Re[waves[j],"total"] = Re_work_mean + Re_rest_mean + Re_home_mean + Re_schools_mean
+    df_Re[waves[j],"work_mean"] = Re_work_mean
+    df_Re[waves[j],"work_LL"] = Re_work_LL
+    df_Re[waves[j],"work_UL"] = Re_work_UL
+    df_Re[waves[j], "rest_mean"] = Re_rest_mean
+    df_Re[waves[j],"rest_LL"] = Re_rest_LL
+    df_Re[waves[j],"rest_UL"] = Re_rest_UL
+    df_Re[waves[j], "home_mean"] = Re_home_mean
+    df_Re[waves[j], "home_LL"] = Re_home_LL
+    df_Re[waves[j], "home_UL"] = Re_home_UL
+    df_Re[waves[j],"schools_mean"] = Re_schools_mean
+    df_Re[waves[j],"schools_LL"] = Re_schools_LL
+    df_Re[waves[j],"schools_UL"] = Re_schools_UL
+    df_Re[waves[j],"total_mean"] = Re_total_mean
+    df_Re[waves[j],"total_LL"] = Re_total_LL
+    df_Re[waves[j],"total_UL"] = Re_total_UL
     copy2 = df_Re.copy(deep=True)
 
-    df_abs[waves[j],"work"] = abs_work_mean
-    df_abs[waves[j], "rest"] = abs_rest_mean
-    df_abs[waves[j], "home"] = abs_home_mean
-    df_abs[waves[j],"schools"] = abs_schools_mean
-    df_abs[waves[j],"total"] = abs_work_mean + abs_rest_mean + abs_home_mean + abs_schools_mean
+    df_abs[waves[j],"work_mean"] = abs_work_mean
+    df_abs[waves[j],"work_LL"] = abs_work_LL
+    df_abs[waves[j],"work_UL"] = abs_work_UL
+    df_abs[waves[j], "rest_mean"] = abs_rest_mean
+    df_abs[waves[j], "rest_LL"] = abs_rest_LL
+    df_abs[waves[j], "rest_UL"] = abs_rest_UL
+    df_abs[waves[j], "home_mean"] = abs_home_mean
+    df_abs[waves[j], "home_LL"] = abs_home_LL
+    df_abs[waves[j], "home_UL"] = abs_home_UL
+    df_abs[waves[j],"schools_mean"] = abs_schools_mean
+    df_abs[waves[j],"schools_LL"] = abs_schools_LL
+    df_abs[waves[j],"schools_UL"] = abs_schools_UL
+    df_abs[waves[j],"total_mean"] = abs_total_mean
+    df_abs[waves[j],"total_LL"] = abs_total_LL
+    df_abs[waves[j],"total_UL"] = abs_total_UL
 
     df_rel = copy1
     df_Re = copy2
 
-print(np.mean(df_abs["1","total"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]))
-print(np.mean(df_Re["1","total"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]))
+#df_abs.to_excel('test.xlsx', sheet_name='Absolute contacts')
+#df_rel.to_excel('test.xlsx', sheet_name='Relative contacts')
+#df_Re.to_excel('test.xlsx', sheet_name='Effective reproduction number')
 
-print(np.mean(df_abs["1","total"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]))
-print(np.mean(df_Re["1","total"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]))
+print(np.mean(df_abs["1","total_mean"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]))
+print(np.mean(df_Re["1","total_LL"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]),
+        np.mean(df_Re["1","total_mean"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]),
+        np.mean(df_Re["1","total_UL"][pd.to_datetime('2020-03-22'):pd.to_datetime('2020-05-04')]))
+
+print(np.mean(df_abs["1","total_mean"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]))
+print(np.mean(df_Re["1","total_LL"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]), 
+        np.mean(df_Re["1","total_mean"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]),
+        np.mean(df_Re["1","total_UL"][pd.to_datetime('2020-06-01'):pd.to_datetime('2020-07-01')]))
 
 
-print(np.mean(df_abs["2","total"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]))
-print(np.mean(df_Re["2","total"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]))
+print(np.mean(df_abs["2","total_mean"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]))
+print(np.mean(df_Re["2","total_LL"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]),
+        np.mean(df_Re["2","total_mean"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]),
+        np.mean(df_Re["2","total_UL"][pd.to_datetime('2020-10-25'):pd.to_datetime('2020-11-16')]))
 
-print(np.mean(df_abs["2","total"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]))
-print(np.mean(df_Re["2","total"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]))
+print(np.mean(df_abs["2","total_mean"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]))
+print(np.mean(df_Re["2","total_LL"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]),
+        np.mean(df_Re["2","total_mean"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]),
+        np.mean(df_Re["2","total_UL"][pd.to_datetime('2020-11-16'):pd.to_datetime('2020-12-18')]))
 
 # ----------------------------
 #  Plot absolute contributions
@@ -1001,11 +1063,11 @@ no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],[pd.
 
 fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
 for idx,ax in enumerate(axes):
-    ax.plot(df_abs.index, df_abs[waves[idx],"rest"],  color='blue', linewidth=2)
-    ax.plot(df_abs.index, df_abs[waves[idx],"work"], color='red', linewidth=2)
-    ax.plot(df_abs.index, df_abs[waves[idx],"home"], color='green', linewidth=2)
-    ax.plot(df_abs.index, df_abs[waves[idx],"schools"], color='orange', linewidth=2)
-    ax.plot(df_abs.index, df_abs[waves[idx],"total"], color='black', linewidth=1.5)
+    ax.plot(df_abs.index, df_abs[waves[idx],"rest_mean"],  color='blue', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"work_mean"], color='red', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"home_mean"], color='green', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"schools_mean"], color='orange', linewidth=2)
+    ax.plot(df_abs.index, df_abs[waves[idx],"total_mean"], color='black', linewidth=1.5)
     ax.xaxis.grid(False)
     ax.yaxis.grid(False)
     ax.set_ylabel('Absolute contacts (-)')
@@ -1040,10 +1102,10 @@ plt.close()
 
 fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
 for idx,ax in enumerate(axes):
-    ax.plot(df_rel.index, df_rel[waves[idx],"rest"],  color='blue', linewidth=1.5)
-    ax.plot(df_rel.index, df_rel[waves[idx],"work"], color='red', linewidth=1.5)
-    ax.plot(df_rel.index, df_rel[waves[idx],"home"], color='green', linewidth=1.5)
-    ax.plot(df_rel.index, df_rel[waves[idx],"schools"], color='orange', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"rest_mean"],  color='blue', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"work_mean"], color='red', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"home_mean"], color='green', linewidth=1.5)
+    ax.plot(df_rel.index, df_rel[waves[idx],"schools_mean"], color='orange', linewidth=1.5)
     ax.xaxis.grid(False)
     ax.yaxis.grid(False)
     ax.set_ylabel('Relative contacts (-)')
@@ -1083,11 +1145,16 @@ no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],[pd.
 
 fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
 for idx,ax in enumerate(axes):
-    ax.plot(df_Re.index, df_Re[waves[idx],"rest"],  color='blue', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"work"], color='red', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"home"], color='green', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"schools"], color='orange', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"total"], color='black', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"rest_mean"],  color='blue', linewidth=1.5)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "rest_LL"], df_Re[waves[idx], "rest_UL"], color='blue', alpha=0.2)
+    ax.plot(df_Re.index, df_Re[waves[idx],"work_mean"], color='red', linewidth=1.5)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "work_LL"], df_Re[waves[idx], "work_UL"], color='red', alpha=0.2)
+    ax.plot(df_Re.index, df_Re[waves[idx],"home_mean"], color='green', linewidth=1.5)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "home_LL"], df_Re[waves[idx], "home_UL"], color='green', alpha=0.2)
+    ax.plot(df_Re.index, df_Re[waves[idx],"schools_mean"], color='orange', linewidth=1.5)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "schools_LL"], df_Re[waves[idx], "schools_UL"], color='orange', alpha=0.2)
+    ax.plot(df_Re.index, df_Re[waves[idx],"total_mean"], color='black', linewidth=1.5)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "total_LL"], df_Re[waves[idx], "total_UL"], color='black', alpha=0.2)
     ax.axhline(y=1.0, color='black', linestyle='--',linewidth=1.5)
 
     ax.xaxis.grid(False)
@@ -1129,13 +1196,19 @@ no_lockdown = [[pd.to_datetime('2020-03-01'), pd.to_datetime('2020-03-15')],[pd.
 
 fig,axes=plt.subplots(nrows=2,ncols=1,figsize=(12,7))
 for idx,ax in enumerate(axes):
-    ax.plot(df_Re.index, df_Re[waves[idx],"rest"],  color='blue', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"work"], color='red', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"home"], color='green', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"schools"], color='orange', linewidth=1.5)
-    ax.plot(df_Re.index, df_Re[waves[idx],"total"], color='black', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"rest_mean"],  color='blue', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"work_mean"], color='red', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"home_mean"], color='green', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"schools_mean"], color='orange', linewidth=1.5)
+    ax.plot(df_Re.index, df_Re[waves[idx],"total_mean"], color='black', linewidth=1.5)
     ax.axhline(y=1.0, color='black', linestyle='--',linewidth=1.5)
 
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "rest_LL"], df_Re[waves[idx], "rest_UL"], color='blue', alpha=0.2)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "work_LL"], df_Re[waves[idx], "work_UL"], color='red', alpha=0.2)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "home_LL"], df_Re[waves[idx], "home_UL"], color='green', alpha=0.2)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "schools_LL"], df_Re[waves[idx], "schools_UL"], color='orange', alpha=0.2)
+    ax.fill_between(df_Re.index, df_Re[waves[idx], "total_LL"], df_Re[waves[idx], "total_UL"], color='black', alpha=0.2)
+    
     ax.xaxis.grid(False)
     ax.yaxis.grid(False)
     ax.set_ylabel('$R_{e}$ (-)')
@@ -1156,8 +1229,6 @@ for idx,ax in enumerate(axes):
     ax2.fill_between(time,vector_LL, vector_UL,alpha=0.20, color = 'black')
     ax2.xaxis.grid(False)
     ax2.yaxis.grid(False)
-    ax2.set_xlim(xlims[idx])
-    ax2.set_ylabel('New hospitalisations (-)')
 
     ax = _apply_tick_locator(ax)
     ax2 = _apply_tick_locator(ax2)
@@ -1166,9 +1237,9 @@ plt.tight_layout()
 plt.show()
 plt.close()
 
-# ---------------------------------------------------
-# Plot relative and reproduction number on one figure
-# ---------------------------------------------------
+# -------------------------------------------------------
+# Plot relative and reproduction number on one figure (1)
+# -------------------------------------------------------
 
 dfs = [df_rel, df_Re]
 
@@ -1176,11 +1247,11 @@ fig,axes=plt.subplots(nrows=2,ncols=2, figsize=(18,8.27))
 
 for idx,ax_row in enumerate(axes):
     for jdx, ax in enumerate(ax_row):
-        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"rest"],  color='blue', linewidth=1.5)
-        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"work"], color='red', linewidth=1.5)
-        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"home"], color='green', linewidth=1.5)
-        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"schools"], color='orange', linewidth=1.5)
-        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"total"], color='black', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"rest_mean"],  color='blue', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"work_mean"], color='red', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"home_mean"], color='green', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"schools_mean"], color='orange', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"total_mean"], color='black', linewidth=1.5)
 
         if jdx == 0:
             ax.set_ylabel('Relative contacts (-)')
