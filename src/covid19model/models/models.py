@@ -73,7 +73,7 @@ class COVID19_SEIRD(BaseModel):
         ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
-        ICU_tot : intensive care
+        ICU : intensive care
         R : recovered
         D : deceased
         H_in : new hospitalizations
@@ -184,6 +184,188 @@ class COVID19_SEIRD(BaseModel):
             dalpha += injection_ratio
 
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
+
+
+class COVID19_SEIRD_vacc(BaseModel):
+    """
+    Biomath extended SEIRD model for COVID-19, Deterministic implementation
+    Can account for re-infection and co-infection with a new COVID-19 variant.
+    Model compartments doubled for fundamental vaccination research.
+    
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+
+        S : susceptible
+        E : exposed
+        I : infected
+        A : asymptomatic
+        M : mild
+        ER: emergency room, buffer ward (hospitalized state)
+        C : cohort
+        C_icurec : cohort after recovery from ICU
+        ICU : intensive care
+        R : recovered
+        D : deceased
+
+        S_v : susceptible and vaccinated
+        E_v : exposed and vaccinated
+        I_v : infected and vaccinated
+        A_v : asymptomatic and vaccinated
+        M_v : mild and vaccinated
+        ER_v : emergency room, buffer ward (hospitalized state)
+        C_v : cohort and vaccinated
+        C_icurec_v : cohort after recovery from ICU and vaccinated
+        ICU_v : intensive care and vaccinated
+        R_v : recovered and vaccinated        
+
+        H_in : new hospitalizations
+        H_out : new hospital discharges
+        H_tot : total patients in Belgian hospitals
+
+        alpha : fraction of alternative COVID-19 variant
+
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of an initially mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        der : duration of stay in emergency room/buffer ward
+        dc : average length of a hospital stay when not in ICU
+        dICU_R : average length of a hospital stay in ICU in case of recovery
+        dICU_D: average length of a hospital stay in ICU in case of death
+        dhospital : time before a patient reaches the hospital
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
+        e_i : vaccine effectiveness in reducing infectiousness
+        e_s : vaccine effectiveness in reducing susceptibility
+        d_vacc : duration of vaccine protection
+
+        Age-stratified parameters
+        --------------------
+        s: relative susceptibility to infection
+        a : probability of a subclinical infection
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in Cohort (non-ICU)
+        m_C : mortality in Cohort
+        m_ICU : mortality in ICU
+        N_vacc : number of people to be vaccinated per day
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
+                    'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v' 'R_v']
+    parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio', 'e_i', 'e_s', 'd_vacc']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
+    stratification = ['Nc']
+
+    # ..transitions/equations
+    @staticmethod
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
+                  beta, K, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, e_i, e_s, d_vacc,
+                  s, a, h, c, m_C, m_ICU, N_vacc,
+                  Nc):
+        """
+        Biomath extended SEIRD model for COVID-19
+
+        *Deterministic implementation*
+        """
+
+        # Calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + ER_v + C_v + C_icurec_v + ICU_v + R_v
+
+        # Compute the number of vaccine elegible individuals
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        VE = S + E + I + A + R
+
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if Nc is None:
+            print(t)
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
+        IP_new = alpha*K*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
+
+        # Compute the  rates of change in every population compartment (non-vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS  = - (IP_old + IP_new)*S + zeta*R - N_vacc/VE*S + (1/d_vacc)*R_v 
+        dE  = (IP_old + IP_new)*S - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I 
+        dA = (a/omega)*I - A/da      
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
+        dER = M*(h/dhospital) - (1/der)*ER
+        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
+        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
+        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
+
+        # Compute the  rates of change in every population compartment (vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + N_vacc/VE*S 
+        dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma 
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
+        dA_v = (a/omega)*I_v - A_v/da      
+        dM_v = ((1-a)/omega)*I_v - M_v*((1-h)/dm) - M_v*h/dhospital
+        dER_v = M_v*(h/dhospital) - (1/der)*ER_v
+        dC_v = c*(1/der)*ER_v - (1-m_C)*C_v*(1/dc_R) - m_C*C_v*(1/dc_D)
+        dC_icurec_v = ((1-m_ICU)/dICU_R)*ICU_v - C_icurec_v*(1/dICUrec)
+        dICUstar_v = (1-c)*(1/der)*ER_v - (1-m_ICU)*ICU_v/dICU_R - m_ICU*ICU_v/dICU_D
+        dR_v  = A_v/da + ((1-h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C + (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
+
+        # Compute the hospital rates of changes
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dH_in = M*(h/dhospital) + M_v*(h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
+            + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
+            + M_v*(h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
+
+        # Update fraction of new COVID-19 variant
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if np.all((IP_old == 0)) and np.all((IP_new == 0)):
+            # Protection against division error
+            dalpha = np.zeros(9)
+        else:
+            dalpha = IP_new/(IP_old+IP_new) - alpha
+
+        # On injection_day, inject injection_ratio new strain to alpha
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if (t >= injection_day) & (alpha.sum().sum()==0):
+            dalpha += injection_ratio
+
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+
 
 class COVID19_SEIRD_sto(BaseModel):
     """
