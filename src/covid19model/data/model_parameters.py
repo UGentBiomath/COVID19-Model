@@ -141,7 +141,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -250,12 +250,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
         # vaccination
-        df_vacc = pd.read_csv(os.path.join(par_raw_path,"vaccination.csv"), sep=',',header='infer')
-        pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
-        pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
-        pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
-        pars_dict['leakiness'] =  np.array(df_vacc.loc[:,'leakiness'].astype(float).tolist())
-
+        if vaccination == True:
+            df_vacc = pd.read_csv(os.path.join(par_raw_path,"vaccination.csv"), sep=',',header='infer')
+            pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
+            pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
+            pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
+            pars_dict['leakiness'] =  np.array(df_vacc.loc[:,'leakiness'].astype(float).tolist())
 
 
     else:
