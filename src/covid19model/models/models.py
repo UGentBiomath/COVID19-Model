@@ -274,7 +274,7 @@ class COVID19_SEIRD_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
-                    'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v' 'R_v']
+                    'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
     parameter_names = ['beta', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio', 'e_i', 'e_s', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
@@ -301,7 +301,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the number of vaccine elegible individuals
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        VE = S + E + I + A + R
+        VE = S + R
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -323,12 +323,12 @@ class COVID19_SEIRD_vacc(BaseModel):
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - N_vacc/VE*R
 
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + N_vacc/VE*S 
+        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + N_vacc/VE*S + N_vacc/VE*R
         dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
