@@ -442,7 +442,7 @@ def make_contact_matrix_function(df_google, Nc_all):
                 idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
                 row = -df_google_array[idx]/100
             else:
-                row = -df_google_array[-1]/100
+                row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
 
             if SB == '2a':
                 row = -df_google['2020-09-01':'2020-10-01'].mean()/100
