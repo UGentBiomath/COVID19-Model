@@ -230,7 +230,10 @@ def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=Tru
         print(f"\nNew dates to be processed: {dates_new}\n")
     
     # Load and process data for new dates
-    savename = 'fractional-mobility-matrix_staytime_'
+    if normalise:
+        savename = 'fractional-mobility-matrix_staytime_'
+    else:
+        savename = 'absolute-mobility-matrix_staytime_'
     for d in dates_new:
         raw_data = load_datafile_proximus(d, raw_dir)
         # Some seconds went missing. Show this per PC
