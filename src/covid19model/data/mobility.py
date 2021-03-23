@@ -190,7 +190,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 ####################################
 
 
-def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True):
+def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True, normalise=True):
     """
     Function that turns the raw Proximus mobility data into interim mobility matrices P for the staytime. CURRENTLY NOT YET ACCOMODATING NEW DISTRICT-DISTRICT PROXIMUS DATA.
     
@@ -202,6 +202,8 @@ def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=Tru
         Goal directory that contains the processed mobility P matrix data
     verbose: boolean
         If True (default), print current status
+    normalise: boolean
+        If True (default), normalise daily mobility such that the output is fractional mobility
     """
     
     # Find new dates that need to be processed
@@ -246,7 +248,10 @@ def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=Tru
         # Aggregate staytime values at the level of agg (user-defined)
         mmprox_staytime_agg = mm_aggregate(mmprox_staytime, agg=agg)
         # Normalise the matrix
-        P = mmprox_staytime_agg.div(mmprox_staytime_agg.sum(axis=1), axis=0)
+        if normalise:
+            P = mmprox_staytime_agg.div(mmprox_staytime_agg.sum(axis=1), axis=0)
+        else:
+            P = mmprox_staytime_agg.copy()
         
         # Save matrix with descriptive name
         filename = savename + agg + '_' + d + '.csv'
