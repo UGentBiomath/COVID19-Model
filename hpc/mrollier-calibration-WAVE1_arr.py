@@ -361,7 +361,7 @@ if __name__ == '__main__':
     with Pool() as pool:
         # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson', poisson_offset, agg))
+                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, None, {}, start_calibration, warmup,'poisson', poisson_offset, agg))
         # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence (i.e. only execute code below) every 100 steps
