@@ -365,7 +365,8 @@ if __name__ == '__main__':
         # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence (i.e. only execute code below) every 100 steps
-            if sampler.iteration % 100: # same as saying if sampler.iteration % 10 == 0
+            sample_step = 100
+            if sampler.iteration % sample_step: # same as saying if sampler.iteration % 10 == 0
                 continue
 
             ##################
@@ -374,11 +375,12 @@ if __name__ == '__main__':
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
+            # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
 
             # Update autocorrelation plot
-            n = 100 * np.arange(0, index + 1)
+            n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
             ax.plot(n, n / 50.0, "--k")
@@ -387,6 +389,7 @@ if __name__ == '__main__':
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+            # Overwrite figure every time
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
