@@ -324,7 +324,7 @@ def prior_weibull(x,weibull_params):
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
 
-def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson'):
+def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset=0, agg=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -345,6 +345,11 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
         list containg the names of the model states to be fitted to data
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
+    poisson_offset : float
+        Offset to avoid infinities for Poisson loglikelihood around 0. Default is poisson_offset=0.
+    agg : str or None
+        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
+        None (default) if non-spatial model is used
 
     Returns
     -----------
@@ -370,4 +375,4 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
