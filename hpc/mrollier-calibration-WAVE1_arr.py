@@ -230,6 +230,7 @@ if __name__ == '__main__':
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=poisson_offset, agg=agg)
 
+    # Warmup time is only calculated in the PSO, not in the MCMC (not sure why?)
     warmup = int(theta_pso[0])
     theta_pso = theta_pso[1:] # rest of the best-fit parameter values
 
@@ -321,18 +322,21 @@ if __name__ == '__main__':
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+    # Define priors functions for Bayesian analysis in MCMC
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
+    # Define arguments of prior functions. In this case the boundaries of the uniform prior.
     log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l', 'tau']
-    #         parNames_mcmc = ['beta','omega','da']
+#     parNames_mcmc = ['beta','omega','da']
     ndim = len(parNames_mcmc)
-    nwalkers = ndim*(mp.cpu_count()-1)
+    # An MCMC walker for every processing core and for every parameter
+    nwalkers = ndim*processes
 
-    #         perturbations_beta = theta + theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    #         perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
-    #         perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
+#     perturbations_beta = theta + theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+#     perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
+#     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
 
     # Initial states for all walkers should be slightly different, off by maximally 1 percent
     perturbations_beta = theta_pso + theta_pso*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
