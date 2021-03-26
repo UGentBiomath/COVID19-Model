@@ -322,7 +322,7 @@ if __name__ == '__main__':
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # Define priors functions for Bayesian analysis in MCMC
+    # Define priors functions for Bayesian analysis in MCMC. MLE returns infinity if parameter go outside this boundary.
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior.
     log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
