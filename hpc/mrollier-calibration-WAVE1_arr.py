@@ -374,6 +374,7 @@ if __name__ == '__main__':
             ################## 
 
             # Compute the autocorrelation time so far
+            # Do not confuse this tau with the compliance tau
             tau = sampler.get_autocorr_time(tol=0)
             # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
@@ -393,7 +394,7 @@ if __name__ == '__main__':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETA_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
+            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'],
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -405,8 +406,10 @@ if __name__ == '__main__':
             ##################### 
 
             # Check convergence using mean tau
+            # Note: double condition! These conditions are hard-coded
             converged = np.all(np.mean(tau) * 50 < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
+            # Stop MCMC if convergence is reached
             if converged:
                 break
             old_tau = tau
@@ -416,7 +419,7 @@ if __name__ == '__main__':
             ###############################
 
             # Write samples to dictionary every 100 steps
-            if sampler.iteration % 100: 
+            if sampler.iteration % sample_step: 
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
@@ -432,7 +435,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta$','$\\omega$','$d_{a}$'])
+    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
     print('\n3) Sending samples to dictionary')
 
