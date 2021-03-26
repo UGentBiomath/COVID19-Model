@@ -355,15 +355,17 @@ if __name__ == '__main__':
     autocorr = np.empty(max_n)
     # This will be useful for testing convergence
     old_tau = np.inf
-    # Initialize autocorr vector and autocorrelation figure
+    # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
 
     with Pool() as pool:
+        # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
                         args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson', poisson_offset, agg))
+        # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
-            # Only check convergence every 10 steps
-            if sampler.iteration % 100:
+            # Only check convergence (i.e. only execute code below) every 100 steps
+            if sampler.iteration % 100: # same as saying if sampler.iteration % 10 == 0
                 continue
 
             ##################
