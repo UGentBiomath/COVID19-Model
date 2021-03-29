@@ -10,7 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
-import gc
+import gc # garbage collection, important for long-running programs
 import sys, getopt
 # import ujson as json
 import random
@@ -239,11 +239,12 @@ if __name__ == '__main__':
     # Run sampler
     # We'll track how the average autocorrelation time estimate changes
     index = 0
-    autocorr = np.empty(max_n)
+    autocorr = np.empty(max_n) # empty array with max_n slots
     # This will be useful for testing convergence
-    old_tau = np.inf
+    old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
+    sample_step = 100
 
     with Pool() as pool:
         # Prepare the samplers
@@ -252,8 +253,7 @@ if __name__ == '__main__':
         # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence (i.e. only execute code below) every 100 steps
-            sample_step = 100
-            if sampler.iteration % sample_step: # same as saying if sampler.iteration % 10 == 0
+            if sampler.iteration % sample_step: # same as saying if sampler.iteration % sample_step == 0
                 continue
 
             ##################
@@ -282,7 +282,7 @@ if __name__ == '__main__':
 
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETA_'+run_date+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-prev_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -305,12 +305,12 @@ if __name__ == '__main__':
             # WRITE SAMPLES TO DICTIONARY #
             ###############################
 
-            # Write samples to dictionary every 100 steps
+            # Write samples to dictionary every sample_step steps
             if sampler.iteration % sample_step: 
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_BETA_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+str(spatial_unit)+'_BETAs-prev_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
