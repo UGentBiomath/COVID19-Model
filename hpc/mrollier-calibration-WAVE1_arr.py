@@ -271,7 +271,7 @@ if __name__ == '__main__':
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k")
+            ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded
             ax.plot(n, y, linewidth=2,color='red')
             ax.set_xlim(0, n.max())
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
