@@ -200,7 +200,7 @@ if __name__ == '__main__':
 
     print(f'\n------------')
     print(f'PSO RESULTS:')
-    print(f'------------\n')
+    print(f'------------')
     print(f'warmup: {warmup}')
     print(f'parameters {parNames[1:]}: {theta_pso}.\n')
 
@@ -223,17 +223,11 @@ if __name__ == '__main__':
     # An MCMC walker for every processing core and for every parameter
     nwalkers = ndim*processes
 
-#     perturbations_beta = theta + theta*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-#     perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
-#     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
-
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (prevention)
     perturbations_beta = theta_pso[:3]*1e-2 *np.random.uniform(low=-1,high=1,size=(nwalkers,3))
     perturbations_prev = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
     perturbations = np.concatenate((perturbations_beta,perturbations_prev), axis=1)
     pos = theta_pso + perturbations
-    
-    print(pos)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
