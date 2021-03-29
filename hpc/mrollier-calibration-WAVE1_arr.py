@@ -227,9 +227,13 @@ if __name__ == '__main__':
 #     perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
 #     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
 
-    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent
-    perturbations = theta_pso*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (prevention)
+    perturbations_beta = theta_pso[:3]*1e-2 *np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+    perturbations_prev = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+    perturbations = np.concatenate((perturbations_beta,perturbations_prev), axis=1)
     pos = theta_pso + perturbations
+    
+    print(pos)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -250,7 +254,7 @@ if __name__ == '__main__':
     with Pool() as pool:
         # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc), kwargs={'draw_fnc'=None, 'samples'={}, 'start_date'=start_calibration, 'warmup'=warmup, 'dist'='poisson', 'poisson_offset'=poisson_offset, 'agg'=agg})
+                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc), kwargs={'draw_fnc':None, 'samples':{}, 'start_date':start_calibration, 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg})
         # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence (i.e. only execute code below) every 100 steps
