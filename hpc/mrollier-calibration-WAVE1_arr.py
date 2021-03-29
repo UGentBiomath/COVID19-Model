@@ -127,13 +127,13 @@ if __name__ == '__main__':
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 300000
+        max_n = 1 # 300000
     # Number of samples used to visualise model fit
     n_samples = 1000
     # Confidence level used to visualise model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. (Not sure what this does)
-    n_draws_per_sample=1000
+    n_draws_per_sample= 1 #1000
     
     # Offset for the use of Poisson distribution (avoiding infinities for y=0)
     poisson_offset=1
@@ -211,8 +211,8 @@ if __name__ == '__main__':
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # Define priors functions for Bayesian analysis in MCMC. MLE returns infinity if parameter go outside this boundary.
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
+    # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
     log_prior_fnc_args = bounds[1:]
 
