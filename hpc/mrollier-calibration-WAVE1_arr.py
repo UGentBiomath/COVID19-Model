@@ -186,7 +186,7 @@ if __name__ == '__main__':
 
     # set PSO parameters and boundaries
     parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'tau']
-    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20))
+    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20)) # range for l and tau seems rather large
 
     # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
     init_warmup = 30
@@ -204,40 +204,9 @@ if __name__ == '__main__':
     print(f'warmup: {warmup}')
     print(f'parameters {parNames[1:]}: {theta_pso}.\n')
 
-    
-    #############################
-    ## PART 1: BETA AND WARMUP ##
-    #############################
-
     # --------------------
-    # Calibration settings
+    # Initialize the model
     # --------------------
-
-#     # Start of data collection
-#     start_data = '2020-03-15'
-#     # Start data of recalibration ramp
-#     start_calibration = '2020-03-15'
-#     # Last datapoint used to calibrate warmup and beta
-#     end_calibration_beta = '2020-03-21'
-#     # Spatial unit: Belgium
-#     spatial_unit = f'{agg}_WAVE1'
-#     # PSO settings
-#     processes = mp.cpu_count()
-#     multiplier = 10
-#     maxiter = 40
-#     popsize = multiplier*processes
-#     # MCMC settings
-#     max_n = 300000
-#     # Number of samples used to visualise model fit
-#     n_samples = 1000
-#     # Confidence level used to visualise model fit
-#     conf_int = 0.05
-#     # Number of binomial draws per sample drawn used to visualize model fit
-#     n_draws_per_sample=1000
-
-#     # --------------------
-#     # Initialize the model
-#     # --------------------
 
 #     # Load the model parameters dictionary
 #     params = model_parameters.get_COVID19_SEIRD_parameters()
