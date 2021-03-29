@@ -239,12 +239,11 @@ if __name__ == '__main__':
     # Run sampler
     # We'll track how the average autocorrelation time estimate changes
     index = 0
-    autocorr = np.empty(max_n) # empty array with max_n slots
     # This will be useful for testing convergence
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 100
+    sample_step = 1
 
     with Pool() as pool:
         # Prepare the samplers
@@ -322,6 +321,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
+    print(autocorr)
     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
     
