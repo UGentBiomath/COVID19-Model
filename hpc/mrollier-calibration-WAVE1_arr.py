@@ -204,54 +204,10 @@ if __name__ == '__main__':
     print(f'warmup: {warmup}')
     print(f'parameters {parNames[1:]}: {theta_pso}.\n')
 
-    # --------------------
-    # Initialize the model
-    # --------------------
-
-#     # Load the model parameters dictionary
-#     params = model_parameters.get_COVID19_SEIRD_parameters()
-#     # Add the time-dependant parameter function arguments
-#     params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
-#     # Define initial states
-#     initial_states = {"S": initN, "E": np.ones(9)}
-#     # Initialize model
-#     model = models.COVID19_SEIRD(initial_states, params,
-#                             time_dependent_parameters={'Nc': policies_wave1_4prev})
-
-#     if job == None or job == 'BETA':
-
-#         print('\n-----------------------------------------')
-#         print('PERFORMING CALIBRATION OF BETA AND WARMUP')
-#         print('-----------------------------------------\n')
-#         print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
-#         print('1) Particle swarm optimization\n')
-#         print('Using ' + str(processes) + ' cores\n')
-
-#         # define dataset
-#         data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
-#         states = [["H_in"]]
-
-#         # ------------------------
-#         # Define sampling function
-#         # ------------------------
-
-#         samples_dict = {}
-#         # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
-#         def draw_fcn(param_dict,samples_dict):
-#             param_dict['sigma'] = 5.2 - param_dict['omega']
-#             return param_dict
-
-#         # set PSO optimisation settings
-#         parNames = ['warmup','beta']
-#         bounds=((10,80),(0.020,0.060))
-
-#         # run PSO optimisation
-#         #theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-#         #                    start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
-#         theta = np.array([37.79031293, 0.05536335]) # -5522.909488825322 for beta, omega, da (with dm constant)
-#         warmup = int(theta[0])
-#         theta = theta[1:]
-
+    # ------------------------
+    # Markov-Chain Monte-Carlo
+    # ------------------------
+    
     # run MCMC sampler
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
