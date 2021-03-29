@@ -227,11 +227,9 @@ if __name__ == '__main__':
 #     perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3, size=nwalkers),axis=1)
 #     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
 
-    # Initial states for all walkers should be slightly different, off by maximally 1 percent
+    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent
     perturbations = theta_pso*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     pos = theta_pso + perturbations
-    
-    print(pos)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
