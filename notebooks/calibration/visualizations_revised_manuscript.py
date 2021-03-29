@@ -151,6 +151,22 @@ ax2.set_xlabel('$\\tau$ (days)')
 plt.tight_layout()
 plt.show()
 
+fig,ax = plt.subplots(figsize=(15,5))
+
+ax.scatter(lag_series, covariance_youth_work, color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+ax.scatter(lag_series, covariance_youth_old, color='black',alpha=0.6, linestyle='None',facecolors='none', s=30, linewidth=1, marker='s')
+ax.scatter(lag_series, covariance_work_old, color='black',alpha=0.6, linestyle='None',facecolors='none', s=30, linewidth=1, marker='D')
+ax.legend(['$[0,20[$ vs. $[20,60[$', '$[0,20[$ vs. $[60,\infty[$', '$[20,60[$ vs. $[60, \infty[$'], bbox_to_anchor=(1.05, 1), loc='upper left')
+ax.plot(lag_series, covariance_youth_work, color='black', linestyle='--', linewidth=1)
+ax.plot(lag_series, covariance_youth_old, color='black',linestyle='--', linewidth=1)
+ax.plot(lag_series, covariance_work_old, color='black',linestyle='--', linewidth=1)
+ax.axvline(0,linewidth=1, color='black')
+ax.grid(False)
+ax.set_ylabel('lag-$\\tau$ cross correlation (-)')
+ax.set_xlabel('$\\tau$ (days)')
+
+plt.tight_layout()
+plt.show()
 
 #####################################################
 ## PART 1: Calibration robustness figure of WAVE 1 ##
