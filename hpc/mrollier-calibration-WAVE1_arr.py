@@ -44,6 +44,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
+#     parser.add_argument("-a", "--aggregation", help="Choose aggregation level (arr, prov or mun). Arr is default.")
     # parser.add_argument("-j", "--job", help="Full or partial calibration")
     # parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
 
@@ -103,44 +104,7 @@ if __name__ == '__main__':
     # Path where MCMC samples should be saved
     samples_path = f'../../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
 
-    # ---------------------------------
-    # Time-dependant parameter function
-    # ---------------------------------
-
-#     # Define policy function
-#     def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
-#                        prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
-
-#         # Convert tau and l to dates
-#         tau_days = pd.Timedelta(tau, unit='D')
-#         l_days = pd.Timedelta(l, unit='D')
-
-#         # Define additional dates where intensity or school policy changes
-#         t1 = pd.Timestamp('2020-03-15') # start of lockdown
-#         t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
-#         t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
-#         t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
-
-#         if t <= t1 + tau_days:
-#             return tdpf.contact_matrix(t, df_google, Nc_all, school=1)
-#         elif t1 + tau_days < t <= t1 + tau_days + l_days:
-#             policy_old = tdpf.contact_matrix(t, df_google, Nc_all, school=1)
-#             policy_new = tdpf.contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-#                                         prev_leisure, prev_others, school=0)
-#             return tdpf.ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-#         elif t1 + tau_days + l_days < t <= t2:
-#             return tdpf.contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-#                                   prev_leisure, prev_others, school=0)
-#         elif t2 < t <= t3:
-#             return tdpf.contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-#                                   prev_leisure, prev_others, school=0.15)
-#         elif t3 < t <= t4:
-#             return tdpf.contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-#                                   prev_leisure, prev_others, school=0.65)
-#         else:
-#             return tdpf.contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-#                                   prev_leisure, prev_others, school=0)
-
+    
     ###########################################################
     ## CALIBRATE BETA (threefold), WARMUP, PREVENTION PARAMS ##
     ###########################################################
@@ -224,7 +188,7 @@ if __name__ == '__main__':
     parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'tau']
     bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20))
 
-    # Initial value for warmup time
+    # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
     init_warmup = 30
 
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
