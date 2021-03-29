@@ -324,6 +324,8 @@ if __name__ == '__main__':
 
     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
+    
+    
     print('\n3) Sending samples to dictionary')
 
     flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
@@ -333,9 +335,9 @@ if __name__ == '__main__':
 
     samples_dict.update({
         'warmup' : warmup,
-        'start_date_beta' : start_calibration,
-        'end_date_beta' : end_calibration_beta,
-        'n_chains_beta': int(nwalkers)
+        'start_date' : start_calibration,
+        'end_date' : end_calibration,
+        'n_chains': int(nwalkers)
     })
 
     # ------------------------
