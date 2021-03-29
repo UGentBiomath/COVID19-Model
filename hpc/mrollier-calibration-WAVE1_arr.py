@@ -127,7 +127,7 @@ if __name__ == '__main__':
     popsize = multiplier*processes
 
     # MCMC settings
-        max_n = 1 # 300000
+    max_n = 1 # 300000
     # Number of samples used to visualise model fit
     n_samples = 1000
     # Confidence level used to visualise model fit
@@ -286,7 +286,7 @@ if __name__ == '__main__':
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
-            gc.collect()
+            gc.collect() # free memory
 
             #####################
             # CHECK CONVERGENCE #
@@ -322,7 +322,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETA', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
     print('\n3) Sending samples to dictionary')
 
