@@ -132,7 +132,7 @@ if __name__ == '__main__':
     n_samples = 1000
     # Confidence level used to visualise model fit
     conf_int = 0.05
-    # Number of binomial draws per sample drawn used to visualize model fit
+    # Number of binomial draws per sample drawn used to visualize model fit. (Not sure what this does)
     n_draws_per_sample=1000
     
     # Offset for the use of Poisson distribution (avoiding infinities for y=0)
