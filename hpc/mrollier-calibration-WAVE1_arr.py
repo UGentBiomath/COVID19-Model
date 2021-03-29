@@ -208,13 +208,13 @@ if __name__ == '__main__':
     # Markov-Chain Monte-Carlo
     # ------------------------
     
-    # run MCMC sampler
+    # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors functions for Bayesian analysis in MCMC. MLE returns infinity if parameter go outside this boundary.
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
-    # Define arguments of prior functions. In this case the boundaries of the uniform prior.
-    log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
+    # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
+    log_prior_fnc_args = bounds[1:]
 
     # Setup parameter names, bounds, number of chains, etc.
     parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l', 'tau']
@@ -228,8 +228,10 @@ if __name__ == '__main__':
 #     perturbations_da = np.expand_dims(np.random.triangular(1,2,14, size=nwalkers),axis=1)
 
     # Initial states for all walkers should be slightly different, off by maximally 1 percent
-    perturbations_beta = theta_pso + theta_pso*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    pos = perturbations_beta
+    perturbations = theta_pso*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    pos = theta_pso + perturbations
+    
+    print(pos)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
