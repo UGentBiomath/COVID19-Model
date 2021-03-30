@@ -13,7 +13,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # print("Importing packages ...\n")
 import gc # garbage collection, important for long-running programs
 import sys, getopt
-# import ujson as json
+import ujson as json
 import random
 import emcee
 import datetime
@@ -445,6 +445,7 @@ if __name__ == '__main__':
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    plt.close()
     
     # Plot result for each NIS
     for NIS in out.place.values:
@@ -457,6 +458,7 @@ if __name__ == '__main__':
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
         fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        plt.close()
 
     ###############################
     ####### CALCULATING R0 ########
