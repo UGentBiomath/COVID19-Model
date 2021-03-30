@@ -129,16 +129,16 @@ if __name__ == '__main__':
     # Load the model parameters dictionary
     params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
     # Add the time-dependant parameter function arguments
-    params.update({'df_google': df_google,
+    params.update({'df_google': df_google, # used in wave1_policies and contact_matrix
                    'Nc_all' : Nc_all,
-                   'l' : 5,
-                   'tau' : 5,
+                   'l' : 5, # will be varied over in the PSO/MCMC
+                   'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
                    'prev_schools': 0.5, # values for time-dependant function tdpf.wave1_policies
-                   'prev_work': 0.5,
-                   'prev_transport': 0.5,
-                   'prev_leisure': 0.5,
-                   'prev_others': 0.5,
-                   'prev_home' : 0.5
+                   'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
+                   'prev_transport': 0.5, # hard-coded
+                   'prev_leisure': 0.5, # hard-coded
+                   'prev_others': 0.28, # 0.5 # taken from Tijs's analysis
+                   'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
                   })
     # Add parameters for the daily update of proximus mobility
     # mobility defaults to average mobility of 2020 if no data is available
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 5
+    sample_step = 100
 
     with Pool() as pool:
         # Prepare the samplers
@@ -256,8 +256,8 @@ if __name__ == '__main__':
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded
-            ax.plot(n, y, linewidth=2,color='red')
+            ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
+            ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
