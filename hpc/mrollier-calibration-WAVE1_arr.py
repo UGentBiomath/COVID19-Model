@@ -328,7 +328,7 @@ if __name__ == '__main__':
 
     
     
-    print('\n3) Sending samples to dictionary')
+    print('\n3) Sending samples to dictionary\n')
 
     flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
     samples_dict = {}
@@ -346,6 +346,7 @@ if __name__ == '__main__':
     # Define sampling function
     # ------------------------
 
+    # in base.sim: self.parameters = draw_fcn(self.parameters,samples)
     def draw_fcn(param_dict,samples_dict):
         # pick one random value from the dictionary
         idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
@@ -366,7 +367,7 @@ if __name__ == '__main__':
     # Perform sampling
     # ----------------------
 
-    print('4) Simulating using sampled parameters')
+    print('\n4) Simulating using sampled parameters\n')
     start_sim = start_calibration
     end_sim = end_calibration # '2020-03-26'
     out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
@@ -375,7 +376,7 @@ if __name__ == '__main__':
     # Adding binomial uncertainty
     # ---------------------------
 
-    print('5) Adding binomial uncertainty')
+    print('\n5) Adding binomial uncertainty\n')
 
     LL = conf_int/2
     UL = 1-conf_int/2
