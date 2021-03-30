@@ -112,8 +112,8 @@ if __name__ == '__main__':
 
     # MCMC settings
     max_n = 5 # 300000
-    # Number of samples used to visualise model fit
-    n_samples = 1000
+    # Number of samples used to visualise model fit # only useful for stochastic model, I suppose?
+    n_samples = 1 # 1000
     # Confidence level used to visualise model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. (Not sure what this does)
