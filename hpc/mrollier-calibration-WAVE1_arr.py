@@ -10,6 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
+print("Importing packages ...\n")
 import gc # garbage collection, important for long-running programs
 import sys, getopt
 # import ujson as json
@@ -111,7 +112,7 @@ if __name__ == '__main__':
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 5 # 300000
+    max_n = 2 # 300000
     # Number of samples used to visualise model fit # only useful for stochastic model, I suppose?
     n_samples = 1 # 1000
     # Confidence level used to visualise model fit
@@ -227,7 +228,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 1
+    sample_step = 2
 
     with Pool() as pool:
         # Prepare the samplers
