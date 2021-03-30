@@ -365,10 +365,11 @@ if __name__ == '__main__':
 #         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
-    # ----------------------
+    # ----------------
     # Perform sampling
-    # ----------------------
-
+    # ----------------
+    
+    # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
     print('\n4) Simulating using sampled parameters\n')
     start_sim = start_calibration
     end_sim = end_calibration # '2020-03-26'
@@ -378,16 +379,20 @@ if __name__ == '__main__':
     # Adding binomial uncertainty
     # ---------------------------
 
+    # Add binomial variation at every step along the way (a posteriori stochasticity)
     print('\n5) Adding binomial uncertainty\n')
 
+    # This is typically set at 0.05 (1.7 sigma i.e. 95% certainty)
     LL = conf_int/2
     UL = 1-conf_int/2
 
-    H_in = out["H_in"].sum(dim="Nc").values
-    # Initialize vectors
+    # Save results for sum over all places. Gives n_samples time series
+    H_in = out["H_in"].sum(dim='place').sum(dim="Nc").values
+    # Initialize vectors. Same number of rows as simulated dates, column for every binomial draw for every sample
     H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
     for n in range(H_in.shape[0]):
+        # For every draw, take a poisson draw around the 'true value'
         binomial_draw = np.random.poisson( np.expand_dims(H_in[n,:],axis=1),size = (H_in.shape[1],n_draws_per_sample))
         H_in_new[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
     # Compute mean and median
@@ -396,6 +401,9 @@ if __name__ == '__main__':
     # Compute quantiles
     H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
     H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
+    
+    # Save results for every individual place.
+    # TO DO
 
     # -----------
     # Visualizing
@@ -408,7 +416,7 @@ if __name__ == '__main__':
     # Incidence
     ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
     ax.plot(out['time'],H_in_mean,'--', color='blue')
-    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
     ax.set_xlim('2020-03-10',end_sim)
