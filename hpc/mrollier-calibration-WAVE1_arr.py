@@ -36,17 +36,18 @@ from covid19model.visualization.optimization import autocorrelation_plot, tracep
 from covid19model.visualization.utils import moving_avg
 
 # On Windows the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
-if __name__ == '__main__':    
+if __name__ == '__main__':
 
+    ###############################
+    ## PRACTICAL AND BOOKKEEPING ##
+    ###############################
+    
     # -----------------------
     # Handle script arguments
     # -----------------------
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-#     parser.add_argument("-a", "--aggregation", help="Choose aggregation level (arr, prov or mun). Arr is default.")
-    # parser.add_argument("-j", "--job", help="Full or partial calibration")
-    # parser.add_argument("-d", "--date", help="Calibration date beta (to be used with --job COMPLIANCE)")
 
     args = parser.parse_args()
 
@@ -55,23 +56,6 @@ if __name__ == '__main__':
         backend = None
     else:
         backend = True
-
-    # # Job type
-    # if args.job:
-    #     job = str(args.job)  
-    #     if job not in ['BETA','COMPLIANCE']:
-    #         raise ValueError(
-    #             'Illegal job argument. Valid arguments are: "BETA" or "COMPLIANCE"'
-    #         )     
-    #     if job == 'COMPLIANCE':
-    #         if args.date:
-    #             date=str(args.date)
-    #         else:
-    #             raise ValueError(
-    #                 'Job "COMPLIANCE" requires the definition of the calibration date of BETA!'
-    #             )
-    # else:
-    #     job = None
 
     # Date at which script is started (for bookkeeping)
     run_date = str(datetime.date.today())
@@ -347,7 +331,7 @@ if __name__ == '__main__':
 
     def draw_fcn(param_dict,samples_dict):
         idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-        param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R']))
+#         param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R']))
         model.parameters['da'] = samples_dict['da'][idx]
         model.parameters['omega'] = samples_dict['omega'][idx]
         model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
