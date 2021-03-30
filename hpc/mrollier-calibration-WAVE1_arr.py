@@ -220,8 +220,10 @@ if __name__ == '__main__':
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
     
     # Note: this causes a warning IF the resuling values are outside the prior range
-    perturbations_beta = theta_pso[:3]*1e-2 *np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    perturbations_comp = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbation_beta_fraction = 1e-2
+    perturbation_comp_fraction = 10e-2
+    perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+    perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations
 
@@ -413,7 +415,7 @@ if __name__ == '__main__':
     H_in_places_UL = dict({})
     for NIS in out.place.values:
         H_in_places[NIS] = H_in_base.sel(place=NIS).values
-        H_in_places_new[NIS] = np.zeros((H_in_places[NIS][1], n_draws_per_sample*n_samples))
+        H_in_places_new[NIS] = np.zeros((H_in_places[NIS].shape[1], n_draws_per_sample*n_samples))
         for n in range(H_in_places[NIS].shape[0]):
             binomial_draw = np.random.poisson( np.expand_dims(H_in_places[NIS][n,:],axis=1), \
                                               size = (H_in_places[NIS].shape[1],n_draws_per_sample))
