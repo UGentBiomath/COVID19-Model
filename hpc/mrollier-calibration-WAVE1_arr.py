@@ -330,11 +330,16 @@ if __name__ == '__main__':
     # ------------------------
 
     def draw_fcn(param_dict,samples_dict):
+        # pick one random value from the dictionary
         idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-#         param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R']))
-        model.parameters['da'] = samples_dict['da'][idx]
-        model.parameters['omega'] = samples_dict['omega'][idx]
-        model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
+        # take out the other parameters that belong to the same iteration
+        model.parameters['beta_U'] = samples_dict['beta_U'][idx]
+        model.parameters['beta_M'] = samples_dict['beta_M'][idx]
+        model.parameters['l'] = samples_dict['l'][idx]
+        model.parameters['tau'] = samples_dict['tau'][idx]
+#         model.parameters['da'] = samples_dict['da'][idx]
+#         model.parameters['omega'] = samples_dict['omega'][idx]
+#         model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------------
