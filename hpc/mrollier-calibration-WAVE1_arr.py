@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # Define results locations
     # ------------------------
 
-    # Path where samples bakcend should be stored
+    # Path where samples backend should be stored
     results_folder = f"../../results/calibrations/COVID19_SEIRD/{agg}/backends/"
     # Path where figures should be stored
     fig_path = f'../../results/calibrations/COVID19_SEIRD/{agg}/'
