@@ -440,7 +440,7 @@ if __name__ == '__main__':
 
     # if spatial: R0_stratified_dict produces the R0 values resp. every region, every age, every sample.
     # Probably better to generalise this to ages and NIS codes (instead of indices)
-    R0, R0_stratified_dict = calculate_R0(samples_dict, model_wave1, initN, Nc_total)
+    R0, R0_stratified_dict = calculate_R0(samples_dict, model_wave1, initN, Nc_total, agg=agg)
 
     print('2) Sending samples to dictionary\n')
 
