@@ -227,7 +227,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 100
+    sample_step = 1
 
     with Pool() as pool:
         # Prepare the samplers
@@ -259,7 +259,10 @@ if __name__ == '__main__':
             ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            if np.isnan(y).any():
+                ax.set_ylim(0, n.max() / 50.0) # if ymax cannot be calculated, show the frame of the thinning line
+            else:
+                ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
