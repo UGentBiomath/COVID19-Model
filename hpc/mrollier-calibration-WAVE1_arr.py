@@ -228,7 +228,7 @@ if __name__ == '__main__':
     # Set up the sampler backend
     # Not sure what this does, tbh
     if backend:
-        filename = spatial_unit+'_BETA_'+run_date
+        filename = spatial_unit+'_BETAs-comp_'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
