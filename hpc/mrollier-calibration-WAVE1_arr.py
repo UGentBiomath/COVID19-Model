@@ -450,7 +450,7 @@ if __name__ == '__main__':
     for NIS in out.place.values:
         fig,ax = plt.subplots(figsize=(10,5))
         ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
-        ax.plot(out['time'],H_in_mean,'--', color='blue')
+        ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
         # Plot result for sum over all places.
         ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax = _apply_tick_locator(ax)
