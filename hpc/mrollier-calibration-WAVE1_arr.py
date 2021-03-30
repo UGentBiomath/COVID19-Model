@@ -124,7 +124,7 @@ if __name__ == '__main__':
     # MCMC settings
     max_n = 2 # 300000
     # Number of samples used to visualise model fit # only useful for stochastic model, I suppose?
-    n_samples = 50 # 1000
+    n_samples = 5 # 1000
     # Confidence level used to visualise model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. (Not sure what this does)
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
-        samples_dict[name] = flat_samples[:,count].tolist()
+        samples_dict[name] = flat_samples[:,count].tolist() # save samples of every chain to draw from
 
     samples_dict.update({
         'warmup' : warmup,
@@ -350,13 +350,16 @@ if __name__ == '__main__':
         # pick one random value from the dictionary
         idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
         # take out the other parameters that belong to the same iteration
-        model.parameters['beta_U'] = samples_dict['beta_U'][idx]
-        model.parameters['beta_M'] = samples_dict['beta_M'][idx]
-        model.parameters['l'] = samples_dict['l'][idx]
-#         model.parameters['tau'] = samples_dict['tau'][idx]
-#         model.parameters['da'] = samples_dict['da'][idx]
-#         model.parameters['omega'] = samples_dict['omega'][idx]
-#         model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
+        param_dict['beta_U'] = samples_dict['beta_U'][idx]
+        param_dict['beta_M'] = samples_dict['beta_M'][idx]
+        param_dict['l'] = samples_dict['l'][idx]
+#         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
+#         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
+#         model_wave1.parameters['l'] = samples_dict['l'][idx]
+#         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
+#         model_wave1.parameters['da'] = samples_dict['da'][idx]
+#         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
+#         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------------
@@ -365,8 +368,8 @@ if __name__ == '__main__':
 
     print('4) Simulating using sampled parameters')
     start_sim = start_calibration
-    end_sim = '2020-03-26'
-    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+    end_sim = end_calibration # '2020-03-26'
+    out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
     # ---------------------------
     # Adding binomial uncertainty
@@ -685,7 +688,7 @@ if __name__ == '__main__':
     print('4) Simulating using sampled parameters')
     start_sim = start_calibration
     end_sim = '2020-09-01'
-    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+    out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
     # ---------------------------
     # Adding binomial uncertainty
