@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     
     ###########################################################
-    ## CALIBRATE BETA (threefold), WARMUP, PREVENTION PARAMS ##
+    ## CALIBRATE BETA (threefold), WARMUP, COMPLIANCE PARAMS ##
     ###########################################################
 
     # --------------------
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     # --------------------
 
     # Spatial unit: identifier
-    spatial_unit = f'{agg}_willem2012_warmup_betas_prev'
+    spatial_unit = f'{agg}_willem2012_warmup_betas_comp'
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate
@@ -208,10 +208,11 @@ if __name__ == '__main__':
     # An MCMC walker for every processing core and for every parameter
     nwalkers = ndim*processes
 
-    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (prevention)
+    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
+    
     perturbations_beta = theta_pso[:3]*1e-2 *np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    perturbations_prev = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
-    perturbations = np.concatenate((perturbations_beta,perturbations_prev), axis=1)
+    perturbations_comp = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+    perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations
 
     # Set up the sampler backend
@@ -267,11 +268,11 @@ if __name__ == '__main__':
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-prev_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-comp_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-prev_'+run_date+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-comp_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -299,7 +300,7 @@ if __name__ == '__main__':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_BETAs-prev_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+str(spatial_unit)+'_BETAs-comp_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -311,7 +312,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-#     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+#     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
     
     
