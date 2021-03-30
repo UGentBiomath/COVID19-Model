@@ -315,7 +315,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 50
+    thin = 1 # 50
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
@@ -341,6 +341,8 @@ if __name__ == '__main__':
         'end_date' : end_calibration,
         'n_chains': int(nwalkers)
     })
+    
+    print(samples_dict) # this is empty!
 
     # ------------------------
     # Define sampling function
