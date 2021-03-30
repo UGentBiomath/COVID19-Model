@@ -442,7 +442,19 @@ if __name__ == '__main__':
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    
+    # Plot result for each NIS
+    for NIS in out.place.values:
+        fig,ax = plt.subplots(figsize=(10,5))
+        ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
+        ax.plot(out['time'],H_in_mean,'--', color='blue')
+        # Plot result for sum over all places.
+        ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax = _apply_tick_locator(ax)
+        ax.set_xlim(start_calibration,end_sim)
+        ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
+        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
 
     ###############################
     ####### CALCULATING R0 ########
