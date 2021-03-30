@@ -127,7 +127,7 @@ if __name__ == '__main__':
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 1 # 300000
+    max_n = 5 # 300000
     # Number of samples used to visualise model fit
     n_samples = 1000
     # Confidence level used to visualise model fit
@@ -243,7 +243,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 1
+    sample_step = 5
 
     with Pool() as pool:
         # Prepare the samplers
@@ -262,13 +262,15 @@ if __name__ == '__main__':
             # Compute the autocorrelation time so far
             # Do not confuse this tau with the compliance tau
             tau = sampler.get_autocorr_time(tol=0)
+            print("tau:", tau)
             # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
+            print("autocorr after append:", autocorr)
             index += 1
 
             # Update autocorrelation plot
             n = sample_step * np.arange(0, index + 1)
-            y = autocorr[:index+1,:]
+            y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
             ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded
             ax.plot(n, y, linewidth=2,color='red')
@@ -321,8 +323,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    print(autocorr)
-    checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+#     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prev', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
 
     
     
@@ -345,7 +346,8 @@ if __name__ == '__main__':
     # ------------------------
 
     def draw_fcn(param_dict,samples_dict):
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+        idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
+        param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R']))
         model.parameters['da'] = samples_dict['da'][idx]
         model.parameters['omega'] = samples_dict['omega'][idx]
         model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
