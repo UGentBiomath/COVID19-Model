@@ -24,6 +24,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from multiprocessing import Pool
+import os
+
 from covid19model.models import models
 import covid19model.models.time_dependant_parameter_fncs as tdpf # due to pickle issue
 # from covid19model.models.time_dependant_parameter_fncs import ramp_fun, mobility_update_func, contact_matrix, wave1_policies
@@ -83,11 +85,19 @@ if __name__ == '__main__':
     # ------------------------
 
     # Path where samples backend should be stored
-    results_folder = f"../../results/calibrations/COVID19_SEIRD/{agg}/backends/"
+    results_folder = f"../results/calibrations/COVID19_SEIRD/{agg}/backends/"
     # Path where figures should be stored
-    fig_path = f'../../results/calibrations/COVID19_SEIRD/{agg}/'
+    fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
     # Path where MCMC samples should be saved
-    samples_path = f'../../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+    samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+    
+    # Verify that these paths exists
+    if not (os.path.exists(results_folder) and os.path.exists(fig_path) and os.path.exists(samples_path)):
+        raise Exception("Some of the results location directories do not exist.")
+        
+    # Verify that the fig_path subdirectories used in the code exist
+    if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
+        raise Exception("Some of the figure path subdirectories do not exist.")
 
     
     ###########################################################
