@@ -114,11 +114,11 @@ if __name__ == '__main__':
     # MCMC settings
     max_n = 2 # 300000
     # Number of samples used to visualise model fit # only useful for stochastic model, I suppose?
-    n_samples = 1 # 1000
+    n_samples = 50 # 1000
     # Confidence level used to visualise model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. (Not sure what this does)
-    n_draws_per_sample= 1 #1000
+    n_draws_per_sample= 1000 #1000
     
     # Offset for the use of Poisson distribution (avoiding infinities for y=0)
     poisson_offset=1
@@ -170,8 +170,8 @@ if __name__ == '__main__':
     states = [["H_in"]]
 
     # set PSO parameters and boundaries
-    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'tau']
-    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20), (0.1,20)) # range for l and tau seems rather large
+    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l'] # deleted 'tau', because this has little influence
+    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20)) # range for l seems rather large
 
     # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
     init_warmup = 30
@@ -197,21 +197,21 @@ if __name__ == '__main__':
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
     log_prior_fnc_args = bounds[1:]
 
     # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l', 'tau']
-#     parNames_mcmc = ['beta','omega','da']
+    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l']
     ndim = len(parNames_mcmc)
     # An MCMC walker for every processing core and for every parameter
     nwalkers = ndim*processes
 
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
     
+    # Note: this causes a warning IF the resuling values are outside the prior range
     perturbations_beta = theta_pso[:3]*1e-2 *np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    perturbations_comp = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+    perturbations_comp = theta_pso[3:]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations
 
@@ -271,7 +271,7 @@ if __name__ == '__main__':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-comp_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'],
+            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'],
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-comp_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -312,7 +312,9 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-#     checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+    if not np.isnan(autocorr).any():
+        checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+        
 
     
     
