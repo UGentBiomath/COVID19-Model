@@ -10,7 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
-print("Importing packages ...\n")
+# print("Importing packages ...\n")
 import gc # garbage collection, important for long-running programs
 import sys, getopt
 # import ujson as json
