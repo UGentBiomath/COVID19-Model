@@ -108,7 +108,30 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
 
     return samples,flat_samples
 
-def calculate_R0(samples_beta, model, initN, Nc_total):
+def calculate_R0(samples_beta, model, initN, Nc_total, agg=False):
+    """
+    Function to calculate the initial R value, based on prepandemic social contact and a dictionary of infectivity values
+    
+    Input
+    -----
+    samples_beta: dict
+        Dictionary with i.a. infectivity samples from MCMC-based calibration
+    model: covid19model.models.models
+        Model that contains the parameters as properties
+    initN: np.array
+        Initial population per age (and per region if agg==True)
+    Nc_total: np.array
+        Intergenerational contact matrices
+    agg: boolean
+        If True, calculate R0 from spatial model. False by default.
+    
+    Return
+    ------
+    R0 : float
+        Resulting R0 value
+    R0_stratified_dict: dict of float
+        Resulting R0 value per age (and per region if agg==True)    
+    """
     spatial=False
     N = initN.size
     sample_size = len(samples_beta['beta'])
