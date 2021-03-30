@@ -386,8 +386,10 @@ if __name__ == '__main__':
     LL = conf_int/2
     UL = 1-conf_int/2
 
+    H_in_base = out["H_in"].sum(dim="Nc")
+    
     # Save results for sum over all places. Gives n_samples time series
-    H_in = out["H_in"].sum(dim='place').sum(dim="Nc").values
+    H_in = H_in_base.sum(dim='place').values
     # Initialize vectors. Same number of rows as simulated dates, column for every binomial draw for every sample
     H_in_new = np.zeros((H_in.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
@@ -402,8 +404,26 @@ if __name__ == '__main__':
     H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
     H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
     
-    # Save results for every individual place.
-    # TO DO
+    # Save results for every individual place. Same strategy.
+    H_in_places = dict({})
+    H_in_places_new = dict({})
+    H_in_places_mean = dict({})
+    H_in_places_median = dict({})
+    H_in_places_LL = dict({})
+    H_in_places_UL = dict({})
+    for NIS in out.place.values:
+        H_in_places[NIS] = H_in_base.sel(place=NIS).values
+        H_in_places_new[NIS] = np.zeros((H_in_places[NIS][1], n_draws_per_sample*n_samples))
+        for n in range(H_in_places[NIS].shape[0]):
+            binomial_draw = np.random.poisson( np.expand_dims(H_in_places[NIS][n,:],axis=1), \
+                                              size = (H_in_places[NIS].shape[1],n_draws_per_sample))
+            H_in_places_new[NIS][:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+        # Compute mean and median
+        H_in_places_mean[NIS] = np.mean(H_in_places_new[NIS],axis=1)
+        H_in_places_median[NIS] = np.median(H_in_places_new[NIS],axis=1)
+        # Compute quantiles
+        H_in_places_LL[NIS] = np.quantile(H_in_places_new[NIS], q = LL, axis = 1)
+        H_in_places_UL[NIS] = np.quantile(H_in_places_new[NIS], q = UL, axis = 1)
 
     # -----------
     # Visualizing
@@ -419,9 +439,6 @@ if __name__ == '__main__':
     
     # Plot result for sum over all places.
     ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#     ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, \
-#                df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], \
-#                color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
