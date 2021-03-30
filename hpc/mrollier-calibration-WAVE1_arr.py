@@ -313,7 +313,7 @@ if __name__ == '__main__':
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
     if not np.isnan(autocorr).any():
-        checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$','$\\tau$'])
+        checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'])
         
 
     
@@ -343,7 +343,7 @@ if __name__ == '__main__':
         model.parameters['beta_U'] = samples_dict['beta_U'][idx]
         model.parameters['beta_M'] = samples_dict['beta_M'][idx]
         model.parameters['l'] = samples_dict['l'][idx]
-        model.parameters['tau'] = samples_dict['tau'][idx]
+#         model.parameters['tau'] = samples_dict['tau'][idx]
 #         model.parameters['da'] = samples_dict['da'][idx]
 #         model.parameters['omega'] = samples_dict['omega'][idx]
 #         model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
