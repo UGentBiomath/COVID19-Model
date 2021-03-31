@@ -166,8 +166,8 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 10 #10
-    maxiter = 40 # 40
+    multiplier = 5 #10
+    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     # Set up the sampler backend
     # Not sure what this does, tbh
     if backend:
-        filename = spatial_unit+'_BETAs-comp_'+run_date
+        filename = spatial_unit+'_BETAs_prelockdown'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
