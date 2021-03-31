@@ -417,7 +417,7 @@ if __name__ == '__main__':
     # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
     print('\n4) Simulating using sampled parameters\n')
     start_sim = start_calibration
-    end_sim = end_calibration # '2020-03-26'
+    end_sim = '2020-03-26' # only plot until the peak for this part
     out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 
     # ---------------------------
