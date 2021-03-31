@@ -614,16 +614,25 @@ if __name__ == '__main__':
     # Note: this causes a warning IF the resuling values are outside the prior range
     perturbation_beta_fraction = 1e-2
     perturbation_comp_fraction = 10e-2
-    perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-    pos = theta_pso + perturbations
+    pos = np.zeros([nwalkers,ndim])
+    pos[:,0] = theta_pso[0]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
+    pos[:,1] = theta_pso[1]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
+    pos[:,2] = theta_pso[2]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
+    pos[:,3] = theta_pso[3]*(1 + perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
+#     perturbations_betaR = theta_pso[0] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers)
+#     perturbations_betaU = theta_pso[1] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
+#     perturbations_betaM = theta_pso[2] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
+#     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+#     perturbations_comp = theta_pso[3] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,1)
+#     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
+#     pos = theta_pso + perturbations
     
+    print(pos)
     condition_number = np.linalg.cond(pos)
     print("Condition number of perturbed initial values:", condition_number)
     
-    print("perturbations_beta:", perturbations_beta)
-    print("perturbations_comp:", perturbations_comp)
+#     print("perturbations_beta:", perturbations_beta)
+#     print("perturbations_comp:", perturbations_comp)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
