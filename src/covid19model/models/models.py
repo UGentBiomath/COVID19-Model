@@ -158,7 +158,7 @@ class COVID19_SEIRD(BaseModel):
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R 
+        dS  = - (IP_old + IP_new)*S + (1/zeta)*R 
         dE  = (IP_old + IP_new)*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
@@ -167,7 +167,7 @@ class COVID19_SEIRD(BaseModel):
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - (1/zeta)*R 
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h_new/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
@@ -324,7 +324,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
+        dS  = - (IP_old + IP_new)*S + (1/zeta)*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
         dE  = (IP_old + IP_new)*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
@@ -333,7 +333,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - (1/zeta)*R - e_a*N_vacc/VE*R
 
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
