@@ -99,10 +99,59 @@ if __name__ == '__main__':
     if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
         raise Exception("Some of the figure path subdirectories do not exist.")
 
+        
+    ###########################################
+    ## DEFINE TIME-DEPENDANT POLICY FUNCTION ##
+    ###########################################
     
-    ###########################################################
-    ## CALIBRATE BETA (threefold), WARMUP, COMPLIANCE PARAMS ##
-    ###########################################################
+    contact_matrix_4prev, all_contact, all_contact_no_schools = tdpf.make_contact_matrix_function(df_google, Nc_all)
+
+    # Define policy function
+    def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+
+        # Convert tau and l to dates
+        tau_days = pd.Timedelta(tau, unit='D')
+        l_days = pd.Timedelta(l, unit='D')
+
+        # Define additional dates where intensity or school policy changes
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+        if t <= t1:
+            t = pd.Timestamp(t.date())
+            return all_contact(t)
+        elif t1 < t < t1 + tau_days:
+            t = pd.Timestamp(t.date())
+            return all_contact(t)
+        elif t1 + tau_days < t <= t1 + tau_days + l_days:
+            t = pd.Timestamp(t.date())
+            policy_old = all_contact(t)
+            policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                        school=0)
+            return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        elif t1 + tau_days + l_days < t <= t2:
+            t = pd.Timestamp(t.date())
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                  school=0)
+        elif t2 < t <= t3:
+            t = pd.Timestamp(t.date())
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                  school=0)
+        elif t3 < t <= t4:
+            t = pd.Timestamp(t.date())
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                  school=0)                     
+        else:
+            t = pd.Timestamp(t.date())
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                  school=0)
+    
+    
+    ####################################################
+    ## PRE-LOCKDOWN PHASE: CALIBRATE BETAs and WARMUP ##
+    ####################################################
 
     # --------------------
     # Calibration settings
@@ -112,8 +161,8 @@ if __name__ == '__main__':
     spatial_unit = f'{agg}_willem2012_warmup_betas_comp'
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
-    # Last datapoint used to calibrate
-    end_calibration = '2020-07-01'
+    # Last datapoint used to calibrate pre-lockdown phase
+    end_calibration_beta = '2020-03-21'
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
@@ -123,14 +172,14 @@ if __name__ == '__main__':
 
     # MCMC settings
     max_n = 200 # 300000
-    # Number of samples used to visualise model fit # only useful for stochastic model, I suppose?
+    # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
-    # Confidence level used to visualise model fit
+    # Confidence level used to visualise binomial model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
     n_draws_per_sample= 1000 #1000
     
-    # Offset for the use of Poisson distribution (avoiding infinities for y=0)
+    # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
 
     # --------------------
@@ -144,7 +193,7 @@ if __name__ == '__main__':
                    'Nc_all' : Nc_all,
                    'l' : 5, # will be varied over in the PSO/MCMC
                    'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
-                   'prev_schools': 0.5, # values for time-dependant function tdpf.wave1_policies
+                   'prev_schools': 0.5, # hard-coded
                    'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
                    'prev_transport': 0.5, # hard-coded
                    'prev_leisure': 0.5, # hard-coded
