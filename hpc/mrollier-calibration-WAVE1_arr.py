@@ -324,11 +324,11 @@ if __name__ == '__main__':
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-comp_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-comp_'+run_date+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-prelockdown_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -356,7 +356,7 @@ if __name__ == '__main__':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_BETAs-comp_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -368,8 +368,7 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    if not np.isnan(autocorr).any():
-        checkplots(sampler, int(2 * np.min(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-comp', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'])
+    checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'])
         
 
     
