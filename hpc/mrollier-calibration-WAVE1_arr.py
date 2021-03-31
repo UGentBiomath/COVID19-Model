@@ -167,11 +167,11 @@ if __name__ == '__main__':
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
     multiplier = 10 #10
-    maxiter = 10 # 40
+    maxiter = 40 # 40
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000
+    max_n = 200 # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
@@ -193,11 +193,9 @@ if __name__ == '__main__':
                    'Nc_all' : Nc_all,
                    'l' : 5, # will be varied over in the PSO/MCMC
                    'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
-                   'prev_schools': 0.5, # hard-coded
+                   'prev_schools': 1, # hard-coded
                    'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
-                   'prev_transport': 0.5, # hard-coded
-                   'prev_leisure': 0.5, # hard-coded
-                   'prev_others': 0.28, # 0.5 # taken from Tijs's analysis
+                   'prev_rest': 0.28, # 0.5 # taken from Tijs's analysis
                    'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
                   })
     # Add parameters for the daily update of proximus mobility
@@ -211,7 +209,7 @@ if __name__ == '__main__':
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
     model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                               {'Nc' : tdpf.wave1_policies, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                               {'Nc' : policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
 
     # ---------------------------
     # Particle Swarm Optimization
