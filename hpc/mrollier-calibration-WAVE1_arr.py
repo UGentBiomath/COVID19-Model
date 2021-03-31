@@ -113,7 +113,7 @@ if __name__ == '__main__':
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
-    end_calibration_beta = '2020-03-21'
+    end_calibration_beta = '2020-03-16' # '2020-03-21'
     # last dataponit used for full calibration and plotting of simulation
     end_calibration = '2020-07-01'
 
