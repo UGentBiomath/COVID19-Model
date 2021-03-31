@@ -215,36 +215,36 @@ if __name__ == '__main__':
     # Particle Swarm Optimization
     # ---------------------------
 
-    print(f'\n-------------------------------------------------------')
-    print(f'PERFORMING CALIBRATION OF BETAs, WARMUP, and PREVENTION')
-    print(f'-------------------------------------------------------\n')
-    print(f'Using data from {start_calibration} until {end_calibration}\n')
+    print(f'\n-------------------------  ---------------')
+    print(f'PERFORMING CALIBRATION OF BETAs and WARMUP')
+    print(f'------------------------------------------\n')
+    print(f'Using pre-lockdown data from {start_calibration} until {end_calibration_beta}\n')
     print(f'1) Particle swarm optimization\n')
     print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
     # define dataset
-    data=[df_sciensano[start_calibration:end_calibration]]
+    data=[df_sciensano[start_calibration:end_calibration_beta]]
     states = [["H_in"]]
 
     # set PSO parameters and boundaries
-    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l'] # deleted 'tau', because this has little influence
-    bounds=((10,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20)) # range for l seems rather large
+    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
+    bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
 
     # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
-    init_warmup = 30
+    init_warmup = 60
 
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=poisson_offset, agg=agg)
 
-    # Warmup time is only calculated in the PSO, not in the MCMC (not sure why?)
+    # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
     warmup = int(theta_pso[0])
-    theta_pso = theta_pso[1:] # rest of the best-fit parameter values
+    theta_pso = theta_pso[1:] # Beta values
 
     print(f'\n------------')
     print(f'PSO RESULTS:')
     print(f'------------')
     print(f'warmup: {warmup}')
-    print(f'parameters {parNames[1:]}: {theta_pso}.\n')
+    print(f'betas {parNames[1:]}: {theta_pso}.\n')
 
     # ------------------------
     # Markov-Chain Monte-Carlo
