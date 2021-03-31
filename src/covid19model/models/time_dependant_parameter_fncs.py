@@ -145,9 +145,9 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
             state = policy2
     return state
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Optimized google lockdown function below
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~
+# Vaccination functions
+# ~~~~~~~~~~~~~~~~~~~~~
 
 def make_vaccination_function(df_sciensano):
     df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
@@ -155,7 +155,7 @@ def make_vaccination_function(df_sciensano):
 
     @lru_cache()
     def sciensano_first_dose(t):
-        # Extrapolate Sciensano n0. vaccinations to model native age bins
+        # Extrapolate Sciensano n0. vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
         N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
         N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
@@ -168,6 +168,74 @@ def make_vaccination_function(df_sciensano):
         return N_vacc
     
     return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+
+def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df_sciensano_end,
+                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    """
+    time-dependent function for the Belgian vaccination strategy
+    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+  
+    Parameters
+    ----------
+    t : int
+        Simulation time
+    states: dict
+        Dictionary containing values of model states
+    param : dict
+        Model parameter dictionary
+    sciensano_first_dose : function
+        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
+    df_sciensano_start : date
+        Start date of Sciensano vaccination data frame
+    df_sciensano_end : date
+        End date of Sciensano vaccination data frame
+    daily_dose : int
+        Number of doses administered per day. Default is 30000 doses/day.
+    delay : int
+        Time delay between first dose vaccination and start of immunity. Default is 21 days.
+    vacc_order : array
+        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+    refusal: array
+        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+
+    Return
+    ------
+    N_vacc : array
+        Number of individuals to be vaccinated at simulation time "t"
+        
+    """
+    
+    # Convert time to suitable format
+    t = pd.Timestamp(t.date())
+    # Convert delay to a timedelta
+    delay = pd.Timedelta(str(delay)+'D')
+    # Compute the number of vaccine eligible individuals
+    VE = states['S'] + states['R']
+    
+    if t < df_sciensano_start + delay:
+        return np.zeros(9)
+    elif df_sciensano_start + delay <= t <= df_sciensano_end + delay:
+        return sciensano_first_dose(t-delay)
+    else:
+        N_vacc = np.zeros(9)
+        # Vaccines distributed according to vector 'order'
+        # With residue 'refusal' remaining in each age group
+        idx = 0
+        while d > 0:
+            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > d:
+                N_vacc[vacc_order[idx]] = d
+                d = 0
+            else:
+                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                d = d - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~
+# Google policy function
+# ~~~~~~~~~~~~~~~~~~~~~~
 
 def make_contact_matrix_function(df_google, Nc_all):
     """
