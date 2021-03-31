@@ -324,7 +324,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*R_v 
+        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
         dE  = (IP_old + IP_new)*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
@@ -338,7 +338,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R
+        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R - (1/d_vacc)*S_v
         dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
