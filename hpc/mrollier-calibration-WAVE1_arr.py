@@ -493,7 +493,7 @@ if __name__ == '__main__':
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     
-    sys.exit()
+#     sys.exit()
     
     #####################################################
     ## POST-LOCKDOWN PHASE: CALIBRATE BETAs and l COMP ##
