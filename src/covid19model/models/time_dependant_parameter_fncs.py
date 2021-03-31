@@ -102,247 +102,6 @@ def mobility_update_func(t,states,param,agg,default_mobility=None):
                                              '.csv'), index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
     return place
 
-def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
-    """
-    Lockdown function handling t as datetime
-    
-    t : timestamp
-        current date
-    policy0 : matrix
-        policy before lockdown (= no policy)
-    policy1 : matrix
-        policy during lockdown
-    tau : int
-        number of days before measures start having an effect
-    l : int
-        number of additional days after the time delay until full compliance is reached
-    start_date : timestamp
-        start date of the data
-    """
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    if t <= start_date + tau_days:
-        return policy0
-    elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
-    else:
-        return prevention*policy1
-    
-def policies_until_september(t,states,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
-                               policy6,policy7,policy8,policy9,l,tau,prevention):
-    """
-    t : timestamp
-        current date
-    policy0 : matrix
-        policy before lockdown (= no policy)
-    policy1 : matrix
-        policy during lockdown
-    policy 2: matrix
-        reopening industry
-    policy 3: matrix
-        merging of two bubbels
-    policy 4: matrix
-        reopening of businesses
-    policy 5: matrix
-        partial reopening schools
-    policy 6: matrix
-        reopening schools, bars, restaurants
-    policy 7: matrix
-        school holidays, gatherings 15 people, cultural event
-    policy 8: matrix
-       "second" wave 
-    policy 9: matrix
-        opening schools
-    tau : int
-        number of days before measures start having an effect
-    l : int
-        number of additional days after the time delay until full compliance is reached
-    start_date : timestamp
-        start date of the data
-    
-
-    """
-
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    t1 = pd.Timestamp('2020-05-04') # reopening industry
-    t2 = pd.Timestamp('2020-05-06') # merging of two bubbels
-    t3 = pd.Timestamp('2020-05-11') # reopening of businesses
-    t4 = pd.Timestamp('2020-05-18') # partial reopening schools
-    t5 = pd.Timestamp('2020-06-04') # reopening schools, bars, restaurants
-    t6 = pd.Timestamp('2020-07-01') # school holidays, gatherings 15 people, cultural event
-    t7 = pd.Timestamp('2020-07-31') # "second" wave
-    t8 = pd.Timestamp('2020-09-01') # opening schools
-    
-    if t <= start_date + tau_days:
-        return policy0
-    elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
-    elif start_date + tau_days + l_days < t <= t1: 
-        return prevention*policy1 # lockdown
-    elif t1 < t <= t2:
-        return prevention*policy2 # re-opening industry
-    elif t2 < t <= t3:
-        return prevention*policy3
-    elif t3 < t <= t4:
-        return prevention*policy4
-    elif t4 < t <= t5:
-        return prevention*policy5
-    elif t5 < t <= t6:
-        return prevention*policy6
-    elif t6 < t <= t7:
-        return prevention*policy7
-    elif t7 < t <= t8:
-        return prevention*policy8
-    elif t8 < t:
-        return prevention*policy9
-
-def google_lockdown(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.Timestamp('2020-08-01')
-    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.Timestamp('2020-10-19') # lockdown
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-04') # schools re-open
-
-    # get mobility reductions
-    if t < t1:
-        return Nc_all['total']
-    elif t1 <= t <= df_google.index[-1]:
-        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
-    elif t > df_google.index[-1]:
-        row=-df_google[df_google.index == df_google.index[-1]]/100
-    
-    work=(1-row['work'].values)[0]
-    transport=(1-row['transport'].values)[0]
-    leisure=(1-row['retail_recreation'].values)[0]
-    others=(1-row['grocery'].values)[0]
-
-    # define policies
-    if t1 < t <= t1 + tau_days:
-        school = 0
-        return (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        school = 0
-        policy_old = (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']  
-    elif t2 < t <= t3:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-    elif t3 < t <= t4:
-        school = 0
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others'] 
-    elif t4 < t <= t5:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']     
-    elif t5 < t <= t6 + tau_days:
-        school = 1
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-    elif t6 + tau_days < t <= t6 + tau_days + l_days:
-        school = 1
-        policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
-    elif t6 + tau_days + l_days < t <= t7:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t7 < t <= t8:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t8 < t <= t9:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    else:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-
-    
-def google_lockdown_no_prev(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    prevention = 1
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.Timestamp('2020-08-01')
-    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.Timestamp('2020-10-19') # lockdown
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-04') # schools re-open
-
-    # get mobility reductions
-    if t < t1:
-        return Nc_all['total']
-    elif t1 <= t <= df_google.index[-1]:
-        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
-    elif t > df_google.index[-1]:
-        row=-df_google[df_google.index == df_google.index[-1]]/100
-    
-    work=(1-row['work'].values)[0]
-    transport=(1-row['transport'].values)[0]
-    leisure=(1-row['retail_recreation'].values)[0]
-    others=(1-row['grocery'].values)[0]
-
-    # define policies
-    if t1 < t <= t1 + tau_days:
-        school = 0
-        return (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        school = 0
-        policy_old = (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']  
-    elif t2 < t <= t3:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-    elif t3 < t <= t4:
-        school = 0
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others'] 
-    elif t4 < t <= t5:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']     
-    elif t5 < t <= t6 + tau_days:
-        school = 1
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-    elif t6 + tau_days < t <= t6 + tau_days + l_days:
-        school = 1
-        policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
-    elif t6 + tau_days + l_days < t <= t7:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t7 < t <= t8:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t8 < t <= t9:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    else:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-
 def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     """
     Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
@@ -386,9 +145,97 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
             state = policy2
     return state
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Optimized google lockdown function below
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~
+# Vaccination functions
+# ~~~~~~~~~~~~~~~~~~~~~
+
+def make_vaccination_function(df_sciensano):
+    df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+    df_sciensano_end = df_sciensano.index[-1]
+
+    @lru_cache()
+    def sciensano_first_dose(t):
+        # Extrapolate Sciensano n0. vaccinations to the model's native age bins
+        N_vacc = np.zeros(9)
+        N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
+        N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
+        N_vacc[3] = (5/17)*df_sciensano['V1_18_34'][t] + (5/10)*df_sciensano['V1_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*df_sciensano['V1_35_44'][t] + (5/10)*df_sciensano['V1_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*df_sciensano['V1_45_54'][t] + (5/10)*df_sciensano['V1_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*df_sciensano['V1_55_64'][t] + (5/10)*df_sciensano['V1_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*df_sciensano['V1_65_74'][t] + (5/10)*df_sciensano['V1_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*df_sciensano['V1_75_84'][t] + (5/10)*df_sciensano['V1_85+'][t]# 80+
+        return N_vacc
+    
+    return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+
+def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df_sciensano_end,
+                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    """
+    time-dependent function for the Belgian vaccination strategy
+    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+  
+    Parameters
+    ----------
+    t : int
+        Simulation time
+    states: dict
+        Dictionary containing values of model states
+    param : dict
+        Model parameter dictionary
+    sciensano_first_dose : function
+        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
+    df_sciensano_start : date
+        Start date of Sciensano vaccination data frame
+    df_sciensano_end : date
+        End date of Sciensano vaccination data frame
+    daily_dose : int
+        Number of doses administered per day. Default is 30000 doses/day.
+    delay : int
+        Time delay between first dose vaccination and start of immunity. Default is 21 days.
+    vacc_order : array
+        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+    refusal: array
+        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+
+    Return
+    ------
+    N_vacc : array
+        Number of individuals to be vaccinated at simulation time "t"
+        
+    """
+    
+    # Convert time to suitable format
+    t = pd.Timestamp(t.date())
+    # Convert delay to a timedelta
+    delay = pd.Timedelta(str(delay)+'D')
+    # Compute the number of vaccine eligible individuals
+    VE = states['S'] + states['R']
+    
+    if t < df_sciensano_start + delay:
+        return np.zeros(9)
+    elif df_sciensano_start + delay <= t <= df_sciensano_end + delay:
+        return sciensano_first_dose(t-delay)
+    else:
+        N_vacc = np.zeros(9)
+        # Vaccines distributed according to vector 'order'
+        # With residue 'refusal' remaining in each age group
+        idx = 0
+        while daily_dose > 0:
+            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                N_vacc[vacc_order[idx]] = daily_dose
+                daily_dose = 0
+            else:
+                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~
+# Google policy function
+# ~~~~~~~~~~~~~~~~~~~~~~
 
 def make_contact_matrix_function(df_google, Nc_all):
     """
@@ -442,7 +289,7 @@ def make_contact_matrix_function(df_google, Nc_all):
                 idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
                 row = -df_google_array[idx]/100
             else:
-                row = -df_google_array[-1]/100
+                row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
 
             if SB == '2a':
                 row = -df_google['2020-09-01':'2020-10-01'].mean()/100
