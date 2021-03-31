@@ -98,55 +98,6 @@ if __name__ == '__main__':
     # Verify that the fig_path subdirectories used in the code exist
     if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
         raise Exception("Some of the figure path subdirectories do not exist.")
-
-        
-    ###########################################
-    ## DEFINE TIME-DEPENDANT POLICY FUNCTION ##
-    ###########################################
-    
-    contact_matrix_4prev, all_contact, all_contact_no_schools = tdpf.make_contact_matrix_function(df_google, Nc_all)
-
-    # Define policy function
-    def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
-
-        # Convert tau and l to dates
-        tau_days = pd.Timedelta(tau, unit='D')
-        l_days = pd.Timedelta(l, unit='D')
-
-        # Define additional dates where intensity or school policy changes
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
-        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-        if t <= t1:
-            t = pd.Timestamp(t.date())
-            return all_contact(t)
-        elif t1 < t < t1 + tau_days:
-            t = pd.Timestamp(t.date())
-            return all_contact(t)
-        elif t1 + tau_days < t <= t1 + tau_days + l_days:
-            t = pd.Timestamp(t.date())
-            policy_old = all_contact(t)
-            policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                        school=0)
-            return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-        elif t1 + tau_days + l_days < t <= t2:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                  school=0)
-        elif t2 < t <= t3:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                  school=0)
-        elif t3 < t <= t4:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                  school=0)                     
-        else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                  school=0)
     
     
     ####################################################
@@ -191,7 +142,9 @@ if __name__ == '__main__':
     # Load the model parameters dictionary
     params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
     # Add the time-dependant parameter function arguments
-    params.update({'l' : 5, # will be varied over in the PSO/MCMC
+    params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
+                   'df_google' : df_google, # used in tdpf.policies_wave1_4prev
+                   'l' : 5, # will be varied over in the PSO/MCMC
                    'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
                    'prev_schools': 1, # hard-coded
                    'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
@@ -209,7 +162,7 @@ if __name__ == '__main__':
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
     model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                               {'Nc' : policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                               {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
 
     # ---------------------------
     # Particle Swarm Optimization
@@ -320,7 +273,8 @@ if __name__ == '__main__':
             ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ax.set_ylim(0, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y)))
+            ymax = max(n[-1]/50.0, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/50, choose index/50 as max
+            ax.set_ylim(0, ymax)
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
