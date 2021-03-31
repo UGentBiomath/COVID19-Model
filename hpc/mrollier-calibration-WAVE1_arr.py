@@ -505,7 +505,7 @@ if __name__ == '__main__':
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
-    end_calibration_beta = '2020-03-16' # '2020-03-21'
+#     end_calibration_beta = '2020-03-16' # '2020-03-21'
     # last dataponit used for full calibration and plotting of simulation
     end_calibration = '2020-07-01'
 
@@ -571,19 +571,16 @@ if __name__ == '__main__':
     data=[df_sciensano[start_calibration:end_calibration]]
     states = [["H_in"]]
 
-    # set PSO parameters and boundaries
-    parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
-    bounds=((50,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
+    # set PSO parameters and boundaries. Note that betas are calculated again!
+    parNames = ['beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
+    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
 
-    # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
-    init_warmup = 60
+    # Take warmup from previous pre-lockdown calculation
+    init_warmup = warmup
 
+    # beta values are in theta_pso
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=poisson_offset, agg=agg)
-
-    # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
-    warmup = int(theta_pso[0])
-    theta_pso = theta_pso[1:] # Beta values
 
     print(f'\n------------')
     print(f'PSO RESULTS:')
