@@ -320,10 +320,7 @@ if __name__ == '__main__':
             ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            if np.isnan(y).any():
-                ax.set_ylim(0, n.max() / 50.0) # if ymax cannot be calculated, show the frame of the thinning line
-            else:
-                ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            ax.set_ylim(0, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y)))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
