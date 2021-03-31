@@ -222,13 +222,13 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
         # Vaccines distributed according to vector 'order'
         # With residue 'refusal' remaining in each age group
         idx = 0
-        while d > 0:
-            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > d:
-                N_vacc[vacc_order[idx]] = d
-                d = 0
+        while daily_dose > 0:
+            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                N_vacc[vacc_order[idx]] = daily_dose
+                daily_dose = 0
             else:
                 N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                d = d - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
                 idx = idx + 1
         return N_vacc
 
