@@ -181,7 +181,7 @@ if __name__ == '__main__':
 
     # set PSO parameters and boundaries
     parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
-    bounds=((50,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
+    bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
 
     # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
     init_warmup = 60
@@ -226,6 +226,9 @@ if __name__ == '__main__':
 #     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
 #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations_beta
+    
+    condition_number = np.linalg.cond(pos)
+    print("Condition number of perturbed initial values:", condition_number)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -615,6 +618,9 @@ if __name__ == '__main__':
     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations
+    
+    condition_number = np.linalg.cond(pos)
+    print("Condition number of perturbed initial values:", condition_number)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
