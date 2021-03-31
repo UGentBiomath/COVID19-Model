@@ -613,8 +613,8 @@ if __name__ == '__main__':
     perturbation_comp_fraction = 10e-2
     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-#     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-    pos = theta_pso + perturbations_beta
+    perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
+    pos = theta_pso + perturbations
 
     # Set up the sampler backend
     # Not sure what this does, tbh
