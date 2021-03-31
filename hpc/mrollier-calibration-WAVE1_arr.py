@@ -586,7 +586,7 @@ if __name__ == '__main__':
     print(f'PSO RESULTS:')
     print(f'------------')
     print(f'l compliance param: {theta_pso[3]}')
-    print(f'betas {parNames}: {theta_pso[3:]}.\n')
+    print(f'betas {parNames}: {theta_pso[:3]}.\n')
 
     # ------------------------
     # Markov-Chain Monte-Carlo
@@ -670,7 +670,7 @@ if __name__ == '__main__':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs_comp_postlockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'],
+            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'],
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs_comp_postlockdown_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -713,7 +713,7 @@ if __name__ == '__main__':
 
     # checkplots is also not included in Tijs's latest code. Not sure what it does.
     # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
+#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'])
         
 
     print('\n3) Sending samples to dictionary\n')
