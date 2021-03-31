@@ -254,12 +254,12 @@ if __name__ == '__main__':
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
     log_prior_fnc_args = bounds[1:]
 
     # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l']
+    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
     ndim = len(parNames_mcmc)
     # An MCMC walker for every processing core and for every parameter
     nwalkers = ndim*processes
@@ -268,11 +268,11 @@ if __name__ == '__main__':
     
     # Note: this causes a warning IF the resuling values are outside the prior range
     perturbation_beta_fraction = 1e-2
-    perturbation_comp_fraction = 10e-2
-    perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-    pos = theta_pso + perturbations
+#     perturbation_comp_fraction = 10e-2
+    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+#     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+#     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
+    pos = theta_pso + perturbations_beta
 
     # Set up the sampler backend
     # Not sure what this does, tbh
