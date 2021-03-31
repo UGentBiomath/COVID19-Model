@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # --------------------
 
     # Spatial unit: identifier
-    spatial_unit = f'{agg}_willem2012_warmup_betas_comp'
+    spatial_unit = f'{agg}_willem2012'
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
