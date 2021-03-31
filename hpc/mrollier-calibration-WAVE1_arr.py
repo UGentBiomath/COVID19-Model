@@ -572,8 +572,8 @@ if __name__ == '__main__':
     states = [["H_in"]]
 
     # set PSO parameters and boundaries. Note that betas are calculated again!
-    parNames = ['beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
-    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
+    parNames = ['beta_R', 'beta_U', 'beta_M', 'l'] # no compliance parameters yet
+    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20)) # smaller range for warmup
 
     # Take warmup from previous pre-lockdown calculation
     init_warmup = warmup
@@ -585,8 +585,8 @@ if __name__ == '__main__':
     print(f'\n------------')
     print(f'PSO RESULTS:')
     print(f'------------')
-    print(f'warmup: {warmup}')
-    print(f'betas {parNames[1:]}: {theta_pso}.\n')
+    print(f'l compliance param: {theta_pso[3]}')
+    print(f'betas {parNames}: {theta_pso[3:]}.\n')
 
     # ------------------------
     # Markov-Chain Monte-Carlo
@@ -596,12 +596,12 @@ if __name__ == '__main__':
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
-    log_prior_fnc_args = bounds[1:]
+    log_prior_fnc_args = bounds
 
     # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
+    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M', 'l']
     ndim = len(parNames_mcmc)
     # An MCMC walker for every processing core and for every parameter
     nwalkers = ndim*processes
@@ -610,16 +610,16 @@ if __name__ == '__main__':
     
     # Note: this causes a warning IF the resuling values are outside the prior range
     perturbation_beta_fraction = 1e-2
-#     perturbation_comp_fraction = 10e-2
-    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-#     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbation_comp_fraction = 10e-2
+    perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+    perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
 #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations_beta
 
     # Set up the sampler backend
     # Not sure what this does, tbh
     if backend:
-        filename = spatial_unit+'_BETAs_prelockdown'+run_date
+        filename = spatial_unit+'_BETAs_comp_postlockdown'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
@@ -667,11 +667,11 @@ if __name__ == '__main__':
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs_comp_postlockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-prelockdown_'+run_date+'.pdf',
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs_comp_postlockdown_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -699,7 +699,7 @@ if __name__ == '__main__':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+str(spatial_unit)+'_BETAs_comp_postlockdown_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -713,7 +713,7 @@ if __name__ == '__main__':
 
     # checkplots is also not included in Tijs's latest code. Not sure what it does.
     # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
+#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
         
 
     print('\n3) Sending samples to dictionary\n')
@@ -831,7 +831,7 @@ if __name__ == '__main__':
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_comp_postlockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
     
     # Plot result for each NIS
@@ -845,7 +845,7 @@ if __name__ == '__main__':
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_comp_postlockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
 
     ###############################
@@ -872,11 +872,11 @@ if __name__ == '__main__':
 
     print('3) Saving dictionary\n')
 
-    with open(samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(spatial_unit)+'_BETAs_comp_postlockdown_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs_comp_postlockdown_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     
     
