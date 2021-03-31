@@ -163,6 +163,8 @@ if __name__ == '__main__':
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
     end_calibration_beta = '2020-03-21'
+    # last dataponit used for full calibration and plotting of simulation
+    end_calibration = '2020-07-01'
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
@@ -381,7 +383,7 @@ if __name__ == '__main__':
     samples_dict.update({
         'warmup' : warmup,
         'start_date' : start_calibration,
-        'end_date' : end_calibration,
+        'end_date' : end_calibration_beta,
         'n_chains': int(nwalkers)
     })
     
@@ -398,7 +400,7 @@ if __name__ == '__main__':
         # take out the other parameters that belong to the same iteration
         param_dict['beta_U'] = samples_dict['beta_U'][idx]
         param_dict['beta_M'] = samples_dict['beta_M'][idx]
-        param_dict['l'] = samples_dict['l'][idx]
+#         param_dict['l'] = samples_dict['l'][idx]
 #         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
 #         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
 #         model_wave1.parameters['l'] = samples_dict['l'][idx]
