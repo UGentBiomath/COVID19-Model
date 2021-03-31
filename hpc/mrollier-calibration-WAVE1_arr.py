@@ -586,7 +586,7 @@ if __name__ == '__main__':
     print(f'PSO RESULTS:')
     print(f'------------')
     print(f'l compliance param: {theta_pso[3]}')
-    print(f'betas {parNames}: {theta_pso[:3]}.\n')
+    print(f'betas {parNames[:3]}: {theta_pso[:3]}.\n')
 
     # ------------------------
     # Markov-Chain Monte-Carlo
