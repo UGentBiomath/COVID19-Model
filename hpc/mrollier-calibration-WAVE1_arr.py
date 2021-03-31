@@ -368,11 +368,9 @@ if __name__ == '__main__':
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-    checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$'])
+    checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
         
 
-    
-    
     print('\n3) Sending samples to dictionary\n')
 
     flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
