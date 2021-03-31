@@ -168,12 +168,12 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 5 #10
-    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
+    multiplier = 1 #5 #10
+    maxiter = 1 #60 # 40 # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000 # Approx 150s/it
+    max_n = 2 #200 # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
@@ -191,9 +191,7 @@ if __name__ == '__main__':
     # Load the model parameters dictionary
     params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
     # Add the time-dependant parameter function arguments
-    params.update({'df_google': df_google, # used in wave1_policies and contact_matrix
-                   'Nc_all' : Nc_all,
-                   'l' : 5, # will be varied over in the PSO/MCMC
+    params.update({'l' : 5, # will be varied over in the PSO/MCMC
                    'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
                    'prev_schools': 1, # hard-coded
                    'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
@@ -290,7 +288,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 10
+    sample_step = 2 #10
 
     with Pool() as pool:
         # Prepare the samplers
@@ -363,7 +361,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 5
+    thin = 2 #5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
@@ -534,8 +532,8 @@ if __name__ == '__main__':
     print('DONE!')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-
-
+    
+    
     
 #########
 ## FIN ##
