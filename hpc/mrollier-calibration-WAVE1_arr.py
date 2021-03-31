@@ -493,7 +493,7 @@ if __name__ == '__main__':
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     
-    
+    sys.exit()
     
     #####################################################
     ## POST-LOCKDOWN PHASE: CALIBRATE BETAs and l COMP ##
@@ -612,7 +612,7 @@ if __name__ == '__main__':
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
     
     # Note: this causes a warning IF the resuling values are outside the prior range
-    perturbation_beta_fraction = 5e-2
+    perturbation_beta_fraction = 1e-2
     perturbation_comp_fraction = 10e-2
     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
@@ -621,6 +621,9 @@ if __name__ == '__main__':
     
     condition_number = np.linalg.cond(pos)
     print("Condition number of perturbed initial values:", condition_number)
+    
+    print("perturbations_beta:", perturbations_beta)
+    print("perturbations_comp:", perturbations_comp)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
