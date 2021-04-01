@@ -749,10 +749,11 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'VE', 'V', 'V_new','alpha']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
+                   'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
-                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio', 'K_hosp']
-    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e', 'N_vacc', 'leakiness']]
+                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio', 'K_hosp', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU',  'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -760,11 +761,12 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, VE, V, V_new, alpha, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha, # time + SEIRD classes
+                  S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v, # vaccinated classes
                   beta_R, beta_U, beta_M, K_inf, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio, K_hosp# SEIRD parameters
+                  dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio, K_hosp, e_i, e_s, e_h, e_a, d_vacc,# SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, v, e, N_vacc, leakiness, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """

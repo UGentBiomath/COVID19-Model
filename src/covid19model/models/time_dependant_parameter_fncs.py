@@ -87,7 +87,7 @@ def mobility_update_func(t,states,param,agg,default_mobility=None):
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = '../../../data/interim/mobility/' + agg + '/staytime/'
+    data_location = '../../../data/interim/mobility/' + agg + '/fractional/'
     # Define YYYYMMDD date
     YYYYMMDD = date_to_YYYYMMDD(t)
     filename = 'fractional-mobility-matrix_staytime_' + agg + '_' + str(YYYYMMDD) + '.csv'
