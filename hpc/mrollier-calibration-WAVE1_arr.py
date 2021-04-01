@@ -119,12 +119,12 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 1 #5 #10
-    maxiter = 1 #60 # 40 # more iterations is more beneficial than more multipliers
+    multiplier = 5 #10
+    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 2 #200 # 300000 # Approx 150s/it
+    max_n = 200 # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 2 #10
+    sample_step = 10
 
     with Pool() as pool:
         # Prepare the samplers
@@ -318,7 +318,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 2 #5
+    thin = 5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
@@ -514,12 +514,12 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 1 #5 #10
-    maxiter = 1 #60 # 40 # more iterations is more beneficial than more multipliers
+    multiplier = 5 #10
+    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 2 #200 # 300000 # Approx 150s/it
+    max_n = 200 # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
@@ -648,7 +648,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 2 #10
+    sample_step = 10
 
     with Pool() as pool:
         # Prepare the samplers
@@ -722,7 +722,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 2 #5
+    thin = 5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
