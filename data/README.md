@@ -148,6 +148,10 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 + `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
 + `hospital_data_qaly.xlsx` contains the total reported costs of hospital healthcare in Belgium per disease group as well as the estimated cost per QALY gained for the same groups.
 
+#### Sciensano
+
++ `clusters.csv` contains the number of clusters traced back to 1) families, 2) WZCs, 3) schools, 4) workplaces and 5) others over the period 2020-12-28 until 2021-02-21. Data extracted from the weekly Sciensano reports, available at https://covid-19.sciensano.be/nl/covid-19-epidemiologische-situatie. Last visited 2021-03-31.
+
 #### Demographic data
 
 + `age_structure_per_arrondissement.csv` : population of each age per arrondissement

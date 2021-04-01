@@ -141,7 +141,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -250,13 +250,13 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
         # vaccination
-        df_vacc = pd.read_csv(os.path.join(par_raw_path,"vaccination.csv"), sep=',',header='infer')
-        pars_dict['v'] =  np.array(df_vacc.loc[:,'fraction_vaccinated'].astype(float).tolist())
-        pars_dict['e'] =  np.array(df_vacc.loc[:,'effectivity'].astype(float).tolist())
-        pars_dict['N_vacc'] =  np.array(df_vacc.loc[:,'N_vaccinated_per_day'].astype(float).tolist())
-        pars_dict['leakiness'] =  np.array(df_vacc.loc[:,'leakiness'].astype(float).tolist())
-
-
+        if vaccination == True:
+            pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
+            pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
+            pars_dict['e_h'] = 1.00 # Default: 100% protection against severe COVID-19
+            pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
+            pars_dict['e_i'] = 0.00 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
+            pars_dict['d_vacc'] = 12*30 # Default: 12 month coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
@@ -341,7 +341,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['beta_M'] = 0.03492 # metropolitan
         
     # Co-infection model: infectivity gain
-    pars_dict['K'] = 0
+    pars_dict['K_inf'] = 0
+    pars_dict['K_hosp'] = 0
     pars_dict['injection_day'] = 0
     pars_dict['injection_ratio'] = 0
 

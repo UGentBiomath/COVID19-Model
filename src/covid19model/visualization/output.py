@@ -55,7 +55,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
         fig, ax = plt.subplots(figsize=(9,5))
 
     # create plot using xarray interface
-    data2plot = data[["S", "E", "I_total", "R", "V", "D"]].to_array(dim="states")
+    data2plot = data[["S", "E", "I_total", "R", "D"]].to_array(dim="states")
     lines = data2plot.plot.line(x='time', hue="states", ax=ax, **kwargs)
     ax.set_xlabel('days')
     ax.set_ylabel('number of patients')
@@ -67,8 +67,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # add custom legend
     ax.legend(('susceptible', 'exposed',
-               'infected+sick+hospital', 'recovered',
-               'vaccinated','dead'),
+               'infected+sick+hospital', 'recovered','dead'),
               loc="upper center", bbox_to_anchor=(0.5,1.15), ncol=3)
 
     # limit the number of ticks on the axis

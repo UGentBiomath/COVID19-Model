@@ -54,8 +54,6 @@ args = parser.parse_args()
 ## PART 1: Comparison of total number of cases ##
 #################################################
 
-# Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 
 youth = moving_avg((df_sciensano['C_0_9']+df_sciensano['C_10_19']).to_frame())
 cases_youth_nov21 = youth[youth.index == pd.to_datetime('2020-11-21')].values
@@ -151,6 +149,22 @@ ax2.set_xlabel('$\\tau$ (days)')
 plt.tight_layout()
 plt.show()
 
+fig,ax = plt.subplots(figsize=(15,5))
+
+ax.scatter(lag_series, covariance_youth_work, color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+ax.scatter(lag_series, covariance_youth_old, color='black',alpha=0.6, linestyle='None',facecolors='none', s=30, linewidth=1, marker='s')
+ax.scatter(lag_series, covariance_work_old, color='black',alpha=0.6, linestyle='None',facecolors='none', s=30, linewidth=1, marker='D')
+ax.legend(['$[0,20[$ vs. $[20,60[$', '$[0,20[$ vs. $[60,\infty[$', '$[20,60[$ vs. $[60, \infty[$'], bbox_to_anchor=(1.05, 1), loc='upper left')
+ax.plot(lag_series, covariance_youth_work, color='black', linestyle='--', linewidth=1)
+ax.plot(lag_series, covariance_youth_old, color='black',linestyle='--', linewidth=1)
+ax.plot(lag_series, covariance_work_old, color='black',linestyle='--', linewidth=1)
+ax.axvline(0,linewidth=1, color='black')
+ax.grid(False)
+ax.set_ylabel('lag-$\\tau$ cross correlation (-)')
+ax.set_xlabel('$\\tau$ (days)')
+
+plt.tight_layout()
+plt.show()
 
 #####################################################
 ## PART 1: Calibration robustness figure of WAVE 1 ##
@@ -1135,6 +1149,77 @@ for idx,ax in enumerate(axes):
 plt.tight_layout()
 plt.show()
 plt.close()
+
+# --------------------------------------------
+# Plot relative contributions and cluster data
+# --------------------------------------------
+
+# Perform calculation
+df_clusters = pd.read_csv('../../data/interim/sciensano/clusters.csv')
+population_total = 11539326
+population_schools = 2344395
+population_work = 4893800 #https://stat.nbb.be/Index.aspx?DataSetCode=POPULA&lang=nl	
+
+home_rel = df_clusters['family']/population_total
+work_rel = df_clusters['work']/population_work
+schools_rel = df_clusters['schools']/population_schools
+others_rel = df_clusters['others']/population_total
+
+normalizer = df_clusters['family']/population_total + df_clusters['work']/population_work + df_clusters['schools']/population_schools + df_clusters['others']/population_total
+
+df_clusters['family_rel'] = df_clusters['family']/population_total/normalizer
+df_clusters['work_rel'] = df_clusters['work']/population_work/normalizer
+df_clusters['schools_rel'] = df_clusters['schools']/population_schools/normalizer
+df_clusters['others_rel'] = df_clusters['others']/population_total/normalizer
+df_clusters['midpoint_week'] = pd.to_datetime(df_clusters['startdate_week'])+(pd.to_datetime(df_clusters['enddate_week'])-pd.to_datetime(df_clusters['startdate_week']))/2
+
+# Make plot
+fig,ax = plt.subplots(figsize=(12,5))
+
+# Cluster data
+ax.plot(df_clusters['midpoint_week'], df_clusters['others_rel'], '--',color='blue',linewidth=1.5)
+ax.plot(df_clusters['midpoint_week'], df_clusters['work_rel'],'--', color='red',linewidth=1.5)
+ax.plot(df_clusters['midpoint_week'], df_clusters['family_rel'],'--',color='green',linewidth=1.5)
+ax.plot(df_clusters['midpoint_week'], df_clusters['schools_rel'],'--', color='orange',linewidth=1.5)
+# Model relative share
+#ax.plot(df_rel.index, df_rel['2',"rest_mean"],  color='blue', linewidth=1.5)
+#ax.plot(df_rel.index, df_rel['2',"work_mean"], color='red', linewidth=1.5)
+#ax.plot(df_rel.index, df_rel['2',"home_mean"], color='green', linewidth=1.5)
+#ax.plot(df_rel.index, df_rel['2',"schools_mean"], color='orange', linewidth=1.5)
+
+ax.legend(['others','work','home','schools'], bbox_to_anchor=(1.10, 1), loc='upper left')
+
+ax.scatter(df_clusters['midpoint_week'], df_clusters['others_rel'], color='blue')
+ax.scatter(df_clusters['midpoint_week'], df_clusters['work_rel'], color='red')
+ax.scatter(df_clusters['midpoint_week'], df_clusters['family_rel'],color='green')
+ax.scatter(df_clusters['midpoint_week'], df_clusters['schools_rel'], color='orange')
+# Shading of no lockdown zone
+ax.axvspan('2020-09-01', '2020-10-19', alpha=0.2, color='black')
+# Other style options
+ax.set_ylabel('Normalized share of clusters (-)')
+ax.grid(False)
+ax = _apply_tick_locator(ax)
+ax.set_ylim([0,0.80])
+ax.set_yticks([0,0.25,0.50,0.75])
+
+ax2 = ax.twinx()
+time = model_results[1]['time']
+vector_mean = model_results[1]['vector_mean']
+vector_LL = model_results[1]['vector_LL']
+vector_UL = model_results[1]['vector_UL']
+ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+ax2.plot(time,vector_mean,'--', color='black', linewidth=1.5)
+ax2.fill_between(time,vector_LL, vector_UL,alpha=0.20, color = 'black')
+ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+
+ax2.set_xlim(['2020-09-01', '2021-02-20'])
+ax2.set_ylabel('New hospitalisations (-)')
+ax2.grid(False)
+ax2 = _apply_tick_locator(ax2)
+
+plt.tight_layout()
+plt.show()
+
 
 # ------------------------------
 #  Plot Reproduction numbers (1)

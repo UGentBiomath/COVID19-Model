@@ -58,10 +58,10 @@ def get_sciensano_COVID19_data(update=True):
         df_cases.to_csv(rel_dir, index=False)
 
         # Extract vaccination data from source
-        df_cases = pd.read_excel(url, sheet_name="VACC")
+        df_vacc = pd.read_excel(url, sheet_name="VACC")
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC.csv')
-        df_cases.to_csv(rel_dir, index=False)
+        df_vacc.to_csv(rel_dir, index=False)
 
         # Extract hospitalisation data from source
         df = pd.read_excel(url, sheet_name="HOSP")
