@@ -157,3 +157,7 @@ data/interim/mobility/
 
 
 data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-13_WAVE2_GOOGLE.json
+data/interim/nonpublic_timeseries/all_nonpublic_timeseries_arr.csv
+data/interim/nonpublic_timeseries/all_nonpublic_timeseries_mun.csv
+data/interim/nonpublic_timeseries/all_nonpublic_timeseries_Postcode.csv
+data/interim/nonpublic_timeseries/all_nonpublic_timeseries_prov.csv
