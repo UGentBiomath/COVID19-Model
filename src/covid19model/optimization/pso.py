@@ -109,7 +109,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     vhigh = np.abs(ub - lb)
     vlow = -vhigh
 
-    # Initialize objective function
+    # Initialize objective function.
+    # The only remaining argument for obj(thetas) is thetas, a vector containing estimated parameter values
+    # these values thetas will be based on the PSO dynamics and the boundary conditions in lb and ub.
     obj = partial(_obj_wrapper, func, args, kwargs)
 
     # Check for constraint function(s) #########################################
@@ -133,6 +135,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     if processes > 1:
         import multiprocessing
         mp_pool = multiprocessing.Pool(processes)
+    
     # Initialize the particle swarm ############################################
     S = swarmsize
     D = len(lb)  # the number of dimensions each particle has
@@ -152,8 +155,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     # if needed, transform the parameter vector
     if transform_pars is not None:
         x = np.apply_along_axis(transform_pars, 1, x)
-
-
+        
     # Calculate objective and constraints for each particle
     if processes > 1:
         fx = np.array(mp_pool.map(obj, x))
@@ -257,7 +259,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8):
+def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
@@ -266,7 +268,7 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     model: model object
         correctly initialised model to be fitted to the dataset
     data: array
-        list containing dataseries        
+        list containing dataseries. If agg != None, list contains DataFrame with time series per NIS code (NIS code as column heads)
     parNames: array
         list containing the names of the parameters to be fitted
     states: array
@@ -280,6 +282,9 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     popsize: float or int
         population size of particle swarm
         increasing this variable lowers the chance of finding local minima but slows down calculations
+    agg : str or None
+        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
+        None (default) if non-spatial model is used
 
     Returns
     -----------
@@ -295,15 +300,24 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
+    # Exceptions
     if processes > mp.cpu_count():
         raise ValueError(
             f"Desired number of logical processors ({processes}) unavailable. Maximum number: {mp.cpu_count()}"
         )
+    if agg and (agg not in ['prov', 'arr', 'mun']):
+        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     
     # -------------------------------------------
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup, dist), swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    
+# MLE signature:
+# def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):    
+    
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+
     theta_hat = p_hat
 
     return theta_hat
+

@@ -142,7 +142,9 @@ notebooks/scratch/\.Rhistory
 
 
 notebooks/scratch/dask-worker-space/
-data/interim/non_public
+
+# Do not upload nonpublic timeseries (sync from S-drive)
+data/interim/nonpublic_timeseries/
 
 results/ABC
 results/predictions_FAGG
