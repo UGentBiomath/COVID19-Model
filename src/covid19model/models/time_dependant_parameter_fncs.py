@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from functools import lru_cache
 
-def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
+def delayed_ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
     """
     t : timestamp
         current date
@@ -14,6 +14,16 @@ def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
         number of additional days after the time delay until full compliance is reached
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+
+def ramp_fun(Nc_old, Nc_new, t, t_start, l):
+    """
+    t : timestamp
+        current date
+    l : int
+        number of additional days after the time delay until full compliance is reached
+    """
+    return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
 
 def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, prev_leisure=1, prev_others=1, school=None, work=None, transport=None, leisure=None, others=None):
     """
