@@ -87,14 +87,18 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, RU_threshold=400, UM_threshold=40
     dens = pops/areas
 
     # Initialise and fill beta array
-    beta = np.zeros(len(dens))
-    for i in range(len(beta)):
+#     beta = np.empty(len(dens))
+    beta = np.array([])
+    for i in range(len(dens)):
         if dens[i] < RU_threshold:
-            beta[i] = beta_R
+#             beta[i] = beta_R
+            beta = np.append(beta, beta_R)
         elif RU_threshold <= dens[i] < UM_threshold:
-            beta[i] = beta_U
+#             beta[i] = beta_U
+            beta = np.append(beta, beta_U)
         else:
-            beta[i] = beta_M
+#             beta[i] = beta_M
+            beta = np.append(beta, beta_M)
 
     return beta
 

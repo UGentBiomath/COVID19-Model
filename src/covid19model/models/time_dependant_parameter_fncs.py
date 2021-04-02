@@ -64,7 +64,7 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
 def mobility_update_func(t,states,param,agg,default_mobility=None):
     """
-    Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/staytime.
+    Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/fractional.
     
     Input
     -----
@@ -87,7 +87,7 @@ def mobility_update_func(t,states,param,agg,default_mobility=None):
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = '../../../data/interim/mobility/' + agg + '/staytime/'
+    data_location = '../../../data/interim/mobility/' + agg + '/fractional/'
     # Define YYYYMMDD date
     YYYYMMDD = date_to_YYYYMMDD(t)
     filename = 'fractional-mobility-matrix_staytime_' + agg + '_' + str(YYYYMMDD) + '.csv'
@@ -386,9 +386,132 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
             state = policy2
     return state
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Optimized google lockdown function below
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Define policy function
+def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
+                   prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
+
+    # Convert tau and l to dates
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+
+    # Define additional dates where intensity or school policy changes
+    t1 = pd.Timestamp('2020-03-15') # start of lockdown
+    t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
+    t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
+    t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
+
+    if t <= t1 + tau_days:
+        return contact_matrix(t, df_google, Nc_all, school=1)
+    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        policy_old = contact_matrix(t, df_google, Nc_all, school=1)
+        policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                                    prev_leisure, prev_others, school=0)
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+    elif t1 + tau_days + l_days < t <= t2:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0)
+    elif t2 < t <= t3:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0.15)
+    elif t3 < t <= t4:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0.65)
+    else:
+        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
+                              prev_leisure, prev_others, school=0)
+
+# ~~~~~~~~~~~~~~~~~~~~~
+# Vaccination functions
+# ~~~~~~~~~~~~~~~~~~~~~
+
+def make_vaccination_function(df_sciensano):
+    df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+    df_sciensano_end = df_sciensano.index[-1]
+
+    @lru_cache()
+    def sciensano_first_dose(t):
+        # Extrapolate Sciensano n0. vaccinations to the model's native age bins
+        N_vacc = np.zeros(9)
+        N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
+        N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
+        N_vacc[3] = (5/17)*df_sciensano['V1_18_34'][t] + (5/10)*df_sciensano['V1_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*df_sciensano['V1_35_44'][t] + (5/10)*df_sciensano['V1_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*df_sciensano['V1_45_54'][t] + (5/10)*df_sciensano['V1_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*df_sciensano['V1_55_64'][t] + (5/10)*df_sciensano['V1_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*df_sciensano['V1_65_74'][t] + (5/10)*df_sciensano['V1_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*df_sciensano['V1_75_84'][t] + (5/10)*df_sciensano['V1_85+'][t]# 80+
+        return N_vacc
+    
+    return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+
+def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df_sciensano_end,
+                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    """
+    time-dependent function for the Belgian vaccination strategy
+    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+  
+    Parameters
+    ----------
+    t : int
+        Simulation time
+    states: dict
+        Dictionary containing values of model states
+    param : dict
+        Model parameter dictionary
+    sciensano_first_dose : function
+        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
+    df_sciensano_start : date
+        Start date of Sciensano vaccination data frame
+    df_sciensano_end : date
+        End date of Sciensano vaccination data frame
+    daily_dose : int
+        Number of doses administered per day. Default is 30000 doses/day.
+    delay : int
+        Time delay between first dose vaccination and start of immunity. Default is 21 days.
+    vacc_order : array
+        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+    refusal: array
+        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+
+    Return
+    ------
+    N_vacc : array
+        Number of individuals to be vaccinated at simulation time "t"
+        
+    """
+    
+    # Convert time to suitable format
+    t = pd.Timestamp(t.date())
+    # Convert delay to a timedelta
+    delay = pd.Timedelta(str(delay)+'D')
+    # Compute the number of vaccine eligible individuals
+    VE = states['S'] + states['R']
+    
+    if t < df_sciensano_start + delay:
+        return np.zeros(9)
+    elif df_sciensano_start + delay <= t <= df_sciensano_end + delay:
+        return sciensano_first_dose(t-delay)
+    else:
+        N_vacc = np.zeros(9)
+        # Vaccines distributed according to vector 'order'
+        # With residue 'refusal' remaining in each age group
+        idx = 0
+        while daily_dose > 0:
+            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                N_vacc[vacc_order[idx]] = daily_dose
+                daily_dose = 0
+            else:
+                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~
+# Google policy function
+# ~~~~~~~~~~~~~~~~~~~~~~
 
 def make_contact_matrix_function(df_google, Nc_all):
     """
@@ -442,7 +565,7 @@ def make_contact_matrix_function(df_google, Nc_all):
                 idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
                 row = -df_google_array[idx]/100
             else:
-                row = -df_google_array[-1]/100
+                row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
 
             if SB == '2a':
                 row = -df_google['2020-09-01':'2020-10-01'].mean()/100
@@ -476,3 +599,48 @@ def make_contact_matrix_function(df_google, Nc_all):
         return CM
 
     return contact_matrix_4prev, all_contact, all_contact_no_schools
+
+
+# Define policy function
+def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
+
+    contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
+    
+    # Convert tau and l to dates
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+
+    # Define additional dates where intensity or school policy changes
+    t1 = pd.Timestamp('2020-03-15') # start of lockdown
+    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+    if t <= t1:
+        t = pd.Timestamp(t.date())
+        return all_contact(t)
+    elif t1 < t < t1 + tau_days:
+        t = pd.Timestamp(t.date())
+        return all_contact(t)
+    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        t = pd.Timestamp(t.date())
+        policy_old = all_contact(t)
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                    school=0)
+        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+    elif t1 + tau_days + l_days < t <= t2:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t2 < t <= t3:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t3 < t <= t4:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)                     
+    else:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)

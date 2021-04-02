@@ -55,7 +55,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
         fig, ax = plt.subplots(figsize=(9,5))
 
     # create plot using xarray interface
-    data2plot = data[["S", "E", "I_total", "R", "V", "D"]].to_array(dim="states")
+    data2plot = data[["S", "E", "I_total", "R", "D"]].to_array(dim="states")
     lines = data2plot.plot.line(x='time', hue="states", ax=ax, **kwargs)
     ax.set_xlabel('days')
     ax.set_ylabel('number of patients')
@@ -67,8 +67,7 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # add custom legend
     ax.legend(('susceptible', 'exposed',
-               'infected+sick+hospital', 'recovered',
-               'vaccinated','dead'),
+               'infected+sick+hospital', 'recovered','dead'),
               loc="upper center", bbox_to_anchor=(0.5,1.15), ncol=3)
 
     # limit the number of ticks on the axis
@@ -175,7 +174,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         Geopandas dataframe from Belgian shapefiles whose entries correspond to the values in the model output's 'place' dimension. NISCode values are strings.
     ts_geo : string
         The SEIR compartment time series that is plotted into the color map on the chosen day. Either S, E (default), I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, or H_tot.
-    day : int or Timestamp
+    day : Timestamp
         The simulated day that is to be plotted in the color map. Iterate over this value to create an animation. Default is start date.
     lin : Boolean
         Plots a linear representation of the values in the map if True. Otherwise the values are shown with a symlog representation (default).
@@ -228,14 +227,16 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         print(f"Compartments whose time series are included in the data: {data_comp_set}")
     
     # Check if the day is not out of reach
-    first_day = data.time.values[0]
-    last_day = data.time.values[-1]
+    all_days = data.time.values
+    first_day = all_days[0]
+    last_day = all_days[-1]
 #     if not isinstance(day, type(first_day)):
 #         raise Exception(f"Day types do not match. Show_map function has taken type(day) = {type(day)}, but days in simulation are of type {type(first_day)}.")
     if (day < first_day) or (day > last_day):
-        raise Exception(f"Requested day {day} out of reach. Choose a day between {first_day} and {last_day}")
+        raise Exception(f"Requested day {day.date()} out of reach. Choose a day between {first_day.date()} and {last_day.date()}")
     if verbose:
-        print(f"Working on day {day}. Working toward {last_day}")
+        print(f"Working on day {day.date()}. Working toward {last_day}")
+        
     
     # Check if the chosen nis value (if any) is legitimate
     if nis:
@@ -270,9 +271,9 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     #############################################
     
     # Define time list from data
-    tlist = data['time'].values
+    tlist = list(range(len(data['time'])))
     
-    # Check whether there is more than one draw
+    # Check whether there is more than one draw (stochastic model)
     draws = False
     if 'draws' in data.dims:
         draws = True
@@ -350,11 +351,12 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
             #ax_graph_dict[ts].yaxis.set_label_coords(ylabel_pos[0], ylabel_pos[1])
             ax_graph_dict[ts].set_yscale(yscale_graph)
             ax_graph_dict[ts].grid(False)
-            ax_graph_dict[ts].set_xlim([0,tlist[-1]])
+            ax_graph_dict[ts].set_xlim([0,len(tlist)])
             ax_graph_dict[ts].set_ylim([vmin_graph,1.25*vmax_graph[ts]])
             if pos != (len(ts_graph)-1):
                 ax_graph_dict[ts].set_xticks([])
             pos += 1
+#         ax_graph_dict[ts].set_xticks([])
         ax_graph_dict[ts].set_xlabel('Days since initial exposure',size=text_size)
     
     # Set percentage edges to plot
@@ -384,7 +386,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
 
     # Add (meta)data to graphs
     legend_size = 12
-    figtext_pos = (.18, .12)
+    figtext_pos = (.23, .12)
     if ts_graph:
         for ts in ts_graph:
             # show distinct regions in graphs
@@ -429,7 +431,8 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                 graphs.append(graph)
             if (nis and (len(nis) == 1)) or not nis:
                 ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size})
-            ax_graph_dict[ts].axvline(day, color='r', linewidth=2, linestyle='--')
+            day_idx = next(idx for idx, d in enumerate(all_days) if d >= day)
+            ax_graph_dict[ts].axvline(day_idx, color='r', linewidth=2, linestyle='--')
         # Show legend in two columns if it becomes too big
         if nis and (len(nis) > 3):
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=2)
@@ -438,12 +441,12 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         if isinstance(day, int):
             plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=18)
         else:
-            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} on {day}", backgroundcolor='whitesmoke', fontsize=18)
+            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} on {day.date()}", backgroundcolor='whitesmoke', fontsize=18)
     else:
         if isinstance(day, int):
             plt.figtext(.12, .2, f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=22)
         else:
-            plt.figtext(.12, .2, f"People in compartment {ts_geo} on {day}", backgroundcolor='whitesmoke', fontsize=22)
+            plt.figtext(.12, .2, f"People in compartment {ts_geo} on {day.date()}", backgroundcolor='whitesmoke', fontsize=22)
 
     # Save figure
     if figname:

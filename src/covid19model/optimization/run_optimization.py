@@ -19,11 +19,11 @@ import corner
 from covid19model.optimization import objective_fcns
 from covid19model.optimization import pso
 from covid19model.models import models
-from covid19model.models.time_dependant_parameter_fncs import google_lockdown
 from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot, autocorrelation_plot
 from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
+from covid19model.models.utils import stratify_beta # used to determine whether the local region
 
 def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
     
@@ -108,14 +108,42 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
 
     return samples,flat_samples
 
-def calculate_R0(samples_beta, model, initN, Nc_total):
-    spatial=False
-    N = initN.size
-    sample_size = len(samples_beta['beta'])
-    if 'place' in model.parameters.keys():
-        spatial=True
+def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
+    """
+    Function to calculate the initial R value, based on prepandemic social contact and a dictionary of infectivity values.
+    TO DO: the syntax of this function is very unpythonic.
+    
+    Input
+    -----
+    samples_beta: dict
+        Dictionary with i.a. infectivity samples from MCMC-based calibration
+    model: covid19model.models.models
+        Model that contains the parameters as properties
+    initN: np.array
+        Initial population per age (and per region if agg==True)
+    Nc_total: np.array
+        Intergenerational contact matrices
+    agg: str
+        If not None (default), choose between 'arr', 'prov' or 'mun', depending on spatial aggregation
+    
+    Return
+    ------
+    R0 : float
+        Resulting R0 value
+    R0_stratified_dict: dict of float
+        Resulting R0 value per age (and per region if agg==True)    
+    """
+    
+    if agg:
+        beta = stratify_beta('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
+        sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R
         G = initN.shape[0]
         N = initN.shape[1]
+    else:
+        sample_size = len(samples_beta['beta'])
+        N = initN.size
+        
+    if agg:
         # Define values for 'normalisation' of contact matrices
         T_eff = np.zeros([G,N])
         for ii in range(N):
@@ -143,15 +171,15 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
     # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
     for j in range(sample_size):
         som = 0
-        if spatial:
+        if agg:
             for gg in range(G):
                 for i in range(N):
-                    som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                    som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta[beta[gg]][j] * \
                             model.parameters['s'][i] * np.sum(Nc_total_spatial, axis=2)[gg][i] * initN[gg][i]
             R0_temp = som / np.sum(initN)
         else:
             for i in range(N):
-                som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta['beta'][j] * \
+                som += (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * samples_beta[beta[gg]][j] * \
                         model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[i]
             R0_temp = som / np.sum(initN)
         R0.append(R0_temp)
@@ -159,14 +187,14 @@ def calculate_R0(samples_beta, model, initN, Nc_total):
     # Stratified R0 value: R0_stratified[place][age][chain] or R0_stratified[age][chain]
     # This needs to be modified if 'beta' is further stratified
     R0_stratified_dict = dict({})
-    if spatial:
+    if agg:
         for gg in range(G):
             R0_stratified_dict[gg] = dict({})
             for i in range(N):
                 R0_list = []
                 for j in range(sample_size):
                     R0_temp = (model.parameters['a'][i] * model.parameters['da'] + model.parameters['omega']) * \
-                            samples_beta['beta'][j] * model.parameters['s'][i] * np.sum(Nc_total_spatial,axis=2)[gg][i]
+                            samples_beta[beta[gg]][j] * model.parameters['s'][i] * np.sum(Nc_total_spatial,axis=2)[gg][i]
                     R0_list.append(R0_temp)
                 R0_stratified_dict[gg][i] = R0_list
     else:
