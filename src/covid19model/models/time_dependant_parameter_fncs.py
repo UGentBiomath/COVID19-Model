@@ -595,8 +595,6 @@ def make_contact_matrix_function(df_google, Nc_all):
                 leisure=1-row[0]
             if others is None:
                 others=1-row[1]
-            #if home is None:
-            #    home = 1-row[5]
 
             CM = (prev_home*(1/2.3)*Nc_all['home'] + 
                   prev_schools*school*Nc_all['schools'] + 
