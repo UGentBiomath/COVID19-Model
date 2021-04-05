@@ -60,9 +60,14 @@ warmup = 0
 conf_int = 0.05
 
 # Scenario settings
+descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
+                    'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
+                    'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
 l_relax = 31
 relaxdates = ['2021-05-01','2021-06-01']
 doses = [30000,50000]
+orders = [np.array(range(9)), np.array(range(9))[::-1]]
+description_order = ['old --> young', 'young (0 yo.) --> old'] # Add contact order, and/or add young to old, starting at 20 yo.
 
 # Upper- and lower confidence level
 UL = 1-conf_int/2
@@ -148,6 +153,7 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
     t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
     t15 = pd.Timestamp(relaxdate) # Relaxation date
     t16 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+    t17 = pd.Timestamp('2021-09-01') 
 
     if t <= t1:
         return all_contact(t)
@@ -166,7 +172,8 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
                               school=0)
     elif t3 < t <= t4:
         return contact_matrix_4prev(t, school=0)
-        # Second wave
+
+    # Second wave
     elif t4 < t <= t5 + tau_days:
         return contact_matrix_4prev(t, school=1)
     elif t5 + tau_days < t <= t5 + tau_days + l_days:
@@ -204,103 +211,136 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
     elif t13 < t <= t14:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)
-    elif t14 < t <= t15:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)                                      
+                                   
     if scenario == 0:
-        if t15 < t <= t16:
+        if t14 < t <= t15:
             return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)               
+                                school=1)    
+        elif t15 < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)             
         else:
-            t = pd.Timestamp(t.date())
             return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0)
+                                school=1)
     elif scenario == 1:
-        if t15 < t <= t15 + l_relax_days:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)    
+        elif t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, 1, prev_rest, 
-                                work=1, school=1)
-            return ramp_fun(policy_old, policy_new, t, t15, l_relax,)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, prev_rest, 
-                                work=1, school=1)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, transport=0.90, school=0) # 20% less work mobility during summer, 10% less public transport during summer                                      
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, prev_rest, 
-                                work=1, school=0)
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
     elif scenario == 2:
-        if t15 < t <= t15 + l_relax_days:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)    
+        elif t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, 1, prev_rest, 
-                                work=1, school=0)
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=0)
             return ramp_fun(policy_old, policy_new, t, t15, l_relax,)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, prev_rest, 
-                                work=1, school=0)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=0)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, transport=0.90, school=0)                                  
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, prev_rest, 
-                                work=1, school=0)    
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)    
     elif scenario == 3:
-        if t15 < t <= t15 + l_relax_days:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)   
+        elif t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, 1, 
-                                leisure=1, school=1)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)
             return ramp_fun(policy_old, policy_new, t, t15, l_relax)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 1, 
-                                leisure=1, school=1)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=0.90, school=0)                                       
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 1, 
-                                leisure=1, school=0)  
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)  
     elif scenario == 4:
-        if t15 < t <= t15 + l_relax_days:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)   
+        elif t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, 1, 
-                                leisure=1, school=0)
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=0)
             return ramp_fun(policy_old, policy_new, t, t15, l_relax)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 1, 
-                                leisure=1, school=0)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1,  school=0)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=0.90, school=0)                                           
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 1, 
-                                leisure=1, school=0)                                     
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)                                     
     elif scenario == 5:
-        if t15 < t <= t15 + l_relax_days:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)   
+        elif t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=1)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
             return ramp_fun(policy_old, policy_new, t, t15, l_relax)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=1)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, leisure=1, transport=0.90, others=1, school=0)                                      
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=0)
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
 
     elif scenario == 6:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)   
         if t15 < t <= t15 + l_relax_days:
             policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=1)
-            policy_new = contact_matrix_4prev(t, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=0)
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=0)
             return ramp_fun(policy_old, policy_new, t, t15, l_relax)
         elif t15 + l_relax_days < t <= t16:
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=0)                                      
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=0)                           
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, leisure=1, transport=0.90, others=1, school=0)                
         else:
-            t = pd.Timestamp(t.date())
-            return contact_matrix_4prev(t, prev_home, prev_schools, 1, 1, 
-                                work=1, leisure=1, school=0)
-
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_work, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+    
 # ----------------
 # Helper functions
 # ----------------
@@ -338,8 +378,9 @@ def draw_fcn_vacc(param_dict,samples_dict):
     param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
     param_dict['refusal'] = np.random.triangular(0.05, 0.20, 0.40, size=9) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
+    param_dict['delay'] = np.random.triangular(1, 31, 31)
     # Variant parameters
-    param_dict['K_inf'] = np.random.uniform(low=1.25,high=1.40)
+    param_dict['K_inf'] = np.random.uniform(low=1.30,high=1.40)
     return param_dict
 
 # -------------------------------------
@@ -365,7 +406,7 @@ d_vacc = 12*30 # duration of vaccine protection
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Update with additional parameters for social policy function
 params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
-            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0, 'scenario': 0, 'relaxdate': '2021-05-01'})
+            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
 # Update with additional parameters for vaccination
 params.update(
     {'vacc_order': vacc_order, 'daily_dose': daily_dose,
@@ -390,61 +431,65 @@ model = models.COVID19_SEIRD_vacc(initial_states, params,
 # Initialize results dataframe
 # ----------------------------
 index = pd.date_range(start=start_sim, end=end_sim)
-columns = [[],[],[],[]]
+columns = [[],[],[],[],[]]
 tuples = list(zip(*columns))
-columns = pd.MultiIndex.from_tuples(tuples, names=["social scenario", "relaxation date", "daily vaccinations", "results"])
+columns = pd.MultiIndex.from_tuples(tuples, names=["social scenario", "relaxation date", "daily vaccinations", "vaccination order", "results"])
 df_sim = pd.DataFrame(index=index, columns=columns)
 
 # ---------------------
 # Start simulation loop
 # ---------------------
 
-descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
-                    'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
-                    'Relaxation of of work-at-home and leisure - schools open', 'Relaxation of of work-at-home and leisure - schools closed']
 colors = ['blue', 'green', 'red', 'orange', 'black', 'brown', 'purple']
 
 print('3) Starting scenario loop\n')
 for idx,scenario in enumerate(scenarios):
     print('\n\t# scenario '+scenario)
     model.parameters.update({'scenario': int(scenario)})
-    legend_text=[]
-    fig,ax = plt.subplots(figsize=(10,4))
-    k = 0
+    fig,axes = plt.subplots(ncols=1,nrows=len(relaxdates),figsize=(10,len(relaxdates)*4),sharex=True)
+
     for jdx,relaxdate in enumerate(relaxdates):
         model.parameters.update({'relaxdate': relaxdate})
         print('\t## relaxdate '+relaxdate)
+        k=0
+        legend_text=[]
 
         for kdx, daily_dose in enumerate(doses):
             print('\t### '+str(daily_dose)+' doses per day')
             model.parameters.update({'daily_dose': daily_dose})
 
-            # --------------
-            # Simulate model
-            # --------------
-            out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn_vacc,samples=samples_dict)
-            mean_Hin, median_Hin, LL_Hin, UL_Hin = add_poisson('H_in', out_vacc, n_samples, n_draws)
-            mean_Htot, median_Htot, LL_Htot, UL_Htot = add_poisson('H_tot', out_vacc, n_samples, n_draws)
-            # Append to dataframe
-            columnnames = ['incidences_mean', 'incidences_median', 'incidences_LL', 'incidences_UL',
-                            'load_mean', 'load_median', 'load_LL', 'load_UL']
-            data = [mean_Hin, median_Hin, LL_Hin, UL_Hin, mean_Htot, median_Htot, LL_Htot, UL_Htot]
-            for i in range(len(columnnames)):
-                df_sim[scenario, relaxdate, daily_dose, columnnames[i]] = data[i]
-            # Append to figure
-            ax.plot(df_sim.index, df_sim[scenario, relaxdate, daily_dose, 'incidences_mean'],'--', linewidth=1, color=colors[k])
-            ax.fill_between(df_sim.index, df_sim[scenario, relaxdate, daily_dose, 'incidences_LL'], df_sim[scenario, relaxdate, daily_dose,'incidences_UL'], color=colors[k], alpha=0.20)
-            legend_text.append('Relaxation '+relaxdate+' - '+str(daily_dose)+' doses/day')
-            k=k+1
+            for ldx, order in enumerate(orders):
+                print('\t#### Vaccination order: '+description_order[ldx])
+                model.parameters.update({'vacc_order': order})
+                # --------------
+                # Simulate model
+                # --------------
+                out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn_vacc,samples=samples_dict)
+                mean_Hin, median_Hin, LL_Hin, UL_Hin = add_poisson('H_in', out_vacc, n_samples, n_draws)
+                mean_Htot, median_Htot, LL_Htot, UL_Htot = add_poisson('H_tot', out_vacc, n_samples, n_draws)
+                # Append to dataframe
+                columnnames = ['incidences_mean', 'incidences_median', 'incidences_LL', 'incidences_UL',
+                                'load_mean', 'load_median', 'load_LL', 'load_UL']
+                data = [mean_Hin, median_Hin, LL_Hin, UL_Hin, mean_Htot, median_Htot, LL_Htot, UL_Htot]
+                for i in range(len(columnnames)):
+                    df_sim[scenario, relaxdate, daily_dose, description_order[ldx], columnnames[i]] = data[i]
+                # Append to figure
+                axes[jdx].plot(df_sim.index, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_mean'],'--', linewidth=1, color=colors[k])
+                axes[jdx].fill_between(df_sim.index, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_LL'], df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_UL'], color=colors[k], alpha=0.20)
+                legend_text.append(str(daily_dose)+' doses/day - '+description_order[ldx])
+                k=k+1
 
-    ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax = _apply_tick_locator(ax)
-    ax.set_xlim('2020-09-01',end_sim)
-    ax.set_ylim(0,1200)
-    ax.set_ylabel('$H_{in}$ (-)')
-    ax.set_title('Scenario: '+scenario+'\n'+descriptions_scenarios[int(scenario)],loc='left',fontsize=13)
-    ax.legend(legend_text, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+        axes[jdx].scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        axes[jdx].scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        axes[jdx] = _apply_tick_locator(axes[jdx])
+        axes[jdx].set_xlim('2020-09-01',end_sim)
+        axes[jdx].set_ylim(0,1200)
+        axes[jdx].set_ylabel('$H_{in}$ (-)')
+        axes[jdx].set_title('Relaxation on '+relaxdate, fontsize=13)
+        if jdx == 0:
+            axes[jdx].legend(legend_text, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+    fig.suptitle('Scenario '+scenario+': '+descriptions_scenarios[int(scenario)]+'\n', x=0.92, y=0.99, ha='right')
+    
 
     fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.pdf', dpi=400, bbox_inches='tight')
     fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.png', dpi=400, bbox_inches='tight')
