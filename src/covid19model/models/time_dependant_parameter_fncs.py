@@ -491,17 +491,17 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
         Number of individuals to be vaccinated at simulation time "t"
         
     """
-    
+
     # Convert time to suitable format
     t = pd.Timestamp(t.date())
     # Convert delay to a timedelta
-    delay = pd.Timedelta(str(delay)+'D')
+    delay = pd.Timedelta(str(int(delay))+'D')
     # Compute the number of vaccine eligible individuals
     VE = states['S'] + states['R']
     
-    if t < df_sciensano_start + delay:
+    if t <= df_sciensano_start + delay:
         return np.zeros(9)
-    elif df_sciensano_start + delay <= t <= df_sciensano_end + delay:
+    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
         return sciensano_first_dose(t-delay)
     else:
         N_vacc = np.zeros(9)
