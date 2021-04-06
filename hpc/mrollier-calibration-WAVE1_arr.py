@@ -119,18 +119,18 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 5 #10
-    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
+    multiplier = 1 #5 #10
+    maxiter = 1 #60 # 40 # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000 # Approx 150s/it
+    max_n = 2 #200 # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
-    n_samples = 20 # 1000
+    n_samples = 5 #20 # 1000
     # Confidence level used to visualise binomial model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
-    n_draws_per_sample= 1000 #1000
+    n_draws_per_sample= 5 #1000
     
     # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
@@ -251,7 +251,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 10
+    sample_step = 1 #10
 
     with Pool() as pool:
         # Prepare the samplers
@@ -325,7 +325,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 5
+    thin = 2 #5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
