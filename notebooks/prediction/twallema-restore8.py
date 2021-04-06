@@ -3,7 +3,7 @@ This script contains code to simulate the scenarios for RESTORE report 8.
 Deterministic, national-level BIOMATH COVID-19 SEIRD
 """
 
-__author__      = "Tijs Alleman"
+__author__      = "Tijs Alleman and Jenna Vergeynst"
 __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 # ----------------------
