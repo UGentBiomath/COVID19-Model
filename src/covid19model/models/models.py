@@ -374,7 +374,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, 
+                dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -776,7 +777,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V # calculate total population per age bin using 2D array
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + ER_v + C_v + C_icurec_v + ICU_v + R_v # calculate total population per age bin using 2D array
         
         # Compute the number of vaccine elegible individuals
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -798,12 +800,11 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         T_eff = np.matmul(np.transpose(place_eff), T)
         A_eff = np.matmul(np.transpose(place_eff), A)
         I_eff = np.matmul(np.transpose(place_eff), I)
-        V_eff = np.matmul(np.transpose(place_eff), V)
         alpha_eff = np.matmul(np.transpose(place_eff), alpha)
                 
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
-        V_Susc = place_eff[:,:,np.newaxis]*V[:,np.newaxis,:]
+        Susc_v = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
@@ -861,19 +862,17 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = -dS_inf + zeta*R - N_vacc/VE*S
-        dE  = dS_inf - E/sigma - N_vacc/VE*E + (1-e)*dV_inf # Unsuccesful vaccinations are added to Exposed population
-        dI = (1/sigma)*E - (1/omega)*I - N_vacc/VE*I
-        dA = (a/omega)*I - A/da - N_vacc/VE*A
+        dS  = -dS_inf + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
         dER = M*(h_new/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - N_vacc/VE*R
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
 
-        # If A and I are both zero, a division error occurs
-        dalpha[np.isnan(dalpha)] = 0
         
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -900,11 +899,11 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if np.all((1-alpha+alpha*K==0)):
+        if np.all((1-alpha+alpha*K_inf==0)):
             # Protection against division error
             dalpha = np.zeros(9)
         else:
-            dalpha = alpha*K/(1-alpha+alpha*K) - alpha
+            dalpha = alpha*K_inf/(1-alpha+alpha*K_inf) - alpha
 
 
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
@@ -913,7 +912,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
             dalpha += injection_ratio
         
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dVE, dV_new, dV, dalpha)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, 
+                dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
     
 
 class COVID19_SEIRD_sto_spatial(BaseModel):
