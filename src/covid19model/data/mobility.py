@@ -250,11 +250,12 @@ def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=Tru
         mmprox_staytime = GDPR_staytime(mmprox_staytime, est_hidden_staytime)
         # Aggregate staytime values at the level of agg (user-defined)
         mmprox_staytime_agg = mm_aggregate(mmprox_staytime, agg=agg)
-        # Normalise the matrix
         if normalise:
+            # Normalise the matrix
             P = mmprox_staytime_agg.div(mmprox_staytime_agg.sum(axis=1), axis=0)
         else:
-            P = mmprox_staytime_agg.copy()
+            # Scale the staytime values (based on Proximus data) with the relative local number of Proximus clients
+            P = scale_staytime_to_market_share(mmprox_staytime_agg, d, agg=agg)
         
         # Save matrix with descriptive name
         filename = savename + agg + '_' + d + '.csv'
@@ -945,6 +946,96 @@ def mm_aggregate(mmprox, agg='mun'):
             mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     return mmprox_agg
+    
+def scale_staytime_to_market_share(mmprox, date, agg='mun'):
+    """
+    Proximus has a heterogeneous and time-dependant market share. When comparing staytimes from one region to another, we must therefore calculate the ACTUAL staytime based on the number of registered hours and the market share of Proximus. Note that this does NOT make a difference when it comes to calculating fractional staytime, only when comparing absolute staytimes across regions.
+    
+    Input
+    -----
+    mmprox: pandas DataFrame
+        Mobility matrix with NIS codes as indices and as column heads, and staytime as values
+    date: str
+        Single date in the shape YYYYMMDD
+    agg: str
+        The aggregation level corresponding to mmprox. Choose between 'mun', 'arr' or 'prov'. Default is 'mun'.
+        
+    Returns
+    -------
+    mmprox_extrapolated: pandas.DataFrame
+        Mobility matrix with staytime values adjusted to local Proximus market share
+    """
+    # input verification not included here
+    # Load population in aggregated geographical unit
+    # Load Proximus clients per municipality (under NIS code)
+    if agg=='mun':
+        raise Exception("This function currently does not work yet for municipality aggregation level.")
+        
+    mmprox_extrapolated = mmprox.copy()
+
+    # define directories with relevant data
+    abs_dir = os.path.dirname(__file__)
+    raw_dir = os.path.join(abs_dir, '../../../data/raw/mobility/proximus/postalcodes/')
+    pop_dir = os.path.join(abs_dir, '../../../data/interim/demographic/')
+
+    # Load NIS dictionary and population-per-NIS
+    pc_to_nis = load_pc_to_nis()
+    pop_per_nis = pd.read_csv(pop_dir + f'initN_{agg}.csv', dtype={'NIS' : str})[['NIS','total']].set_index('NIS').rename_axis('mllp_postalcode', axis='index')
+
+    # Load raw data (used to find market share)
+    raw_data = load_datafile_proximus(date, raw_dir)
+    value_per_pc = raw_data[['mllp_postalcode','imsisinpostalcode']].drop_duplicates().set_index('mllp_postalcode')
+
+    # Rename index to NIS code (municipality)
+    rename_idx_dict = dict({})
+    rename_foreigner = 'Foreigner'
+    for pc in value_per_pc.index:
+        if pc != 'Foreigner':
+            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+            rename_idx_dict[pc] = NIS
+    rename_idx_dict['Foreigner'] = rename_foreigner
+
+    # Group municipalities together
+    value_per_pc = value_per_pc.rename(index=rename_idx_dict).groupby(level=0, axis=0).sum()
+    
+    # Aggregate NIS codes to arrondissements (or provinces if conditional is met)
+    # Rename rows
+    for nis in value_per_pc.index:
+        if nis != 'Foreigner':
+            new_nis = nis[:-3] + '000'
+            value_per_pc = value_per_pc.rename(index={nis : new_nis})
+
+    # Collect rows and columns with the same NIS code, and automatically order column/row names
+    value_per_pc = value_per_pc.groupby(level=0, axis=0).sum()
+
+    if agg == 'prov':
+        # Rename rows
+        for nis in value_per_pc.index:
+            if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                new_nis = nis[:-4] + '0000'
+                value_per_pc = value_per_pc.rename(index={nis : new_nis})
+            if nis in ['23000', '24000']:
+                new_nis = '20001'
+                value_per_pc = value_per_pc.rename(index={nis : new_nis})
+            if nis == '25000':
+                new_nis = '20002'
+                value_per_pc = value_per_pc.rename(index={nis : new_nis})
+
+        # Collect rows and columns with the same NIS code, and automatically order column/row names
+        value_per_pc = value_per_pc.groupby(level=0, axis=0).sum()
+
+    # Add population-per-NIS to the number-of-Proximus-clients-per-NIS DataFrame
+    value_per_pc = value_per_pc.join(pop_per_nis)
+    # Add column 'fraction' with the projected market share (simple fraction of clients/population)
+    value_per_pc['fraction'] = value_per_pc['imsisinpostalcode']/value_per_pc['total']
+    value_per_pc.loc['Foreigner', 'fraction']=1.0
+    
+    # Estimate the actual total staytime of ALL people by extrapolating from Proximus' market share
+    for nis in mmprox.index:
+        mmprox_extrapolated.loc[nis] /= value_per_pc.loc[nis,'fraction']
+        
+    return mmprox_extrapolated
+    
     
 def complete_data_clean(mmprox, agg='mun'):
     """
