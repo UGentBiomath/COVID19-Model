@@ -1,6 +1,13 @@
 """
 This script contains code to simulate the scenarios for RESTORE report 8.
 Deterministic, national-level BIOMATH COVID-19 SEIRD
+
+Example use:
+------------
+python twallema-restore8.py -s 0 1 2 3 4 5 6 -n 100
+
+    Runs all 7 social scenarios with 100 simulations per scenario.
+
 """
 
 __author__      = "Tijs Alleman and Jenna Vergeynst"
