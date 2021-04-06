@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from covid19model.models import models
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.models.time_dependant_parameter_fncs import delayed_ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 
 # ---------
@@ -47,7 +47,7 @@ def compliance_func(t, states, param, l, tau, prevention):
     if t < start_measures + tau_days:
         return param
     elif start_measures + tau_days < t <= start_measures + tau_days + l_days:
-        return ramp_fun(param, prevention*param, t, tau_days, l, start_measures)
+        return delayed_ramp_fun(param, prevention*param, t, tau_days, l, start_measures)
     else:
         return param * prevention
 

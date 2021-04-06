@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from functools import lru_cache
 
-def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
+def delayed_ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
     """
     t : timestamp
         current date
@@ -14,6 +14,16 @@ def ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
         number of additional days after the time delay until full compliance is reached
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+
+def ramp_fun(Nc_old, Nc_new, t, t_start, l):
+    """
+    t : timestamp
+        current date
+    l : int
+        number of additional days after the time delay until full compliance is reached
+    """
+    return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
 
 def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, prev_leisure=1, prev_others=1, school=None, work=None, transport=None, leisure=None, others=None):
     """
@@ -481,17 +491,17 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
         Number of individuals to be vaccinated at simulation time "t"
         
     """
-    
+
     # Convert time to suitable format
     t = pd.Timestamp(t.date())
     # Convert delay to a timedelta
-    delay = pd.Timedelta(str(delay)+'D')
+    delay = pd.Timedelta(str(int(delay))+'D')
     # Compute the number of vaccine eligible individuals
     VE = states['S'] + states['R']
     
-    if t < df_sciensano_start + delay:
+    if t <= df_sciensano_start + delay:
         return np.zeros(9)
-    elif df_sciensano_start + delay <= t <= df_sciensano_end + delay:
+    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
         return sciensano_first_dose(t-delay)
     else:
         N_vacc = np.zeros(9)
@@ -585,8 +595,6 @@ def make_contact_matrix_function(df_google, Nc_all):
                 leisure=1-row[0]
             if others is None:
                 others=1-row[1]
-            #if home is None:
-            #    home = 1-row[5]
 
             CM = (prev_home*(1/2.3)*Nc_all['home'] + 
                   prev_schools*school*Nc_all['schools'] + 
