@@ -155,6 +155,13 @@ if __name__ == '__main__':
     # mobility defaults to average mobility of 2020 if no data is available
     params.update({'agg' : agg,
                    'default_mobility' : None})
+    
+    # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
+    params.update({'e' : np.ones(9),
+                   'leakiness' : np.zeros(9),
+                   'v' : np.zeros(9),
+                   'K' : 0,
+                   'N_vacc' : np.zeros(9)})
 
     # Initial states: single 40 year old exposed individual in Brussels
     initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
@@ -550,6 +557,13 @@ if __name__ == '__main__':
     # mobility defaults to average mobility of 2020 if no data is available
     params.update({'agg' : agg,
                    'default_mobility' : None})
+    
+    # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
+    params.update({'e' : np.ones(9),
+                   'leakiness' : np.zeros(9),
+                   'v' : np.zeros(9),
+                   'K' : 0,
+                   'N_vacc' : np.zeros(9)})
 
     # Initial states: single 40 year old exposed individual in Brussels
     initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
