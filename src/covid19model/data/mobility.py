@@ -264,6 +264,65 @@ def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=Tru
             print(f"Saved P for date {d}: {filename}", end='\r')
 
     return
+
+def update_visits_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True):
+    """
+    Function that turns the raw Proximus mobility data into interim mobility matrices P for the number of visits. CURRENTLY NOT YET ACCOMODATING NEW DISTRICT-DISTRICT PROXIMUS DATA.
+    
+    Input
+    -----
+    raw_dir: str
+        Directory that contains the raw Proximus data
+    interim_dir: str
+        Goal directory that contains the processed mobility P matrix data
+    verbose: boolean
+        If True (default), print current status
+    """
+    
+    # Find new dates that need to be processed
+    dates_already_processed=[]
+    if verbose:
+        print(f"\nScanning interim directory {interim_dir}.")
+    for csv in os.listdir(interim_dir):
+        # take YYYYMMDD information from processed CSVs
+        datum = csv[-12:-4]
+        dates_already_processed.append(datum)
+        
+    if verbose:
+        print(f"Scanning raw directory {raw_dir}.")
+    dates_available=[]
+    suffix_len = len(proximus_mobility_suffix())
+    for csv in os.listdir(raw_dir):
+        # Take YYYYMMDD information from raw CSVs
+        os.rename(raw_dir + csv, raw_dir + csv.replace("_", "")) # newest files have unnecessary underscores
+        datum = csv[-suffix_len-8:-suffix_len]
+        dates_available.append(datum)
+    raw_prefix = csv[0:-suffix_len-8]
+    dates_new = sorted(np.setdiff1d(dates_available, dates_already_processed))
+    if verbose:
+        print(f"\nNew dates to be processed: {dates_new}\n")
+        
+    # Load and process data for new dates
+    savename = 'absolute-mobility-matrix_visits_'
+    for d in dates_new:
+        raw_data = load_datafile_proximus(d, raw_dir)
+        # Pivot unprocessed data into correct origin-destination mobility matrix
+        mmprox_visits = load_mmprox(raw_data, values='visitors')
+        # Add missing postal codes (with value 0)
+        mmprox_visits = fill_missing_pc(mmprox_visits)
+        # Change GDPR-protected -1 values to estimated visits value
+        mmprox_visits = GDPR_replace(mmprox_visits) # avg = 5
+        # Aggregate staytime values at the level of agg (user-defined)
+        mmprox_visits_agg = mm_aggregate(mmprox_visits, agg=agg)
+        
+        # Save matrix with descriptive name
+        filename = savename + agg + '_' + d + '.csv'
+        mmprox_visits_agg.to_csv(interim_dir + filename)
+        if verbose:
+            print(f"Saved P for date {d}: {filename}", end='\r')
+            
+    return
+    
             
 def date_to_YYYYMMDD(date, inverse=False):
     """
