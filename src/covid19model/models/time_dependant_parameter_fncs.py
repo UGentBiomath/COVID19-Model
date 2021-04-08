@@ -635,7 +635,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
