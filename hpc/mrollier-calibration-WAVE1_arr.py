@@ -65,6 +65,8 @@ if __name__ == '__main__':
     # Init
     if args.init:
         init = args.init
+        if init not in ['BXL', 'DATA', 'HOMO']:
+            raise Exception(f"initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
     else:
         init = 'DATA'
     # Maxiter
@@ -182,8 +184,14 @@ if __name__ == '__main__':
                    'K' : 0,
                    'N_vacc' : np.zeros(9)})
 
-    # Initial states: single 40 year old exposed individual in Brussels
-    initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
+    # Initial states, depending on args parser
+    init_number=3
+    if init=='BXL':
+        initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
+    elif init=='DATA':
+        initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
+    else:
+        initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
     initial_states = {'S': initN, 'E': initE}
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
@@ -585,7 +593,13 @@ if __name__ == '__main__':
                    'N_vacc' : np.zeros(9)})
 
     # Initial states: single 40 year old exposed individual in Brussels
-    initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
+    init_number=3
+    if init=='BXL':
+        initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
+    elif init=='DATA':
+        initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
+    else:
+        initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
     initial_states = {'S': initN, 'E': initE}
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
