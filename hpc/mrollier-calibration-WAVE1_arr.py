@@ -51,6 +51,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
+    parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA or HOMO")
+    parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
+    parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 
     args = parser.parse_args()
 
@@ -59,6 +62,22 @@ if __name__ == '__main__':
         backend = None
     else:
         backend = True
+    # Init
+    if args.init:
+        init = args.init
+    else:
+        init = 'DATA'
+    # Maxiter
+    if args.maxiter:
+        maxiter_PSO = args.maxiter
+    else:
+        maxiter_PSO = 50
+    # Number
+    if args.number:
+        maxn_MCMC = args.number
+    else:
+        maxn_MCMC = 100
+    
 
     # Date at which script is started (for bookkeeping)
     run_date = str(datetime.date.today())
@@ -118,13 +137,13 @@ if __name__ == '__main__':
     end_calibration = '2020-07-01'
 
     # PSO settings
-    processes = mp.cpu_count()-1 # -1 if running on local machine
+    processes = mp.cpu_count() # add -1 if running on local machine
     multiplier = 1 #5 #10
-    maxiter = 1 #60 # 40 # more iterations is more beneficial than more multipliers
+    maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 2 #200 # 300000 # Approx 150s/it
+    max_n = maxn_MCMC # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 5 #20 # 1000
     # Confidence level used to visualise binomial model fit
@@ -522,11 +541,11 @@ if __name__ == '__main__':
     # PSO settings
     processes = mp.cpu_count()-1 # -1 if running on local machine
     multiplier = 5 #10
-    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
+    maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000 # Approx 150s/it
+    max_n = maxn_MCMC # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
