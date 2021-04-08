@@ -88,7 +88,8 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K_inf * infectivity of old variant)
+        K_hosp : hospital admission gain of alternative COVID-19 variants (hospital admission of new variant = K_hosp * hospital admission of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -241,8 +242,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
-        sigma : length of the latent period
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K_inf * infectivity of old variant)
+        K_hosp : hospital admission gain of alternative COVID-19 variants (hospital admission of new variant = K_hosp * hospital admission of old variant)        sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
         a : probability of an asymptomatic cases
@@ -307,7 +308,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the number of vaccine elegible individuals
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        VE = S + R
+        VE = S + R + E + I + A
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -359,8 +360,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
             + M_v*((1-e_h)*h_new/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
 
-        # Update fraction of new COVID-19 variant
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
         if np.all((IP_old == 0)) and np.all((IP_new == 0)):
             # Protection against division error
@@ -374,7 +374,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, 
+                dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
 class COVID19_SEIRD_sto(BaseModel):
@@ -683,6 +684,238 @@ class COVID19_SEIRD_spatial(BaseModel):
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dVE, dV_new, dV, dalpha)
     
     
+class COVID19_SEIRD_spatial_vacc(BaseModel):
+    """
+    BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta_R : probability of infection when encountering an infected person in rural environment
+        beta_U : probability of infection when encountering an infected person in urban environment
+        beta_M : probability of infection when encountering an infected person in metropolitan environment
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K_inf * infectivity of old variant)
+        K_hosp : hospital admission gain of alternative COVID-19 variants (hospital admission of new variant = K_hosp * hospital admission of old variant)        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of an initially mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        der : duration of stay in emergency room/buffer ward
+        dc : average length of a hospital stay when not in ICU
+        dICU_R : average length of a hospital stay in ICU in case of recovery
+        dICU_D: average length of a hospital stay in ICU in case of death
+        dhospital : time before a patient reaches the hospital
+        xi : factor controlling the contact dependence on density f
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
+
+        Age-stratified parameters
+        -------------------------
+        s: relative susceptibility to infection
+        a : probability of a subclinical infection
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in Cohort (non-ICU)
+        m_C : mortality in Cohort
+        m_ICU : mortality in ICU
+        pi : mobility parameter (1 by default = no measures)
+        N_vacc : daily number of people vaccinated in each age group
+        e : vaccine effectivity
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
+
+        Spatially-stratified parameters
+        -------------------------------
+        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
+        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
+        sg : average size of a household per patch. Not used as of yet.
+
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # ...state variables and parameters
+
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
+                   'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
+                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio', 'K_hosp', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU',  'N_vacc']]
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
+
+    # ..transitions/equations
+    @staticmethod
+
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha, # time + SEIRD classes
+                  S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v, # vaccinated classes
+                  beta_R, beta_U, beta_M, K_inf, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
+                  dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio, K_hosp, e_i, e_s, e_h, e_a, d_vacc,# SEIRD parameters
+                  area, sg, p,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
+                  place, Nc): # stratified parameters that determine stratification dimensions
+
+        """
+        BIOMATH extended SEIRD model for COVID-19
+        """
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + ER_v + C_v + C_icurec_v + ICU_v + R_v # calculate total population per age bin using 2D array
+        
+        # Compute the number of vaccine elegible individuals
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        VE = S + R + E + I + A
+
+        # Define all the parameters needed to determine the rates of change
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        # For total population and for the relevant compartments I and A
+        G = place.shape[0] # spatial stratification
+        N = Nc.shape[0] # age stratification
+        
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
+        # TO DO: add age stratification for p
+        
+        # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
+        T_eff = np.matmul(np.transpose(place_eff), T)
+        A_eff = np.matmul(np.transpose(place_eff), A)
+        I_eff = np.matmul(np.transpose(place_eff), I)
+        alpha_eff = np.matmul(np.transpose(place_eff), alpha)
+                
+        # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
+        Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
+        Susc_v = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
+        
+        # Density dependence per patch: f[patch]
+        T_eff_total = T_eff.sum(axis=1)
+        rho = T_eff_total / area
+        f = 1 + (1 - np.exp(-xi * rho))
+
+        # Normalisation factor per age class: zi[age]
+        # Population per age class
+        Ti = T.sum(axis=0)
+        zi = Ti / np.matmul(np.transpose(T_eff),f)
+        
+        # infer aggregation (prov, arr or mun)
+        agg = None
+        if G == 11:
+            agg = 'prov'
+        elif G == 43:
+            agg = 'arr'
+        elif G == 581:
+            agg = 'mun'
+        else:
+            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        
+        # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
+        # Default values for RU_threshold and UM_threshold are taken. beta[patch]
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg)
+        
+        # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age], 
+        beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K_inf*beta[:,np.newaxis]
+        
+        # Define the number of contacts multiplier per patch and age, multip[patch,age]
+        multip = np.matmul( (I_eff + A_eff + (1-e_i)*(I_v+A_v))/T_eff , np.transpose(Nc) )
+        
+        # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
+        multip *= np.outer(f, s*zi)
+        
+        # Multiply with beta_weighted_av[patch,age]
+        # if infectivity depends on VISITED region (beta^h), beta_localised = True
+        # if infectivity depends on region of origin (beta^g), beta_localised = False
+        # Change this in hard-code depending on preference
+        beta_localised = True
+        if beta_localised:
+            multip *= beta_weighted_av
+        else:
+            Susc *= beta_weighted_av[:,np.newaxis,:]
+            Susc_v *= beta_weighted_av[:,np.newaxis,:]
+        
+        # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
+        # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
+        dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
+        dS_v_inf = (Susc_v * multip[np.newaxis,:,:]).sum(axis=1)
+
+        # Account for higher hospitalisation propensity of new variant
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        h_new = (1-alpha)*h + alpha*K_hosp*h
+        # Compute the  rates of change in every population compartment (non-vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS  = -dS_inf + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
+        dER = M*(h_new/dhospital) - (1/der)*ER
+        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
+        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
+        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
+
+        
+        # Compute the  rates of change in every population compartment (vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dS_v  = - (1-e_s)*dS_v_inf + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R - (1/d_vacc)*S_v
+        dE_v  = (1-e_s)*dS_v_inf - E_v/sigma 
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
+        dA_v = (a/omega)*I_v - A_v/da      
+        dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h_new)/dm) - M_v*(1-e_h)*h_new/dhospital
+        dER_v = M_v*((1-e_h)*h_new/dhospital) - (1/der)*ER_v
+        dC_v = c*(1/der)*ER_v - (1-m_C)*C_v*(1/dc_R) - m_C*C_v*(1/dc_D)
+        dC_icurec_v = ((1-m_ICU)/dICU_R)*ICU_v - C_icurec_v*(1/dICUrec)
+        dICUstar_v = (1-c)*(1/der)*ER_v - (1-m_ICU)*ICU_v/dICU_R - m_ICU*ICU_v/dICU_D
+        dR_v  = A_v/da + ((1-(1-e_h)*h_new)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C + (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
+
+
+
+        # Compute the hospital rates of changes
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dH_in = M*(h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
+
+        # Update fraction of new COVID-19 variant
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if np.all((1-alpha+alpha*K_inf==0)):
+            # Protection against division error
+            dalpha = np.zeros(9)
+        else:
+            dalpha = alpha*K_inf/(1-alpha+alpha*K_inf) - alpha
+
+
+        # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        if (t >= injection_day) & (alpha.sum().sum()==0):
+            dalpha += injection_ratio
+        
+
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, 
+                dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+    
+
 class COVID19_SEIRD_sto_spatial(BaseModel):
     """
     TO DO: this needs to be entirely updated!
