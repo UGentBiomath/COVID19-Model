@@ -205,7 +205,8 @@ model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependen
 print(f'\n-------------------------  ---------------')
 print(f'PERFORMING CALIBRATION OF BETAs and WARMUP')
 print(f'------------------------------------------\n')
-print(f'Using pre-lockdown data from {start_calibration} until {end_calibration_beta}\n')
+print(f'Using pre-lockdown data from {start_calibration} until {end_calibration_beta}')
+print(f'Initial conditions: {init} for {init_number} subjects.\n')
 print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
@@ -613,7 +614,8 @@ model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependen
 print(f'\n-------------------------  ---------------')
 print(f'PERFORMING CALIBRATION OF BETAs and l COMP')
 print(f'------------------------------------------\n')
-print(f'Using post-lockdown data from {start_calibration} until {end_calibration}\n')
+print(f'Using post-lockdown data from {start_calibration} until {end_calibration}')
+print(f'Initial conditions: {init} for {init_number} subjects.\n')
 print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
