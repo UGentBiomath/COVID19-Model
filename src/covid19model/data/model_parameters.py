@@ -96,7 +96,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
         matrix_path = os.path.join(abs_dir, f"../../../data/interim/interaction_matrices/willem_2012/{subdir}")
 
         # Input check on user-defined intensity
-        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx"), engine='openpyxl').sheet_names:
+        if intensity not in pd.ExcelFile(os.path.join(matrix_path, f"total_{subdir}.xlsx"), engine='openpyxl').sheet_names:
             raise ValueError(
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
