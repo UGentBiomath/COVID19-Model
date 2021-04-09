@@ -101,13 +101,13 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
         # Extract interaction matrices
-        Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_home = pd.read_excel(os.path.join(matrix_path, f"home_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_work = pd.read_excel(os.path.join(matrix_path, f"work_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_schools = pd.read_excel(os.path.join(matrix_path, f"school_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_transport = pd.read_excel(os.path.join(matrix_path, f"transport_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_leisure = pd.read_excel(os.path.join(matrix_path, f"leisure_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_others = pd.read_excel(os.path.join(matrix_path, f"otherplace_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_total = pd.read_excel(os.path.join(matrix_path, f"total_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
 
         return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
