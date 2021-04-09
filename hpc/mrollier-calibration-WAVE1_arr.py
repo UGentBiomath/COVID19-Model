@@ -137,7 +137,7 @@ if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+
 # --------------------
 
 # Spatial unit: identifier
-spatial_unit = f'test_delete-me'# f'{agg}_willem2012'
+spatial_unit = signature + "_first"
 # Date of first data collection
 start_calibration = '2020-03-05' # first available date
 # Last datapoint used to calibrate pre-lockdown phase
@@ -546,7 +546,7 @@ print('-------------------------------------------------------------------------
 # --------------------
 
 # Spatial unit: identifier
-spatial_unit = f'{agg}_willem2012'
+spatial_unit = signature + "_second"
 # Date of first data collection
 start_calibration = '2020-03-05' # first available date
 # Last datapoint used to calibrate pre-lockdown phase
