@@ -147,7 +147,7 @@ end_calibration = '2020-07-01'
 
 # PSO settings
 processes = mp.cpu_count() # add -1 if running on local machine
-multiplier = 1 #5 #10
+multiplier = 10
 maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
 popsize = multiplier*processes
 
@@ -556,7 +556,7 @@ end_calibration = '2020-07-01'
 
 # PSO settings
 processes = mp.cpu_count()-1 # -1 if running on local machine
-multiplier = 5 #10
+multiplier = 10
 maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
 popsize = multiplier*processes
 
