@@ -1,5 +1,6 @@
 """
 This script contains all necessary code to extract and convert the patients data from the Sciensano hospital survey into parameters usable by the BIOMATH COVID-19 SEIRD model.
+You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
 """
 
 __author__      = "Tijs Alleman"
