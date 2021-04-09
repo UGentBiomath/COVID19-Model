@@ -44,15 +44,9 @@
 
 ##### Willem 2012
 
-###### decades
 Interaction matrices for age stratification per decade: 0-10, 10-20, 20-30, 30-40, 40-50, 50-60, 60-70, 70-80, 80+
 
 + `total_decades.xlsx`, `home_decades.xlsx`, `work_decades.xlsx`, `leisure_decades.xlsx`, `transport_decades.xlsx`, `school_decades.xlsx`, `otherplace_decades.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts.
-
-###### phases
-Interaction matrices for age stratification for 10 different life phases: 0-12, 12-18, 18-25, 25-35, 35-45, 45-55, 55-65, 65-75, 75-85, 85+
-
-+ `total_phases.xlsx`, `home_phases.xlsx`, `work_phases.xlsx`, `leisure_phases.xlsx`, `transport_phases.xlsx`, `school_phases.xlsx`, `otherplace_phases.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts.
 
 ##### CoMiX
 
@@ -117,7 +111,15 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 ##### Willem 2012
 
-+ `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. Two sheets were added to every corresponding spreadsheet in the raw folder: 1) interactions longer than 5 minutes and 2) interactions longer than 15 minutes. These were computed as the total number of interactions minus the interaction lasting less than 5/15 minutes.
+###### decades
+Interaction matrices for age stratification per decade: 0-10, 10-20, 20-30, 30-40, 40-50, 50-60, 60-70, 70-80, 80+
+
++ `total_decades.xlsx`, `home_decades.xlsx`, `work_decades.xlsx`, `leisure_decades.xlsx`, `transport_decades.xlsx`, `school_decades.xlsx`, `otherplace_decades.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts. Two sheets were added to every corresponding spreadsheet in the raw folder: 1) interactions longer than 5 minutes and 2) interactions longer than 15 minutes. These were computed as the total number of interactions minus the interaction lasting less than 5/15 minutes. These were processed in the Notebook notebooks/preprocessing/mrollier_create-interaction-matrix-excels.ipynb
+
+###### phases
+Interaction matrices for age stratification for 10 different life phases: 0-12, 12-18, 18-25, 25-35, 35-45, 45-55, 55-65, 65-75, 75-85, 85+
+
++ `total_phases.xlsx`, `home_phases.xlsx`, `work_phases.xlsx`, `leisure_phases.xlsx`, `transport_phases.xlsx`, `school_phases.xlsx`, `otherplace_phases.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. The spreadsheet has several tabs to distinguish between the nature and duration of the contact. The data were extracted using the social contact rates data tool made by Lander Willem, available at https://lwillem.shinyapps.io/socrates_rshiny/. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed. Contacts with non-household members are defined as leisure contacts instead of home contacts. Two sheets were added to every corresponding spreadsheet in the raw folder: 1) interactions longer than 5 minutes and 2) interactions longer than 15 minutes. These were computed as the total number of interactions minus the interaction lasting less than 5/15 minutes. These were processed in the Notebook notebooks/preprocessing/mrollier_create-interaction-matrix-excels.ipynb
 
 ##### Demographic
 
