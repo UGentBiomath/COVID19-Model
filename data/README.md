@@ -50,7 +50,7 @@ Original interaction matrices for age stratification per decade: 0-10, 10-20, 20
 
 ###### CSVs
 
-Directory that contains the raw CSVs from https://lwillem.shinyapps.io/socrates_rshiny/ (Belgium 2010 Van Hoang 2020). Categorised in two subdirectories, `phases` and `decades` (depending on the kind of age stratification), which are again subdivided in one directory per contact location (total, home, work, leisure, transport, school, otherplace). Eech of these directories contains CSV files for various contact lengths: less than 5 minutes, less than 15 minutes, more than 15 minutes, more than 1 hour, more than 4 hours. These files are named e.g. `willem2012_phases_home_more-than-5min.csv`
+Directory that contains the raw CSVs from https://lwillem.shinyapps.io/socrates_rshiny/ (Belgium 2010 Van Hoang 2020). Categorised in two subdirectories, `phases` and `decades` (depending on the kind of age stratification), which are again subdivided in one directory per contact location (total, home, work, leisure, transport, school, otherplace). Each of these directories contains CSV files for various contact lengths: all, physical only, less than 5 minutes, less than 15 minutes, more than 15 minutes, more than 1 hour, more than 4 hours. These files are named e.g. `willem_2012_phases_home_more_5_min.csv`
 
 ##### CoMiX
 
