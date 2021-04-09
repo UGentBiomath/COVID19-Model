@@ -54,6 +54,7 @@ parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="sto
 parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA or HOMO")
 parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
 parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
+parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
 
 args = parser.parse_args()
 
@@ -66,19 +67,25 @@ else:
 if args.init:
     init = args.init
     if init not in ['BXL', 'DATA', 'HOMO']:
-        raise Exception(f"initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
+        raise Exception(f"Initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
 else:
     init = 'DATA'
 # Maxiter
 if args.maxiter:
-    maxiter_PSO = args.maxiter
+    maxiter_PSO = int(args.maxiter)
 else:
     maxiter_PSO = 50
 # Number
 if args.number:
-    maxn_MCMC = args.number
+    maxn_MCMC = int(args.number)
 else:
     maxn_MCMC = 100
+    
+# Name
+if args.signature:
+    signature = args.signature
+else:
+    raise Exception("The script must have a descriptive name for its output.")
 
 
 # Date at which script is started (for bookkeeping)
