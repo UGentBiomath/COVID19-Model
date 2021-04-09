@@ -3,12 +3,14 @@
 #PBS -l nodes=1:ppn=36 ## single-node job, on 36 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time. This is OK because the node has been reserved anyway
 
+
 # Choose initial condition
-init = BXL
+init=BXL
 
 # Choose number of PSO and MCMC steps
-maxiter = 50
-number = 100
+maxiter=50
+number=100
+
 
 # Switch to the reserved cluster
 module swap cluster/skitty
@@ -23,7 +25,7 @@ chmod +x calibrate-COVID-19-SEIRD-WAVE1.py
 source activate COVID_MODEL
 
 # Execute script with correct parsed arguments
-python mrollier-calibration-WAVE1_arr.py --init $init --maxiter $maxiter --number $number
+python mrollier-calibration-WAVE1_arr.py -i ${init} -m ${maxiter} -n ${number}
 
 # Deactivate environment
 conda deactivate
