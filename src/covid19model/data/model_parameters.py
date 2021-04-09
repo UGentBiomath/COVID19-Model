@@ -3,12 +3,12 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', spatial=None):
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', decades=True, spatial=None):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
 
-	Parameters
-	-----------
+    Parameters
+    -----------
     dataset : string
         The desired interaction matrices to be extracted. These can either be the pre-pandemic matrices for Belgium ('willem_2012') or pandemic matrices for Belgium ('comix').
         The pandemic data are 'time-dependent', i.e. associated with a date at which the survey was conducted.
@@ -16,16 +16,16 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     wave : int
         The wave number of the comix data.
         Defaults to the first wave.
-	intensity : string
-
-		The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
-		This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
-		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'.
+    intensity : string
+        The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
+        This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
+        Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'.
         Valid options for CoMiX include 'all' (default) or 'physical_only'.
-
     spatial : string
         Takes either None (default), 'mun', 'arr', 'prov' or 'test', and influences the geographical stratification of the Belgian population in the first return value (initN).
         When 'test' is chosen, it only returns the population of the arrondissements for the test scenario (Antwerpen, Brussel-Hoofdstad, Gent, in that order).
+    decades : boolean
+        If True (default), the 9 age classes are chosen according to the decades: [0, 10[, [10, 20[ etc. If False, the 9 age classes are chosen according to 'life phase', i.e. [0, 12[, [12, 18[, [18, 25[, [25, 35[, [35, 45[, [45, 55[, [55, 65[, [65, 75[, 75+
 
     Returns
     ------------
@@ -70,6 +70,11 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     initN, Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
+    # Depending on the chosen age stratification, decide on the subdirectory to fetch the data from
+    subdir = 'phases'
+    if decades:
+        subdir = 'decades'
+    
     # Extract demographic data
     abs_dir = os.path.dirname(__file__)
     if spatial:
@@ -78,17 +83,17 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
                         "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
-        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
+        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{spatial}.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1]
     if not spatial:
-        initN_data = "../../../data/interim/demographic/initN_arr.csv"
+        initN_data = f"../../../data/interim/demographic/{subdir}/initN_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1].sum(axis=0)    
+        initN = initN_df.values[:,:-1].sum(axis=0) # Sum over all arrondissements
     
     if dataset == 'willem_2012':
         # Define data path
-        matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
+        matrix_path = os.path.join(abs_dir, f"../../../data/interim/interaction_matrices/willem_2012/{subdir}")
 
         # Input check on user-defined intensity
         if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx"), engine='openpyxl').sheet_names:
