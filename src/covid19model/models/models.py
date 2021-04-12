@@ -121,9 +121,8 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU','dc_R','dc_D','dICU_R','dICU_D',]]
     stratification = ['Nc']
 
     # ..transitions/equations
