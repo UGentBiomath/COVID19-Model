@@ -120,16 +120,16 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU','dc_R','dc_D','dICU_R','dICU_D',]]
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C_pre', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha']
+    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU','dc_R','dc_D','dICU_R','dICU_D', 'd_transfer']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
-                  s, a, h, c, m_C, m_ICU,dc_R, dc_D, dICU_R, dICU_D,
+    def integrate(t, S, E, I, A, M, C_pre, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha,
+                  beta, K_inf, sigma, omega, zeta, da, dm, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
+                  s, a, h, c, m_C, m_ICU,dc_R, dc_D, dICU_R, dICU_D, d_transfer,
                   Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -140,7 +140,7 @@ class COVID19_SEIRD(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R
+        T = S + E + I + A + M + C_pre + C + C_icurec + ICU + R
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -156,22 +156,21 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        der = 0.2
 
         dS  = - (IP_old + IP_new)*S + zeta*R 
         dE  = (IP_old + IP_new)*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
-        dER = M*(h_new/dhospital) - (1/der)*ER
-        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
-        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
-        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
-        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
+        dC_pre = M*(h_new/dhospital) - (1/d_transfer)*C_pre
+        dC = c*(1/d_transfer)*C_pre - (1-m_C)*C*(1/(dc_R-d_transfer)) - m_C*C*(1/(dc_D-d_transfer))
+        dICUstar = (1-c)*(1/d_transfer)*C_pre - (1-m_ICU)*ICU/(dICU_R-d_transfer-dICUrec) - m_ICU*ICU/(dICU_D-d_transfer)
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R-d_transfer-dICUrec) - C_icurec*(1/dICUrec)
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R-d_transfer)) + C_icurec*(1/dICUrec) - zeta*R 
+        dD  = (m_ICU/(dICU_D-d_transfer))*ICU +  (m_C/(dc_D-d_transfer))*C
         dH_in = M*(h_new/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
+        dH_out =  (1-m_C)*C*(1/(dc_R-d_transfer)) +  m_C*C*(1/(dc_D-d_transfer)) + m_ICU/(dICU_D-d_transfer)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R-d_transfer)) - m_C*C*(1/(dc_D-d_transfer)) - m_ICU*ICU/(dICU_D-d_transfer)- C_icurec*(1/dICUrec)
 
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -187,7 +186,7 @@ class COVID19_SEIRD(BaseModel):
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
+        return (dS, dE, dI, dA, dM, dC_pre, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
 
 
 class COVID19_SEIRD_vacc(BaseModel):
