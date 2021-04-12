@@ -128,8 +128,8 @@ class COVID19_SEIRD(BaseModel):
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
-                  s, a, h, c, m_C, m_ICU,
+                  beta, K_inf, sigma, omega, zeta, da, dm, der, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
+                  s, a, h, c, m_C, m_ICU,dc_R, dc_D, dICU_R, dICU_D,
                   Nc):
         """
         Biomath extended SEIRD model for COVID-19
@@ -157,7 +157,7 @@ class COVID19_SEIRD(BaseModel):
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         der = 0.2
-        
+
         dS  = - (IP_old + IP_new)*S + zeta*R 
         dE  = (IP_old + IP_new)*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
