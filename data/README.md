@@ -151,6 +151,8 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 #### Sciensano
 
 + `clusters.csv` contains the number of clusters traced back to 1) families, 2) WZCs, 3) schools, 4) workplaces and 5) others over the period 2020-12-28 until 2021-02-21. Data extracted from the weekly Sciensano reports, available at https://covid-19.sciensano.be/nl/covid-19-epidemiologische-situatie. Last visited 2021-03-31.
++ `sciensano_detailed_mortality.csv` contains the number of deaths (incidence and cumulative number) per age group, in total, in hospitals and in nursing homes. Since our model does not predict nursing home deaths, model output must be compared to deaths in hospitals. Data conversion was done using the script` ~/notebooks/preprocessing/sciensano-mortality-data-analysis.py`. You must place the super secret detailed hospitalization dataset `COVID19BE_MORT_RAW.csv` in the same folder as this script in order to run it. Permission of Sciensano is needed to obtain the raw dataset.
+
 
 #### Demographic data
 
