@@ -138,13 +138,28 @@ Interaction matrices for age stratification for 10 different life phases: 0-12, 
 
 + `twallema_AZMM_UZG_phases.xlsx` contains the same information as `twallema_AZMM_UZG.xlsx`, but with different age stratification, namely stratified per average life phase (age limits 12, 18, 25, 35, 45, 55, 65, 75, 85). Also created with `AZMM-UZG-data-analysis.py`, with other user-defined age classes. Executed in Notebook `MR_create-Nc-initN-and-model-params_per-age-stratification.ipynb`.
 
-#### Model parameters
+#### model_parameters
+
+##### COVID19_SEIRD_sto
+
+Contains `calibrations/national/` subdirectory which contains posterior distributions of calibrations based on stochastic models.
+
+##### COVID19_SEIRD
 
 + `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
 
-+ `deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`.
++ `AZMM_UZG_hospital_parameters_decades.csv` is an exact copy of `AZMM_UZG_hospital_parameters.csv`, but with different naming convention.
 
-#### Belgian Census 2011
++ `AZMM_UZG_hospital_parameters_phases.csv.csv` contains the same information as `AZMM_UZG_hospital_parameters_decades.csv`, but with different age class conventions. Namely age classes based on average life phase (age limits 12, 18, 25, 35, 45, 55, 65, 75, 85).
+
+###### calibrations
+Contains a subdirectory per regional stratification, and posterior distributions of calibrated model parameters with descriptive names related to the particular kind of calibration that was executed. Example below:
+
++ `national/deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`. (DELETED)
+
++ `national/BE_WAVE1_BETA_COMPLIANCE_2021-02-22.json` contains posterior distribution for the first wave, executed with the newest model adjustments from February 22nd 2021.
+
+#### census_2011
 + `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
     - rows: municipality of residence
     - columns: municipality of work   
