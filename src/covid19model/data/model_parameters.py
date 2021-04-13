@@ -241,9 +241,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratificati
         # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
         Nc_total = get_interaction_matrices(intensity=intensity, stratification=stratification)[-1]
         pars_dict['Nc'] = Nc_total
+        
+        # Define dimension of age stratification
+        N = Nc_total.shape[0]
 
-        # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        # Assign AZMM and UZG estimates to correct variables with user-defined age stratification
+        df = pd.read_csv(os.path.join(par_interim_path,f"AZMM_UZG_hospital_parameters_{stratification}.csv"), sep=',',header='infer')
         pars_dict['c'] = np.array(df['c'].values[:-1])
         pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
@@ -261,11 +264,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratificati
         # davies_etal
         df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        pars_dict['s'] =  np.ones(N)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
         # vaccination
         if vaccination == True:
-            pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
+            pars_dict['N_vacc'] = np.zeros(N) # Default: no vaccination at simulation start
             pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
             pars_dict['e_h'] = 1.00 # Default: 100% protection against severe COVID-19
             pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
