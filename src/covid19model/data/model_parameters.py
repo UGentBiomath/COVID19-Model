@@ -291,11 +291,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratificati
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
         # verity_etal
-        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_raw_path,f"verity_etal_{stratification}.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array([0.0812]) # age-weiged average
 
         # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,f"davies_etal_{stratification}.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array([0.579]) # age-weighed average
         pars_dict['s'] =  np.array([0.719]) # age-weighed average. Ideally this is equal to one, I would think
 
