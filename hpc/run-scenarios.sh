@@ -4,17 +4,17 @@
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Change to package folder
-cd /data/gent/vo/000/gvo00048/vsc41096/COVID19-Model/hpc/
+cd /data/gent/vo/000/gvo00048/vsc41096/COVID19-Model/notebooks/prediction/
 
 # Make script executable
-chmod +x jvergeyn-restore7.py
+chmod +x jvergeyn-restore8.py
 
 # Activate conda environment
 source activate COVID_MODEL
 
 # Execute script
 #python jvergeyn-restore6.1.py 1 2a 2b 2c #(scenario-nummers)
-python jvergeyn-restore7.py
+python jvergeyn-restore8.py -s 5 -n 30
 
 # Deactivate environment
 conda deactivate
