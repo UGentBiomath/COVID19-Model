@@ -3,9 +3,11 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', decades=True, spatial=None):
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', stratification='decades', spatial=None):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
+    
+    NOTE: currently does not yet work for CoMix data.
 
     Parameters
     -----------
@@ -24,8 +26,8 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
     spatial : string
         Takes either None (default), 'mun', 'arr', 'prov' or 'test', and influences the geographical stratification of the Belgian population in the first return value (initN).
         When 'test' is chosen, it only returns the population of the arrondissements for the test scenario (Antwerpen, Brussel-Hoofdstad, Gent, in that order).
-    decades : boolean
-        If True (default), the 9 age classes are chosen according to the decades: [0, 10[, [10, 20[ etc. If False, the 9 age classes are chosen according to 'life phase', i.e. [0, 12[, [12, 18[, [18, 25[, [25, 35[, [35, 45[, [45, 55[, [55, 65[, [65, 75[, 75+
+    stratification : str
+        Choice between 'decades' and 'phases'. The 9 age classes are chosen according to the decades: [0, 10[, [10, 20[ etc. Or the 10 age classes are chosen according to 'life phase', i.e. [0, 12[, [12, 18[, [18, 25[, [25, 35[, [35, 45[, [45, 55[, [55, 65[, [65, 75[, [75,85[, 85+
 
     Returns
     ------------
@@ -70,10 +72,8 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
     initN, Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
-    # Depending on the chosen age stratification, decide on the subdirectory to fetch the data from
-    subdir = 'phases'
-    if decades:
-        subdir = 'decades'
+    if stratification not in ['decades', 'phases']:
+        raise Exception(f"stratification={stratification} is not acceptable. Choose between either 'decades' or 'phases'.")
     
     # Extract demographic data
     abs_dir = os.path.dirname(__file__)
@@ -83,33 +83,33 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
                         "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
-        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{subdir}_{spatial}.csv"
+        initN_data = f"../../../data/interim/demographic/{stratification}/initN_{stratification}_{spatial}.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1]
     if not spatial:
         # Sum over all arrondissements
-        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{subdir}_arr.csv"
+        initN_data = f"../../../data/interim/demographic/{stratification}/initN_{stratification}_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1].sum(axis=0)
     
     if dataset == 'willem_2012':
         # Define data path
-        matrix_path = os.path.join(abs_dir, f"../../../data/interim/interaction_matrices/willem_2012/{subdir}")
+        matrix_path = os.path.join(abs_dir, f"../../../data/interim/interaction_matrices/willem_2012/{stratification}")
 
         # Input check on user-defined intensity
         engine='openpyxl' # engine to open Excel files
-        if intensity not in pd.ExcelFile(os.path.join(matrix_path, f"total_{subdir}.xlsx"), engine=engine).sheet_names:
+        if intensity not in pd.ExcelFile(os.path.join(matrix_path, f"total_{stratification}.xlsx"), engine=engine).sheet_names:
             raise ValueError(
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
         # Extract interaction matrices
-        Nc_home = pd.read_excel(os.path.join(matrix_path, f"home_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_work = pd.read_excel(os.path.join(matrix_path, f"work_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_schools = pd.read_excel(os.path.join(matrix_path, f"school_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_transport = pd.read_excel(os.path.join(matrix_path, f"transport_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_leisure = pd.read_excel(os.path.join(matrix_path, f"leisure_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_others = pd.read_excel(os.path.join(matrix_path, f"otherplace_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
-        Nc_total = pd.read_excel(os.path.join(matrix_path, f"total_{subdir}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_home = pd.read_excel(os.path.join(matrix_path, f"home_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_work = pd.read_excel(os.path.join(matrix_path, f"work_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_schools = pd.read_excel(os.path.join(matrix_path, f"school_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_transport = pd.read_excel(os.path.join(matrix_path, f"transport_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_leisure = pd.read_excel(os.path.join(matrix_path, f"leisure_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_others = pd.read_excel(os.path.join(matrix_path, f"otherplace_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
+        Nc_total = pd.read_excel(os.path.join(matrix_path, f"total_{stratification}.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
 
         return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
 
@@ -149,7 +149,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine=engine).values
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratification='decades', vaccination=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -167,12 +167,15 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         Can be either None (default), 'mun', 'arr', 'prov' or 'test' for various levels of geographical stratification. Note that
         'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
         mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
+        
+    stratification : str
+        Choice between 'decades' and 'phases'. The 9 age classes are chosen according to the decades: [0, 10[, [10, 20[ etc. Or the 10 age classes are chosen according to 'life phase', i.e. [0, 12[, [12, 18[, [18, 25[, [25, 35[, [35, 45[, [45, 55[, [55, 65[, [65, 75[, [75,85[, 85+
 
     intensity : string
         the extracted interaction matrix can be altered based on the nature or duration of the social contacts
-		this is necessary because a contact is defined as any conversation longer than 3 sentences
-		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
-		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
+        this is necessary because a contact is defined as any conversation longer than 3 sentences
+        however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
+        valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
 
     Returns
     -------
@@ -231,9 +234,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
     pars_dict = {}
 
     if age_stratified == True:
+        # Check if demanded age stratification is valid
+        if stratification not in ['decades', 'phases']:
+            raise Exception(f"stratification={stratification} is not acceptable. Choose between either 'decades' or 'phases'.")
 
         # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
-        Nc_total = get_interaction_matrices(intensity=intensity)[-1]
+        Nc_total = get_interaction_matrices(intensity=intensity, stratification=stratification)[-1]
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
