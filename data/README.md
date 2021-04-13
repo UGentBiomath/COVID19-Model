@@ -132,11 +132,11 @@ Interaction matrices for age stratification for 10 different life phases: 0-12, 
 + `BELagedist_10year.txt` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per 10 year age bins irrespective of gender. Converted from raw dataset `Age pyramid of Belgium.csv` using MS Excel.
 
 #### Hospital data
-+ `twallema_AZMM_UZG.xlsx` contains the merged dataset from AZ Maria Middelares and Ghent University hospital. The combined samplesize is 370 patients. The resulting dataset contains the following entries: 1) age of patient, 2) sex of patient, 3) type of stay. Emergency room only, Cohort only or ICU. Here, ICU implies that the patient spent a limited time in Cohort before transitioning to an ICU unit and if not deceased in ICU, the patient returns to Cohort for recovery, 4) outcome (R: recovered, D: deceased), 5) dC: time spent in a Cohort ward, 6) dICU: time spent in an ICU, 7) dICUrec: time spent in Cohort recovering after an ICU stay. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
++ `twallema_AZMM_UZG.xlsx` contains the merged dataset from AZ Maria Middelares and Ghent University hospital. The combined samplesize is 370 patients. The resulting dataset contains the following entries: 1) age of patient, 2) sex of patient, 3) type of stay. Emergency room only, Cohort only or ICU. Here, ICU implies that the patient spent a limited time in Cohort before transitioning to an ICU unit and if not deceased in ICU, the patient returns to Cohort for recovery, 4) outcome (R: recovered, D: deceased), 5) dC: time spent in a Cohort ward, 6) dICU: time spent in an ICU, 7) dICUrec: time spent in Cohort recovering after an ICU stay. Code of reformat performed in `notebooks/AZMM-UZG-data-analysis.py`.
 
 + `twallema_AZMM_UZG_decades.xlsx` Exact copy of `twallema_AZMM_UZG.xlsx`, with different name. Other file can probably be deleted, but is kept in order to prevent possible code breakdown.
 
-+ `twallema_AZMM_UZG_phases.xlsx` contains the same information as `twallema_AZMM_UZG.xlsx`, but with different age stratification, namely stratified per average life phase (age limits 12, 18, 25, 35, 45, 55, 65, 75, 85).
++ `twallema_AZMM_UZG_phases.xlsx` contains the same information as `twallema_AZMM_UZG.xlsx`, but with different age stratification, namely stratified per average life phase (age limits 12, 18, 25, 35, 45, 55, 65, 75, 85). Also created with `AZMM-UZG-data-analysis.py`, with other user-defined age classes. Executed in Notebook `MR_create-Nc-initN-and-model-params_per-age-stratification.ipynb`.
 
 #### Model parameters
 
