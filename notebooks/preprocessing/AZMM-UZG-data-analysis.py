@@ -16,6 +16,14 @@ from scipy.stats import mannwhitneyu, ttest_ind
 import matplotlib.pyplot as plt
 from datetime import timedelta
 
+# -------------------------------
+# User-defined age stratification
+# -------------------------------
+age_decades= [(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)]
+age_phases = [(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)]
+# Decide which one is used in this script
+age_stratification = age_decades
+
 # -------------------------------------------------
 # Load and format Ghent University Hospital dataset
 # -------------------------------------------------
@@ -219,8 +227,7 @@ total_df = pd.DataFrame(total_dict)
 # Make a dataframe containing estimates of the age-stratified parameters in the BIOMATH model
 # -------------------------------------------------------------------------------------------
 
-age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], 
-                                           closed='left')
+age_classes = pd.IntervalIndex.from_tuples(age_stratification, closed='left')
 total_df['age_class'] = pd.cut(total_df.age, bins=age_classes)
 
 hospital_parameters_age = pd.DataFrame(index=age_classes, 
