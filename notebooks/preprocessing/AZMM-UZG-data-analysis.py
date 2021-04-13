@@ -19,10 +19,16 @@ from datetime import timedelta
 # -------------------------------
 # User-defined age stratification
 # -------------------------------
+# Choose to execute data analysis (statistical tests)
+stat_test = False
+# Choose between 'decades' and 'phases'
+stratification = 'phases'
+
 age_decades= [(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)]
 age_phases = [(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)]
+age_stratifications = dict({'decades' : age_decades, 'phases' : age_phases})
 # Decide which one is used in this script
-age_stratification = age_decades
+age_stratification = age_stratifications[stratification]
 
 # -------------------------------------------------
 # Load and format Ghent University Hospital dataset
@@ -325,14 +331,15 @@ hospital_parameters_age = pd.concat([hospital_parameters_age, hospital_parameter
 # Write age-stratified parameters to data/interim/model_parameters
 # ----------------------------------------------------------------
 
-hospital_parameters_age.to_csv('../../data/interim/model_parameters/COVID19_SEIRD/AZMM_UZG_hospital_parameters.csv')
+hospital_parameters_age.to_csv(f'../../data/interim/model_parameters/COVID19_SEIRD/AZMM_UZG_hospital_parameters_{stratification}.csv')
 
 # ---------------------------------------------
 # Write formatted data to data/interim/hospital
 # ---------------------------------------------
+# Note: contains one columns 'age_class' which is dependent on the chosen age stratification
 
 # Create a Pandas Excel writer using XlsxWriter as the engine.
-writer = pd.ExcelWriter('../../data/interim/hospital/twallema_AZMM_UZG.xlsx')
+writer = pd.ExcelWriter(f'../../data/interim/hospital/twallema_AZMM_UZG_{stratification}.xlsx')
 # Write each dataframe to a different worksheet.
 total_df.to_excel(writer,index=False)
 # Close the Pandas Excel writer and output the Excel file.
@@ -341,48 +348,51 @@ writer.save()
 # ----------------------------------------------------
 # Statistically test the difference in residence times
 # ----------------------------------------------------
+# Note: this is independent of chosen age classes
 
-# Difference in hospital residence time Cohort vs. ICU
-x = total_df[total_df.stay_type=='ICU'].dICU.dropna()
-y = total_df[total_df.stay_type=='Cohort only'].dC.dropna()
-stat, p_tt = ttest_ind(x, y)
-stat, p_mwu = mannwhitneyu(x, y)
-fig, ax = plt.subplots(figsize=(8,6))
-bp = ax.boxplot([x, y], positions=[1,2])
-plt.setp(bp['medians'], color='k')
-ax.set_ylabel('days in hospital')
-ax.set_ylim(0,40)
-ax.set_xticklabels(['ICU patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'Cohort only patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
-ax.set_title('Difference in hospital residence Cohort vs ICU, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/test_residence_ICU_Cohort.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+# user-defined condition
+if stat_test:
+    # Difference in hospital residence time Cohort vs. ICU
+    x = total_df[total_df.stay_type=='ICU'].dICU.dropna()
+    y = total_df[total_df.stay_type=='Cohort only'].dC.dropna()
+    stat, p_tt = ttest_ind(x, y)
+    stat, p_mwu = mannwhitneyu(x, y)
+    fig, ax = plt.subplots(figsize=(8,6))
+    bp = ax.boxplot([x, y], positions=[1,2])
+    plt.setp(bp['medians'], color='k')
+    ax.set_ylabel('days in hospital')
+    ax.set_ylim(0,40)
+    ax.set_xticklabels(['ICU patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
+                        'Cohort only patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+    ax.set_title('Difference in hospital residence Cohort vs ICU, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
+    plt.savefig('../../results/analysis/hospital/test_residence_ICU_Cohort.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 
-# Difference in ICU residence time in case of recovery and death
-x = total_df[((total_df.stay_type=='ICU')&(total_df.outcome=='R'))].dICU.dropna()
-y = total_df[((total_df.stay_type=='ICU')&(total_df.outcome=='D'))].dICU.dropna()
-stat, p_tt = ttest_ind(x, y)
-stat, p_mwu = mannwhitneyu(x, y)
-fig, ax = plt.subplots(figsize=(8,6))
-bp = ax.boxplot([x, y], positions=[1,2])
-plt.setp(bp['medians'], color='k')
-ax.set_ylabel('days in hospital')
-ax.set_ylim(0,40)
-ax.set_xticklabels(['ICU recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'ICU deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
-ax.set_title('Difference in ICU residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/test_residence_ICU_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+    # Difference in ICU residence time in case of recovery and death
+    x = total_df[((total_df.stay_type=='ICU')&(total_df.outcome=='R'))].dICU.dropna()
+    y = total_df[((total_df.stay_type=='ICU')&(total_df.outcome=='D'))].dICU.dropna()
+    stat, p_tt = ttest_ind(x, y)
+    stat, p_mwu = mannwhitneyu(x, y)
+    fig, ax = plt.subplots(figsize=(8,6))
+    bp = ax.boxplot([x, y], positions=[1,2])
+    plt.setp(bp['medians'], color='k')
+    ax.set_ylabel('days in hospital')
+    ax.set_ylim(0,40)
+    ax.set_xticklabels(['ICU recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
+                        'ICU deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+    ax.set_title('Difference in ICU residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
+    plt.savefig('../../results/analysis/hospital/test_residence_ICU_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 
-# Difference in Cohort residence time in case of recovery and death
-x = total_df[((total_df.stay_type=='Cohort only')&(total_df.outcome=='R'))].dC.dropna()
-y = total_df[((total_df.stay_type=='Cohort only')&(total_df.outcome=='D'))].dC.dropna()
-stat, p_tt = ttest_ind(x, y)
-stat, p_mwu = mannwhitneyu(x, y)
-fig, ax = plt.subplots(figsize=(8,6))
-bp = ax.boxplot([x, y], positions=[1,2])
-plt.setp(bp['medians'], color='k')
-ax.set_ylabel('days in hospital')
-ax.set_ylim(0,40)
-ax.set_xticklabels(['Cohort only recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'Cohort only deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
-ax.set_title('Difference in Cohort residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/test_residence_Cohort_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+    # Difference in Cohort residence time in case of recovery and death
+    x = total_df[((total_df.stay_type=='Cohort only')&(total_df.outcome=='R'))].dC.dropna()
+    y = total_df[((total_df.stay_type=='Cohort only')&(total_df.outcome=='D'))].dC.dropna()
+    stat, p_tt = ttest_ind(x, y)
+    stat, p_mwu = mannwhitneyu(x, y)
+    fig, ax = plt.subplots(figsize=(8,6))
+    bp = ax.boxplot([x, y], positions=[1,2])
+    plt.setp(bp['medians'], color='k')
+    ax.set_ylabel('days in hospital')
+    ax.set_ylim(0,40)
+    ax.set_xticklabels(['Cohort only recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
+                        'Cohort only deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+    ax.set_title('Difference in Cohort residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
+    plt.savefig('../../results/analysis/hospital/test_residence_Cohort_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
