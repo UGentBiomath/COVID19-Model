@@ -83,13 +83,14 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', d
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
                         "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
-        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{spatial}.csv"
+        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{subdir}_{spatial}.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1]
     if not spatial:
-        initN_data = f"../../../data/interim/demographic/{subdir}/initN_arr.csv"
+        # Sum over all arrondissements
+        initN_data = f"../../../data/interim/demographic/{subdir}/initN_{subdir}_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1].sum(axis=0) # Sum over all arrondissements
+        initN = initN_df.values[:,:-1].sum(axis=0)
     
     if dataset == 'willem_2012':
         # Define data path
