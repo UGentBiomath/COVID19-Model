@@ -160,7 +160,8 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     # Define default mobility for unavailable dates is the average mobility over all available data
     average_mobility = np.array(list(all_data.values())).mean(axis=0)
         
-    ### Define return function
+    ### Define return function ###
+    
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def mobility_update_func(t, states, param, agg, default_mobility=None):
         YYYYMMDD = date_to_YYYYMMDD(t)
