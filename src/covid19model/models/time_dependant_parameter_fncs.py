@@ -102,7 +102,8 @@ def make_mobility_update_func(agg, dtype='fractional'):
         place : matrix
             square matrix with floating points between 0 and 1, dimension depending on agg
     """
-    # Validate input
+    ### Validate input ###
+    
     if agg not in ['mun', 'arr', 'prov']:
         raise ValueError(
                     "spatial stratification '{0}' is not legitimate. Possible spatial "
@@ -113,6 +114,35 @@ def make_mobility_update_func(agg, dtype='fractional'):
                     "data type '{0}' is not legitimate. Possible mobility matrix "
                     "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
                 )
+    
+    ### Load all available data ###
+    
+    # Define absolute location of this file
+    abs_dir = os.path.dirname(__file__)
+    # Define data location for this particular aggregation level
+    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    
+    # Iterate over all available interim mobility data
+    all_available_dates=[]
+    for csv in os.listdir(data_location):
+        # take YYYYMMDD information from processed CSVs. NOTE: this supposes a particular data name format!
+        datum = csv[-12:-4]
+        all_available_dates.append(datum)
+    # Create empty dictionary with all_available_dates as keys
+    all_data = dict.fromkeys(all_available_dates)
+    
+    # Define appropriate file prefix
+    if dtype=='fractional':
+        prefix=f'fractional-mobility-matrix_staytime_{agg}'
+    elif dtype=='staytime':
+        prefix=f'absolute-mobility-matrix_staytime_{agg}'
+    elif dtype=='visits':
+        prefix=f'absolute-mobility-matrix_visits_{agg}'
+    # Load full mobility matrix for every available date
+    for YYYYMMDD in all_data:
+        filename = f'{prefix}_{str(YYYYMMDD)}.csv'
+        this_data = pd.read_csv(f'{data_location}/{filename}')
+        all_data[YYYYMMDD]=this_data
     
     return
 
