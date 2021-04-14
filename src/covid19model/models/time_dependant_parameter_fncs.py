@@ -72,6 +72,24 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
+def make_mobility_update_func(agg, dtype='fractional'):
+    """
+    Function that loads all the mobility data once, and outputs the mobility_update_func. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days.
+    
+    Input
+    -----
+    agg : str
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+    dtype : str
+        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
+        
+    Returns
+    -------
+    mobility_update_func : function
+        time-dependent function which has a mobility matrix of type dtype for every date
+    """
+    return
+
 def mobility_update_func(t,states,param,agg,default_mobility=None):
     """
     Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/fractional.
