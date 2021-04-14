@@ -258,11 +258,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratificati
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1]) # Better is .values[:-1], but there is no sufficient data
 
         # verity_etal
-        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_raw_path,f"verity_etal_{stratification}.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
 
         # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
+        df_asymp = pd.read_csv(os.path.join(par_raw_path,f"davies_etal_{stratification}.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
         pars_dict['s'] =  np.ones(N)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
@@ -279,7 +279,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, stratificati
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
         # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_interim_path,f"AZMM_UZG_hospital_parameters_{stratification}.csv"), sep=',',header='infer')
         pars_dict['c'] = np.array([df['c'].values[-1]])
         pars_dict['m_C'] = np.array([df['m0_{C}'].values[-1]])
         pars_dict['m_ICU'] = np.array([df['m0_{ICU}'].values[-1]])
