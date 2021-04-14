@@ -86,8 +86,34 @@ def make_mobility_update_func(agg, dtype='fractional'):
     Returns
     -------
     mobility_update_func : function
-        time-dependent function which has a mobility matrix of type dtype for every date
+        time-dependent function which has a mobility matrix of type dtype for every date. This function has the following properties:
+        
+        Input
+        -----
+        t : timestamp
+            current date as datetime object
+        states : formal necessity (not used)
+        param : formal necessity (not used)
+        agg : str
+            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+
+        Returns
+        -------
+        place : matrix
+            square matrix with floating points between 0 and 1, dimension depending on agg
     """
+    # Validate input
+    if agg not in ['mun', 'arr', 'prov']:
+        raise ValueError(
+                    "spatial stratification '{0}' is not legitimate. Possible spatial "
+                    "stratifications are 'mun', 'arr', or 'prov'".format(agg)
+                )
+    if dtype not in ['fractional', 'staytime', 'visits']:
+        raise ValueError(
+                    "data type '{0}' is not legitimate. Possible mobility matrix "
+                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
+                )
+    
     return
 
 def mobility_update_func(t,states,param,agg,default_mobility=None):
