@@ -103,8 +103,8 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
 
         Returns
         -------
-        place : matrix
-            square matrix with floating points between 0 and 1, dimension depending on agg
+        place : np.array
+            square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
     """
     ### Validate input ###
     
@@ -130,7 +130,7 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     
     # Iterate over all available interim mobility data
     all_available_dates=[]
-    for csv in os.listdir(data_location):
+    for csv in os.listdir(os.path.join(abs_dir, f'{data_location}/')):
         # take YYYYMMDD information from processed CSVs. NOTE: this supposes a particular data name format!
         datum = csv[-12:-4]
         all_available_dates.append(datum)
@@ -148,10 +148,10 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     for YYYYMMDD in all_data:
         filename = f'{prefix}_{str(YYYYMMDD)}.csv'
         if beyond_borders:
-            this_data = pd.read_csv(f'{data_location}/{filename}', \
+            this_data = pd.read_csv(os.path.join(abs_dir, f'{data_location}/{filename}'), \
                             index_col='mllp_postalcode').values
         else:
-            this_data = pd.read_csv(f'{data_location}/{filename}', \
+            this_data = pd.read_csv(os.path.join(abs_dir, f'{data_location}/{filename}'), \
                             index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
             if dtype=='fractional':
                 # make sure the rows sum up to 1 nicely again after dropping a row and a column
@@ -161,6 +161,7 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     average_mobility = np.array(list(all_data.values())).mean(axis=0)
         
     ### Define return function
+    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def mobility_update_func(t, states, param, agg, default_mobility=None):
         YYYYMMDD = date_to_YYYYMMDD(t)
         try: # if there is data available for this date
