@@ -176,8 +176,9 @@ class COVID19_SEIRD(BaseModel):
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        N = Nc.shape[0] # age stratification
         if np.all((IP_old == 0)) and np.all((IP_new == 0)):
-            dalpha = np.zeros(9)
+            dalpha = np.zeros(N)
         else:
             dalpha = IP_new/(IP_old+IP_new) - alpha
 
@@ -362,9 +363,10 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        N = Nc.shape[0] # age stratification
         if np.all((IP_old == 0)) and np.all((IP_new == 0)):
             # Protection against division error
-            dalpha = np.zeros(9)
+            dalpha = np.zeros(N)
         else:
             dalpha = IP_new/(IP_old+IP_new) - alpha
 
