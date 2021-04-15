@@ -4,16 +4,16 @@
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Change to package folder
-cd /data/gent/vo/000/gvo00048/vsc41096/COVID19-Model/hpc/
+cd /data/gent/vo/000/gvo00048/vsc41096/COVID19-Model/notebooks/calibration
 
 # Make script executable
-chmod +x twallema-calibration-WAVE2-4prev.py
+chmod +x calibrate-COVID-19-SEIRD-WAVE2.py
 
 # Activate conda environment
 source activate COVID_MODEL
 
 # Execute script
-python twallema-calibration-WAVE2-4prev.py
+python calibrate-COVID-19-SEIRD-WAVE2.py -j FULL -w 0 -e '2021-04-13'
 
 # Deactivate environment
 conda deactivate
