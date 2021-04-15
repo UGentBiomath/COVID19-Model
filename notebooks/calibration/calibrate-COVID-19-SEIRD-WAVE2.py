@@ -112,6 +112,8 @@ daily_dose = 30000
 refusal = 0.3*np.ones(9)
 delay = 21
 d_vacc = 12*30 # duration of vaccine protection
+l_relax = 31
+
 
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Update with additional parameters for social policy function
