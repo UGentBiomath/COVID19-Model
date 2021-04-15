@@ -190,7 +190,7 @@ def make_mobility_update_func(all_mobility_data, average_mobility_data):
 #     average_mobility = average_mobility_data
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def mobility_update_func(t, states, param, agg, default_mobility=None):
+    def mobility_update_func(t, states, param, default_mobility=None):
         YYYYMMDD = date_to_YYYYMMDD(t)
         try: # if there is data available for this date (if the key exists)
             place = all_mobility_data[YYYYMMDD]
