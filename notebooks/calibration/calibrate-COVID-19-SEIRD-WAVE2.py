@@ -755,15 +755,13 @@ def draw_fcn(param_dict,samples_dict):
 # -----------
 
 # optimisation settings
-parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,0.03),(0.1,1.0),(10,14),(3,7),(0.1,2),(0.70,0.99),(0.01,0.50),(0.01,0.50),(0.70,0.99))
+parNames = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf']
+bounds=((0.01,0.03),(0.1,1.0),(10,14),(3,7),(0.1,2),(0.70,0.99),(0.01,0.50),(0.01,0.50),(0.70,0.99),(1,2))
 
 # run optimization
 theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes,
                     draw_fcn=draw_fcn, samples={})
-# Calibration until 2021-02-01
-#theta = np.array([2.42597349e-02, 2.00000000e-01, 1.4000000e+01, 6.64616323e+00, 3.96027778e-01, 7.89238758e-01, 3.55888406e-01, 5.0e-02, 7.49952898e-01]) #-159676.96370239937
 
 # assign results
 model.parameters['beta'] = theta[0]
@@ -775,6 +773,7 @@ model.parameters['prev_schools'] = theta[5]
 model.parameters['prev_work'] = theta[6]
 model.parameters['prev_rest'] = theta[7]
 model.parameters['prev_home'] =  theta[8]
+model.parameters['K_inf'] =  theta[9]
 
 # -----------------
 # Visualise PSO fit
