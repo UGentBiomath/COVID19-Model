@@ -432,7 +432,7 @@ params.update({'K_inf': K_inf,
                             'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
 
 # Initialize model
-model = models.COVID19_SEIRD(initial_states, params,
+model = models.COVID19_SEIRD_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev, 'N_vacc': vacc_strategy})
 
 if job == 'R0':
