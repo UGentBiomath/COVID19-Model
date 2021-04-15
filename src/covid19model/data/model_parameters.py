@@ -229,18 +229,20 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['Nc'] = Nc_total
 
         # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"sciensano_hospital_parameters.csv"), sep=',',header='infer')
+        #df = pd.read_csv(os.path.join(par_interim_path,"sciensano_hospital_parameters.csv"), sep=',',header='infer')
         
-        pars_dict['h'] = np.array(df['admission_propensity'].values[:-1])
-        pars_dict['c'] = np.array(df['c'].values[:-1])
-        pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
-        pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0])
+        pars_dict['h'] = np.array(fractions['admission_propensity'].values[:-1])
+        pars_dict['c'] = np.array(fractions['c'].values[:-1])
+        pars_dict['m_C'] = np.array(fractions['m0_{C}'].values[:-1])
+        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}'].values[:-1])
 
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[:-1])
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[:-1]) 
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[:-1])
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[:-1])
-        pars_dict['d_transfer'] = np.array(df['d_transfer'].values[:-1])
+        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1])
+        pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
+        pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1]) 
+        pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
+        pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1])
+        pars_dict['d_transfer'] = np.array(residence_times['d_transfer','median'].values[:-1])
 
         df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
@@ -249,12 +251,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         #df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
         #pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
 
-
-
         # davies_etal
         df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
         pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        pars_dict['a'] = np.array([0.94, 0.90, 0.84, 0.61, 0.49, 0.21, 0.02, 0.02, 0.02])
+        #pars_dict['a'] = np.array([0.94, 0.90, 0.84, 0.61, 0.49, 0.21, 0.02, 0.02, 0.02])
         pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
 
         # vaccination
