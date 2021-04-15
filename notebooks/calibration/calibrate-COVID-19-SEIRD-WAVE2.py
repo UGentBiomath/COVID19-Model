@@ -99,8 +99,25 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 
 import covid19model.models.time_dependant_parameter_fncs as tdpf
 from covid19model.models.time_dependant_parameter_fncs import  vacc_strategy
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = tdpf.make_vaccination_function(df_sciensano)
+#sciensano_first_dose, df_sciensano_start, df_sciensano_end = tdpf.make_vaccination_function(df_sciensano)
 
+df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+df_sciensano_end = df_sciensano.index[-1]
+
+@lru_cache()
+def sciensano_first_dose(t):
+    # Extrapolate Sciensano n0. vaccinations to the model's native age bins
+    N_vacc = np.zeros(9)
+    N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
+    N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
+    N_vacc[3] = (5/17)*df_sciensano['V1_18_34'][t] + (5/10)*df_sciensano['V1_35_44'][t] # 30-40
+    N_vacc[4] = (5/10)*df_sciensano['V1_35_44'][t] + (5/10)*df_sciensano['V1_45_54'][t] # 40-50
+    N_vacc[5] = (5/10)*df_sciensano['V1_45_54'][t] + (5/10)*df_sciensano['V1_55_64'][t] # 50-60
+    N_vacc[6] = (5/10)*df_sciensano['V1_55_64'][t] + (5/10)*df_sciensano['V1_65_74'][t] # 60-70
+    N_vacc[7] = (5/10)*df_sciensano['V1_65_74'][t] + (5/10)*df_sciensano['V1_75_84'][t] # 70-80
+    N_vacc[8] = (5/10)*df_sciensano['V1_75_84'][t] + (5/10)*df_sciensano['V1_85+'][t]# 80+
+    return N_vacc
+    
 # Add states # TO DO: automatically do this
 initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
                         'A_v': np.zeros(9), 'M_v': np.zeros(9), 'ER_v': np.zeros(9), 'C_v': np.zeros(9),
