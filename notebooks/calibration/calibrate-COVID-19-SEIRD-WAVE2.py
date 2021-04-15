@@ -624,11 +624,11 @@ if job == 'R0':
                 gc.collect()
 
     thin = 1
-    try:
+    #try:
         #autocorr = sampler.get_autocorr_time()
         #thin = int(0.5 * np.min(autocorr))
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+    #except:
+    #    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
     print('\n3) Sending samples to dictionary')
 
@@ -916,11 +916,11 @@ with Pool() as pool:
             gc.collect()
 
 thin = 1
-try:
+#try:
     #autocorr = sampler.get_autocorr_time()
     #thin = int(0.5 * np.min(autocorr))
-except:
-    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+#except:
+#    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
 print('\n3) Sending samples to dictionary')
 
