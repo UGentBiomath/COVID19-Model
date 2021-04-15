@@ -574,7 +574,7 @@ if job == 'R0':
             ################## 
 
             # Compute the autocorrelation time so far
-            tau = sampler.get_autocorr_time(tol=0)
+            #tau = sampler.get_autocorr_time(tol=0)
             #autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
 
@@ -625,8 +625,8 @@ if job == 'R0':
 
     thin = 1
     try:
-        autocorr = sampler.get_autocorr_time()
-        thin = int(0.5 * np.min(autocorr))
+        #autocorr = sampler.get_autocorr_time()
+        #thin = int(0.5 * np.min(autocorr))
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
@@ -917,8 +917,8 @@ with Pool() as pool:
 
 thin = 1
 try:
-    autocorr = sampler.get_autocorr_time()
-    thin = int(0.5 * np.min(autocorr))
+    #autocorr = sampler.get_autocorr_time()
+    #thin = int(0.5 * np.min(autocorr))
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
