@@ -387,7 +387,7 @@ def draw_fcn_vacc(param_dict,samples_dict):
     param_dict['refusal'] = np.random.triangular(0.05, 0.20, 0.40, size=9) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
     param_dict['delay'] = np.random.triangular(1, 31, 31)
     # Variant parameters
-    param_dict['K_inf'] = np.random.uniform(low=1.25,high=1.35)
+    param_dict['K_inf'] = np.random.uniform(low=1.3,high=1.4)
     return param_dict
 
 # -------------------------------------
@@ -413,7 +413,7 @@ d_vacc = 12*30 # duration of vaccine protection
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Update with additional parameters for social policy function
 params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
-            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.15, 'scenario': 0, 'relaxdate': '2021-05-01'})
+            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
 # Update with additional parameters for vaccination
 params.update(
     {'vacc_order': vacc_order, 'daily_dose': daily_dose,
@@ -428,7 +428,7 @@ incubation_period = 5.2
 n_periods = 14/incubation_period
 params.update({'K_inf': K_inf,
                             'K_hosp': K_hosp,
-                            'injection_day': (pd.Timestamp('2021-01-14') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
+                            'injection_day': (pd.Timestamp('2021-01-28') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
                             'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
