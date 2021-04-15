@@ -575,20 +575,20 @@ if job == 'R0':
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
-            autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
+            #autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
 
             # Update autocorrelation plot
-            n = 100 * np.arange(0, index + 1)
-            y = autocorr[:index+1,:]
-            fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k")
-            ax.plot(n, y, linewidth=2,color='red')
-            ax.set_xlim(0, n.max())
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-            ax.set_xlabel("number of steps")
-            ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            # n = 100 * np.arange(0, index + 1)
+            # y = autocorr[:index+1,:]
+            # fig,ax = plt.subplots(figsize=(10,5))
+            # ax.plot(n, n / 50.0, "--k")
+            # ax.plot(n, y, linewidth=2,color='red')
+            # ax.set_xlim(0, n.max())
+            # ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            # ax.set_xlabel("number of steps")
+            # ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+            # fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
             traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
@@ -865,25 +865,25 @@ with Pool() as pool:
         ################## 
 
         # Compute the autocorrelation time so far
-        tau = sampler.get_autocorr_time(tol=0)
-        autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
+        #tau = sampler.get_autocorr_time(tol=0)
+        #autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
         index += 1
 
         # Update autocorrelation plot
-        n = 100 * np.arange(0, index + 1)
-        y = autocorr[:index+1,:]
-        fig,ax = plt.subplots(figsize=(10,5))
-        ax.plot(n, n / 50.0, "--k")
-        ax.plot(n, y, linewidth=2,color='red')
-        ax.set_xlim(0, n.max())
-        try:
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-        except:
-            print('\n Could not set axis limits because autocorrelation is equal to infinity.\n')
-            print('This most likely indicates your chains are completely stuck in their initial values.\n')
-        ax.set_xlabel("number of steps")
-        ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+        # n = 100 * np.arange(0, index + 1)
+        # y = autocorr[:index+1,:]
+        # fig,ax = plt.subplots(figsize=(10,5))
+        # ax.plot(n, n / 50.0, "--k")
+        # ax.plot(n, y, linewidth=2,color='red')
+        # ax.set_xlim(0, n.max())
+        # try:
+        #     ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+        # except:
+        #     print('\n Could not set axis limits because autocorrelation is equal to infinity.\n')
+        #     print('This most likely indicates your chains are completely stuck in their initial values.\n')
+        # ax.set_xlabel("number of steps")
+        # ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
+        # fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
         # Update traceplot
         traceplot(sampler.get_chain(),labels,
