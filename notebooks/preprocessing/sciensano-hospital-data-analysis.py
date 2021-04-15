@@ -123,6 +123,25 @@ fractions['m0_{C}']= df.groupby(by='age_class').apply(
                                 lambda x: x[((x.ICU_transfer=='Non') & (x.status_discharge=='D'))].age.count()/
                                           x[x.ICU_transfer.isin(['Non'])].age.count())
 
+# Bootstrap the mortalities
+subset_size = 120
+n = 500
+
+m0_lst = []
+for idx in range(n):
+    samples = df.groupby(by='age_class').apply(lambda x: x.sample(n=subset_size,replace=True))
+    samples=samples.drop(columns='age_class')
+    m0 = samples.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count())
+    m0_lst.append(m0[1])
+    #samples = df.sample(n=subset_size,replace=True)
+    #m0_lst.append(samples.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count()).values[1])
+
+fig,ax=plt.subplots()
+ax.hist(m0_lst,bins=15,density=True)
+ax.set_xlim([0,1])
+plt.show()
+
+
 # -----------------------
 # Compute residence times
 # -----------------------
@@ -144,6 +163,7 @@ for i in range(len(df['d_transfer'])):
 residence_times['d_transfer','mean'] = df.groupby(by='age_class').apply(
                                 lambda x: x[x.ICU_transfer=='Oui'].d_transfer.mean())
 residence_times['d_transfer','median'] = df.groupby(by='age_class').apply(lambda x: x[x.ICU_transfer=='Oui'].d_transfer.median())                     
+residence_times['d_transfer','median']=residence_times['d_transfer','median'].replace(0,0.1)
 
 # Append samples
 samples['d_transfer'] = df.groupby(by='age_class').d_transfer.agg(lambda x: list(x.dropna()))
