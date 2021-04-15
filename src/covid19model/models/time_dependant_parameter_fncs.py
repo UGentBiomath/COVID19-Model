@@ -72,7 +72,7 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
-def load_all_mobility_data(agg, dtype, beyond=False):
+def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     """
     Function that fetches all available mobility data and adds it to a dict with dates as keys and matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days.
     
