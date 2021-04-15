@@ -108,8 +108,6 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     
     ### Load all available data ###
     
-    # Import date_to_YYYYMMD function used in return function
-    from ..data.mobility import date_to_YYYYMMDD
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
@@ -184,6 +182,9 @@ def make_mobility_update_func(all_mobility_data, average_mobility_data):
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
     """
 
+    # Import date_to_YYYYMMD function used in return function
+    from ..data.mobility import date_to_YYYYMMDD
+    
 #     # Probably superfluous
 #     all_data = all_mobility_data
 #     average_mobility = average_mobility_data
