@@ -31,6 +31,8 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
+from functools import lru_cache
+
 
 # -----------------------
 # Handle script arguments
@@ -104,6 +106,7 @@ from covid19model.models.time_dependant_parameter_fncs import  vacc_strategy
 df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
 df_sciensano_end = df_sciensano.index[-1]
 
+## function needs to be put inside here for use on hpc
 @lru_cache()
 def sciensano_first_dose(t):
     # Extrapolate Sciensano n0. vaccinations to the model's native age bins
