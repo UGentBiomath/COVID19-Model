@@ -387,7 +387,7 @@ def draw_fcn_vacc(param_dict,samples_dict):
     param_dict['refusal'] = np.random.triangular(0.05, 0.20, 0.40, size=9) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
     param_dict['delay'] = np.random.triangular(1, 31, 31)
     # Variant parameters
-    param_dict['K_inf'] = np.random.uniform(low=1.30,high=1.40)
+    param_dict['K_inf'] = np.random.uniform(low=1.25,high=1.35)
     return param_dict
 
 # -------------------------------------
