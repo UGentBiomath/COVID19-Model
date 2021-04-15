@@ -72,6 +72,83 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
+def load_all_mobility_data(agg, dtype, beyond=False):
+    """
+    Function that fetches all available mobility data and adds it to a dict with dates as keys and matrices as values
+    
+    Input
+    -----
+    agg : str
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+    dtype : str
+        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
+    beyond_borders : boolean
+        If true, also include mobility abroad and mobility from foreigners
+    
+    Returns
+    -------
+    all_mobility_data : dict
+        Dictionary with dates (in form YYYYMMDD) as keys and mobility matrices (np.array with floats) as values
+    average_mobility_data : average mobility matrix over all available dates
+    """
+
+    ### Validate input ###
+    
+    if agg not in ['mun', 'arr', 'prov']:
+        raise ValueError(
+                    "spatial stratification '{0}' is not legitimate. Possible spatial "
+                    "stratifications are 'mun', 'arr', or 'prov'".format(agg)
+                )
+    if dtype not in ['fractional', 'staytime', 'visits']:
+        raise ValueError(
+                    "data type '{0}' is not legitimate. Possible mobility matrix "
+                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
+                )
+    
+    ### Load all available data ###
+    
+    # Import date_to_YYYYMMD function used in return function
+    from ..data.mobility import date_to_YYYYMMDD
+    # Define absolute location of this file
+    abs_dir = os.path.dirname(__file__)
+    # Define data location for this particular aggregation level
+    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    
+    # Iterate over all available interim mobility data
+    all_available_dates=[]
+    for csv in os.listdir(os.path.join(abs_dir, f'{data_location}/')):
+        # take YYYYMMDD information from processed CSVs. NOTE: this supposes a particular data name format!
+        datum = csv[-12:-4]
+        all_available_dates.append(datum)
+    # Create empty dictionary with all_available_dates as keys
+    all_mobility_data = dict.fromkeys(all_available_dates)
+    
+    # Define appropriate file prefix
+    if dtype=='fractional':
+        prefix=f'fractional-mobility-matrix_staytime_{agg}'
+    elif dtype=='staytime':
+        prefix=f'absolute-mobility-matrix_staytime_{agg}'
+    elif dtype=='visits':
+        prefix=f'absolute-mobility-matrix_visits_{agg}'
+    # Load full mobility matrix for every available date
+    for YYYYMMDD in all_mobility_data:
+        filename = f'{prefix}_{str(YYYYMMDD)}.csv'
+        if beyond_borders:
+            this_data = pd.read_csv(os.path.join(abs_dir, f'{data_location}/{filename}'), \
+                            index_col='mllp_postalcode').values
+        else:
+            this_data = pd.read_csv(os.path.join(abs_dir, f'{data_location}/{filename}'), \
+                            index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
+            if dtype=='fractional':
+                # make sure the rows sum up to 1 nicely again after dropping a row and a column
+                this_data = this_data / this_data.sum(axis=1)
+        all_mobility_data[YYYYMMDD]=this_data
+    # Define default mobility for unavailable dates is the average mobility over all available data
+    average_mobility_data = np.array(list(all_mobility_data.values())).mean(axis=0)
+    
+    return all_mobility_data, average_mobility_data
+    
+
 def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     """
     Function that loads all the mobility data once, and outputs the mobility_update_func. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days.
