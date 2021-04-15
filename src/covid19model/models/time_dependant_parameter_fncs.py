@@ -185,15 +185,15 @@ def make_mobility_update_func(all_mobility_data, average_mobility_data):
     # Import date_to_YYYYMMD function used in return function
     from ..data.mobility import date_to_YYYYMMDD
     
-#     # Probably superfluous
-#     all_data = all_mobility_data
-#     average_mobility = average_mobility_data
+    # Probably superfluous
+    all_data = all_mobility_data
+    average_mobility = average_mobility_data
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def mobility_update_func(t, states, param, default_mobility=None):
         YYYYMMDD = date_to_YYYYMMDD(t)
         try: # if there is data available for this date (if the key exists)
-            place = all_mobility_data[YYYYMMDD]
+            place = all_data[YYYYMMDD]
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
                 place = default_mobility
@@ -202,46 +202,6 @@ def make_mobility_update_func(all_mobility_data, average_mobility_data):
         return place
     
     return mobility_update_func
-
-# def mobility_update_func(t,states,param,agg,default_mobility=None):
-#     """
-#     Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/fractional.
-    
-#     Input
-#     -----
-#     t : timestamp
-#         current date as datetime object
-#     states : formal necessity (not used)
-#     param : formal necessity (not used)
-#     agg : str
-#         Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
-        
-#     Returns
-#     -------
-#     place : matrix
-#         square matrix with floating points between 0 and 1, dimension depending on agg
-#     """
-    
-#     # Import date_to_YYYYMMD function
-#     from ..data.mobility import date_to_YYYYMMDD
-    
-#     # Define absolute location of this file
-#     abs_dir = os.path.dirname(__file__)
-#     # Define data location for this particular aggregation level
-#     data_location = '../../../data/interim/mobility/' + agg + '/fractional/'
-#     # Define YYYYMMDD date
-#     YYYYMMDD = date_to_YYYYMMDD(t)
-#     filename = 'fractional-mobility-matrix_staytime_' + agg + '_' + str(YYYYMMDD) + '.csv'
-#     try: # if there is data available for this date
-#         place = pd.read_csv(os.path.join(abs_dir, data_location+filename), \
-#                         index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-#     except:
-#         if default_mobility: # If there is no data available and a user-defined input is given
-#             place = default_mobility
-#         else: # No data and no user input: fall back on average mobility
-#             place = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/mobility/' + agg + '/quick-average_staytime_' + agg + \
-#                                              '.csv'), index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-#     return place
 
 def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     """
