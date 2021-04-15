@@ -12,7 +12,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 import gc
 import sys, getopt
-import ujson as json
+import json as json
 import random
 import emcee
 import datetime
@@ -85,21 +85,54 @@ initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_tot
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 levels = initN.size
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
 # Google Mobility data
-df_google = mobility.get_google_mobility_data(update=False)
+df_google = mobility.get_google_mobility_data(update=True)
 # Model initial condition on September 1st
 warmup = 0
+# Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
-    initial_states = json.load(fp)    
+    initial_states = json.load(fp)  
+# Load samples dictionary of the second wave
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-02.json', 'r') as fp:
+    samples_dict = json.load(fp)  
 
-initial_states.update({
-    'VE': np.zeros(9),
-    'V': np.zeros(9),
-    'V_new': np.zeros(9),
-    'alpha': np.zeros(9)
-})
-#initial_states['ICU_tot'] = initial_states.pop('ICU')
+from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function, vacc_strategy
+sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
+
+# Add states # TO DO: automatically do this
+initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
+                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'ER_v': np.zeros(9), 'C_v': np.zeros(9),
+                        'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
+
+# Add the time-dependant parameter function arguments
+vacc_order = np.array(range(9))
+vacc_order = vacc_order[::-1]
+daily_dose = 30000
+refusal = 0.3*np.ones(9)
+delay = 21
+d_vacc = 12*30 # duration of vaccine protection
+
+params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
+# Update with additional parameters for social policy function
+params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
+            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
+# Update with additional parameters for vaccination
+params.update(
+    {'vacc_order': vacc_order, 'daily_dose': daily_dose,
+    'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
+    'df_sciensano_end': df_sciensano_end, 'sciensano_first_dose': sciensano_first_dose}
+)
+# Update with additional parameters for VOCs
+K_inf = 1.30
+K_hosp = 1.00
+Re_1feb = 0.958*K_inf
+incubation_period = 5.2
+n_periods = 14/incubation_period
+params.update({'K_inf': K_inf,
+                            'K_hosp': K_hosp,
+                            'injection_day': (pd.Timestamp('2021-01-28') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
+                            'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
 
 # ------------------------
 # Define results locations
@@ -117,15 +150,20 @@ samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/n
 # ---------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+def policies_wave1_4prev(t, states, param, l , tau, l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate, scenario=0, contact_increase=0.25):
     
-    # Convert tau and l to dates
+    t = pd.Timestamp(t.date())
+
+    # Convert compliance tau and l to dates
     tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
+
+    # Convert relaxation l to dates
+    l_relax_days = pd.Timedelta(l_relax, unit='D')
 
     # Define key dates of first wave
     t1 = pd.Timestamp('2020-03-15') # start of lockdown
@@ -141,11 +179,13 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
     t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
     t10 = pd.Timestamp('2021-02-15') # Spring break starts
     t11 = pd.Timestamp('2021-02-21') # Spring break ends
-    t12 = pd.Timestamp('2021-04-05') # Easter holiday starts
-    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
+    t12 = pd.Timestamp('2021-02-28') # Contact increase in children
+    t13 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+    t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
+    t15 = pd.Timestamp(relaxdate) # Relaxation date
+    t16 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+    t17 = pd.Timestamp('2021-09-01') 
 
-    t = pd.Timestamp(t.date())
-    # First wave
     if t <= t1:
         return all_contact(t)
     elif t1 < t < t1 + tau_days:
@@ -154,7 +194,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
@@ -163,6 +203,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
                               school=0)
     elif t3 < t <= t4:
         return contact_matrix_4prev(t, school=0)
+
     # Second wave
     elif t4 < t <= t5 + tau_days:
         return contact_matrix_4prev(t, school=1)
@@ -170,7 +211,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         policy_old = contact_matrix_4prev(t, school=1)
         policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                                     school=1)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
     elif t5 + tau_days + l_days < t <= t6:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
@@ -193,13 +234,144 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t12 < t <= t13:
+        mat = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
+        mat = np.array(mat)
+        mat[:,0] = (contact_increase+1)*mat[:,0]
+        mat[:,1] = (contact_increase+1)*mat[:,1]
+        return mat
+    elif t13 < t <= t14:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                                                                                                                                                     
-    else:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+                                school=0)
+                                   
+    if scenario == 0:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)    
+        elif t15 < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)             
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+    elif scenario == 1:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)    
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, transport=0.90, school=0) # 20% less work mobility during summer, 10% less public transport during summer                                      
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)
+    elif scenario == 2:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)    
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=0)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax,)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=0)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, transport=0.90, school=0)                                  
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, transport=1, school=1)    
+    elif scenario == 3:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)   
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=0.90, school=0)                                       
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)  
+    elif scenario == 4:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)   
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=0)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1,  school=0)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=0.90, school=0)                                           
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1, others=1, transport=1, school=1)                                     
+    elif scenario == 5:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)   
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, leisure=1, transport=0.90, others=1, school=0)                                      
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
 
+    elif scenario == 6:
+        if t14 < t <= t15:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)   
+        if t15 < t <= t15 + l_relax_days:
+            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+            policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=0)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=0)                           
+        elif t16 < t <= t17:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, leisure=1, transport=0.90, others=1, school=0)                
+        else:
+            return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_work, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+ 
 # ------------------------------
 # Function to add binomial draws
 # ------------------------------
@@ -256,11 +428,9 @@ n_draws_per_sample=1
 
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
-# Add the time-dependant parameter function arguments
-params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave1_4prev})
+                        time_dependent_parameters={'Nc': policies_wave1_4prev, 'N_vacc': vacc_strategy})
 
 if job == 'R0':
 
@@ -622,9 +792,9 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(13.5, 20),(0.1,20), (0.1,20), (0,1), (0,1), (0,1), (0,1)]
+parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf']
+log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fnc_args = [(0.005, 0.15),(0.1, 5.1),(13.5, 20),(0.1,20), (0.1,20), (0,1), (0,1), (0,1), (0,1), (1,2)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*4
 
@@ -751,16 +921,25 @@ with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json', 'w') a
 # ------------------------
 
 def draw_fcn(param_dict,samples_dict):
+    # Calibrated samples
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['da'] = samples_dict['da'][idx]
     param_dict['omega'] = samples_dict['omega'][idx]
     param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
     param_dict['tau'] = samples_dict['tau'][idx] 
     param_dict['l'] = samples_dict['l'][idx] 
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]   
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]      
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    # Vaccination parameters
+    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
+    param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
+    param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
+    param_dict['refusal'] = np.random.triangular(0.05, 0.20, 0.40, size=9) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
+    param_dict['delay'] = np.random.triangular(1, 31, 31)
+    # Variant parameters
+    param_dict['K_inf'] = np.random.uniform(low=1.3,high=1.4)
     return param_dict
 
 # ----------------
