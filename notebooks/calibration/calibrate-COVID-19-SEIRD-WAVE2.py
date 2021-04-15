@@ -97,8 +97,9 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-02.json', 'r') as fp:
     samples_dict = json.load(fp)  
 
-from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function, vacc_strategy
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
+import covid19model.models.time_dependant_parameter_fncs as tdpf
+from covid19model.models.time_dependant_parameter_fncs import  vacc_strategy
+sciensano_first_dose, df_sciensano_start, df_sciensano_end = tdpf.make_vaccination_function(df_sciensano)
 
 # Add states # TO DO: automatically do this
 initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
