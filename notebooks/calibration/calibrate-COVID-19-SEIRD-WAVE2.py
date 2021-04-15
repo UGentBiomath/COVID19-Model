@@ -115,27 +115,6 @@ d_vacc = 12*30 # duration of vaccine protection
 l_relax = 31
 
 
-params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
-# Update with additional parameters for social policy function
-params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
-            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
-# Update with additional parameters for vaccination
-params.update(
-    {'vacc_order': vacc_order, 'daily_dose': daily_dose,
-    'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
-    'df_sciensano_end': df_sciensano_end, 'sciensano_first_dose': sciensano_first_dose}
-)
-# Update with additional parameters for VOCs
-K_inf = 1.30
-K_hosp = 1.00
-Re_1feb = 0.958*K_inf
-incubation_period = 5.2
-n_periods = 14/incubation_period
-params.update({'K_inf': K_inf,
-                            'K_hosp': K_hosp,
-                            'injection_day': (pd.Timestamp('2021-01-28') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
-                            'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
-
 # ------------------------
 # Define results locations
 # ------------------------
@@ -428,8 +407,27 @@ n_draws_per_sample=1
 # Initialize the model
 # --------------------
 
-# Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters()
+params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
+# Update with additional parameters for social policy function
+params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
+            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
+# Update with additional parameters for vaccination
+params.update(
+    {'vacc_order': vacc_order, 'daily_dose': daily_dose,
+    'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
+    'df_sciensano_end': df_sciensano_end, 'sciensano_first_dose': sciensano_first_dose}
+)
+# Update with additional parameters for VOCs
+K_inf = 1.30
+K_hosp = 1.00
+Re_1feb = 0.958*K_inf
+incubation_period = 5.2
+n_periods = 14/incubation_period
+params.update({'K_inf': K_inf,
+                            'K_hosp': K_hosp,
+                            'injection_day': (pd.Timestamp('2021-01-28') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
+                            'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
+
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev, 'N_vacc': vacc_strategy})
