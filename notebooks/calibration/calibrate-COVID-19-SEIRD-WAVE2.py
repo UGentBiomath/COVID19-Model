@@ -113,6 +113,9 @@ refusal = 0.3*np.ones(9)
 delay = 21
 d_vacc = 12*30 # duration of vaccine protection
 l_relax = 31
+start_sim = '2020-09-01'
+end_sim = '2021-07-01'
+start_calibration = start_sim
 
 
 # ------------------------
@@ -482,8 +485,6 @@ if job == 'R0':
     # -----------------
 
     # Simulate
-    start_sim = start_calibration
-    end_sim = '2020-11-01'
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
     # Plot
     fig,ax = plt.subplots(figsize=(10,5))
