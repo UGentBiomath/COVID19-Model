@@ -417,7 +417,7 @@ def wave1_policies(t, states, param, df_google, Nc_all, l , tau,
         policy_old = contact_matrix(t, df_google, Nc_all, school=1)
         policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
                                     prev_leisure, prev_others, school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
                               prev_leisure, prev_others, school=0)
@@ -447,7 +447,7 @@ def make_VOC_function():
     df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC['baselinesurv_n_501Y.V1']+df_VOC['baselinesurv_n_501Y.V2']+df_VOC['baselinesurv_n_501Y.V3'])/df_VOC['baselinesurv_total_sequenced']
 
     @lru_cache()
-    def wenseleers_VOC(t):
+    def VOC_function(t):
         # Function to return fraction of non-wild type SARS variants
         if t < df_VOC.index.min():
             return 0
@@ -456,7 +456,11 @@ def make_VOC_function():
         elif t > df_VOC.index.max():
             return (df_VOC['baselinesurv_n_501Y.V1'][-1]+df_VOC['baselinesurv_n_501Y.V2'][-1]+df_VOC['baselinesurv_n_501Y.V3'][-1])/df_VOC['baselinesurv_total_sequenced'][-1]
 
-    return wenseleers_VOC
+    return VOC_function
+
+def VOC_wrapper_func(t,states,param, VOC_function):
+    t = pd.Timestamp(t.date())
+    return VOC_function(t)
 
 # ~~~~~~~~~~~~~~~~~~~~~
 # Vaccination functions
