@@ -101,6 +101,10 @@ split between general population and elderly homes. Data from https://m.standaar
 + `costs_hospital_belgium.csv` contains the reported total costs of medical treatment per disease category in Belgium for 2018. The data was corrected for inflation, combined with cost per QALY information and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'.  Data obtained from: https://tct.fgov.be/webetct/etct-web/html/fr/index.jsp .
 + `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
 
+#### VOCs
+
++ `sequencing_501YV1_501YV2_501YV3.csv` contains the total number of sequenced samples and the number of samples of variants 501Y.V1 (British), 501Y.V2 (South African) and 501Y.V3 (Brazilian). Data available from week 49 of 2020 until week 14 of 2021. Data download from Tom Wenseleer's Git (https://github.com/tomwenseleers/newcovid_belgium); folder `~/data/2021_04_16/sequencing_501YV1_501YV2_501YV3.csv`.
+
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
