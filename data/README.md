@@ -105,6 +105,11 @@ split between general population and elderly homes. Data from https://m.standaar
 
 + `sequencing_501YV1_501YV2_501YV3.csv` contains the total number of sequenced samples and the number of samples of variants 501Y.V1 (British), 501Y.V2 (South African) and 501Y.V3 (Brazilian). Data available from week 49 of 2020 until week 14 of 2021. Data download from Tom Wenseleer's Git (https://github.com/tomwenseleers/newcovid_belgium); folder `~/data/2021_04_16/sequencing_501YV1_501YV2_501YV3.csv`.
 
+#### Seroprelevance
+
++ `Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv` contains the overall seroprelevance in the Belgian population with confidence bounds. Downloaded from https://datastudio.google.com/embed/reporting/7e11980c-3350-4ee3-8291-3065cc4e90c2/page/R4nqB on 2021-04-19 by right clicking on a datapoint and selecting 'csv downloaden'.
++ `serology_covid19_belgium_round_1_to_7_v20210406.csv` contains the measured amount of antibodies of samples per province, per age group and in seven sampling waves. Downloaded from https://zenodo.org/record/4665373#.YH116nUzaV4 on 2021-04-19.
+
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
