@@ -79,7 +79,6 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
-        alpha : fraction of alternative COVID-19 variant
 
         parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -88,7 +87,9 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        alpha : fraction of alternative COVID-19 variant
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -101,8 +102,6 @@ class COVID19_SEIRD(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         --------------------
@@ -149,7 +148,7 @@ class COVID19_SEIRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T)) # leakiness
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
         IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A)/T))
 
         # Account for higher hospitalisation propensity of new variant
@@ -233,7 +232,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
 
-        alpha : fraction of alternative COVID-19 variant
+        
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -242,7 +241,9 @@ class COVID19_SEIRD_vacc(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        alpha : fraction of alternative COVID-19 variant
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
