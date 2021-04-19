@@ -120,16 +120,16 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -137,6 +137,9 @@ class COVID19_SEIRD(BaseModel):
 
         *Deterministic implementation*
         """
+ 
+        if Nc is None:
+            print(t)
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -146,8 +149,6 @@ class COVID19_SEIRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if Nc is None:
-            print(t)
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T)) # leakiness
         IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A)/T))
 
@@ -176,18 +177,18 @@ class COVID19_SEIRD(BaseModel):
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if np.all((IP_old == 0)) and np.all((IP_new == 0)):
-            dalpha = np.zeros(9)
-        else:
-            dalpha = IP_new/(IP_old+IP_new) - alpha
+        #if np.all((IP_old == 0)) and np.all((IP_new == 0)):
+        #    dalpha = np.zeros(9)
+        #else:
+        #    dalpha = IP_new/(IP_old+IP_new) - alpha
 
         # On injection_day, inject injection_ratio new strain to alpha
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if (t >= injection_day) & (alpha.sum().sum()==0):
-            dalpha += injection_ratio
+        #if (t >= injection_day) & (alpha.sum().sum()==0):
+        #    dalpha += injection_ratio
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
 class COVID19_SEIRD_vacc(BaseModel):
@@ -279,17 +280,17 @@ class COVID19_SEIRD_vacc(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
                     'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio', 'K_hosp', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, K_hosp, e_i, e_s, e_h, e_a, d_vacc,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
                   s, a, h, c, m_C, m_ICU, N_vacc,
                   Nc):
         """
@@ -297,6 +298,9 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         *Deterministic implementation*
         """
+
+        if Nc is None:
+            print(t)
 
         # Calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -312,8 +316,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if Nc is None:
-            print(t)
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
         IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
 
@@ -362,19 +364,19 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Update fraction of new COVID-19 variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if np.all((IP_old == 0)) and np.all((IP_new == 0)):
+        #if np.all((IP_old == 0)) and np.all((IP_new == 0)):
             # Protection against division error
-            dalpha = np.zeros(9)
-        else:
-            dalpha = IP_new/(IP_old+IP_new) - alpha
+        #    dalpha = np.zeros(9)
+        #else:
+        #    dalpha = IP_new/(IP_old+IP_new) - alpha
 
         # On injection_day, inject injection_ratio new strain to alpha
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if (t >= injection_day) & (alpha.sum().sum()==0):
-            dalpha += injection_ratio
+        #if (t >= injection_day) & (alpha.sum().sum()==0):
+        #    dalpha += injection_ratio
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dalpha, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
 class COVID19_SEIRD_sto(BaseModel):

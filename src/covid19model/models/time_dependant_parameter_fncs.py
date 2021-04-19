@@ -457,6 +457,7 @@ def make_VOC_function():
             return (df_VOC['baselinesurv_n_501Y.V1'][-1]+df_VOC['baselinesurv_n_501Y.V2'][-1]+df_VOC['baselinesurv_n_501Y.V3'][-1])/df_VOC['baselinesurv_total_sequenced'][-1]
 
     return wenseleers_VOC
+
 # ~~~~~~~~~~~~~~~~~~~~~
 # Vaccination functions
 # ~~~~~~~~~~~~~~~~~~~~~
