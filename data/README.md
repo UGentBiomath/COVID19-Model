@@ -205,6 +205,10 @@ Note: only saved locally and on S-drive (not on Git due to NDA). Contains proces
 + staytime: `fractional-mobility-matrix_staytime_*_*.csv`: origin-destination matrices in terms of estimated length of stay, normalised over the total available time. Subtracted 8 hours of sleep per day, and corrected for the GDPR-protected -1 values
 + baseline: `fractional-mobility-matrix_staytime_arr_baseline-*.csv`: normalised origin-destination matrix for three distinct periods: business days, weekends and vacation days. These may be used to distinguish how many additional people were forced to stay at home, and/or to estimate the goal of travel (work/leisure/...)
 
+#### seroprelevance
+
++ `herzog_serodata_national` contains for every of the seven sampling waves and for 10 age groups the mean and 95% confidence interval on the seroprelevance of SARS-CoV-2 IGG antibodies. This dataset is made by analysing `~/data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv` using the script `~/notebooks/preprocessing/herzog-sero-data-analysis.py`. Currently, the positive samples are unweighted and the analysis is performed on the national level.
+
 ### simulated
 
 Contains zarr directories, which in turn contain groups that each hold a different simulation result. The aim of this 'simulation database' is to be able to save simulation results and perform post-processing without always having to go through the long and computationally demanding task of simulating (using the base.py sim function). This is especially relevant for spatially stratified SEIRD extended models, as these typically take G times longer to run (where G is the level of spatial stratification).
