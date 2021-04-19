@@ -23,4 +23,14 @@ from datetime import timedelta
 
 df = pd.read_csv('../../data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv', parse_dates=True)
 
-print(df.head())
+df['collection_midpoint'] = (pd.to_datetime(df['collection_start']) + (pd.to_datetime(df['collection_end']) - pd.to_datetime(df['collection_start']))/2)
+df = df.drop(columns=['collection_start', 'collection_end', 'sex', 'collection_round', 'code'])
+df.index = df['collection_midpoint']
+df = df.drop(columns='collection_midpoint')
+
+values = df.groupby(by=['age_cat',df.index]).apply(lambda x: (x[((x.igg_cat == 'positive') | (x.igg_cat == 'borderline'))].count())/(x.igg_cat.count()))
+print(values.index)
+
+print(values)
+
+
