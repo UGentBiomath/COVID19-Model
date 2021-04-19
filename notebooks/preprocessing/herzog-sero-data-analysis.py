@@ -28,9 +28,12 @@ df = df.drop(columns=['collection_start', 'collection_end', 'sex', 'collection_r
 df.index = df['collection_midpoint']
 df = df.drop(columns='collection_midpoint')
 
-values = df.groupby(by=['age_cat',df.index]).apply(lambda x: (x[((x.igg_cat == 'positive') | (x.igg_cat == 'borderline'))].count())/(x.igg_cat.count()))
-print(values.index)
+vals = df.groupby(by=['age_cat',df.index]).apply(lambda x: (x[((x.igg_cat == 'positive') | (x.igg_cat == 'borderline'))].count())/(x.igg_cat.count()))
+new_df = pd.DataFrame(index=vals.index, columns=['fraction_pos'])
+new_df['fraction_pos'] = df.groupby(by=['age_cat',df.index]).apply(lambda x: (x[((x.igg_cat == 'positive') | (x.igg_cat == 'borderline'))].count())/(x.igg_cat.count()))
 
-print(values)
+print(new_df.head())
+
+
 
 
