@@ -134,7 +134,7 @@ def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     if t <= start_date + tau_days:
         return policy0
     elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
+        return delayed_ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
     else:
         return prevention*policy1
     
@@ -187,7 +187,7 @@ def policies_until_september(t,states,param,start_date,policy0,policy1,policy2,p
     if t <= start_date + tau_days:
         return policy0
     elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
+        return delayed_ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
     elif start_date + tau_days + l_days < t <= t1: 
         return prevention*policy1 # lockdown
     elif t1 < t <= t2:
@@ -431,6 +431,32 @@ def wave1_policies(t, states, param, df_google, Nc_all, l , tau,
         return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
                               prev_leisure, prev_others, school=0)
 
+
+# ~~~~~~~~~~~~~
+# VOC functions
+# ~~~~~~~~~~~~~
+
+def make_VOC_function():
+    # Load and format VOC data 
+    rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
+    df_VOC = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
+    # Converting the index as date
+    df_VOC.index = pd.to_datetime(df_VOC.index)
+    # Extrapolate missing dates to obtain a continuous index
+    df_VOC = df_VOC.resample('D').interpolate('linear')
+    df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC['baselinesurv_n_501Y.V1']+df_VOC['baselinesurv_n_501Y.V2']+df_VOC['baselinesurv_n_501Y.V3'])/df_VOC['baselinesurv_total_sequenced']
+
+    @lru_cache()
+    def wenseleers_VOC(t):
+        # Function to return fraction of non-wild type SARS variants
+        if t < df_VOC.index.min():
+            return 0
+        elif df_VOC.index.min() <= t <= df_VOC.index.max():
+            return df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
+        elif t > df_VOC.index.max():
+            return (df_VOC['baselinesurv_n_501Y.V1'][-1]+df_VOC['baselinesurv_n_501Y.V2'][-1]+df_VOC['baselinesurv_n_501Y.V3'][-1])/df_VOC['baselinesurv_total_sequenced'][-1]
+
+    return wenseleers_VOC
 # ~~~~~~~~~~~~~~~~~~~~~
 # Vaccination functions
 # ~~~~~~~~~~~~~~~~~~~~~
