@@ -123,5 +123,5 @@ merged = pd.concat([new_df, total_df])
 # Save the results
 # -----------------
 
-merged.to_csv('../../data/interim/sero/herzog_serodata_national.csv')
+merged.to_csv('../../data/interim/sero/sero_national_stratified_own.csv')
 
