@@ -243,6 +243,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         # verity_etal
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        # Overwrite manually to new sciensano data driven estimate 
+        pars_dict['h'] =  np.array([0.01475, 0.00657, 0.0220, 0.0387, 0.07069, 0.12579, 0.16006, 0.2155, 0.34568])
 
         # Wu et al.
         df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
