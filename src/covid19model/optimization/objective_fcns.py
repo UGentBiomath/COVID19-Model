@@ -44,23 +44,24 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     -----------
     MLE = MLE(model,thetas,data,parNames,positions)
     """
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # assign estimates to correct variable
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    # Exceptionsymodel
+
+    # ~~~~~~~~~~~~~~~~~~~~
+    # perform input checks
+    # ~~~~~~~~~~~~~~~~~~~~ 
+
     if dist not in ['gaussian', 'poisson']:
         raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
     if agg and (agg not in ['prov', 'arr', 'mun']):
         raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
-
-    # number of dataseries
-    n = len(data)
     # Check if data contains NaN values anywhere
-    for i in range(n):
-        if (agg and np.isnan(data[i]).any().any()) or (not agg and np.isnan(data[i]).any()):
+    for idx, d in enumerate(data):
+        if (agg and np.isnan(d).any().any()) or (not agg and np.isnan(d).any()):
             raise Exception(f"Data contains nans. Perhaps something went wrong with the moving average?")
     
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # assign estimates to correct variable
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     if dist == 'gaussian':
         sigma=[]
         for i, param in enumerate(parNames):
@@ -74,7 +75,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         for i, param in enumerate(parNames):
             if param == 'warmup':
                 warmup = int(round(thetas[i]))
-            else: # Update model parameter values
+            else:
                 model.parameters.update({param : thetas[i]})
 
     # ~~~~~~~~~~~~~~
@@ -97,23 +98,14 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # -------------
     
     if not agg: # keep existing code for non-spatial case (aggregation level = None)
-        if dist == 'gaussian':
-            ymodel = []
-            MLE = 0
-            for i in range(n): #this is wrong for i != 0 I think
-                som = 0
-                # sum required states. This is wrong for j != 0 I think.
-                for j in range(len(states[i])):
-                    som = som + out[states[i][j]].sum(dim="Nc").values
-                ymodel.append(som[warmup:]) # only add data beyond warmup time
-                # calculate sigma2 and log-likelihood function based on Gaussian
-                MLE = MLE + ll_gaussian(ymodel[i], data[i], sigma[i]) #- 0.5 * np.sum((data[i] - ymodel[i]) ** 2 / sigma[i]**2 + np.log(sigma[i]**2))
+        MLE = 0
+        for idx,state in enumerate(states):
+            ymodel = out[state].sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+            if dist == 'gaussian':            
+                MLE = MLE + ll_gaussian(ymodel, data[idx].values, sigma[idx])  
+            elif dist == 'poisson':
+                MLE = MLE + ll_poisson(ymodel, data[idx].values, offset=poisson_offset)
 
-        if dist == 'poisson':
-            # calculate loglikelihood function based on Poisson distribution for only H_in
-            ymodel = out[states[0][0]].sum(dim="Nc").values[warmup:] #- np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
-            MLE = ll_poisson(ymodel, data[0], offset=poisson_offset)
-            
     else: # add code for spatial case
         # Create list of all NIS codes
         NIS_list = list(data[0].columns)
@@ -121,7 +113,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
         if dist == 'gaussian':
             ymodel = []
             MLE = 0
-            for i in range(n):
+            for idx,d in enumerate(data):
                 som = 0
                 # sum required states. This is wrong for j != 0 I think.
                 for NIS in NIS_list:
@@ -129,7 +121,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
                     for j in range(len(states[i])):
                         som += out[states[i][j]].sel(place=NIS).sum(dim="Nc").values[warmup:]
                     ymodel.append(som[warmup:])
-                    MLE += ll_gaussian(ymodel[i], data[i][NIS], sigma[i]) # multiplication of likelihood is sum of loglikelihoods
+                    MLE += ll_gaussian(ymodel[i], d[NIS], sigma[i]) # multiplication of likelihood is sum of loglikelihoods
         if dist == 'poisson':
             MLE = 0
             for NIS in NIS_list:
