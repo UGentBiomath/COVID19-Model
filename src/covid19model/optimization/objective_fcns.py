@@ -48,7 +48,7 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-    # Exceptions
+    # Exceptionsymodel
     if dist not in ['gaussian', 'poisson']:
         raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
     if agg and (agg not in ['prov', 'arr', 'mun']):
@@ -80,17 +80,17 @@ def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=
     # ~~~~~~~~~~~~~~
     # Run simulation
     # ~~~~~~~~~~~~~~
+
     # Compute simulation time
-    data_length =[]
-    for i in range(n):
-        data_length.append(data[i].index.size)
-    T = int(max(data_length)+warmup-1) # *** TO DO: make indepedent from data length
+    index_max=[]
+    for idx, d in enumerate(data):
+        index_max.append(d.index.max())
+    end_sim = max(index_max)
     # Use previous samples
     if draw_fcn:
         model.parameters = draw_fcn(model.parameters,samples)
-
     # Perform simulation and loose the first 'warmup' days
-    out = model.sim(T, start_date=start_date, warmup=warmup)
+    out = model.sim(end_sim, start_date=start_date, warmup=warmup)
 
     # -------------
     # calculate MLE
