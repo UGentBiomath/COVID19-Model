@@ -89,6 +89,14 @@ levels = initN.size
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
+# Load and format serodata of Herzog
+df_sero = pd.read_csv('../../data/interim/sero/sero_national_overall_herzog.csv', parse_dates=True)
+df_sero.index = df_sero['collection_midpoint']
+df_sero.index = pd.to_datetime(df_sero.index)
+df_sero = df_sero.drop(columns=['collection_midpoint','age_cat'])
+df_sero['mean'] = df_sero['mean']*sum(initN) 
+df_sero['LL'] = df_sero['LL']*sum(initN)
+df_sero['UL'] = df_sero['UL']*sum(initN)
 
 # ------------------------
 # Define results locations
