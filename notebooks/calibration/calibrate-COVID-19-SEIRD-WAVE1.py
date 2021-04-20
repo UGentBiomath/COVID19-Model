@@ -231,7 +231,7 @@ if job == 'R0':
     # --------------
 
     data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
-    states = [["H_in"]]
+    states = ["H_in"]
 
     # ------------------------
     # Define sampling function
@@ -268,9 +268,9 @@ if job == 'R0':
     # -----------------
 
     # Simulate
-    start_sim ='2020-03-15'
+    start_sim ='2020-03-10'
     end_sim = '2020-03-27'
-    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
+    out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
     # Plot
     fig,ax = plt.subplots(figsize=(10,5))
     ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
@@ -297,9 +297,9 @@ if job == 'R0':
     nwalkers = ndim*mp.cpu_count()
 
     # Perturbate the PSO estimates
-    perturbations_beta = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,5.1, size=nwalkers),axis=1)
-    perturbations_da = np.expand_dims(np.random.triangular(1,4,14, size=nwalkers),axis=1)
+    perturbations_beta = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3.1, size=nwalkers),axis=1)
+    perturbations_da = np.expand_dims(np.random.triangular(2,5,9, size=nwalkers),axis=1)
     pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
 
     # Set up the sampler backend if needed
@@ -474,13 +474,13 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 3
-maxiter = 10
+multiplier = 10
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
-max_n = 50
+max_n = 100000
 # Number of samples used to visualise model fit
-n_samples = 20
+n_samples = 100
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=1
 
@@ -495,8 +495,9 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero['mean']]
-states = [["H_in"],["R"]]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero['mean'][0:5]]
+states = ["H_in","R"]
+weights = [1,0.00005]
 
 # ------------------------
 # Define sampling function
@@ -512,10 +513,10 @@ def draw_fcn(param_dict,samples_dict):
 
 # optimisation settings
 parNames = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.01,0.10),(0.1,3),(0.1,7),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99), (0,0.01))
+bounds=((0.02,0.08),(0.1,3),(0.1,7),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99), (0.0001,0.01))
 
 # run optimization
-theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
+theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes,
                     draw_fcn=draw_fcn, samples={})
 #theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254 calibration until 2020-07-01
@@ -540,21 +541,22 @@ model.parameters['zeta'] =  theta[7]
 # Simulate
 start_sim = '2020-03-10'
 end_sim = '2020-08-01'
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
-ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_sim,end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
+out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
+# Plot hospitalizations
+fig,(ax1,ax2) = plt.subplots(nrows=2,ncols=1,figsize=(12,8),sharex=True)
+ax1.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
+ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1 = _apply_tick_locator(ax1)
+ax1.set_xlim(start_sim,end_sim)
+ax1.set_ylabel('$H_{in}$ (-)')
+# Plot fraction of immunes
+ax2.plot(out['time'],out['R'].sum(dim='Nc')/sum(initN)*100,'--', color='blue')
+ax2.errorbar(x=df_sero.index,y=df_sero['mean']/sum(initN)*100,yerr=[(df_sero['LL'].values)/sum(initN)*100,(df_sero['UL'].values)/sum(initN)*100], fmt='o', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
+ax2 = _apply_tick_locator(ax2)
+ax2.set_xlim(start_sim,end_sim)
+ax2.set_ylabel('Seroprelevance (%)')
 plt.show()
-
-# ------------------
-# Setup MCMC sampler
-# ------------------
-print('\n2) Markov Chain Monte Carlo sampling\n')
 
 # Example code to pass custom distributions as priors (Overwritten)
 # Prior beta
@@ -570,9 +572,9 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
 
 # Setup uniform priors
-parNames_mcmc = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
+parNames_mcmc = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.01,0.12),(0.1,5.1),(0.1,14),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
+log_prior_fnc_args = [(0.01,0.12), (0.1,5.1), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0,0.01)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*2
 
@@ -583,12 +585,14 @@ pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalke
 # Omega and da
 pos[:,1] = theta[1] + theta[1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,2] = theta[2] + theta[2]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
-# l and tau
-pos[:,3:5] = theta[3:5] + theta[3:5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,2))
+# l
+pos[:,3] = theta[3] + theta[3]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
-pos[:,5] = theta[5] + theta[5]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = theta[4] + theta[4]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # other prevention
-pos[:,6:] = theta[6:] + theta[6:]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[6:])))
+pos[:,5:7] = theta[5:7] + theta[5:7]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[5:7])))
+# zeta
+pos[:,-1] = theta[-1] + theta[-1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
 
 # Set up the sampler backend
 if backend:
@@ -608,11 +612,11 @@ old_tau = np.inf
 # Initialize autocorr vector and autocorrelation figure
 autocorr = np.zeros([1,ndim])
 # Initialize the labels
-labels = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
+labels = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
@@ -708,7 +712,8 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]      
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]      
     return param_dict
 
 # ----------------
