@@ -50,15 +50,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         Additional arguments passed to objective and constraint functions
         (Default: empty tuple)
     kwargs : dict
-        Additional keyword arguments passed to objective and constraint 
-        functions (Default: empty dict)
-    swarmsize : int
-        The number of particles in the swarm (Default: 100)
-    omega : scalar
-        Particle velocity scaling factor (Default: 0.5)
-    phip : scalar
-        Scaling factor to search away from the particle's best known position
-        (Default: 0.5)
+        Additional keyword arguments passed to objective and constraint weights[idx]*
     phig : scalar
         Scaling factor to search away from the swarm's best known position
         (Default: 0.5)
@@ -259,7 +251,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
+def fit_pso(model,data,parNames,states,weights,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
@@ -268,10 +260,7 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     model: model object
         correctly initialised model to be fitted to the dataset
     data: array
-        list containing dataseries. If agg != None, list contains DataFrame with time series per NIS code (NIS code as column heads)
-    parNames: array
-        list containing the names of the parameters to be fitted
-    states: array
+        list containing dataseries. If agg != None, list contains DataFrame with time series pweights[idx]*
         list containg the names of the model states to be fitted to data
     bounds: tuple
         contains one tuples with the lower and upper bounds of each parameter theta
@@ -315,7 +304,7 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
 # MLE signature:
 # def MLE(thetas,model,data,states,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):    
     
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,weights,parNames), kwargs={'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
 
     theta_hat = p_hat
 
