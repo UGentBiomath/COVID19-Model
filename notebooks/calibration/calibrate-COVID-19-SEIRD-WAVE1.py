@@ -495,8 +495,8 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration]]
-states = [["H_in"]]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero['mean']]
+states = [["H_in"],["R"]]
 
 # ------------------------
 # Define sampling function
@@ -511,8 +511,8 @@ def draw_fcn(param_dict,samples_dict):
 # -----------
 
 # optimisation settings
-parNames = ['beta','omega','da','l', 'tau', 'prev_work', 'prev_rest', 'prev_home']
-bounds=((0.01,0.10),(0.1,3),(0.1,7),(0.01,20),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99))
+parNames = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
+bounds=((0.01,0.10),(0.1,3),(0.1,7),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99), (0,0.01))
 
 # run optimization
 theta = pso.fit_pso(model, data, parNames, states, bounds, maxiter=maxiter, popsize=popsize,
@@ -528,10 +528,10 @@ model.parameters['beta'] = theta[0]
 model.parameters['omega'] = theta[1]
 model.parameters['da'] = theta[2]
 model.parameters['l'] = theta[3]
-model.parameters['tau'] = theta[4]
-model.parameters['prev_work'] = theta[5]
-model.parameters['prev_rest'] = theta[6]
-model.parameters['prev_home'] =  theta[7]   
+model.parameters['prev_work'] = theta[4]
+model.parameters['prev_rest'] = theta[5]
+model.parameters['prev_home'] =  theta[6]   
+model.parameters['zeta'] =  theta[7]   
 
 # -----------------
 # Visualise PSO fit
