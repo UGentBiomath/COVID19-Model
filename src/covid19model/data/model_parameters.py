@@ -244,10 +244,13 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
 
-        # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
-        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        # Wu et al.
+        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
+        pars_dict['a']  = np.array(df_asymp['result'][0:9].values)
+
+        # Davies et al.
+        #np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        pars_dict['s'] =  np.ones(9)
 
         # vaccination
         if vaccination == True:
