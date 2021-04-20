@@ -131,9 +131,10 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 #### Model parameters
 
-+ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
++ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. The analysis is performed using the script `~/notebooks/preprocessing/AZMM-UZG-hospital-data-analysis`.
++ `sciensano_hospital_parameters.csv` contains age-stratified estimates for the hospital parameters of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
++ `wu_asymptomatic_fraction.xlsx` contains the computation of the symptomatic fraction of the Belgian population per age group based on a study of Wu, 2020 (https://www.nature.com/articles/s41591-020-0822-7/figures/2).
 
-+ `deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`.
 
 #### Belgian Census 2011
 + `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
