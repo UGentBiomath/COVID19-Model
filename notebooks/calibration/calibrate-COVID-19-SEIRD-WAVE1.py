@@ -110,10 +110,12 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
+def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
+
+    # Convert time to timestamp
+    t = pd.Timestamp(t.date())
+
+    # Convert l to a date
     l_days = pd.Timedelta(l, unit='D')
 
     # Define additional dates where intensity or school policy changes
@@ -123,31 +125,24 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
     t4 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     if t <= t1:
-        t = pd.Timestamp(t.date())
         return all_contact(t)
-    elif t1 < t < t1 + tau_days:
-        t = pd.Timestamp(t.date())
+    elif t1 < t < t1 :
         return all_contact(t)
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        t = pd.Timestamp(t.date())
+    elif t1 < t <= t1 + l_days:
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        t = pd.Timestamp(t.date())
+        return ramp_fun(policy_old, policy_new, t, t1, l)
+    elif t1 + l_days < t <= t2:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t2 < t <= t3:
-        t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t3 < t <= t4:
-        t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)                     
     else:
-        t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
 
