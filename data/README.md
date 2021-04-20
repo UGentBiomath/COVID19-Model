@@ -210,6 +210,7 @@ Note: only saved locally and on S-drive (not on Git due to NDA). Contains proces
 
 + `sero_national_stratified_own` contains for every of the seven sampling waves and for 10 age groups the mean and 95% confidence interval on the seroprelevance of SARS-CoV-2 IGG antibodies. This dataset is made by analysing `~/data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv` using the script `~/notebooks/preprocessing/herzog-sero-data-analysis.py`. Currently, the positive samples are unweighted, the analysis is performed on the national level and the analysis does not account for the test sensitivity and specificity.
 + `sero_national_overall_herzog.csv` contains for every of the seven sampling waves, the non age-stratified seroprelevance in the Belgian population. Copied from table S1 in the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
++ `table_S1_Herzog.docx` contains table S1 from the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
 
 ### simulated
 
