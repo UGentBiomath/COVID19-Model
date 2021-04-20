@@ -134,8 +134,6 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
 
     if t <= t1:
         return all_contact(t)
-    elif t1 < t < t1 :
-        return all_contact(t)
     elif t1 < t <= t1 + l_days:
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
@@ -174,9 +172,9 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5
     UL = np.quantile(vector, q = UL, axis = 1)
     return mean, median, LL, UL
 
-################
-## JOB: R0  ##
-################
+###############
+##  JOB: R0  ##
+###############
 
 # --------------------
 # Calibration settings
@@ -195,13 +193,13 @@ else:
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 5
+multiplier = 20
 maxiter = 20
 popsize = multiplier*processes
 # MCMC settings
-max_n = 500
+max_n = 1000
 # Number of samples used to visualise model fit
-n_samples = 100
+n_samples = 50
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=1
 
@@ -212,9 +210,9 @@ n_draws_per_sample=1
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
 # Add the time-dependant parameter function arguments
-params.update({'l': 21, 'tau': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 60, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 # Define initial states
-initial_states = {"S": initN, "E": np.ones(9)}
+initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_wave1_4prev})
@@ -251,7 +249,7 @@ if job == 'R0':
 
     # set optimisation settings
     parNames = ['warmup','beta', 'omega', 'da']
-    bounds=((10,80),(0.020,0.10), (0.1,3.2), (3.0,9.0))
+    bounds=((10,80),(0.020,0.06), (0.1,3.2), (3.0,9.0))
 
     # run optimisation
     theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
@@ -270,7 +268,7 @@ if job == 'R0':
     # -----------------
 
     # Simulate
-    start_sim ='2020-03-10'
+    start_sim ='2020-03-15'
     end_sim = '2020-03-27'
     out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples={})
     # Plot
@@ -471,7 +469,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2020-07-01'
+    end_calibration = '2020-07-03'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
