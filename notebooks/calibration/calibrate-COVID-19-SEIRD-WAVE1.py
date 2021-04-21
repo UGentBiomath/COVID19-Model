@@ -95,8 +95,14 @@ df_sero.index = df_sero['collection_midpoint']
 df_sero.index = pd.to_datetime(df_sero.index)
 df_sero = df_sero.drop(columns=['collection_midpoint','age_cat'])
 df_sero['mean'] = df_sero['mean']*sum(initN) 
-df_sero['LL'] = df_sero['LL']*sum(initN)
-df_sero['UL'] = df_sero['UL']*sum(initN)
+df_sero_herzog = df_sero
+# Load and format serodata of Sciensano
+df_sero = pd.read_csv('../../data/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv', parse_dates=True)
+df_sero.index = df_sero['Date']
+df_sero.index = pd.to_datetime(df_sero.index)
+df_sero = df_sero.drop(columns=['Date'])
+df_sero['mean'] = df_sero['mean']*sum(initN) 
+df_sero_sciensano = df_sero
 
 # ------------------------
 # Define results locations
@@ -130,7 +136,8 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     t1 = pd.Timestamp('2020-03-15') # start of lockdown
     t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
     t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+    t4 = pd.Timestamp('2020-08-07') # end of 'second wave' in antwerp
+    t5 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     if t <= t1:
         return all_contact(t)
@@ -145,12 +152,21 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     elif t2 < t <= t3:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
-    elif t3 < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                     
+    ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
+    ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
+    ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
+    elif t3 < t <= t3 + l_days:
+        policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+        return ramp_fun(policy_old, policy_new, t, t3, l)
+    elif t3 + l_days < t <= t4:
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+    elif t4 < t <= t5:
+        return contact_matrix_4prev(t, prev_home, prev_schools, 0.01, 0.01, 
+                              school=0)                                          
     else:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+                              school=1)
 
 # ------------------------------
 # Function to add binomial draws
@@ -474,11 +490,11 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 10
-maxiter = 30
+multiplier = 5
+maxiter = 500
 popsize = multiplier*processes
 # MCMC settings
-max_n = 100000
+max_n = 500000
 # Number of samples used to visualise model fit
 n_samples = 100
 # Number of binomial draws per sample drawn used to visualize model fit
@@ -495,9 +511,9 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero['mean'][0:5]]
-states = ["H_in","R"]
-weights = [1,0.00005]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:8]]
+states = ["H_in", "R", "R"]
+weights = [1,0.00010,0.00005]
 
 # ------------------------
 # Define sampling function
@@ -513,17 +529,16 @@ def draw_fcn(param_dict,samples_dict):
 
 # optimisation settings
 parNames = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.02,0.08),(0.1,3),(0.1,7),(0.01,20),(0.01,0.20),(0.01,0.99),(0.01,0.99), (0.0001,0.01))
+bounds=((0.02,0.16),(0.5,3.2),(3,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (0.001,0.006))
 
 # run optimization
-theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-                    start_date=start_calibration, warmup=warmup, processes=processes,
-                    draw_fcn=draw_fcn, samples={})
-#theta = np.array([4.6312555, 0.48987751, 0.06857497, 0.65092582, 0.59764444]) # -81832.69698730254 calibration until 2020-07-01
-#theta = np.array([0.07483995, 0.1, 5.46754858, 10, 0.01, 0.0106490, 0.33680392,  0.33470686]) #-60968.5788714604 calibration until 2020-04-15
-#theta = np.array([0.08123533, 0.1, 4.42884154, 9.72942578, 0.01, 0.18277287, 0.36254125, 0.33299897]) #-41532.115553405034 calibration until 2020-04-04
-#theta = np.array([0.06024783, 0.6001464, 5.58126417, 8.95809293, 0.01, 0.16470763, 0.34932575, 0.43147353]) #-75222.8257943515
-                   
+#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes,
+#                    draw_fcn=draw_fcn, samples={})
+
+theta = np.array([7.38294507e-02, 1.13988094e+00, 5.34869023e+00, 8.78831992e+00, 3.06892785e-01, 1.94999797e-01, 9.57943680e-01, 4.32192275e-03]) #-86238.79854636775
+
+
 # assign results
 model.parameters['beta'] = theta[0]
 model.parameters['omega'] = theta[1]
@@ -540,7 +555,7 @@ model.parameters['zeta'] =  theta[7]
 
 # Simulate
 start_sim = '2020-03-10'
-end_sim = '2020-08-01'
+end_sim = '2020-09-09'
 out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
 # Plot hospitalizations
 fig,(ax1,ax2) = plt.subplots(nrows=2,ncols=1,figsize=(12,8),sharex=True)
@@ -552,7 +567,8 @@ ax1.set_xlim(start_sim,end_sim)
 ax1.set_ylabel('$H_{in}$ (-)')
 # Plot fraction of immunes
 ax2.plot(out['time'],out['R'].sum(dim='Nc')/sum(initN)*100,'--', color='blue')
-ax2.errorbar(x=df_sero.index,y=df_sero['mean']/sum(initN)*100,yerr=[(df_sero['LL'].values)/sum(initN)*100,(df_sero['UL'].values)/sum(initN)*100], fmt='o', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
+ax2.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['mean']/sum(initN)*100,yerr=[(df_sero_herzog['LL'].values)/sum(initN)*100,(df_sero_herzog['UL'].values)/sum(initN)*100], fmt='x', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
+ax2.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['mean']/sum(initN)*100,yerr=[(df_sero_sciensano['LL'].values)/sum(initN)*100,(df_sero_sciensano['UL'].values)/sum(initN)*100], fmt='^', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_xlim(start_sim,end_sim)
 ax2.set_ylabel('Seroprelevance (%)')
@@ -574,25 +590,27 @@ plt.show()
 # Setup uniform priors
 parNames_mcmc = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.01,0.12), (0.1,5.1), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0,0.01)]
+log_prior_fnc_args = [(0.01,0.12), (0.1,5.1), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0.00001,0.01)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*2
+nwalkers = ndim*3
 
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
-pos[:,0] = theta[0] + theta[0]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # Omega and da
-pos[:,1] = theta[1] + theta[1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
-pos[:,2] = theta[2] + theta[2]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l
-pos[:,3] = theta[3] + theta[3]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
-pos[:,4] = theta[4] + theta[4]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # other prevention
-pos[:,5:7] = theta[5:7] + theta[5:7]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers,len(theta[5:7])))
+pos[:,5] = theta[5] + theta[5]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+# home prevention
+pos[:,6] = theta[6] + theta[6]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # zeta
-pos[:,-1] = theta[-1] + theta[-1]*1e-1*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,-1] = theta[-1] + theta[-1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 
 # Set up the sampler backend
 if backend:
@@ -626,7 +644,7 @@ with Pool() as pool:
         # UPDATE FIGURES #
         ################## 
 
-        # Compute the autocorrelation time so far
+        # Compute the autocorrelatbinomialion time so far
         tau = sampler.get_autocorr_time(tol=0)
         autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
         index += 1
@@ -708,7 +726,6 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['da'] = samples_dict['da'][idx]
     param_dict['omega'] = samples_dict['omega'][idx]
     param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
-    param_dict['tau'] = samples_dict['tau'][idx] 
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
