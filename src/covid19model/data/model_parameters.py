@@ -141,6 +141,33 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
 
+def get_integrated_interaction_matrices():
+    """Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the number of hours of the contact.
+
+	Returns
+	-------
+    integrated_matrices: dict
+        Dictionary containing the integrated interaction matrices per place.
+        Dictionary keys: ['Nc_home', 'Nc_work', 'Nc_schools', 'Nc_transport', 'Nc_leisure', 'Nc_others', 'Nc_total']
+    """
+
+    # Define intensities
+    intensities = ['all', 'less_5_min', 'less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours']
+    # Define places
+    places = ['Nc_home', 'Nc_work', 'Nc_schools', 'Nc_transport', 'Nc_leisure', 'Nc_others', 'Nc_total']
+    # Get matrices at defined intensities
+    matrices_raw = {}
+    for idx, intensity in enumerate(intensities):
+        matrices_raw.update({intensities[idx]: get_interaction_matrices(dataset='willem_2012', intensity = intensity)[1:]})
+
+    # Integrate matrices at defined intensities
+    integrated_matrices = {}
+    for idx, place in enumerate(places):
+        integration = matrices_raw['less_5_min'][idx]*2.5/60 + (matrices_raw['less_15_min'][idx] - matrices_raw['less_5_min'][idx])*10/60 + (matrices_raw['more_15_min'][idx] - matrices_raw['more_one_hour'][idx])*37.5/60 + (matrices_raw['more_one_hour'][idx] - matrices_raw['more_four_hours'][idx])*150/60 + matrices_raw['more_four_hours'][idx]*240/60
+        integrated_matrices.update({place: integration})
+
+    return integrated_matrices
+
 def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
