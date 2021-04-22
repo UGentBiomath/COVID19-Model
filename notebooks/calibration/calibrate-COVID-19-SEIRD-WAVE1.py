@@ -485,7 +485,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2020-07-03'
+    end_calibration = '2020-07-23'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
@@ -511,9 +511,14 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:8]]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:9]]
+index_max=[]
+for idx, d in enumerate(data):
+    index_max.append(d.index.max())
+end_calibration = max(index_max)
 states = ["H_in", "R", "R"]
-weights = [1,0.00010,0.00005]
+weight_sciensano = 0.0001
+weights = [1,(9/5)*weight_sciensano,weight_sciensano]
 
 # -----------
 # Perform PSO
@@ -521,13 +526,13 @@ weights = [1,0.00010,0.00005]
 
 # optimisation settings
 parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.02,0.16),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (0.001,0.006))
+bounds=((0.02,0.16),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (1e-4,1e-2))
 
 # run optimization
 #theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-theta = np.array([9.90240798e-02, 4.00122085e+00, 1.00746467e+01, 1.00000000e-01, 4.46666228e-01, 9.32577369e-01, 3.95595248e-03]) #-89071.63101083454
+theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
 
 # assign results
 model.parameters['beta'] = theta[0]
@@ -579,7 +584,7 @@ plt.show()
 # Setup uniform priors
 parNames_mcmc = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0.00001,0.01)]
+log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*3
 
