@@ -257,3 +257,13 @@ ax.set_yticks([])
 ax.spines['left'].set_visible(False)
 plt.tight_layout()
 plt.show()
+
+print('4) Saving model states on 2020-09-01 \n')
+
+initial_states = {}
+for state in list(out.data_vars.keys()):
+    initial_states.update({state: list(out[state].mean(dim='draws').sel(time=pd.to_datetime('2020-09-01'), method='nearest').values)})
+
+samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+with open(samples_path+'initial_states_2020-09-01.json', 'w') as fp:
+    json.dump(initial_states, fp)
