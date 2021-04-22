@@ -143,11 +143,10 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     elif t3 + l_days < t <= t4:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
     elif t4 < t <= t5:
-        return contact_matrix_4prev(t, prev_home, prev_schools, 0.01, 0.01, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
                               school=0)                                          
     else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
 
 # ------------------------------
 # Function to add poisson draws
@@ -176,8 +175,6 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5
 def draw_fcn(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
@@ -249,9 +246,11 @@ print('3) Visualizing resusceptibility samples \n')
 
 fig,ax = plt.subplots(figsize=(12,4))
 data = 1/np.array(samples_dict['zeta'])/31
-data = data[data <= 18]
+data = data[data <= 32]
+print(np.quantile(data, q=0.25), np.median(data), np.quantile(data, q=0.75))
 ax.hist(data, density=True, bins=9, color='blue')
 ax.set_xlabel('Estimated time to seroreversion (months)')
+ax.set_xlim([0,32])
 ax.xaxis.grid(False)
 ax.yaxis.grid(False)
 ax.set_yticks([])
