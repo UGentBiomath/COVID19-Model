@@ -248,7 +248,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
 
         # Wu et al.
         df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
-        pars_dict['a']  = np.array(df_asymp['result'][0:9].values)
+        pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
 
         # Davies et al.
         #np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
