@@ -162,7 +162,7 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     elif t3 + l_days < t <= t4:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
     elif t4 < t <= t5:
-        return contact_matrix_4prev(t, prev_home, prev_schools, 0.01, 0.01, 
+        return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
                               school=0)                                          
     else:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
@@ -491,7 +491,7 @@ else:
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 5
-maxiter = 500
+maxiter = 50
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -515,39 +515,28 @@ data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['m
 states = ["H_in", "R", "R"]
 weights = [1,0.00010,0.00005]
 
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    param_dict['sigma'] = 5.2 - param_dict['omega']
-    return param_dict
-
 # -----------
 # Perform PSO
 # -----------
 
 # optimisation settings
-parNames = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.02,0.16),(0.5,3.2),(3,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (0.001,0.006))
+parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
+bounds=((0.02,0.16),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (0.001,0.006))
 
 # run optimization
 #theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples={})
+#                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-theta = np.array([7.38294507e-02, 1.13988094e+00, 5.34869023e+00, 8.78831992e+00, 3.06892785e-01, 1.94999797e-01, 9.57943680e-01, 4.32192275e-03]) #-86238.79854636775
-
+theta = np.array([9.90240798e-02, 4.00122085e+00, 1.00746467e+01, 1.00000000e-01, 4.46666228e-01, 9.32577369e-01, 3.95595248e-03]) #-89071.63101083454
 
 # assign results
 model.parameters['beta'] = theta[0]
-model.parameters['omega'] = theta[1]
-model.parameters['da'] = theta[2]
-model.parameters['l'] = theta[3]
-model.parameters['prev_work'] = theta[4]
-model.parameters['prev_rest'] = theta[5]
-model.parameters['prev_home'] =  theta[6]   
-model.parameters['zeta'] =  theta[7]   
+model.parameters['da'] = theta[1]
+model.parameters['l'] = theta[2]
+model.parameters['prev_work'] = theta[3]
+model.parameters['prev_rest'] = theta[4]
+model.parameters['prev_home'] =  theta[5]   
+model.parameters['zeta'] =  theta[6]   
 
 # -----------------
 # Visualise PSO fit
@@ -556,7 +545,7 @@ model.parameters['zeta'] =  theta[7]
 # Simulate
 start_sim = '2020-03-10'
 end_sim = '2020-09-09'
-out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
+out = model.sim(end_sim,start_date=start_calibration,warmup=warmup)
 # Plot hospitalizations
 fig,(ax1,ax2) = plt.subplots(nrows=2,ncols=1,figsize=(12,8),sharex=True)
 ax1.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
@@ -588,9 +577,9 @@ plt.show()
 #log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
 
 # Setup uniform priors
-parNames_mcmc = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.01,0.12), (0.1,5.1), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0.00001,0.01)]
+parNames_mcmc = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
+log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (0.00001,0.01)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*3
 
@@ -598,19 +587,18 @@ nwalkers = ndim*3
 pos = np.zeros([nwalkers,ndim])
 # Beta
 pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-# Omega and da
+# da
 pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l
-pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
-pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # other prevention
-pos[:,5] = theta[5] + theta[5]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # home prevention
-pos[:,6] = theta[6] + theta[6]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,5] = theta[5] + theta[5]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # zeta
-pos[:,-1] = theta[-1] + theta[-1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 
 # Set up the sampler backend
 if backend:
@@ -630,7 +618,10 @@ old_tau = np.inf
 # Initialize autocorr vector and autocorrelation figure
 autocorr = np.zeros([1,ndim])
 # Initialize the labels
-labels = ['beta','omega','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
+labels = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
+
+def draw_fcn(param_dict,samples_dict):
+    return param_dict
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
@@ -674,8 +665,8 @@ with Pool() as pool:
         # CHECK CONVERGENCE #
         ##################### 
 
-        # Check convergence using mean tau
-        converged = np.all(np.mean(tau) * 50 < sampler.iteration)
+        # Check convergence using max tau
+        converged = np.all(np.max(tau) * 50 < sampler.iteration)
         converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
         if converged:
             break
@@ -724,8 +715,6 @@ with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.json', 'w') 
 def draw_fcn(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
     param_dict['l'] = samples_dict['l'][idx] 
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
