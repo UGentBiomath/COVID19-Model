@@ -83,8 +83,27 @@ run_date = str(datetime.date.today())
 
 # Contact matrices
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+#Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+rel_home = sum(np.mean(Nc_home,axis=1))/sum(np.mean(Nc_total,axis=1))
+rel_work = sum(np.mean(Nc_work,axis=1))/sum(np.mean(Nc_total,axis=1))
+rel_schools = sum(np.mean(Nc_schools,axis=1))/sum(np.mean(Nc_total,axis=1))
+rel_leisure = sum(np.mean(Nc_leisure,axis=1))/sum(np.mean(Nc_total,axis=1))
+
+print(rel_home, rel_work, rel_schools, rel_leisure)
+
 levels = initN.size
+
+# Use time-integrated matrices instead
+intmat = model_parameters.get_integrated_interaction_matrices()
+Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
+
+rel_home = sum(np.mean(intmat['Nc_home'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
+rel_work = sum(np.mean(intmat['Nc_work'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
+rel_schools = sum(np.mean(intmat['Nc_schools'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
+rel_leisure = sum(np.mean(intmat['Nc_leisure'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
+
+print(rel_home, rel_work, rel_schools, rel_leisure)
+
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
@@ -491,7 +510,7 @@ else:
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 5
-maxiter = 50
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -526,13 +545,13 @@ weights = [1,(9/5)*weight_sciensano,weight_sciensano]
 
 # optimisation settings
 parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.02,0.16),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.70,0.99), (1e-4,1e-2))
+bounds=((0.01,0.08),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,1e-2))
 
 # run optimization
-#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
+theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
+#theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
 
 # assign results
 model.parameters['beta'] = theta[0]
@@ -601,9 +620,10 @@ pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalk
 # other prevention
 pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # home prevention
-pos[:,5] = theta[5] + theta[5]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # zeta
-pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,6] = np.random.uniform(low=2e-4,high=5e-3,size=(nwalkers))
 
 # Set up the sampler backend
 if backend:
