@@ -142,7 +142,15 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
 
 def get_integrated_interaction_matrices():
-    """Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the number of hours of the contact.
+    """
+    Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the number of hours of the contact.
+    The relative share of contacts changes as follows by integrating with the duration of the contact:
+        home: 12% --> 22%
+        work: 35% --> 30%
+        schools: 11% --> 13%
+        leisure: 20% --> 18%
+        transport: 4% --> 2%
+        others: 19% --> 15%
 
 	Returns
 	-------

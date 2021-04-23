@@ -83,27 +83,10 @@ run_date = str(datetime.date.today())
 
 # Contact matrices
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
-#Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
-rel_home = sum(np.mean(Nc_home,axis=1))/sum(np.mean(Nc_total,axis=1))
-rel_work = sum(np.mean(Nc_work,axis=1))/sum(np.mean(Nc_total,axis=1))
-rel_schools = sum(np.mean(Nc_schools,axis=1))/sum(np.mean(Nc_total,axis=1))
-rel_leisure = sum(np.mean(Nc_leisure,axis=1))/sum(np.mean(Nc_total,axis=1))
-
-print(rel_home, rel_work, rel_schools, rel_leisure)
-
 levels = initN.size
-
-# Use time-integrated matrices instead
+# Use time-integrated matrices
 intmat = model_parameters.get_integrated_interaction_matrices()
 Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
-
-rel_home = sum(np.mean(intmat['Nc_home'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
-rel_work = sum(np.mean(intmat['Nc_work'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
-rel_schools = sum(np.mean(intmat['Nc_schools'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
-rel_leisure = sum(np.mean(intmat['Nc_leisure'],axis=1))/sum(np.mean(intmat['Nc_total'],axis=1))
-
-print(rel_home, rel_work, rel_schools, rel_leisure)
-
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
@@ -176,10 +159,10 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
     elif t3 < t <= t3 + l_days:
         policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
         return ramp_fun(policy_old, policy_new, t, t3, l)
     elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
     elif t4 < t <= t5:
         return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
                               school=0)                                          
@@ -504,7 +487,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2020-07-23'
+    end_calibration = '2020-07-08'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
@@ -530,14 +513,14 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:9]]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:8]]
 index_max=[]
 for idx, d in enumerate(data):
     index_max.append(d.index.max())
 end_calibration = max(index_max)
 states = ["H_in", "R", "R"]
 weight_sciensano = 0.0001
-weights = [1,(9/5)*weight_sciensano,weight_sciensano]
+weights = [1,(8/5)*weight_sciensano,weight_sciensano] # sciensano dataset has more datapoints, which would give it more weight over Sereina Herzog's dataset
 
 # -----------
 # Perform PSO
@@ -545,13 +528,17 @@ weights = [1,(9/5)*weight_sciensano,weight_sciensano]
 
 # optimisation settings
 parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.01,0.08),(4,9),(0.01,15),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,1e-2))
+bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
 
 # run optimization
 theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes)
 
+# Until 2020-07-23
 #theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
+#theta = np.array([2.94212070e-02, 8.30129572e+00, 9.16276498e+00, 1.00000000e-01, 1.00000000e-01, 5.00000000e-01, 2.36883803e-03]) # -95325.77403262131
+# Until 2020-07-07
+theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
 
 # assign results
 model.parameters['beta'] = theta[0]
@@ -605,25 +592,28 @@ parNames_mcmc = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
 ndim = len(parNames_mcmc)
-nwalkers = ndim*3
+nwalkers = ndim*2
 
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
-pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,0] = theta[0] + theta[0]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # da
-pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,1] = theta[1] + theta[1]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l
-pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
-pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,3] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # other prevention
 pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # home prevention
-pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,5] = np.random.uniform(low=0.30,high=0.80,size=(nwalkers))
 # zeta
 #pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-pos[:,6] = np.random.uniform(low=2e-4,high=5e-3,size=(nwalkers))
+pos[:,6] = np.random.uniform(low=1e-4,high=4e-3,size=(nwalkers))
 
 # Set up the sampler backend
 if backend:
