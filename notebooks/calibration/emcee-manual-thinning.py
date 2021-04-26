@@ -83,14 +83,14 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # -------------------------------------------------------
 
 # Chains beta
-#idx = np.mean(samples[:,:,0],axis=0) >= 0.080
-#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undersired chains\n')
+#idx = np.mean(samples[:,:,0],axis=0) > 0.030
+#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
 #samples=samples[:,idx,:]
 
-# # Convert to flat samples
-# flat_samples = samples[:,0,:]
-# for i in range(1,samples.shape[1]):
-#     flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
+# Convert to flat samples
+#flat_samples = samples[:,0,:]
+#for i in range(1,samples.shape[1]):
+#    flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
 
 # -----------------
 # Make a cornerplot
