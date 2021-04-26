@@ -36,7 +36,6 @@ df=df.drop(columns=['admission_data','discharge_data'])
 # Only if admission data, discharge data, status of discharge and ICU transfer is known, the data can be used by our model
 df.dropna(subset=['dt_admission'], inplace=True)
 print(df.shape[0])
-print(df['dt_admission'].isnull().sum())
 
 df.dropna(subset=['dt_discharge'], inplace=True)
 print(df.shape[0])
@@ -75,16 +74,9 @@ df['age_class'] = pd.cut(df.age, bins=age_classes)
 df.drop(df[((df['dt_discharge'] - df['dt_admission'])/datetime.timedelta(days=1)) < 0].index, inplace=True)
 print(df.shape[0])
 
-# Remove all residence times larger than 90 days
-df.drop(df[((df['dt_discharge'] - df['dt_admission'])/datetime.timedelta(days=1)) >= 90].index, inplace=True)
+# Remove all residence times larger than 180 days
+df.drop(df[((df['dt_discharge'] - df['dt_admission'])/datetime.timedelta(days=1)) >= 180].index, inplace=True)
 print(df.shape[0])
-
-#dC_vector=((df['dt_discharge'][df.ICU_transfer=='Non'] - df['dt_admission'][df.ICU_transfer=='Non'])/datetime.timedelta(days=1))
-#fig,ax=plt.subplots()
-#ax.hist(dC_vector,bins=10, density=True, color='blue', alpha=0.4)
-#ax.axvline(np.mean(dC_vector),color='black')
-#ax.axvline(np.median(dC_vector),color='red')
-#plt.show()
 
 # --------------------------------
 # Initialize dataframe for results
@@ -100,18 +92,16 @@ tuples = list(zip(*columns))
 columns = pd.MultiIndex.from_tuples(tuples, names=["parameter", "quantity"])
 residence_times = pd.DataFrame(index=age_classes, columns=columns)
 
-# ---------------------------
-# Compute fraction parameters
-# ---------------------------
+# -------------------------------------------
+# Compute fraction parameters point estimates
+# -------------------------------------------
 
 # Sample size
 fractions['total_sample_size']=df.groupby(by='age_class').apply(lambda x: x.age.count())
 # Hospitalization propensity
 fractions['admission_propensity']=df.groupby(by='age_class').apply(lambda x: x.age.count())/df.shape[0]
 # Distribution cohort/icu
-fractions['c'] = df.groupby(by='age_class').apply(
-                                lambda x: x[x.ICU_transfer=='Non'].age.count()/
-                                          x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count())
+fractions['c'] = df.groupby(by='age_class').apply(lambda x: x[x.ICU_transfer=='Non'].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count())
 # Mortalities
 fractions['m0']=df.groupby(by='age_class').apply(
                                 lambda x: x[( (x.status_discharge=='D'))].age.count()/
@@ -123,24 +113,43 @@ fractions['m0_{C}']= df.groupby(by='age_class').apply(
                                 lambda x: x[((x.ICU_transfer=='Non') & (x.status_discharge=='D'))].age.count()/
                                           x[x.ICU_transfer.isin(['Non'])].age.count())
 
-# Bootstrap the mortalities
-subset_size = 120
-n = 500
+fractions_samples = pd.DataFrame(index=age_classes, columns=[])
+fractions_samples_total  = pd.DataFrame(index=['total'], columns=[])
 
-m0_lst = []
-for idx in range(n):
-    samples = df.groupby(by='age_class').apply(lambda x: x.sample(n=subset_size,replace=True))
-    samples=samples.drop(columns='age_class')
-    m0 = samples.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count())
-    m0_lst.append(m0[1])
-    #samples = df.sample(n=subset_size,replace=True)
-    #m0_lst.append(samples.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count()).values[1])
+# -----------------------------
+# Bootstrap fraction parameters
+# -----------------------------
 
-fig,ax=plt.subplots()
-ax.hist(m0_lst,bins=15,density=True)
-ax.set_xlim([0,1])
-plt.show()
+subset_size = 1000
+n = 200
 
+# First axis: parameter: c, m0, m0_C, m0_ICU
+# Second axis: age group
+# Third axis: bootstrap sample
+bootstrap_fractions = np.zeros([4, len(age_classes), n])
+
+# Loop over parameters
+for idx in range(4):
+    for jdx in range(n):
+        smpl = df.groupby(by='age_class').apply(lambda x: x.sample(n=subset_size,replace=True))
+        smpl=smpl.drop(columns='age_class')
+        if idx == 0:
+            bootstrap_fractions[idx,:,jdx] = smpl.groupby(by='age_class').apply(lambda x: x[x.ICU_transfer=='Non'].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count()).values
+        elif idx == 1:
+            bootstrap_fractions[idx,:,jdx] = smpl.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui', 'Non'])].age.count()).values
+        elif idx == 2:
+            bootstrap_fractions[idx,:,jdx] = smpl.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Non'])].age.count()).values
+        elif idx == 3:
+            bootstrap_fractions[idx,:,jdx] = smpl.groupby(by='age_class').apply(lambda x: x[( (x.status_discharge=='D'))].age.count()/x[x.ICU_transfer.isin(['Oui'])].age.count()).values
+
+# Save as .npy
+with open('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy', 'wb') as f:
+    np.save(f,bootstrap_fractions)
+
+#fig,ax=plt.subplots()
+#ax.hist(bootstrap_fractions[1,-1,:],bins='auto',density=True,alpha=0.5)
+#ax.set_xlim([0,1])
+#plt.show()
 
 # -----------------------
 # Compute residence times

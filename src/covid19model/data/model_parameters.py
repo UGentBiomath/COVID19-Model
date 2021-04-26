@@ -287,7 +287,6 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
 
         # Davies et al.
-        #np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
         pars_dict['s'] =  np.ones(9)
 
         # vaccination

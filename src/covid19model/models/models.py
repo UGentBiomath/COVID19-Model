@@ -233,8 +233,6 @@ class COVID19_SEIRD(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        d_transfer = 0.1
-        #dICUrec = 1
 
         dS  = - (IP_old + IP_new)*S + zeta*R 
         dE  = (IP_old + IP_new)*S - E/sigma 
@@ -242,14 +240,16 @@ class COVID19_SEIRD(BaseModel):
         dA = (a/omega)*I - A/da      
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
         dC_pre = M*(h_new/dhospital) - (1/d_transfer)*C_pre
-        dC = (1-m_C)*c*(1/d_transfer)*C_pre - (1-m_C)*C*(1/(dc_R-d_transfer)) - m_C*C*(1/(dc_D-d_transfer))
-        dICUstar = (1-m_C)*(1-c)*(1/d_transfer)*C_pre - (1-m_ICU)*ICU/(dICU_R-d_transfer-dICUrec) - m_ICU*ICU/(dICU_D-d_transfer)
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R-d_transfer-dICUrec) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R-d_transfer)) + C_icurec*(1/dICUrec) - zeta*R 
-        dD  = (m_ICU/(dICU_D-d_transfer))*ICU + (m_C/(dc_D-d_transfer))*C + m_C*(1/d_transfer)*C_pre
+
+        dC = (1-m_C)*c*(1/d_transfer)*C_pre - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = (1-m_C)*(1-c)*(1/d_transfer)*C_pre - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C + (m_C/d_transfer)*C_pre
         dH_in = M*(h_new/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/(dc_R-d_transfer)) +  m_C*C*(1/(dc_D-d_transfer)) + m_ICU/(dICU_D-d_transfer)*ICU + C_icurec*(1/dICUrec) + m_C*(1/d_transfer)*C_pre - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R-d_transfer)) - m_C*C*(1/(dc_D-d_transfer)) - m_ICU*ICU/(dICU_D-d_transfer)- C_icurec*(1/dICUrec) - m_C*(1/d_transfer)*C_pre
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) + (m_C/d_transfer)*C_pre - H_out
+        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) - (m_C/d_transfer)*C_pre
 
         return (dS, dE, dI, dA, dM, dC_pre, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
