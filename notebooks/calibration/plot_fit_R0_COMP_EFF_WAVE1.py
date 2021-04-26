@@ -70,6 +70,10 @@ conf_int = 0.05
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
 Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 levels = initN.size
+
+intmat = model_parameters.get_integrated_interaction_matrices()
+Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
+
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
@@ -138,10 +142,10 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
     elif t3 < t <= t3 + l_days:
         policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
         return ramp_fun(policy_old, policy_new, t, t3, l)
     elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.52, school=0)
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
     elif t4 < t <= t5:
         return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
                               school=0)                                          
