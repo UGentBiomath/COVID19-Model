@@ -141,6 +141,41 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
     Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
 
+def get_integrated_interaction_matrices():
+    """
+    Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the number of hours of the contact.
+    The relative share of contacts changes as follows by integrating with the duration of the contact:
+        home: 12% --> 22%
+        work: 35% --> 30%
+        schools: 11% --> 13%
+        leisure: 20% --> 18%
+        transport: 4% --> 2%
+        others: 19% --> 15%
+
+	Returns
+	-------
+    integrated_matrices: dict
+        Dictionary containing the integrated interaction matrices per place.
+        Dictionary keys: ['Nc_home', 'Nc_work', 'Nc_schools', 'Nc_transport', 'Nc_leisure', 'Nc_others', 'Nc_total']
+    """
+
+    # Define intensities
+    intensities = ['all', 'less_5_min', 'less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours']
+    # Define places
+    places = ['Nc_home', 'Nc_work', 'Nc_schools', 'Nc_transport', 'Nc_leisure', 'Nc_others', 'Nc_total']
+    # Get matrices at defined intensities
+    matrices_raw = {}
+    for idx, intensity in enumerate(intensities):
+        matrices_raw.update({intensities[idx]: get_interaction_matrices(dataset='willem_2012', intensity = intensity)[1:]})
+
+    # Integrate matrices at defined intensities
+    integrated_matrices = {}
+    for idx, place in enumerate(places):
+        integration = matrices_raw['less_5_min'][idx]*2.5/60 + (matrices_raw['less_15_min'][idx] - matrices_raw['less_5_min'][idx])*10/60 + (matrices_raw['more_15_min'][idx] - matrices_raw['more_one_hour'][idx])*37.5/60 + (matrices_raw['more_one_hour'][idx] - matrices_raw['more_four_hours'][idx])*150/60 + matrices_raw['more_four_hours'][idx]*240/60
+        integrated_matrices.update({place: integration})
+
+    return integrated_matrices
+
 def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
@@ -248,14 +283,18 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
         # verity_etal
-        #df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
-        #pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
+        pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        # Overwrite manually to new sciensano data driven estimate 
+        pars_dict['h'] =  np.array([0.01475, 0.00657, 0.0220, 0.0387, 0.07069, 0.12579, 0.16006, 0.2155, 0.34568])
 
-        # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
-        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        #pars_dict['a'] = np.array([0.94, 0.90, 0.84, 0.61, 0.49, 0.21, 0.02, 0.02, 0.02])
-        pars_dict['s'] =  np.ones(9)#np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        # Wu et al.
+        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
+        pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
+
+        # Davies et al.
+        #np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        pars_dict['s'] =  np.ones(9)
 
         # vaccination
         if vaccination == True:
@@ -350,9 +389,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['beta_M'] = 0.03492 # metropolitan
         
     # Co-infection model: infectivity gain
-    pars_dict['K_inf'] = 0
-    pars_dict['K_hosp'] = 0
-    pars_dict['injection_day'] = 0
-    pars_dict['injection_ratio'] = 0
+    pars_dict['alpha'] = 0
+    pars_dict['K_inf'] = 1
+    pars_dict['K_hosp'] = 1
 
     return pars_dict

@@ -101,6 +101,15 @@ split between general population and elderly homes. Data from https://m.standaar
 + `costs_hospital_belgium.csv` contains the reported total costs of medical treatment per disease category in Belgium for 2018. The data was corrected for inflation, combined with cost per QALY information and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'.  Data obtained from: https://tct.fgov.be/webetct/etct-web/html/fr/index.jsp .
 + `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
 
+#### VOCs
+
++ `sequencing_501YV1_501YV2_501YV3.csv` contains the total number of sequenced samples and the number of samples of variants 501Y.V1 (British), 501Y.V2 (South African) and 501Y.V3 (Brazilian). Data available from week 49 of 2020 until week 14 of 2021. Data download from Tom Wenseleer's Git (https://github.com/tomwenseleers/newcovid_belgium); folder `~/data/2021_04_16/sequencing_501YV1_501YV2_501YV3.csv`.
+
+#### Seroprelevance
+
++ `Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv` contains the overall seroprelevance in the Belgian population with confidence bounds. Downloaded from https://datastudio.google.com/embed/reporting/7e11980c-3350-4ee3-8291-3065cc4e90c2/page/R4nqB on 2021-04-19 by right clicking on a datapoint and selecting 'csv downloaden'.
++ `serology_covid19_belgium_round_1_to_7_v20210406.csv` contains the measured amount of antibodies of samples per province, per age group and in seven sampling waves. Downloaded from https://zenodo.org/record/4665373#.YH116nUzaV4 on 2021-04-19.
+
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
@@ -122,9 +131,10 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 #### Model parameters
 
-+ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
++ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. The analysis is performed using the script `~/notebooks/preprocessing/AZMM-UZG-hospital-data-analysis`.
++ `sciensano_hospital_parameters.csv` contains age-stratified estimates for the hospital parameters of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
++ `wu_asymptomatic_fraction.xlsx` contains the computation of the symptomatic fraction of the Belgian population per age group based on a study of Wu, 2020 (https://www.nature.com/articles/s41591-020-0822-7/figures/2).
 
-+ `deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`.
 
 #### Belgian Census 2011
 + `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
@@ -195,6 +205,12 @@ All economic data from the data/raw/economical was converted using the script `n
 Note: only saved locally and on S-drive (not on Git due to NDA). Contains processed origin-destination matrices at the level of municipalities, arrondissements and provinces:
 + staytime: `fractional-mobility-matrix_staytime_*_*.csv`: origin-destination matrices in terms of estimated length of stay, normalised over the total available time. Subtracted 8 hours of sleep per day, and corrected for the GDPR-protected -1 values
 + baseline: `fractional-mobility-matrix_staytime_arr_baseline-*.csv`: normalised origin-destination matrix for three distinct periods: business days, weekends and vacation days. These may be used to distinguish how many additional people were forced to stay at home, and/or to estimate the goal of travel (work/leisure/...)
+
+#### seroprelevance
+
++ `sero_national_stratified_own` contains for every of the seven sampling waves and for 10 age groups the mean and 95% confidence interval on the seroprelevance of SARS-CoV-2 IGG antibodies. This dataset is made by analysing `~/data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv` using the script `~/notebooks/preprocessing/herzog-sero-data-analysis.py`. Currently, the positive samples are unweighted, the analysis is performed on the national level and the analysis does not account for the test sensitivity and specificity.
++ `sero_national_overall_herzog.csv` contains for every of the seven sampling waves, the non age-stratified seroprelevance in the Belgian population. Copied from table S1 in the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
++ `table_S1_Herzog.docx` contains table S1 from the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
 
 ### simulated
 

@@ -16,10 +16,10 @@ Cornerplot of MCMC chains.
 Example use:
 ------------
 python npy_to_samples_dict.py
-    -f BE_WAVE1_BETA_2021-01-27.npy
-    -k 'beta' 'omega' 'da'
+    -f BE_WAVE1_R0_COMP_EFF_2021-04-20.npy
+    -k 'beta' 'omega' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
     -ak 'warmup' 'n_chains_beta'
-    -av 39 36
+    -av 32 16
 """
 
 __author__      = "Tijs Alleman"
