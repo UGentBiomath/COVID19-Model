@@ -195,16 +195,16 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C_pre', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'd_transfer', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
+    def integrate(t, S, E, I, A, M, C_pre, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, d_transfer, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -251,7 +251,7 @@ class COVID19_SEIRD(BaseModel):
         dH_out =  (1-m_C)*C*(1/(dc_R-d_transfer)) +  m_C*C*(1/(dc_D-d_transfer)) + m_ICU/(dICU_D-d_transfer)*ICU + C_icurec*(1/dICUrec) + m_C*(1/d_transfer)*C_pre - H_out
         dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R-d_transfer)) - m_C*C*(1/(dc_D-d_transfer)) - m_ICU*ICU/(dICU_D-d_transfer)- C_icurec*(1/dICUrec) - m_C*(1/d_transfer)*C_pre
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        return (dS, dE, dI, dA, dM, dC_pre, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
 class COVID19_SEIRD_vacc(BaseModel):
