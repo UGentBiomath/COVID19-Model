@@ -121,7 +121,7 @@ fractions_samples_total  = pd.DataFrame(index=['total'], columns=[])
 # -----------------------------
 
 subset_size = 1000
-n = 200
+n = 1000
 
 # First axis: parameter: c, m0, m0_C, m0_ICU
 # Second axis: age group
