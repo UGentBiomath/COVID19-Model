@@ -531,8 +531,8 @@ parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
 
 # run optimization
-theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-                    start_date=start_calibration, warmup=warmup, processes=processes)
+#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes)
 
 # Until 2020-07-23
 #theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
@@ -597,20 +597,20 @@ nwalkers = ndim*2
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
-pos[:,0] = theta[0] + theta[0]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # da
-pos[:,1] = theta[1] + theta[1]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l
-pos[:,2] = theta[2] + theta[2]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
 #pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,3] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # other prevention
-pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,4] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # home prevention
 #pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-pos[:,5] = np.random.uniform(low=0.30,high=0.80,size=(nwalkers))
+pos[:,5] = np.random.uniform(low=0.50,high=0.90,size=(nwalkers))
 # zeta
 #pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,6] = np.random.uniform(low=1e-4,high=4e-3,size=(nwalkers))
