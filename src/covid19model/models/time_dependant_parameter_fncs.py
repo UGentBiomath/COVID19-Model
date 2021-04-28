@@ -180,7 +180,7 @@ def make_mobility_update_func():
 #     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def mobility_update_func(t, states, param, all_mobility_data, average_mobility_data, default_mobility=None):
         try: # if there is data available for this date (if the key exists)
-            place = all_mobility_data.loc[pd.to_datetime(t), 'place']
+            place = all_mobility_data.loc[pd.to_datetime(t.date()), 'place']
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
                 place = default_mobility
