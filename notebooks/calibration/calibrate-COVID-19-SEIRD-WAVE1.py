@@ -159,10 +159,10 @@ def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest
     ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
     elif t3 < t <= t3 + l_days:
         policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
+        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
         return ramp_fun(policy_old, policy_new, t, t3, l)
     elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.80, school=0)
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
     elif t4 < t <= t5:
         return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
                               school=0)                                          
@@ -502,9 +502,9 @@ n_samples = 100
 # Number of binomial draws per sample drawn used to visualize model fit
 n_draws_per_sample=1
 
-print('\n---------------------------------------------------------------------')
-print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
-print('---------------------------------------------------------------------\n')
+print('\n------------------------------------------------------------')
+print('PERFORMING CALIBRATION OF BETA, DA, COMPLIANCE AND EFFECTIVITY')
+print('--------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('\n1) Particle swarm optimization\n')
 print('Using ' + str(processes) + ' cores\n')
