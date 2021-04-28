@@ -38,6 +38,8 @@ from covid19model.visualization.output import _apply_tick_locator
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.visualization.utils import moving_avg
 
+from functools import lru_cache
+
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 # if __name__ == '__main__':
 
