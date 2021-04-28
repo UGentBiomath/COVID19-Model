@@ -334,6 +334,8 @@ params.update({'e' : np.zeros(initN.shape[1]),
 
 # Remove superfluous parameters
 params.pop('alpha')
+params.pop('K_inf')
+params.pop('K_hosp')
 
 # Initial states, depending on args parser
 init_number=3
@@ -750,6 +752,8 @@ params.update({'e' : np.zeros(initN.shape[1]),
 
 # Remove superfluous parameters
 params.pop('alpha')
+params.pop('K_inf')
+params.pop('K_hosp')
 
 # Initial states: single 40 year old exposed individual in Brussels
 init_number=3
