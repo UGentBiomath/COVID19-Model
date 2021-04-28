@@ -72,45 +72,123 @@ def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=
 
     return CM
 
-def mobility_update_func(t,states,param,agg,default_mobility=None):
+def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     """
-    Function to update the mobility matrix 'place' in spatially explicit models on a daily basis, from processed Proximus matrices. IMPORTANT: these data are not public, so they are not shared on GitHub. Make sure to copy the fractional-mobility-matrix_staytime_*_*.csv CSVs from the S-drive and locate them in data/interim/mobility/[agg]/fractional.
+    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
     
     Input
     -----
-    t : timestamp
-        current date as datetime object
-    states : formal necessity (not used)
-    param : formal necessity (not used)
     agg : str
         Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
-        
+    dtype : str
+        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
+    beyond_borders : boolean
+        If true, also include mobility abroad and mobility from foreigners
+    
     Returns
     -------
-    place : matrix
-        square matrix with floating points between 0 and 1, dimension depending on agg
+    all_mobility_data : pd.DataFrame
+        DataFrame with datetime objects as indices ('DATE') and np.arrays ('place') as value column
+    average_mobility_data : np.array
+        average mobility matrix over all available dates
     """
+
+    ### Validate input ###
     
-    # Import date_to_YYYYMMD function
-    from ..data.mobility import date_to_YYYYMMDD
+    if agg not in ['mun', 'arr', 'prov']:
+        raise ValueError(
+                    "spatial stratification '{0}' is not legitimate. Possible spatial "
+                    "stratifications are 'mun', 'arr', or 'prov'".format(agg)
+                )
+    if dtype not in ['fractional', 'staytime', 'visits']:
+        raise ValueError(
+                    "data type '{0}' is not legitimate. Possible mobility matrix "
+                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
+                )
+    
+    ### Load all available data ###
     
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = '../../../data/interim/mobility/' + agg + '/fractional/'
-    # Define YYYYMMDD date
-    YYYYMMDD = date_to_YYYYMMDD(t)
-    filename = 'fractional-mobility-matrix_staytime_' + agg + '_' + str(YYYYMMDD) + '.csv'
-    try: # if there is data available for this date
-        place = pd.read_csv(os.path.join(abs_dir, data_location+filename), \
-                        index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-    except:
-        if default_mobility: # If there is no data available and a user-defined input is given
-            place = default_mobility
-        else: # No data and no user input: fall back on average mobility
-            place = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/mobility/' + agg + '/quick-average_staytime_' + agg + \
-                                             '.csv'), index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-    return place
+    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    
+    # Iterate over all available interim mobility data
+    all_available_dates=[]
+    all_available_places=[]
+    directory=os.path.join(abs_dir, f'{data_location}')
+    for csv in os.listdir(directory):
+        # take YYYYMMDD information from processed CSVs. NOTE: this supposes a particular data name format!
+        datum = csv[-12:-4]
+        # Create list of datetime objects
+        all_available_dates.append(pd.to_datetime(datum, format="%Y%m%d"))
+        # Load the CSV as a np.array
+        if beyond_borders:
+            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values
+        else:
+            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
+            if dtype=='fractional':
+                # make sure the rows sum up to 1 nicely again after dropping a row and a column
+                place = place / place.sum(axis=1)
+        # Create list of places
+        all_available_places.append(place)
+    # Create new empty dataframe with available dates. Load mobility later
+    df = pd.DataFrame({'DATE' : all_available_dates, 'place' : all_available_places}).set_index('DATE')
+    all_mobility_data = df.copy()
+    
+    # Take average of all available mobility data
+    average_mobility_data = df['place'].values.mean()
+    
+    return all_mobility_data, average_mobility_data
+    
+
+def make_mobility_update_func():
+    """
+    Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
+    
+    Input
+    -----
+    all_mobility_data : pd.DataFrame
+        DataFrame with dates (in datetime) as indices (under 'DATE') and mobility matrices (np.array with floats) as values (under 'place')
+    average_mobility_data : np.array
+        average mobility matrix over all available dates
+        
+    Returns
+    -------
+    mobility_update_func : function
+        time-dependent function which has a mobility matrix of type dtype for every date.
+        Note: only works with datetime input (no integer time steps)
+        This function has the following properties:
+        
+        Input
+        -----
+        t : timestamp
+            current date as datetime object
+        states : formal necessity (not used)
+        param : formal necessity (not used)
+        agg : str
+            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+        default_mobility : np.array or None
+            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
+
+        Returns
+        -------
+        place : np.array
+            square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
+    """
+
+#     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def mobility_update_func(t, states, param, all_mobility_data, average_mobility_data, default_mobility=None):
+        try: # if there is data available for this date (if the key exists)
+            place = all_mobility_data.loc[pd.to_datetime(t), 'place']
+        except:
+            if default_mobility: # If there is no data available and a user-defined input is given
+                place = default_mobility
+            else: # No data and no user input: fall back on average mobility
+                place = average_mobility_data
+        return place
+    
+    return mobility_update_func
 
 def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     """
@@ -666,7 +744,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
