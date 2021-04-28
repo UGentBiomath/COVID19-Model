@@ -186,9 +186,9 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
+mobility_update_func = tdpf.make_mobility_update_func(agg, dtype='fractional', beyond_borders=False)
 params.update({'default_mobility' : None,
-               'all_mobility_data' : all_mobility_data,
-               'average_mobility_data' : average_mobility_data})
+               'mobility_update_func' : mobility_update_func})
 
 # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
 params.update({'e' : np.zeros(initN.shape[1]),
@@ -214,7 +214,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_update_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_wrapper_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
@@ -630,7 +630,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_update_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_wrapper_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
