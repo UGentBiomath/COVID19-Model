@@ -454,6 +454,8 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
             if dtype=='fractional':
                 # make sure the rows sum up to 1 nicely again after dropping a row and a column
                 place = place / place.sum(axis=1)
+                # This still introduces some numerical imperfections, so add the offset to the diagonal element
+                np.fill_diagonal(place, place.diagonal() + (np.ones(place.shape[0]) - place.sum(axis=1)))
         # Create list of places
         all_available_places.append(place)
     # Create new empty dataframe with available dates. Load mobility later
@@ -502,7 +504,7 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     # Load and format mobility dataframe
     all_mobility_data, average_mobility_data = load_all_mobility_data(agg, dtype=dtype, beyond_borders=beyond_borders)
     # Converting the index as date
-    all_mobility_data.index = pd.to_datetime(all_mobility_index.index)
+    all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
     
     @lru_cache()
     def mobility_update_func(t, default_mobility=None):
