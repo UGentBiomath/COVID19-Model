@@ -384,8 +384,9 @@ def draw_fcn_vacc(param_dict,samples_dict):
     param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
     param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    param_dict['refusal'] = np.random.triangular(0.05, 0.20, 0.40, size=9) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
-    param_dict['delay'] = np.random.triangular(1, 31, 31)
+    # Bootstrap the refusal rates and delay parameters
+    param_dict['refusal'] = np.ones(9)*np.mean(np.random.triangular(0.05, 0.20, 0.40, size=50)) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
+    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=50)) 
     # Variant parameters
     param_dict['K_inf'] = np.random.uniform(low=1.30,high=1.40)
     return param_dict
