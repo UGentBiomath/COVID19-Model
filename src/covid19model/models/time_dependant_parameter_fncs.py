@@ -142,7 +142,7 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     return all_mobility_data, average_mobility_data
     
 
-def make_mobility_update_func(all_mobility_data, average_mobility_data):
+def make_mobility_update_func():
     """
     Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
     
@@ -176,20 +176,16 @@ def make_mobility_update_func(all_mobility_data, average_mobility_data):
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
     """
-    
-    # Probably superfluous
-    all_data = all_mobility_data
-    average_mobility = average_mobility_data
 
-    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def mobility_update_func(t, states, param, default_mobility=None):
+#     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def mobility_update_func(t, states, param, all_mobility_data, average_mobility_data, default_mobility=None):
         try: # if there is data available for this date (if the key exists)
-            place = all_data.loc[pd.to_datetime(t), 'place']
+            place = all_mobility_data.loc[pd.to_datetime(t), 'place']
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
                 place = default_mobility
             else: # No data and no user input: fall back on average mobility
-                place = average_mobility
+                place = average_mobility_data
         return place
     
     return mobility_update_func
