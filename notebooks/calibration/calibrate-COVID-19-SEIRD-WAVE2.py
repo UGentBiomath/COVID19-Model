@@ -97,7 +97,7 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
     initial_states = json.load(fp)    
 # Add additional states of vaccination model
 initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
-                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'ER_v': np.zeros(9), 'C_v': np.zeros(9),
+                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'C_v': np.zeros(9),
                         'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
 # Load and format serodata of Herzog
 df_sero = pd.read_csv('../../data/interim/sero/sero_national_overall_herzog.csv', parse_dates=True)
@@ -114,7 +114,7 @@ df_sero = df_sero.drop(columns=['Date'])
 df_sero['mean'] = df_sero['mean']*sum(initN) 
 df_sero_sciensano = df_sero
 # Samples of resusceptibility
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-23.json', 'r') as fp:
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json', 'r') as fp:
     samples_dict = json.load(fp)
 samples_dict = {'zeta': samples_dict['zeta']}
 
@@ -650,7 +650,7 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 5
+multiplier = 3
 maxiter = 100
 popsize = multiplier*processes
 # MCMC settings
@@ -684,11 +684,12 @@ parNames = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_hom
 bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.99),(1,1.6),(1,1.6))
 
 # run optimization
-#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples=samples_dict)
+theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes,
+                    draw_fcn=draw_fcn, samples=samples_dict)
 # Calibration until 2021-04-21
 theta = np.array([0.01426078, 9.75610512, 5.32524597, 0.84720035, 0.21093236, 0.10595917, 0.43611962, 1.48916965, 1.06736707]) #-222310.27309159632
+theta = np.array([ 0.01305881, 12.01161105,  5.17181408,  0.64682606  0.19749454,  0.10000406, 0.58790638,  1.20467835,  1.38442296]) #-222148.5678525338
 # The MCMC sampler converges to the estimate below --> directly start there
 theta = np.array([0.01375, 11, 4.5, 0.6, 0.1, 0.07, 0.90, 1.50, 1.30])
 
@@ -743,7 +744,7 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 parNames_mcmc = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf','K_hosp']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.05,1), (0.05,1), (0.05,1), (0.05,1),(1,1.8),(1,1.8)]
+log_prior_fnc_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.03,1), (0.03,1), (0.03,1), (0.03,1),(1,1.8),(1,1.8)]
 ndim = len(parNames_mcmc)
 nwalkers = ndim*2
 
@@ -756,17 +757,23 @@ pos[:,1] = theta[1] + theta[1]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalke
 # l
 pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention schools
-pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,3] = np.random.uniform(low=0.50,high=0.99,size=(nwalkers))
 # prevention work
-pos[:,4] = theta[4] + theta[4]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,4] = theta[4] + theta[4]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = np.random.uniform(low=0.05,high=0.40,size=(nwalkers))
 # prevention rest
-pos[:,5] = theta[5] + theta[5]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,5] = theta[5] + theta[5]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,5] = np.random.uniform(low=0.05,high=0.40,size=(nwalkers))
 # prevention home
-pos[:,6] = theta[6] + theta[6]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,6] = theta[6] + theta[6]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,6] = np.random.uniform(low=0.50,high=0.99,size=(nwalkers))
 # K_inf
-pos[:,7] = theta[7] + theta[7]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,7] = theta[7] + theta[7]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,7] = np.random.uniform(low=1.20,high=1.60,size=(nwalkers))
 # K_hosp
-pos[:,8] = theta[8] + theta[8]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+#pos[:,8] = theta[8] + theta[8]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,8] = np.random.uniform(low=1.20,high=1.60,size=(nwalkers))
 
 # Set up the sampler backend if needed
 if backend:
