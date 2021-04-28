@@ -108,6 +108,11 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 
+# Daily Proximus mobility data and average
+all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg)
+# Corresponding time dependent function
+mobility_update_func = tdpf.make_mobility_update_func()
+
 # ------------------------
 # Define results locations
 # ------------------------
@@ -181,15 +186,21 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
-params.update({'agg' : agg,
-               'default_mobility' : None})
+params.update({'default_mobility' : None,
+               'all_mobility_data' : all_mobility_data,
+               'average_mobility_data' : average_mobility_data})
 
 # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
-params.update({'e' : np.ones(9),
-               'leakiness' : np.zeros(9),
-               'v' : np.zeros(9),
-               'K' : 0,
-               'N_vacc' : np.zeros(9)})
+params.update({'e' : np.zeros(initN.shape[1]),
+               'K' : 1,
+               'N_vacc' : np.zeros(initN.shape[1]),
+               'leakiness' : np.zeros(initN.shape[1]),
+               'v' : np.zeros(initN.shape[1]),
+               'injection_day' : 500, # Doesn't really matter
+               'injection_ratio' : 0})
+
+# Remove superfluous parameters
+params.pop('alpha')
 
 # Initial states, depending on args parser
 init_number=3
@@ -203,7 +214,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_update_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
@@ -573,7 +584,7 @@ n_draws_per_sample= 1000 #1000
 poisson_offset=1
 
 # --------------------
-# Initialize the model
+# Initialize the model (largely repetition)
 # --------------------
 
 # Load the model parameters dictionary
@@ -588,17 +599,24 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
                'prev_rest': 0.28, # 0.5 # taken from Tijs's analysis
                'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
               })
+
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
-params.update({'agg' : agg,
-               'default_mobility' : None})
+params.update({'default_mobility' : None,
+               'all_mobility_data' : all_mobility_data,
+               'average_mobility_data' : average_mobility_data})
 
 # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
-params.update({'e' : np.ones(9),
-               'leakiness' : np.zeros(9),
-               'v' : np.zeros(9),
-               'K' : 0,
-               'N_vacc' : np.zeros(9)})
+params.update({'e' : np.zeros(initN.shape[1]),
+               'K' : 1,
+               'N_vacc' : np.zeros(initN.shape[1]),
+               'leakiness' : np.zeros(initN.shape[1]),
+               'v' : np.zeros(initN.shape[1]),
+               'injection_day' : 500, # Doesn't really matter
+               'injection_ratio' : 0})
+
+# Remove superfluous parameters
+params.pop('alpha')
 
 # Initial states: single 40 year old exposed individual in Brussels
 init_number=3
@@ -612,7 +630,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_update_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
