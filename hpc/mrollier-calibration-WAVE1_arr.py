@@ -109,9 +109,9 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=
 df_google = mobility.get_google_mobility_data(update=False)
 
 # Daily Proximus mobility data and average
-all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg)
+# all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg)
 # Corresponding time dependent function
-mobility_update_func = tdpf.make_mobility_update_func()
+# mobility_update_func = tdpf.make_mobility_update_func()
 
 # ------------------------
 # Define results locations
@@ -132,7 +132,138 @@ if not (os.path.exists(results_folder) and os.path.exists(fig_path) and os.path.
 if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
     raise Exception("Some of the figure path subdirectories do not exist.")
 
+# -------------------------------
+# Define mobility update function
+# -------------------------------
 
+def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
+    """
+    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
+    
+    Input
+    -----
+    agg : str
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+    dtype : str
+        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
+    beyond_borders : boolean
+        If true, also include mobility abroad and mobility from foreigners
+    
+    Returns
+    -------
+    all_mobility_data : pd.DataFrame
+        DataFrame with datetime objects as indices ('DATE') and np.arrays ('place') as value column
+    average_mobility_data : np.array
+        average mobility matrix over all available dates
+    """
+
+    ### Validate input ###
+    
+    if agg not in ['mun', 'arr', 'prov']:
+        raise ValueError(
+                    "spatial stratification '{0}' is not legitimate. Possible spatial "
+                    "stratifications are 'mun', 'arr', or 'prov'".format(agg)
+                )
+    if dtype not in ['fractional', 'staytime', 'visits']:
+        raise ValueError(
+                    "data type '{0}' is not legitimate. Possible mobility matrix "
+                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
+                )
+    
+    ### Load all available data ###
+    
+    # Define absolute location of this file
+    abs_dir = os.path.dirname(__file__)
+    # Define data location for this particular aggregation level
+    data_location = f'../data/interim/mobility/{agg}/{dtype}'
+    
+    # Iterate over all available interim mobility data
+    all_available_dates=[]
+    all_available_places=[]
+    directory=os.path.join(abs_dir, f'{data_location}')
+    for csv in os.listdir(directory):
+        # take YYYYMMDD information from processed CSVs. NOTE: this supposes a particular data name format!
+        datum = csv[-12:-4]
+        # Create list of datetime objects
+        all_available_dates.append(pd.to_datetime(datum, format="%Y%m%d"))
+        # Load the CSV as a np.array
+        if beyond_borders:
+            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values
+        else:
+            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
+            if dtype=='fractional':
+                # make sure the rows sum up to 1 nicely again after dropping a row and a column
+                place = place / place.sum(axis=1)
+                # This still introduces some numerical imperfections, so add the offset to the diagonal element
+                np.fill_diagonal(place, place.diagonal() + (np.ones(place.shape[0]) - place.sum(axis=1)))
+        # Create list of places
+        all_available_places.append(place)
+    # Create new empty dataframe with available dates. Load mobility later
+    df = pd.DataFrame({'DATE' : all_available_dates, 'place' : all_available_places}).set_index('DATE')
+    all_mobility_data = df.copy()
+    
+    # Take average of all available mobility data
+    average_mobility_data = df['place'].values.mean()
+    
+    return all_mobility_data, average_mobility_data
+
+def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
+    """
+    Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
+    
+    Input
+    -----
+    all_mobility_data : pd.DataFrame
+        DataFrame with dates (in datetime) as indices (under 'DATE') and mobility matrices (np.array with floats) as values (under 'place')
+    average_mobility_data : np.array
+        average mobility matrix over all available dates
+        
+    Returns
+    -------
+    mobility_update_func : function
+        time-dependent function which has a mobility matrix of type dtype for every date.
+        Note: only works with datetime input (no integer time steps)
+        This function has the following properties:
+        
+        Input
+        -----
+        t : timestamp
+            current date as datetime object
+        states : formal necessity (not used)
+        param : formal necessity (not used)
+        agg : str
+            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+        default_mobility : np.array or None
+            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
+
+        Returns
+        -------
+        place : np.array
+            square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
+    """
+    # Load and format mobility dataframe
+    all_mobility_data, average_mobility_data = load_all_mobility_data(agg, dtype=dtype, beyond_borders=beyond_borders)
+    # Converting the index as date
+    all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
+    
+    @lru_cache()
+    def mobility_update_func(t, default_mobility=None):
+        try: # if there is data available for this date (if the key exists)
+            place = all_mobility_data['place'][t]
+        except:
+            if default_mobility: # If there is no data available and a user-defined input is given
+                place = default_mobility
+            else: # No data and no user input: fall back on average mobility
+                place = average_mobility_data
+        return place
+    
+    return mobility_update_func
+
+def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
+    t = pd.Timestamp(t.date())
+    return mobility_update_func(t, default_mobility=default_mobility)
+    
+    
 ####################################################
 ## PRE-LOCKDOWN PHASE: CALIBRATE BETAs and WARMUP ##
 ####################################################
@@ -186,7 +317,7 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
-mobility_update_func = tdpf.make_mobility_update_func(agg, dtype='fractional', beyond_borders=False)
+mobility_update_func = make_mobility_update_func(agg, dtype='fractional', beyond_borders=False)
 params.update({'default_mobility' : None,
                'mobility_update_func' : mobility_update_func})
 
@@ -214,7 +345,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_wrapper_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
@@ -630,7 +761,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_wrapper_func}, spatial=agg)
+                                           {'Nc' : tdpf.policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
 
 # ---------------------------
 # Particle Swarm Optimization
