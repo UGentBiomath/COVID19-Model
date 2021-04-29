@@ -399,8 +399,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
         dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h_new)/dm) - M_v*(1-e_h)*h_new/dhospital
-        dC_v = M_v*(h_new/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
-        dICUstar_v = M_v*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
+        dC_v = M_v*(1-e_h)*(h_new/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
+        dICUstar_v = M_v*(1-e_h)*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - C_icurec_v*(1/dICUrec)
         dR_v  = A_v/da + ((1-(1-e_h)*h_new)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
 
