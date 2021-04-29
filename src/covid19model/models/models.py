@@ -146,7 +146,6 @@ class COVID19_SEIRD(BaseModel):
         I : infected
         A : asymptomatic
         M : mild
-        ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
         ICU : intensive care
@@ -173,7 +172,6 @@ class COVID19_SEIRD(BaseModel):
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
         dc : average length of a hospital stay when not in ICU
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
@@ -273,7 +271,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         I : infected
         A : asymptomatic
         M : mild
-        ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
         ICU : intensive care
@@ -285,7 +282,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         I_v : infected and vaccinated
         A_v : asymptomatic and vaccinated
         M_v : mild and vaccinated
-        ER_v : emergency room, buffer ward (hospitalized state)
         C_v : cohort and vaccinated
         C_icurec_v : cohort after recovery from ICU and vaccinated
         ICU_v : intensive care and vaccinated
@@ -294,8 +290,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
-
-        
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -314,13 +308,10 @@ class COVID19_SEIRD_vacc(BaseModel):
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
         dc : average length of a hospital stay when not in ICU
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
         e_i : vaccine effectiveness in reducing infectiousness (--> if vaccinated person becomes infectious, how infectious is he?)
         e_s : vaccine effectiveness in reducing susceptibility to SARS-CoV-2 infection
         e_h : vaccine effectivenes in reducing hospital admission propensity
