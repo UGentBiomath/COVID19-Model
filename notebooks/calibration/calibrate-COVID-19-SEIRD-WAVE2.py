@@ -82,7 +82,6 @@ run_date = str(datetime.date.today())
 
 # Contact matrices
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 levels = initN.size
 # Use time-integrated matrices
 intmat = model_parameters.get_integrated_interaction_matrices()
@@ -99,20 +98,8 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
                         'A_v': np.zeros(9), 'M_v': np.zeros(9), 'C_v': np.zeros(9),
                         'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
-# Load and format serodata of Herzog
-df_sero = pd.read_csv('../../data/interim/sero/sero_national_overall_herzog.csv', parse_dates=True)
-df_sero.index = df_sero['collection_midpoint']
-df_sero.index = pd.to_datetime(df_sero.index)
-df_sero = df_sero.drop(columns=['collection_midpoint','age_cat'])
-df_sero['mean'] = df_sero['mean']*sum(initN) 
-df_sero_herzog = df_sero
-# Load and format serodata of Sciensano
-df_sero = pd.read_csv('../../data/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv', parse_dates=True)
-df_sero.index = df_sero['Date']
-df_sero.index = pd.to_datetime(df_sero.index)
-df_sero = df_sero.drop(columns=['Date'])
-df_sero['mean'] = df_sero['mean']*sum(initN) 
-df_sero_sciensano = df_sero
+# Serological data
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Samples of resusceptibility
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json', 'r') as fp:
     samples_dict = json.load(fp)
@@ -684,14 +671,14 @@ parNames = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_hom
 bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.99),(1,1.6),(1,1.6))
 
 # run optimization
-theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-                    start_date=start_calibration, warmup=warmup, processes=processes,
-                    draw_fcn=draw_fcn, samples=samples_dict)
+#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes,
+#                    draw_fcn=draw_fcn, samples=samples_dict)
 # Calibration until 2021-04-21
-theta = np.array([0.01426078, 9.75610512, 5.32524597, 0.84720035, 0.21093236, 0.10595917, 0.43611962, 1.48916965, 1.06736707]) #-222310.27309159632
-theta = np.array([ 0.01305881, 12.01161105,  5.17181408,  0.64682606  0.19749454,  0.10000406, 0.58790638,  1.20467835,  1.38442296]) #-222148.5678525338
+#theta = np.array([0.01426078, 9.75610512, 5.32524597, 0.84720035, 0.21093236, 0.10595917, 0.43611962, 1.48916965, 1.06736707]) #-222310.27309159632
+theta = np.array([0.01305881, 12.01161105,  5.17181408,  0.64682606,  0.19749454,  0.10000406, 0.58790638,  1.20467835,  1.38442296]) #-222148.5678525338
 # The MCMC sampler converges to the estimate below --> directly start there
-theta = np.array([0.01375, 11, 4.5, 0.6, 0.1, 0.07, 0.90, 1.50, 1.30])
+#theta = np.array([0.01375, 11, 4.5, 0.6, 0.1, 0.07, 0.90, 1.50, 1.30])
 
 # assign results
 model.parameters['beta'] = theta[0]

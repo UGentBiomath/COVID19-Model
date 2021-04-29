@@ -91,20 +91,8 @@ Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
-# Load and format serodata of Herzog
-df_sero = pd.read_csv('../../data/interim/sero/sero_national_overall_herzog.csv', parse_dates=True)
-df_sero.index = df_sero['collection_midpoint']
-df_sero.index = pd.to_datetime(df_sero.index)
-df_sero = df_sero.drop(columns=['collection_midpoint','age_cat'])
-df_sero['mean'] = df_sero['mean']*sum(initN) 
-df_sero_herzog = df_sero
-# Load and format serodata of Sciensano
-df_sero = pd.read_csv('../../data/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv', parse_dates=True)
-df_sero.index = df_sero['Date']
-df_sero.index = pd.to_datetime(df_sero.index)
-df_sero = df_sero.drop(columns=['Date'])
-df_sero['mean'] = df_sero['mean']*sum(initN) 
-df_sero_sciensano = df_sero
+# Serological data
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # ------------------------
 # Define results locations
@@ -513,7 +501,7 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['mean'][0:5], df_sero_sciensano['mean'][0:8]]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'][0:5], df_sero_sciensano['abs','mean'][0:8]]
 index_max=[]
 for idx, d in enumerate(data):
     index_max.append(d.index.max())
@@ -567,8 +555,10 @@ ax1.set_xlim(start_sim,end_sim)
 ax1.set_ylabel('$H_{in}$ (-)')
 # Plot fraction of immunes
 ax2.plot(out['time'],out['R'].sum(dim='Nc')/sum(initN)*100,'--', color='blue')
-ax2.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['mean']/sum(initN)*100,yerr=[(df_sero_herzog['LL'].values)/sum(initN)*100,(df_sero_herzog['UL'].values)/sum(initN)*100], fmt='x', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
-ax2.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['mean']/sum(initN)*100,yerr=[(df_sero_sciensano['LL'].values)/sum(initN)*100,(df_sero_sciensano['UL'].values)/sum(initN)*100], fmt='^', color='black', ecolor='lightgray', elinewidth=3, capsize=0)
+yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
+ax2.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', ecolor='gray', elinewidth=3, capsize=0)
+yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
+ax2.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', ecolor='gray', elinewidth=3, capsize=0)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_xlim(start_sim,end_sim)
 ax2.set_ylabel('Seroprelevance (%)')
