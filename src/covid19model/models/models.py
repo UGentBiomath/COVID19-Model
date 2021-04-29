@@ -675,7 +675,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg)
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
         
         # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age], 
         beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K*beta[:,np.newaxis]
