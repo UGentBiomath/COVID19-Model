@@ -87,7 +87,7 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
     dens = pops/areas
 
     # Initialise and fill beta array
-    beta = np.ones(len(dens))*beta_U # inbetween values
+    beta = np.full(len(dens), beta_U) # np.ones(len(dens))*beta_U # inbetween values
     beta = np.where(dens < RU_threshold, beta_R, beta) # lower-than-threshold values
     beta = np.where(dens >= UM_threshold, beta_M, beta) # higher-than-threshold values
 
