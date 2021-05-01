@@ -135,8 +135,21 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """
     
     if agg:
-        beta = stratify_beta('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
-        sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R
+        
+        # Read areas per region, ordered in ascending NIS values
+        abs_dir = os.path.dirname(__file__)
+        area_data = f'../../../data/interim/demographic/area_{agg}.csv'
+        area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
+        # Make sure the regions are ordered well
+        area_df=area_df.sort_index(axis=0)
+        area=area_df.values[:,0]
+        areas = area * 1e-6 # in square kilometer
+        
+        # Take total population per region
+        pops = initN.sum(axis=1)
+        
+        beta = stratify_beta('beta_R','beta_U', 'beta_M', agg, areas, pops) # name at correct spatial index
+        sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R, it's the same.
         G = initN.shape[0]
         N = initN.shape[1]
     else:
