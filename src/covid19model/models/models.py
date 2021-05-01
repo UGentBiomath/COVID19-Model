@@ -51,6 +51,82 @@ plt.rcParams["lines.linewidth"] = 3
 
 from .base import BaseModel
 
+class simple_multivariant_SIR(BaseModel):
+    """
+    A minimal example of a compartmental disease model with an implementation of transient multivariant dynamics
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+
+        S : susceptible
+        I : infectious
+        R : removed
+        alpha : fraction of alternative COVID-19 variant
+
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        gamma : recovery rate (inverse of duration of infectiousness)
+        beta : probability of infection when encountering an infected person
+        injection_day : day at which injection_ratio of the new strain is introduced in the population
+        injection_ratio : initial fraction of alternative variant
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # state variables and parameters
+    state_names = ['S', 'I', 'R', 'alpha']
+    parameter_names = ['gamma', 'beta', 'injection_day', 'injection_ratio']
+    parameters_stratified_names = []
+    stratification = ['Nc']
+
+    @staticmethod
+    def integrate(t, S, I, R, alpha, gamma, beta, injection_day, injection_ratio, K_inf, Nc):
+        """Basic SIR model with multivariant capabilities"""
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        T = S + I + R
+
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        IP_old = (1-alpha)*beta*np.matmul(Nc,(I/T))
+        IP_new = alpha*K_inf*beta*np.matmul(Nc,(I/T))
+
+        # Compute the  rates of change in every population compartment
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dS = - (IP_old + IP_new)*S
+        dI = (IP_old + IP_new)*S - gamma*I
+        dR = gamma*I
+
+        # Update fraction of new COVID-19 variant
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if np.all((IP_old == 0)) and np.all((IP_new == 0)):
+            dalpha = np.zeros(9)
+        else:
+            dalpha = IP_new/(IP_old+IP_new) - alpha
+
+        # On injection_day, inject injection_ratio new strain to alpha
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if (t >= injection_day) & (alpha.sum().sum()==0):
+            dalpha += injection_ratio
+
+        return dS, dI, dR, dalpha
+
 class COVID19_SEIRD(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
@@ -79,7 +155,6 @@ class COVID19_SEIRD(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
-        alpha : fraction of alternative COVID-19 variant
 
         parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -88,7 +163,9 @@ class COVID19_SEIRD(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        alpha : fraction of alternative COVID-19 variant
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -101,8 +178,6 @@ class COVID19_SEIRD(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         --------------------
@@ -120,16 +195,16 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio','K_hosp']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, K_hosp,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -137,6 +212,9 @@ class COVID19_SEIRD(BaseModel):
 
         *Deterministic implementation*
         """
+ 
+        if Nc is None:
+            print(t)
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -146,9 +224,7 @@ class COVID19_SEIRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if Nc is None:
-            print(t)
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T)) # leakiness
+        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
         IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A)/T))
 
         # Account for higher hospitalisation propensity of new variant
@@ -233,7 +309,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
 
-        alpha : fraction of alternative COVID-19 variant
+        
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -242,7 +318,9 @@ class COVID19_SEIRD_vacc(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        alpha : fraction of alternative COVID-19 variant
+        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -280,17 +358,17 @@ class COVID19_SEIRD_vacc(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot','alpha',
+    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
                     'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'K_inf', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital', 'injection_day', 'injection_ratio', 'K_hosp', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+                        'dICU_D', 'dICUrec','dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, alpha, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
-                  beta, K_inf, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, injection_day, injection_ratio, K_hosp, e_i, e_s, e_h, e_a, d_vacc,
+    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
                   s, a, h, c, m_C, m_ICU, N_vacc,
                   Nc):
         """
@@ -298,6 +376,9 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         *Deterministic implementation*
         """
+
+        if Nc is None:
+            print(t)
 
         # Calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -313,8 +394,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if Nc is None:
-            print(t)
         IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
         IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
 
