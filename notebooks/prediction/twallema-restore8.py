@@ -59,7 +59,7 @@ report_version = '8.0'
 start_sim = '2020-09-01'
 end_sim = '2021-09-01'
 start_calibration = start_sim
-end_calibration = '2021-02-01'
+end_calibration = '2021-04-21'
 model = 'BIOMATH COVID-19 SEIRD national'
 n_samples = args.n_samples
 n_draws = args.n_draws_per_sample
@@ -70,11 +70,10 @@ conf_int = 0.05
 descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
-l_relax = 31
-relaxdates = ['2021-05-01','2021-06-01']
-doses = [30000,50000]
-orders = [np.array(range(9)), np.array(range(9))[::-1]]
-description_order = ['old --> young', 'young (0 yo.) --> old'] # Add contact order, and/or add young to old, starting at 20 yo.
+relaxdates = ['2021-05-08','2021-06-01']
+doses = [50000,80000]
+orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
+description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
 # Upper- and lower confidence level
 UL = 1-conf_int/2
@@ -111,15 +110,110 @@ print('1) Loading data\n')
 # Contact matrices
 initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
 levels = initN.size
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+# Use time-integrated matrices
+intmat = model_parameters.get_integrated_interaction_matrices()
+Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
+# Sciensano data
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
 # Load samples dictionary of the second wave
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_BETA_COMPLIANCE_2021-03-02.json', 'r') as fp:
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_R0_COMP_EFF_2021-04-28.json', 'r') as fp:
     samples_dict = json.load(fp)
+# Append samples of re-susceptibility estimated from WAVE 1
+samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json'))
+samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
+# Append data on hospitalizations
+residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+samples_dict.update({'residence_times': residence_time_distributions})
+bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy')
+# First axis: parameter: c, m0, m0_C, m0_ICU
+# Second axis: age group
+# Third axis: bootstrap sample
+samples_dict.update({'samples_fractions': bootstrap_fractions})
 
 print('2) Initializing model\n')
+
+# ---------------------------
+# Time-dependant VOC function
+# ---------------------------
+
+from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+VOC_function = make_VOC_function()
+
+def VOC_wrapper_func(t,states,param):
+    t = pd.Timestamp(t.date())
+    return VOC_function(t)
+
+# -----------------------------------
+# Time-dependant vaccination function
+# -----------------------------------
+
+from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
+sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
+
+def vacc_strategy(t, states, param, df_sciensano_start, df_sciensano_end,
+                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    """
+    time-dependent function for the Belgian vaccination strategy
+    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+  
+    Parameters
+    ----------
+    t : int
+        Simulation time
+    states: dict
+        Dictionary containing values of model states
+    param : dict
+        Model parameter dictionary
+    sciensano_first_dose : function
+        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
+    df_sciensano_start : date
+        Start date of Sciensano vaccination data frame
+    df_sciensano_end : date
+        End date of Sciensano vaccination data frame
+    daily_dose : int
+        Number of doses administered per day. Default is 30000 doses/day.
+    delay : int
+        Time delay between first dose vaccination and start of immunity. Default is 21 days.
+    vacc_order : array
+        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+    refusal: array
+        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+
+    Return
+    ------
+    N_vacc : array
+        Number of individuals to be vaccinated at simulation time "t"
+        
+    """
+
+    # Convert time to suitable format
+    t = pd.Timestamp(t.date())
+    # Convert delay to a timedelta
+    delay = pd.Timedelta(str(int(delay))+'D')
+    # Compute the number of vaccine eligible individuals
+    VE = states['S'] + states['R']
+    
+    if t <= df_sciensano_start + delay:
+        return np.zeros(9)
+    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
+        return sciensano_first_dose(t-delay)
+    else:
+        N_vacc = np.zeros(9)
+        # Vaccines distributed according to vector 'order'
+        # With residue 'refusal' remaining in each age group
+        idx = 0
+        while daily_dose > 0:
+            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                N_vacc[vacc_order[idx]] = daily_dose
+                daily_dose = 0
+            else:
+                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
 
 # --------------------------------------
 # Time-dependant social contact function
@@ -130,12 +224,11 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate, scenario=0, contact_increase=0.25):
+def policies_RESTORE8(t, states, param, l , l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate, scenario=0):
     
     t = pd.Timestamp(t.date())
 
     # Convert compliance tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
     l_days = pd.Timedelta(l, unit='D')
 
     # Convert relaxation l to dates
@@ -164,14 +257,14 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
 
     if t <= t1:
         return all_contact(t)
-    elif t1 < t < t1 + tau_days:
+    elif t1 < t < t1:
         return all_contact(t)
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+    elif t1  < t <= t1 + l_days:
         policy_old = all_contact(t)
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
+        return ramp_fun(policy_old, policy_new, t, t1, l)
+    elif t1 + l_days < t <= t2:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
     elif t2 < t <= t3:
@@ -181,14 +274,14 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
         return contact_matrix_4prev(t, school=0)
 
     # Second wave
-    elif t4 < t <= t5 + tau_days:
+    elif t4 < t <= t5:
         return contact_matrix_4prev(t, school=1)
-    elif t5 + tau_days < t <= t5 + tau_days + l_days:
+    elif t5  < t <= t5 + l_days:
         policy_old = contact_matrix_4prev(t, school=1)
         policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                                     school=1)
-        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t5)
-    elif t5 + tau_days + l_days < t <= t6:
+        return ramp_fun(policy_old, policy_new, t, t5, l)
+    elif t5 + l_days < t <= t6:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t6 < t <= t7:
@@ -210,11 +303,8 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
     elif t12 < t <= t13:
-        mat = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
-        mat = np.array(mat)
-        mat[:,0] = (contact_increase+1)*mat[:,0]
-        mat[:,1] = (contact_increase+1)*mat[:,1]
-        return mat
+        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest,
+                            school=1)
     elif t13 < t <= t14:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)
@@ -292,9 +382,6 @@ def policies_RESTORE8(t, states, param, l , tau, l_relax, prev_schools, prev_wor
     elif scenario == 4:
         if t14 < t <= t15:
             return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0)   
-        elif t15 < t <= t15 + l_relax_days:
-            policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)
             policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
                                 leisure=1, others=1, transport=1, school=0)
@@ -368,72 +455,91 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5
     UL = np.quantile(vector, q = UL, axis = 1)
     return mean, median, LL, UL
 
-def draw_fcn_vacc(param_dict,samples_dict):
-    # Calibrated samples
+
+def draw_fcn(param_dict,samples_dict):
+
+    # Calibration of WAVE 1
+    # ---------------------
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+
+    # Calibration of WAVE 2
+    # ---------------------
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
-    param_dict['tau'] = samples_dict['tau'][idx] 
-    param_dict['l'] = samples_dict['l'][idx] 
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]   
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    # Vaccination parameters
+    model.parameters['da'] = samples_dict['da'][idx]
+    model.parameters['l'] = samples_dict['l'][idx]  
+    model.parameters['prev_schools'] = samples_dict['prev_schools'][idx]    
+    model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
+    model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
+    model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
+    model.parameters['K_inf'] = samples_dict['K_inf'][idx]
+    model.parameters['K_hosp'] = samples_dict['K_hosp'][idx]
+
+    # Vaccination
+    # -----------
+    #param_dict['daily_dose'] = np.random.uniform(low=50000,high=90000)
     param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
     param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    # Bootstrap the refusal rates and delay parameters
-    param_dict['refusal'] = np.ones(9)*np.mean(np.random.triangular(0.05, 0.20, 0.40, size=50)) # min. refusal = 5%, max. refusal = 40%, expectation = 20%
-    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=50)) 
-    # Variant parameters
-    param_dict['K_inf'] = np.random.uniform(low=1.30,high=1.40)
+    param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(9):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=100
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
     return param_dict
 
 # -------------------------------------
 # Initialize the model with vaccination
 # -------------------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function, vacc_strategy
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
 
-# Add states # TO DO: automatically do this
+# Model initial condition on September 1st
+warmup = 0
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+    initial_states = json.load(fp)    
+# Add additional states of vaccination model
 initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
-                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'ER_v': np.zeros(9), 'C_v': np.zeros(9),
+                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'C_v': np.zeros(9),
                         'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
-
+# Load the model parameters dictionary
+params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
+# Social policies
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 28})
+# Vaccination
 vacc_order = np.array(range(9))
 vacc_order = vacc_order[::-1]
-daily_dose = 30000
-refusal = 0.3*np.ones(9)
+daily_dose = 55000
+refusal = 0.2*np.ones(9)
 delay = 21
 d_vacc = 12*30 # duration of vaccine protection
-
-params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
-# Update with additional parameters for social policy function
-params.update({'l': 21, 'tau': 21, 'l_relax': l_relax, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5,
-            'prev_home': 0.5, 'zeta': 1/(8*30), 'contact_increase': 0.20, 'scenario': 0, 'relaxdate': '2021-05-01'})
-# Update with additional parameters for vaccination
 params.update(
     {'vacc_order': vacc_order, 'daily_dose': daily_dose,
-    'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
-    'df_sciensano_end': df_sciensano_end, 'sciensano_first_dose': sciensano_first_dose}
+     'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
+     'df_sciensano_end': df_sciensano_end}
 )
-# Update with additional parameters for VOCs
-K_inf = 1.30
-K_hosp = 1.00
-Re_1feb = 0.958*K_inf
-incubation_period = 5.2
-n_periods = 14/incubation_period
-params.update({'K_inf': K_inf,
-                            'K_hosp': K_hosp,
-                            'injection_day': (pd.Timestamp('2021-01-14') - pd.Timestamp(start_sim))/pd.Timedelta('1D'),
-                            'injection_ratio': (K_inf-1)/(Re_1feb**n_periods)})
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy})
+                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
 
 # ----------------------------
 # Initialize results dataframe
@@ -472,7 +578,7 @@ for idx,scenario in enumerate(scenarios):
                 # --------------
                 # Simulate model
                 # --------------
-                out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn_vacc,samples=samples_dict)
+                out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
                 mean_Hin, median_Hin, LL_Hin, UL_Hin = add_poisson('H_in', out_vacc, n_samples, n_draws)
                 mean_Htot, median_Htot, LL_Htot, UL_Htot = add_poisson('H_tot', out_vacc, n_samples, n_draws)
                 # Append to dataframe
