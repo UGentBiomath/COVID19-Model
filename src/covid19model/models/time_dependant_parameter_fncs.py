@@ -557,25 +557,30 @@ def VOC_wrapper_func(t,states,param, VOC_function):
 # Vaccination functions
 # ~~~~~~~~~~~~~~~~~~~~~
 
-def make_vaccination_function(df_sciensano):
-    df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-    df_sciensano_end = df_sciensano.index[-1]
+class make_vaccination_function():
+    def __init__(self, df_sciensano):
+        self.df_sciensano = df_sciensano 
+        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        self.df_sciensano_end = df_sciensano.index[-1]
+
 
     @lru_cache()
-    def sciensano_first_dose(t):
+    #def sciensano_first_dose(t):
+    def __call__(self, t):
         # Extrapolate Sciensano n0. vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
-        N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
-        N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
-        N_vacc[3] = (5/17)*df_sciensano['V1_18_34'][t] + (5/10)*df_sciensano['V1_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*df_sciensano['V1_35_44'][t] + (5/10)*df_sciensano['V1_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*df_sciensano['V1_45_54'][t] + (5/10)*df_sciensano['V1_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*df_sciensano['V1_55_64'][t] + (5/10)*df_sciensano['V1_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*df_sciensano['V1_65_74'][t] + (5/10)*df_sciensano['V1_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*df_sciensano['V1_75_84'][t] + (5/10)*df_sciensano['V1_85+'][t]# 80+
+        N_vacc[1] = (2/17)*self.df_sciensano['V1_18_34'][t] # 10-20
+        N_vacc[2] = (10/17)*self.df_sciensano['V1_18_34'][t] # 20-30
+        N_vacc[3] = (5/17)*self.df_sciensano['V1_18_34'][t] + (5/10)*self.df_sciensano['V1_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*self.df_sciensano['V1_35_44'][t] + (5/10)*self.df_sciensano['V1_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*self.df_sciensano['V1_45_54'][t] + (5/10)*self.df_sciensano['V1_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*self.df_sciensano['V1_55_64'][t] + (5/10)*self.df_sciensano['V1_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*self.df_sciensano['V1_65_74'][t] + (5/10)*self.df_sciensano['V1_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*self.df_sciensano['V1_75_84'][t] + (5/10)*self.df_sciensano['V1_85+'][t]# 80+
         return N_vacc
     
-    return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+    #return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+    # find another way to return df_sciensano_start and df_sciensano_end
 
 def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df_sciensano_end,
                     daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
@@ -645,29 +650,25 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
 # Google policy function
 # ~~~~~~~~~~~~~~~~~~~~~~
 
-def make_contact_matrix_function(df_google, Nc_all):
+class make_contact_matrix_function():
     """
     Nc_all : dictionnary
             contact matrices for home, schools, work, transport, leisure and others
     df_google : dataframe
             google mobility data
     """
+    def __init__(self, df_google, Nc_all):
+        self.df_google = df_google
+        self.df_google_array = df_google.values
+        self.df_google_start = df_google.index[0]
+        self.df_google_end = df_google.index[-1]
+        self.Nc_all = Nc_all
     
-    df_google_array = df_google.values
-    df_google_start = df_google.index[0]
-    df_google_end = df_google.index[-1]
-    
-    @lru_cache()
-    def all_contact(t):
-        return Nc_all['total']
-
-    @lru_cache()
-    def all_contact_no_schools(t):
-        return Nc_all['total'] - Nc_all['schools']
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def contact_matrix_4prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
-                       school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):
+    def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
+                       school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):  
+        
         """
         t : timestamp
             current date
@@ -685,28 +686,28 @@ def make_contact_matrix_function(df_google, Nc_all):
         """
 
         if t < pd.Timestamp('2020-03-15'):
-            CM = Nc_all['total']
+            CM = self.Nc_all['total']
         else:
 
             if school is None:
                 raise ValueError(
                 "Please indicate to which extend schools are open")
 
-            if pd.Timestamp('2020-03-15') <= t <= df_google_end:
+            if pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
                 #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-                idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
-                row = -df_google_array[idx]/100
+                idx = int((t - self.df_google_start) / pd.Timedelta("1 day")) 
+                row = -self.df_google_array[idx]/100
             else:
-                row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
+                row = -self.df_google[-7:-1].mean()/100 # Extrapolate mean of last week
 
             if SB == '2a':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
             elif SB == '2b':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[4] = -df_google['2020-03-15':'2020-04-01'].mean()[4]/100 
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[4] = -self.df_google['2020-03-15':'2020-04-01'].mean()[4]/100 
             elif SB == '2c':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[0] = -df_google['2020-03-15':'2020-04-01'].mean()[0]/100 
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[0] = -self.df_google['2020-03-15':'2020-04-01'].mean()[0]/100 
                 
             # columns: retail_recreation grocery parks transport work residential
             if work is None:
@@ -718,18 +719,14 @@ def make_contact_matrix_function(df_google, Nc_all):
             if others is None:
                 others=1-row[1]
 
-            CM = (prev_home*(1/2.3)*Nc_all['home'] + 
-                  prev_schools*school*Nc_all['schools'] + 
-                  prev_work*work*Nc_all['work'] + 
-                  prev_rest*transport*Nc_all['transport'] + 
-                  prev_rest*leisure*Nc_all['leisure'] + 
-                  prev_rest*others*Nc_all['others']) 
-
+            CM = (prev_home*(1/2.3)*self.Nc_all['home'] + 
+                  prev_schools*school*self.Nc_all['schools'] + 
+                  prev_work*work*self.Nc_all['work'] + 
+                  prev_rest*transport*self.Nc_all['transport'] + 
+                  prev_rest*leisure*self.Nc_all['leisure'] + 
+                  prev_rest*others*self.Nc_all['others']) 
 
         return CM
-
-    return contact_matrix_4prev, all_contact, all_contact_no_schools
-
 
 # Define policy function
 def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
