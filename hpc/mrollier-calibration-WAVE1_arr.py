@@ -143,7 +143,7 @@ def contact_matrix_4prev(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev
 # Define the sloped functions defining the changes in interaction patterns. Copied from JV-calibration-COVID19-SEIRD-WAVE1-comix.ipynb
 def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
 
-    # contact_matrix_4prev, all_contact, all_contact_no_schools = tdpf.make_contact_matrix_function(df_google, Nc_all)
+    contact_matrix_4prev = tdpf.make_contact_matrix_function(df_google, Nc_all)
     # all_contact is simply Nc_all['total'], and all_contact_no_schools is Nc_all['total'] - Nc_all['schools']
     all_contact = Nc_all['total']
     all_contact_no_schools = Nc_all['total'] - Nc_all['schools']
