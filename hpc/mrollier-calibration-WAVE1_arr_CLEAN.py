@@ -336,7 +336,7 @@ n_draws_per_sample= 1000 #1000
 poisson_offset=1
 
 # User-defined thinning parameter
-thin_init = 50
+thin_init = 50 # not yet used
 
 
     
@@ -726,7 +726,7 @@ if __name__ == '__main__':
     # MCMC settings
     max_n = maxn_MCMC # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
-    n_samples = 20 # 1000
+    n_samples = 100 # 1000
     # Confidence level used to visualise binomial model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
