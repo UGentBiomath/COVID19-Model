@@ -714,7 +714,7 @@ labels = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home'
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, parNames_mcmc, draw_fcn, samples_dict, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
