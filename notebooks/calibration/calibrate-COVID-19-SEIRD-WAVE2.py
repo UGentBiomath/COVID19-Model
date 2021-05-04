@@ -108,6 +108,12 @@ fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
+# -----------------------
+# Define helper functions
+# -----------------------
+
+from covid19model.optimization.utils import assign_PSO, plot_PSO
+
 # ---------------------------
 # Time-dependant VOC function
 # ---------------------------
@@ -627,41 +633,12 @@ bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.
 #theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes,
 #                    draw_fcn=draw_fcn, samples=samples_dict)
-# Calibration until 2021-04-21
-#theta = np.array([0.01426078, 9.75610512, 5.32524597, 0.84720035, 0.21093236, 0.10595917, 0.43611962, 1.48916965, 1.06736707]) #-222310.27309159632
-theta = np.array([0.01305881, 12.01161105,  5.17181408,  0.64682606,  0.19749454,  0.10000406, 0.58790638,  1.20467835,  1.38442296]) #-222148.5678525338
-# The MCMC sampler converges to the estimate below --> directly start there
-#theta = np.array([0.01375, 11, 4.5, 0.6, 0.1, 0.07, 0.90, 1.50, 1.30])
+theta = np.array([0.0138, 10.5, 5, 0.60, 0.25, 0.06, 0.90, 1.45, 1.30])
 
-# assign results
-model.parameters['beta'] = theta[0]
-model.parameters['da'] = theta[1]
-model.parameters['l'] = theta[2]
-model.parameters['prev_schools'] = theta[3]
-model.parameters['prev_work'] = theta[4]
-model.parameters['prev_rest'] = theta[5]
-model.parameters['prev_home'] =  theta[6]
-model.parameters['K_inf'] = theta[7]
-model.parameters['K_hosp'] = theta[8]
-
-# -----------------
-# Visualise PSO fit
-# -----------------
-
-# Simulate
-start_sim = start_calibration
-end_sim = '2021-07-01'
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,draw_fcn=draw_fcn,samples=samples_dict)
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
-ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_sim,end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
-plt.show()
-
+model.parameters = assign_PSO(model.parameters, pars, theta)
+out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+--
 # ------------------
 # Setup MCMC sampler
 # ------------------
