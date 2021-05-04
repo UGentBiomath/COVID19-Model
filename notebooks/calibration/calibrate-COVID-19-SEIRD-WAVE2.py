@@ -227,6 +227,7 @@ def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, pre
     t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
 
     t = pd.Timestamp(t.date())
+    print(t)
     # First wave
     if t <= t1:
         return all_contact(t)
@@ -668,28 +669,28 @@ nwalkers = ndim*2
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
-pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,0] = theta[0] + theta[0]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # da
-pos[:,1] = theta[1] + theta[1]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,1] = theta[1] + theta[1]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # l
-pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,2] = theta[2] + theta[2]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention schools
-pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,3] = theta[3] + theta[3]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,3] = np.random.uniform(low=0.50,high=0.99,size=(nwalkers))
 # prevention work
-pos[:,4] = theta[4] + theta[4]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,4] = theta[4] + theta[4]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,4] = np.random.uniform(low=0.05,high=0.40,size=(nwalkers))
 # prevention rest
-pos[:,5] = theta[5] + theta[5]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,5] = theta[5] + theta[5]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,5] = np.random.uniform(low=0.05,high=0.40,size=(nwalkers))
 # prevention home
-pos[:,6] = theta[6] + theta[6]*20e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,6] = theta[6] + theta[6]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,6] = np.random.uniform(low=0.50,high=0.99,size=(nwalkers))
 # K_inf
-pos[:,7] = theta[7] + theta[7]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,7] = theta[7] + theta[7]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,7] = np.random.uniform(low=1.20,high=1.60,size=(nwalkers))
 # K_hosp
-pos[:,8] = theta[8] + theta[8]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
+pos[:,8] = theta[8] + theta[8]*2e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 #pos[:,8] = np.random.uniform(low=1.20,high=1.60,size=(nwalkers))
 
 # Set up the sampler backend if needed
