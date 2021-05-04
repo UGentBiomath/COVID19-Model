@@ -319,9 +319,9 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         if vaccination == True:
             pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
             pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
-            pars_dict['e_h'] = 1.00 # Default: 100% protection against severe COVID-19
+            pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
             pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
-            pars_dict['e_i'] = 0.00 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
+            pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
             pars_dict['d_vacc'] = 12*30 # Default: 12 month coverage of vaccine
 
     else:
