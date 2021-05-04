@@ -396,6 +396,53 @@ def wave1_policies(t, states, param, df_google, Nc_all, l , tau,
 # Mobility update functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+class make_mobility_update_func():
+    """
+    Output the time-dependent mobility function with the data loaded in cache
+    
+    Input
+    -----
+    all_mobility_data : DataFrame
+        Pandas DataFrame with dates as indices and matrices as values. Output of mobility.load_all_mobility_data.
+    average_mobility_data : np.array
+        Average mobility matrix over all matrices
+    """
+    def __init__(self, all_mobility_data, average_mobility_data):
+        self.all_mobility_data = all_mobility_data
+        self.average_mobility_data = average_mobility_data
+        
+    @lru_cache
+    # Define mobility_update_func
+    def __call__(self, t, default_mobility=None):
+        """
+        time-dependent function which has a mobility matrix of type dtype for every date.
+        Note: only works with datetime input (no integer time steps). This 
+        
+        Input
+        -----
+        t : timestamp
+            current date as datetime object
+        states : formal necessity (not used)
+        param : formal necessity (not used)
+        agg : str
+            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+        default_mobility : np.array or None
+            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
+
+        Returns
+        -------
+        place : np.array
+            square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
+        """
+        try: # if there is data available for this date (if the key exists)
+            place = all_mobility_data['place'][t]
+        except:
+            if default_mobility: # If there is no data available and a user-defined input is given
+                place = default_mobility
+            else: # No data and no user input: fall back on average mobility
+                place = average_mobility_data
+        return place
+
 def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
     """
     Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
@@ -445,8 +492,6 @@ def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
             else: # No data and no user input: fall back on average mobility
                 place = average_mobility_data
         return place
-    
-    return mobility_update_func
 
 def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
     t = pd.Timestamp(t.date())
