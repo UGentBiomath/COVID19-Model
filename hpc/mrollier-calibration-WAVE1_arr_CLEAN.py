@@ -336,35 +336,33 @@ n_draws_per_sample= 1000 #1000
 poisson_offset=1
 
 # User-defined thinning parameter
-thin_init = 50 # not yet used
+thin = 50
 
+
+# -------------------------------
+# Range of first and second phase
+# -------------------------------
+
+# Date of first data collection
+start_calibration = '2020-03-05' # first available date
+# Last datapoint used to calibrate pre-lockdown phase
+end_calibration_beta = '2020-03-16' # '2020-03-21'
+# last datapoint used for full calibration and plotting of simulation
+end_calibration = '2020-07-01'
 
     
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
 
-    ###############################
-    ## PRACTICAL AND BOOKKEEPING ##
-    ###############################
-
     ####################################################
     ## PRE-LOCKDOWN PHASE: CALIBRATE BETAs and WARMUP ##
     ####################################################
-
+    
     # --------------------
-    # Calibration settings
+    # Model initialisation
     # --------------------
-
-    # Spatial unit: identifier
-    spatial_unit = signature + "_first"
-    # Date of first data collection
-    start_calibration = '2020-03-05' # first available date
-    # Last datapoint used to calibrate pre-lockdown phase
-    end_calibration_beta = '2020-03-16' # '2020-03-21'
-    # last dataponit used for full calibration and plotting of simulation
-    end_calibration = '2020-07-01'
-
-    # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
+    
+    # Initiate model with initial states, defined parameters, and proper time dependent functions
     model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
                                                {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
 
@@ -372,6 +370,9 @@ if __name__ == '__main__':
     # Particle Swarm Optimization
     # ---------------------------
 
+    # Spatial unit: identifier
+    spatial_unit = signature + "_first"
+    
     print(f'\n-------------------------  ---------------')
     print(f'PERFORMING CALIBRATION OF BETAs and WARMUP')
     print(f'------------------------------------------\n')
@@ -383,13 +384,13 @@ if __name__ == '__main__':
     # define dataset
     data=[df_sciensano[start_calibration:end_calibration_beta]]
     states = [["H_in"]]
+    
+    # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
+    init_warmup = 60
 
     # set PSO parameters and boundaries
     parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
-    bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))#, (0.1,20)) # smaller range for warmup
-
-    # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
-    init_warmup = 60
+    bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))
 
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', poisson_offset=poisson_offset, agg=agg)
@@ -411,35 +412,30 @@ if __name__ == '__main__':
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
+    # Setup parameter names, bounds, number of chains, etc.
+    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
+    
+    ndim = len(parNames_mcmc)
+    # An MCMC walker for every processing core and for every parameter
+    nwalkers = ndim*processes
+    
+    # Add perturbations to the best-fit value from the PSO
+    # Note: this causes a warning IF the resuling values are outside the prior range
+    perturbation_beta_fraction = 1e-2
+    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+    pos = theta_pso + perturbations_beta
+    
     # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
     log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
     # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
     log_prior_fnc_args = bounds[1:]
 
-    # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
-    ndim = len(parNames_mcmc)
-    # An MCMC walker for every processing core and for every parameter
-    nwalkers = ndim*processes
-
-    # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
-
-    # Note: this causes a warning IF the resuling values are outside the prior range
-    perturbation_beta_fraction = 1e-2
-    #     perturbation_comp_fraction = 10e-2
-    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    #     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-    pos = theta_pso + perturbations_beta
-
-    condition_number = np.linalg.cond(pos)
-    print("Condition number of perturbed initial values:", condition_number)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
     if backend:
-        filename = spatial_unit+'_BETAs_prelockdown'+run_date
-        backend = emcee.backends.HDFBackend(results_folder+filename)
+        filename = spatial_unit + '_BETAs_prelockdown' + run_date
+        backend = emcee.backends.HDFBackend(results_folder + filename)
         backend.reset(nwalkers, ndim)
 
     # Run sampler
@@ -449,7 +445,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 1 #10
+    sample_step = 100
 
     with Pool() as pool:
         # Prepare the samplers
@@ -468,20 +464,18 @@ if __name__ == '__main__':
             # Compute the autocorrelation time so far
             # Do not confuse this tau with the compliance tau
             tau = sampler.get_autocorr_time(tol=0)
-            print("tau:", tau)
             # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
-            print("autocorr after append:", autocorr)
             index += 1
 
             # Update autocorrelation plot
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
+            ax.plot(n, n / thin, "--k") # simply a straight line sloped based on thinning parameter
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ymax = max(n[-1]/50.0, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/50, choose index/50 as max
+            ymax = max(n[-1]/thin, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/thin, choose index/thin as max
             ax.set_ylim(0, ymax)
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
@@ -501,8 +495,8 @@ if __name__ == '__main__':
             ##################### 
 
             # Check convergence using mean tau
-            # Note: double condition! These conditions are hard-coded
-            converged = np.all(np.mean(tau) * 50 < sampler.iteration) # this should be thin, I guess
+            # Note: double condition!
+            converged = np.all(np.mean(tau) * thin < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             # Stop MCMC if convergence is reached
             if converged:
@@ -523,17 +517,11 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 5 #5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
         print(f'Warning: The chain is shorter than {thin} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    # checkplots is also not included in Tijs's latest code. Not sure what it does.
-    # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-    #     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
-
 
     print('\n3) Sending samples to dictionary\n')
 
@@ -549,27 +537,16 @@ if __name__ == '__main__':
         'n_chains': int(nwalkers)
     })
 
-    print(samples_dict) # this is empty!
-
     # ------------------------
     # Define sampling function
     # ------------------------
 
-    # in base.sim: self.parameters = draw_fcn(self.parameters,samples)
     def draw_fcn(param_dict,samples_dict):
         # pick one random value from the dictionary
         idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
         # take out the other parameters that belong to the same iteration
         param_dict['beta_U'] = samples_dict['beta_U'][idx]
         param_dict['beta_M'] = samples_dict['beta_M'][idx]
-    #         param_dict['l'] = samples_dict['l'][idx]
-    #         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
-    #         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
-    #         model_wave1.parameters['l'] = samples_dict['l'][idx]
-    #         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
-    #         model_wave1.parameters['da'] = samples_dict['da'][idx]
-    #         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
-    #         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------
@@ -658,7 +635,6 @@ if __name__ == '__main__':
         fig,ax = plt.subplots(figsize=(10,5))
         ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
         ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
-        # Plot result for sum over all places.
         ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index, df_sciensano[start_calibration:end_calibration_beta][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax = _apply_tick_locator(ax)
@@ -695,10 +671,9 @@ if __name__ == '__main__':
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
-    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-
-    #     sys.exit()
+    statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(spatial_unit)}_BETAs-prelockdown_{run_date}.json"'
+    print(statement)
+    print('-'*len(statement) + '\n')
 
     #####################################################
     ## POST-LOCKDOWN PHASE: CALIBRATE BETAs and l COMP ##
@@ -712,8 +687,6 @@ if __name__ == '__main__':
     spatial_unit = signature + "_second"
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
-    # Last datapoint used to calibrate pre-lockdown phase
-    #     end_calibration_beta = '2020-03-16' # '2020-03-21'
     # last dataponit used for full calibration and plotting of simulation
     end_calibration = '2020-07-01'
 
@@ -734,55 +707,8 @@ if __name__ == '__main__':
 
     # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
-
-    # --------------------
-    # Initialize the model (largely repetition)
-    # --------------------
-
-    # Load the model parameters dictionary
-    params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
-    # Add the time-dependant parameter function arguments
-    params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
-                   'df_google' : df_google, # used in tdpf.policies_wave1_4prev
-                   'l' : 5, # will be varied over in the PSO/MCMC
-                   'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
-                   'prev_schools': 1, # hard-coded
-                   'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
-                   'prev_rest': 0.28, # 0.5 # taken from Tijs's analysis
-                   'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
-                  })
-
-    # Add parameters for the daily update of proximus mobility
-    # mobility defaults to average mobility of 2020 if no data is available
-    params.update({'default_mobility' : None,
-                   'all_mobility_data' : all_mobility_data,
-                   'average_mobility_data' : average_mobility_data})
-
-    # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
-    params.update({'e' : np.zeros(initN.shape[1]),
-                   'K' : 1,
-                   'N_vacc' : np.zeros(initN.shape[1]),
-                   'leakiness' : np.zeros(initN.shape[1]),
-                   'v' : np.zeros(initN.shape[1]),
-                   'injection_day' : 500, # Doesn't really matter
-                   'injection_ratio' : 0})
-
-    # Remove superfluous parameters
-    params.pop('alpha')
-
-    # Initial states: single 40 year old exposed individual in Brussels
-    init_number=3
-    if init=='BXL':
-        initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
-    elif init=='DATA':
-        initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
-    else:
-        initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
-    initial_states = {'S': initN, 'E': initE}
-
-    # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
-    model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                               {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
+    
+    thin = 50 # Repeat this, as it may have been overwritten
 
     # ---------------------------
     # Particle Swarm Optimization
@@ -801,8 +727,8 @@ if __name__ == '__main__':
     states = [["H_in"]]
 
     # set PSO parameters and boundaries. Note that betas are calculated again!
-    parNames = ['beta_R', 'beta_U', 'beta_M', 'l'] # no compliance parameters yet
-    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20)) # smaller range for warmup
+    parNames = ['beta_R', 'beta_U', 'beta_M', 'l']
+    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.1,20))
 
     # Take warmup from previous pre-lockdown calculation
     init_warmup = warmup
@@ -845,20 +771,6 @@ if __name__ == '__main__':
     pos[:,1] = theta_pso[1]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
     pos[:,2] = theta_pso[2]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
     pos[:,3] = theta_pso[3]*(1 + perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
-    #     perturbations_betaR = theta_pso[0] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers)
-    #     perturbations_betaU = theta_pso[1] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
-    #     perturbations_betaM = theta_pso[2] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
-    #     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-    #     perturbations_comp = theta_pso[3] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,1)
-    #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-    #     pos = theta_pso + perturbations
-
-    print(pos)
-    condition_number = np.linalg.cond(pos)
-    print("Condition number of perturbed initial values:", condition_number)
-
-    #     print("perturbations_beta:", perturbations_beta)
-    #     print("perturbations_comp:", perturbations_comp)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -874,7 +786,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 10
+    sample_step = 100
 
     with Pool() as pool:
         # Prepare the samplers
@@ -903,10 +815,10 @@ if __name__ == '__main__':
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k") # thinning 50 hardcoded (simply a straight line)
+            ax.plot(n, n / thin, "--k") # simply a straight line
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ymax = max(n[-1]/50.0, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/50, choose index/50 as max
+            ymax = max(n[-1]/thin, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/thin, choose index/thin as max
             ax.set_ylim(0, ymax)
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
@@ -927,7 +839,7 @@ if __name__ == '__main__':
 
             # Check convergence using mean tau
             # Note: double condition! These conditions are hard-coded
-            converged = np.all(np.mean(tau) * 50 < sampler.iteration)
+            converged = np.all(np.mean(tau) * thin < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             # Stop MCMC if convergence is reached
             if converged:
@@ -948,17 +860,11 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    # checkplots is also not included in Tijs's latest code. Not sure what it does.
-    # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-    #     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'])
-
+        print(f'Warning: The chain is shorter than {thin} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
     print('\n3) Sending samples to dictionary\n')
 
@@ -988,13 +894,6 @@ if __name__ == '__main__':
         param_dict['beta_U'] = samples_dict['beta_U'][idx]
         param_dict['beta_M'] = samples_dict['beta_M'][idx]
         param_dict['l'] = samples_dict['l'][idx]
-    #         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
-    #         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
-    #         model_wave1.parameters['l'] = samples_dict['l'][idx]
-    #         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
-    #         model_wave1.parameters['da'] = samples_dict['da'][idx]
-    #         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
-    #         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------
