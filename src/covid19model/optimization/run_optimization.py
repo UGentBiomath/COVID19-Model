@@ -22,7 +22,6 @@ from covid19model.models import models
 from covid19model.data import sciensano
 from covid19model.data import model_parameters
 from covid19model.visualization.optimization import traceplot, autocorrelation_plot
-from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
 from covid19model.models.utils import stratify_beta # used to determine whether the local region
 
 def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
