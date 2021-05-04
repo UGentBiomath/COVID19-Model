@@ -626,7 +626,7 @@ weights = [1]
 # -----------
 
 # optimisation settings
-parNames = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf', 'K_hosp']
+pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf', 'K_hosp']
 bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.99),(1,1.6),(1,1.6))
 
 # run optimization
@@ -635,10 +635,10 @@ bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.
 #                    draw_fcn=draw_fcn, samples=samples_dict)
 theta = np.array([0.0138, 10.5, 5, 0.60, 0.25, 0.06, 0.90, 1.45, 1.30])
 
-model.parameters = assign_PSO(model.parameters, pars, theta)
-out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
---
+#model.parameters = assign_PSO(model.parameters, pars, theta)
+#out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+#plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+
 # ------------------
 # Setup MCMC sampler
 # ------------------
@@ -659,10 +659,10 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-parNames_mcmc = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf','K_hosp']
+pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf','K_hosp']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fnc_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.03,1), (0.03,1), (0.03,1), (0.03,1),(1,1.8),(1,1.8)]
-ndim = len(parNames_mcmc)
+ndim = len(pars)
 nwalkers = ndim*2
 
 # Perturbate PSO Estimate
@@ -714,7 +714,7 @@ labels = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home'
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, parNames_mcmc, None, None, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
