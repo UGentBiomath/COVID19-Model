@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N calibration-COVID19-SEIRD-WAVE1 ## job name
+#PBS -N calibration-COVID19-SEIRD-WAVE1_arr ## job name
 #PBS -l nodes=1:ppn=36 ## single-node job, on 36 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time. This is OK because the node has been reserved anyway
 
@@ -23,7 +23,7 @@ module swap cluster/skitty
 cd $VSC_HOME/Documents/COVID19-Model/hpc/
 
 # Make script executable
-# chmod +x calibrate-COVID-19-SEIRD-WAVE1.py
+# chmod +x calibrate-COVID-19-SEIRD-WAVE1_arr.py
 
 # Activate conda environment
 source activate COVID_MODEL
