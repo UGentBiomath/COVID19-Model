@@ -11,6 +11,27 @@ data_path = os.path.join(abs_dir, "../../../data/")
 
 
 def load_samples_dict(filepath, wave=1):
+    """
+    A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
+
+    Parameters
+    ----------
+
+    filepath : str
+        Path to samples dictionary
+    
+    wave : int (1 or 2)
+        2020 COVID-19 wave
+        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
+    
+    Returns
+    -------
+
+    samples_dict: dict
+        Original samples dict plus bootstrapped samples of hospitalization mortalities ('samples_fractions') and parameters of distributions of residence times in hospital ('residence_times')
+        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
+    """
+    
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
