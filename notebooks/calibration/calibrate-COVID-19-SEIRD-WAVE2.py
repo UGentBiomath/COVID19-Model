@@ -820,58 +820,6 @@ samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
 with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['omega'] = samples_dict['omega'][idx]
-    param_dict['sigma'] = 5.2 - samples_dict['omega'][idx]
-    param_dict['tau'] = samples_dict['tau'][idx] 
-    param_dict['l'] = samples_dict['l'][idx] 
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]      
-    return param_dict
-
-# ----------------
-# Perform sampling
-# ----------------
-
-print('4) Simulating using sampled parameters')
-
-start_sim = start_calibration
-end_sim = '2021-06-01'
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-
-# ---------------------------
-# Adding binomial uncertainty
-# ---------------------------
-
-print('5) Adding binomial uncertainty')
-
-mean, median, LL, UL = add_poisson('H_in', out, n_samples, n_draws_per_sample)
-
-# -----------
-# Visualizing
-# -----------
-
-print('6) Visualizing fit \n')
-
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-# Incidence
-ax.fill_between(pd.to_datetime(out['time'].values), LL, UL,alpha=0.20, color = 'blue')
-ax.plot(out['time'], mean,'--', color='blue')
-ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_calibration,end_sim)
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
 print('DONE!')
 print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
 print('-----------------------------------------------------------------------------------------------------------------------------------\n')
