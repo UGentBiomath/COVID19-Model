@@ -589,7 +589,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-04-21'
+    end_calibration = '2021-05-02'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
@@ -599,10 +599,6 @@ maxiter = 100
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
-# Number of samples used to visualise model fit
-n_samples = 200
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=1
 
 print('\n---------------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
