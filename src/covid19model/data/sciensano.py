@@ -3,6 +3,26 @@ import datetime
 import pandas as pd
 import numpy as np
 
+def get_mortality_data():
+    """Load and return the detailed mortality data for Belgium
+
+    Returns
+    -------
+    mortality_df : pd.dataframe
+        Dataframe containing both the incidence and cumulative sums for the number of deaths in total, hospitals, nursing homes and other locations. Data available per age group and per day.
+        The dataframe has two index levels: age group ('all', '10-20', ..., '80+'), and date. The dataframe has two column levels: 'place' ('total', 'hospital' ,'nursing', 'others') and 'quantity' ('incidence' or 'cumsum')
+
+    Example use
+    -----------
+    mortality_df = get_mortality_data()
+    # slice out 80+ age group
+    slice = mortality_df.xs(key='80+', level="age_class", drop_level=True)
+    # extract cumulative total in age group 80+
+    data = slice['total','cumsum']
+    """
+
+    return pd.read_csv(os.path.join(os.path.dirname(__file__),'../../../data/interim/sciensano/sciensano_detailed_mortality.csv'), index_col=[0,1], header=[0,1])
+
 def get_serological_data():
     """Load and format the available serological data for Belgium
 
@@ -69,7 +89,7 @@ def get_serological_data():
     return df_sero_herzog, df_sero_sciensano
 
 def get_sciensano_COVID19_data(update=True):
-    """Download Sciensano hospitalisation cases data
+    """Download and convert public Sciensano data
 
     This function returns the publically available Sciensano data
     on COVID-19 related cases, hospitalizations, deaths and vaccinations.
