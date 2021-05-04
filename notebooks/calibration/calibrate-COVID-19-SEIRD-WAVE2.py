@@ -276,41 +276,6 @@ def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, pre
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
 
-# ------------------------------
-# Function to add binomial draws
-# ------------------------------
-
-def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5, LL=0.05*0.5):
-    data = output[state_name].sum(dim="Nc").values
-    # Initialize vectors
-    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
-    # Loop over dimension draws
-    for n in range(data.shape[0]):
-        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-    # Compute mean and median
-    mean = np.mean(vector,axis=1)
-    median = np.median(vector,axis=1)    
-    # Compute quantiles
-    LL = np.quantile(vector, q = LL, axis = 1)
-    UL = np.quantile(vector, q = UL, axis = 1)
-    return mean, median, LL, UL
-
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    # Re-susceptibility as estimated from first 2020 COVID-19 wave
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
-    # Sensitivity analysis on vaccination parameters
-    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    # Bootstrap the delay between vaccination and protection
-    param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=50))
-    return param_dict
-
 #############
 ## JOB: R0 ##
 #############
