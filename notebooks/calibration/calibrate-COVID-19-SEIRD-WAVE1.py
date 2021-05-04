@@ -102,6 +102,19 @@ fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
+# --------------------
+# define draw function
+# --------------------
+
+def draw_fcn(param_dict,samples_dict):
+    return param_dict
+
+# -----------------------
+# Define helper functions
+# -----------------------
+
+from covid19model.optimization.utils import assign_PSO, plot_PSO
+
 # ---------------------------------
 # Time-dependant parameter function
 # ---------------------------------
@@ -155,25 +168,19 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=1)
 
-# ------------------------------
-# Function to add binomial draws
-# ------------------------------
+# --------------------
+# Initialize the model
+# --------------------
 
-def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5, LL=0.05*0.5):
-    data = output[state_name].sum(dim="Nc").values
-    # Initialize vectors
-    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
-    # Loop over dimension draws
-    for n in range(data.shape[0]):
-        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-    # Compute mean and median
-    mean = np.mean(vector,axis=1)
-    median = np.median(vector,axis=1)    
-    # Compute quantiles
-    LL = np.quantile(vector, q = LL, axis = 1)
-    UL = np.quantile(vector, q = UL, axis = 1)
-    return mean, median, LL, UL
+# Load the model parameters dictionary
+params = model_parameters.get_COVID19_SEIRD_parameters()
+# Add the time-dependant parameter function arguments
+params.update({'l': 60, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+# Define initial states
+initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
+# Initialize model
+model = models.COVID19_SEIRD(initial_states, params,
+                        time_dependent_parameters={'Nc': policies_WAVE1})
 
 ###############
 ##  JOB: R0  ##
@@ -189,43 +196,25 @@ start_data = '2020-03-15'
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate warmup and beta
 if not args.enddate:
-    end_calibration_beta = '2020-03-21'
+    end_calibration = '2020-03-21'
 else:
-    end_calibration_beta = str(args.enddate)
+    end_calibration = str(args.enddate)
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 20
-maxiter = 20
+multiplier = 2
+maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
-max_n = 1000
-# Number of samples used to visualise model fit
-n_samples = 50
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=1
-
-# --------------------
-# Initialize the model
-# --------------------
-
-# Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters()
-# Add the time-dependant parameter function arguments
-params.update({'l': 60, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
-# Define initial states
-initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
-# Initialize model
-model = models.COVID19_SEIRD(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE1})
+max_n = 10000
 
 if job == 'R0':
 
     print('\n----------------------------------------------------')
     print('PERFORMING CALIBRATION OF WARMUP, BETA, OMEGA AND DA')
     print('----------------------------------------------------\n')
-    print('Using data from '+start_calibration+' until '+end_calibration_beta+'\n')
+    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
     print('1) Particle swarm optimization\n')
     print('Using ' + str(processes) + ' cores\n')
 
@@ -233,56 +222,25 @@ if job == 'R0':
     # define dataset
     # --------------
 
-    data=[df_sciensano['H_in'][start_calibration:end_calibration_beta]]
+    data=[df_sciensano['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
-
-    # ------------------------
-    # Define sampling function
-    # ------------------------
-
-    samples_dict = {}
-    # Set up a draw function that doesn't keep track of sampled parameters not equal to calibrated parameter for PSO
-    def draw_fcn(param_dict,samples_dict):
-        param_dict['sigma'] = 5.2 - param_dict['omega']
-        return param_dict
+    weights = [1]
 
     # -----------
     # Perform PSO
     # -----------
 
     # set optimisation settings
-    parNames = ['warmup','beta', 'omega', 'da']
-    bounds=((10,80),(0.020,0.06), (0.1,3.2), (3.0,9.0))
-
+    pars = ['warmup','beta', 'da']
+    bounds=((10,80),(0.020,0.06), (3.0,9.0))
     # run optimisation
-    theta = pso.fit_pso(model,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize,
-                        start_date=start_calibration, processes=processes,draw_fcn=draw_fcn, samples=samples_dict)
-    
-    # assign results
-    warmup = int(theta[0])
-    theta = theta[1:]
-
-    model.parameters['beta'] = theta[0]
-    model.parameters['omega'] = theta[1]
-    model.parameters['da'] = theta[2]
-
-    # -----------------
-    # Visualise PSO fit
-    # -----------------
-
-    # Simulate
-    start_sim ='2020-03-10'
-    end_sim = '2020-03-27'
-    out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
-    # Plot
-    fig,ax = plt.subplots(figsize=(10,5))
-    ax.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
-    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax = _apply_tick_locator(ax)
-    ax.set_xlim(start_sim,end_sim)
-    ax.set_ylabel('$H_{in}$ (-)')
-    plt.show()
+    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, processes=processes)
+    # Visualize optimization
+    warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
+    # Perform simulation
+    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
+    plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 
     # ------------------
     # Setup MCMC sampler
@@ -291,20 +249,16 @@ if job == 'R0':
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fnc_args = [(0.01,0.10), (0.1,5.1), (0.1,14)]
-
+    log_prior_fnc = [prior_uniform, prior_uniform]
+    log_prior_fnc_args = [(0.01,0.10), (0.1,14)]
     # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta','omega','da']
-    ndim = len(parNames_mcmc)
+    pars = ['beta','da']
+    ndim = len(pars)
     nwalkers = ndim*mp.cpu_count()
-
     # Perturbate the PSO estimates
-    perturbations_beta = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_omega = np.expand_dims(np.random.triangular(0.1,0.1,3.1, size=nwalkers),axis=1)
+    perturbations_beta = theta[1] + theta[1]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
     perturbations_da = np.expand_dims(np.random.triangular(2,5,9, size=nwalkers),axis=1)
-    pos = np.concatenate((perturbations_beta, perturbations_omega, perturbations_da),axis=1)
-
+    pos = np.concatenate((perturbations_beta, perturbations_da),axis=1)
     # Set up the sampler backend if needed
     if backend:
         filename = spatial_unit+'_R0_'+run_date
@@ -325,7 +279,7 @@ if job == 'R0':
     
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, draw_fcn, {}, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 100 steps
             if sampler.iteration % 100:
@@ -353,7 +307,7 @@ if job == 'R0':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
+            traceplot(sampler.get_chain(),['$\\beta$','$d_{a}$'],
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -375,7 +329,7 @@ if job == 'R0':
             # WRITE SAMPLES TO BINARY FILE #
             ################################
 
-            # Write samples to dictionary every 200 steps
+            # Write samples to dictionary every 100 steps
             if sampler.iteration % 100: 
                 continue
 
@@ -384,6 +338,10 @@ if job == 'R0':
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
+
+    # ----------------------------------------------------
+    # Assign results to samples dictionary without discard
+    # ----------------------------------------------------
 
     thin = 1
     try:
@@ -396,67 +354,24 @@ if job == 'R0':
 
     flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
     samples_dict = {}
-    for count,name in enumerate(parNames_mcmc):
+    for count,name in enumerate(pars):
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
         'warmup' : warmup,
         'start_date_R0' : start_calibration,
-        'end_date_R0' : end_calibration_beta,
+        'end_date_R0' : end_calibration,
         'n_chains_R0': int(nwalkers)
     })
 
     with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
-    # ------------------------
-    # Define sampling function
-    # ------------------------
-
-    def draw_fcn(param_dict,samples_dict):
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        model.parameters['da'] = samples_dict['da'][idx]
-        model.parameters['omega'] = samples_dict['omega'][idx]
-        model.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
-        return param_dict
-
-    # ----------------------
-    # Perform sampling
-    # ----------------------
-
-    print('4) Simulating using sampled parameters')
-    start_sim = start_calibration
-    end_sim = '2020-03-26'
-    out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-
-    # ---------------------------
-    # Adding binomial uncertainty
-    # ---------------------------
-
-    print('5) Adding binomial uncertainty')
-
-    mean, median, LL, UL = add_poisson('H_in', out, n_samples, n_draws_per_sample)
-
-    print('6) Visualizing fit \n')
-
-    # Plot
-    fig,ax = plt.subplots(figsize=(10,5))
-    # Incidence
-    ax.fill_between(pd.to_datetime(out['time'].values), LL, UL,alpha=0.20, color = 'blue')
-    ax.plot(out['time'], mean,'--', color='blue')
-    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index,df_sciensano['H_in'][start_calibration:end_calibration_beta], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax = _apply_tick_locator(ax)
-    ax.set_xlim('2020-03-10',end_sim)
-    ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
     print('DONE!')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
 
     sys.exit()
-
 
 ############################################
 ## PART 2: COMPLIANCE RAMP AND PREVENTION ##
@@ -478,16 +393,12 @@ else:
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 5
-maxiter = 30
+maxiter = 3
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
-# Number of samples used to visualise model fit
-n_samples = 100
-# Number of binomial draws per sample drawn used to visualize model fit
-n_draws_per_sample=1
 
-print('\n------------------------------------------------------------')
+print('\n--------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, DA, COMPLIANCE AND EFFECTIVITY')
 print('--------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
@@ -512,56 +423,21 @@ weights = [1,(8/5)*weight_sciensano,weight_sciensano] # sciensano dataset has mo
 # -----------
 
 # optimisation settings
-parNames = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
+pars = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
 
 # run optimization
-#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+#theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-
-# Until 2020-07-23
-#theta = np.array([5.76556665e-02, 5.06972239e+00, 8.77079765e+00, 1.94409883e-01, 2.03883226e-01, 9.82492943e-01, 1.65089868e-04]) #-95338.61818301311
-#theta = np.array([2.94212070e-02, 8.30129572e+00, 9.16276498e+00, 1.00000000e-01, 1.00000000e-01, 5.00000000e-01, 2.36883803e-03]) # -95325.77403262131
 # Until 2020-07-07
 theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
 
-# assign results
-model.parameters['beta'] = theta[0]
-model.parameters['da'] = theta[1]
-model.parameters['l'] = theta[2]
-model.parameters['prev_work'] = theta[3]
-model.parameters['prev_rest'] = theta[4]
-model.parameters['prev_home'] =  theta[5]   
-model.parameters['zeta'] =  theta[6]   
+model.parameters = assign_PSO(model.parameters, pars, theta)
+out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
+plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 
-# -----------------
-# Visualise PSO fit
-# -----------------
 
-# Simulate
-start_sim = '2020-03-10'
-end_sim = '2020-09-09'
-out = model.sim(end_sim,start_date=start_calibration,warmup=warmup)
-# Plot hospitalizations
-fig,(ax1,ax2) = plt.subplots(nrows=2,ncols=1,figsize=(12,8),sharex=True)
-ax1.plot(out['time'],out['H_in'].sum(dim='Nc'),'--', color='blue')
-ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1 = _apply_tick_locator(ax1)
-ax1.set_xlim(start_sim,end_sim)
-ax1.set_ylabel('$H_{in}$ (-)')
-# Plot fraction of immunes
-ax2.plot(out['time'],out['R'].sum(dim='Nc')/sum(initN)*100,'--', color='blue')
-yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
-ax2.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', ecolor='gray', elinewidth=3, capsize=0)
-yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
-ax2.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', ecolor='gray', elinewidth=3, capsize=0)
-ax2 = _apply_tick_locator(ax2)
-ax2.set_xlim(start_sim,end_sim)
-ax2.set_ylabel('Seroprelevance (%)')
-plt.show()
-
-# Example code to pass custom distributions as priors (Overwritten)
+# Example code to pass custom distributions as priors
 # Prior beta
 #density_beta, bins_beta = np.histogram(samples_dict['beta'], bins=20, density=True)
 #density_beta_norm = density_beta/np.sum(density_beta)
@@ -575,12 +451,11 @@ plt.show()
 #log_prior_fnc_args = [(bins_beta, density_beta_norm),(bins_omega, density_omega_norm),(bins_da, density_da_norm),(0.001,20), (0.001,20), (0,1), (0,1), (0,1)]
 
 # Setup uniform priors
-parNames_mcmc = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
+pars = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
-ndim = len(parNames_mcmc)
+ndim = len(pars)
 nwalkers = ndim*2
-
 # Perturbate PSO Estimate
 pos = np.zeros([nwalkers,ndim])
 # Beta
@@ -590,16 +465,12 @@ pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalk
 # l
 pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 # prevention work
-#pos[:,3] = theta[3] + theta[3]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,3] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # other prevention
-#pos[:,4] = theta[4] + theta[4]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,4] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
 # home prevention
-#pos[:,5] = theta[5] + theta[5]*1e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,5] = np.random.uniform(low=0.50,high=0.90,size=(nwalkers))
 # zeta
-#pos[:,6] = theta[6] + theta[6]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
 pos[:,6] = np.random.uniform(low=1e-4,high=4e-3,size=(nwalkers))
 
 # Set up the sampler backend
@@ -622,12 +493,9 @@ autocorr = np.zeros([1,ndim])
 # Initialize the labels
 labels = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
 
-def draw_fcn(param_dict,samples_dict):
-    return param_dict
-
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, parNames_mcmc, draw_fcn, {}, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, draw_fcn, {}, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
@@ -688,6 +556,10 @@ with Pool() as pool:
             f.close()
             gc.collect()
 
+# ----------------------------------------------------
+# Assign results to samples dictionary without discard
+# ----------------------------------------------------
+
 thin = 1
 try:
     autocorr = sampler.get_autocorr_time()
@@ -700,7 +572,7 @@ print('\n3) Sending samples to dictionary')
 flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
 
 samples_dict={}
-for count,name in enumerate(parNames_mcmc):
+for count,name in enumerate(pars):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
 samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
@@ -709,54 +581,6 @@ samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
 
 with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.json', 'w') as fp:
     json.dump(samples_dict, fp)
-
-# ------------------------
-# Define sampling function
-# ------------------------
-
-def draw_fcn(param_dict,samples_dict):
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx] 
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]      
-    return param_dict
-
-# ----------------
-# Perform sampling
-# ----------------
-
-print('4) Simulating using sampled parameters')
-start_sim = start_calibration
-end_sim = '2020-09-01'
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-
-# ---------------------------
-# Adding binomial uncertainty
-# ---------------------------
-
-print('5) Adding binomial uncertainty')
-
-mean, median, LL, UL = add_poisson('H_in', out, n_samples, n_draws_per_sample)
-
-# ---------------
-# Visualizing fit
-# ---------------
-
-print('6) Visualizing fit \n')
-
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-ax.fill_between(pd.to_datetime(out['time'].values), LL, UL,alpha=0.20, color = 'blue')
-ax.plot(out['time'], mean,'--', color='blue')
-ax.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim('2020-03-10',end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
 print('DONE!')
 print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.json'+'"')
