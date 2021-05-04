@@ -81,12 +81,9 @@ run_date = str(datetime.date.today())
 # Load data
 # ---------
 
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
+# Time-integrated contact matrices
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
-# Use time-integrated matrices
-intmat = model_parameters.get_integrated_interaction_matrices()
-Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
@@ -114,7 +111,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
-def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
+def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
 
     # Convert time to timestamp
     t = pd.Timestamp(t.date())
@@ -221,7 +218,7 @@ params.update({'l': 60, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, '
 initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave1_4prev})
+                        time_dependent_parameters={'Nc': policies_WAVE1})
 
 if job == 'R0':
 

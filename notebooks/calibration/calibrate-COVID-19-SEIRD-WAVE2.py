@@ -80,27 +80,19 @@ run_date = str(datetime.date.today())
 # Load data
 # ---------
 
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
+# Time-integrated contact matrices
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
-# Use time-integrated matrices
-intmat = model_parameters.get_integrated_interaction_matrices()
-Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
 # Sciensano data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Model initial condition on September 1st
-warmup = 0
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
-# Add additional states of vaccination model
-initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
-                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'C_v': np.zeros(9),
-                        'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-# Samples of resusceptibility
+# Append samples of resusceptibility
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json', 'r') as fp:
     samples_dict = json.load(fp)
 samples_dict = {'zeta': samples_dict['zeta']}

@@ -61,99 +61,43 @@ bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD
 # Third axis: bootstrap sample
 samples_dict.update({'samples_fractions': bootstrap_fractions})
 
-# Start of data collection
-start_data = '2020-03-15'
-# Start of calibration warmup and beta
-start_calibration = '2020-03-15'
-# Last datapoint used to calibrate warmup and beta
-end_calibration = '2020-07-08'
-# Confidence level used to visualise model fit
-conf_int = 0.05
-
 # ---------
 # Load data
 # ---------
 
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+# Time-integrated contact matrices
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
-intmat = model_parameters.get_integrated_interaction_matrices()
-Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
 # Sciensano public data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Sciensano mortality data
-df_sciensano_mortality = pd.read_csv('../../data/interim/sciensano/sciensano_detailed_mortality.csv', index_col=[0,1])
-# Convert to hospital deaths
-for idx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values):
-    if idx == 0:
-        total_deaths_hospital = df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True)[['cumsum_hospital']].values
-    else:
-        total_deaths_hospital = total_deaths_hospital + df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True)[['cumsum_hospital']].values
-deaths_hospital = pd.Series(data=np.squeeze(total_deaths_hospital), index=df_sciensano_mortality.index.get_level_values(1).unique())
+df_sciensano_mortality =sciensano.get_mortality_data()
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# Start of data collection
+start_data = df_sciensano.idxmin()
+# Start of calibration warmup and beta
+start_calibration = samples_dict['start_calibration']
+# Last datapoint used to calibrate warmup and beta
+end_calibration = samples_dict['end_calibration']
+# Confidence level used to visualise model fit
+conf_int = 0.05
 
 # ------------------------
 # Define results locations
 # ------------------------
 
-# Path where figures should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
+# Path where figures and results should be stored
+fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/'
 
-# ---------------------------------
-# Time-dependant parameter function
-# ---------------------------------
+# -------------------------------------
+# Time-dependant social policy function
+# -------------------------------------
 
-# Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun, policies_WAVE1
 contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
-
-# Define policy function
-def policies_wave1_4prev(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
-
-    # Convert time to timestamp
-    t = pd.Timestamp(t.date())
-
-    # Convert l to a date
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-08-07') # end of 'second wave' in antwerp
-    t5 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    if t <= t1:
-        return all_contact(t)
-    elif t1 < t <= t1 + l_days:
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
-    ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
-    ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
-    elif t3 < t <= t3 + l_days:
-        policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-        return ramp_fun(policy_old, policy_new, t, t3, l)
-    elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
-                              school=0)                                          
-    else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
 
 # ------------------------------
 # Function to add poisson draws
@@ -228,7 +172,7 @@ params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, '
 initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave1_4prev})
+                        time_dependent_parameters={'Nc': policies_WAVE1})
 
 # ----------------------
 # Perform sampling
@@ -326,6 +270,7 @@ ax3.set_ylabel('$ICU_{tot}$ (-)')
 mean, median, LL, UL = add_poisson('D', out, args.n_samples, args.n_draws_per_sample)
 ax4.plot(simtime, mean,'--', color='blue', linewidth=1)
 ax4.fill_between(simtime, LL, UL, alpha=0.20, color = 'blue')
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 ax4.scatter(deaths_hospital[start_calibration:end_calibration].index,deaths_hospital[start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax4.scatter(deaths_hospital[end_calibration:end_sim].index,deaths_hospital[end_calibration:end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 
@@ -341,18 +286,18 @@ dates = ['2020-05-01','2020-07-01','2020-09-01']
 fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(12,4*len(dates)),sharex=True)
 for idx,date in enumerate(dates):
     data_sciensano = []
-    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values):
-        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx],'cumsum_hospital'])
+    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
+        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
     
-    axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values,out['D'].mean(dim='draws').loc[dict(time=date)],color='black',marker='v',zorder=1)
+    axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').loc[dict(time=date)],color='black',marker='v',zorder=1)
     yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
     yerr[0,:] = out['D'].mean(dim='draws').loc[dict(time=date)] - out['D'].quantile(dim='draws',q=0.025).loc[dict(time=date)].values
     yerr[1,:] = out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').loc[dict(time=date)]
-    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values,
+    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
                        y=out['D'].mean(dim='draws').loc[dict(time=date)],
                        yerr=yerr,
                        color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
-    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values,data_sciensano,width=1,alpha=0.7,zorder=0)
+    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
     axes[idx].set_title('Cumulative hospital deaths on '+date)
     axes[idx].grid(False)
 plt.show()
@@ -362,6 +307,11 @@ print('6) Saving model states on 2020-09-01 \n')
 initial_states = {}
 for state in list(out.data_vars.keys()):
     initial_states.update({state: list(out[state].mean(dim='draws').sel(time=pd.to_datetime('2020-09-01'), method='nearest').values)})
+
+# Add additional states of vaccination model
+initial_states.update({'S_v': list(np.zeros(9)), 'E_v': list(np.zeros(9)), 'I_v': list(np.zeros(9)),
+                        'A_v': list(np.zeros(9)), 'M_v': list(np.zeros(9)), 'C_v': list(np.zeros(9)),
+                        'C_icurec_v': list(np.zeros(9)), 'ICU_v': list(np.zeros(9)), 'R_v': list(np.zeros(9))})
 
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 with open(samples_path+'initial_states_2020-09-01.json', 'w') as fp:

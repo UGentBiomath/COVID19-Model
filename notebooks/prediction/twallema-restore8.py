@@ -107,13 +107,9 @@ print('###############\n')
 
 print('1) Loading data\n')
 
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
+# Time-integrated contact matrices
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
-# Use time-integrated matrices
-intmat = model_parameters.get_integrated_interaction_matrices()
-Nc_all = {'total': intmat['Nc_total'], 'home': intmat['Nc_home'], 'work': intmat['Nc_work'], 'schools': intmat['Nc_schools'], 'transport': intmat['Nc_transport'], 'leisure': intmat['Nc_leisure'], 'others': intmat['Nc_others']}
-# Sciensano data
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
@@ -516,10 +512,6 @@ def draw_fcn(param_dict,samples_dict):
 warmup = 0
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
-# Add additional states of vaccination model
-initial_states.update({'S_v': np.zeros(9), 'E_v': np.zeros(9), 'I_v': np.zeros(9),
-                        'A_v': np.zeros(9), 'M_v': np.zeros(9), 'C_v': np.zeros(9),
-                        'C_icurec_v': np.zeros(9), 'ICU_v': np.zeros(9), 'R_v': np.zeros(9)})
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments

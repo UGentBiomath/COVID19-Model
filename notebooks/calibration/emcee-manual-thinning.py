@@ -107,7 +107,7 @@ CORNER_KWARGS = dict(
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    range=[(0,0.12),(0,15),(0,13),(0,1),(0,1),(0,1),(0,0.01)],
+    range=[(0,0.12),(0,15),(0,13),(0,1),(0,1),(0,1),(0,1),(1,2),(1,2)],
     title_fmt=".3" 
 )
 
