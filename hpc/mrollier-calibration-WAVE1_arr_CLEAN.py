@@ -921,6 +921,7 @@ if __name__ == '__main__':
     # Create corner plot
     # ------------------
     
+    # Redefining CORNER_KWARGS is probably superfluous
     CORNER_KWARGS = dict(
         smooth=0.9,
         label_kwargs=dict(fontsize=14),
