@@ -328,8 +328,8 @@ ax.set_yticks([])
 ax.set_xlim('2020-09-01','2021-06-14')
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.png', dpi=300, bbox_inches='tight')
 
 print('3) Visualizing fit')
 
@@ -360,8 +360,8 @@ ax2.set_ylabel('Seroprelevance (%)')
 plt.tight_layout()
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 
 print('3) Visualizing fit on hospitals')
 
@@ -400,12 +400,12 @@ ax4.scatter(deaths_hospital[start_calibration:end_calibration].index,deaths_hosp
 ax4.scatter(deaths_hospital[end_calibration:end_sim].index,deaths_hospital[end_calibration:end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 
 ax4 = _apply_tick_locator(ax4)
-ax4.set_xlim('2020-03-01',end_sim)
+ax4.set_xlim('2020-09-01',end_sim)
 ax4.set_ylabel('$D_{tot}$ (-)')
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.png', dpi=300, bbox_inches='tight')
 
 
 print('4) Visualizing fit on deaths')
@@ -431,5 +431,5 @@ for idx,date in enumerate(dates):
     axes[idx].grid(False)
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
