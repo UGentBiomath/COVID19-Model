@@ -429,7 +429,7 @@ def policies_RESTORE8(t, states, param, l , l_relax, prev_schools, prev_work, pr
 # Helper functions
 # ----------------
 
-from covid19model.models.utils import add_poisson
+from covid19model.models.utils import output_to_visuals
 
 def draw_fcn(param_dict,samples_dict):
     """ 
@@ -546,17 +546,17 @@ for idx,scenario in enumerate(scenarios):
                 # Simulate model
                 # --------------
                 out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-                mean_Hin, median_Hin, LL_Hin, UL_Hin = add_poisson('H_in', out_vacc, n_samples, n_draws)
-                mean_Htot, median_Htot, LL_Htot, UL_Htot = add_poisson('H_tot', out_vacc, n_samples, n_draws)
+                simtime, df_2plot = output_to_visuals(out_vacc, ['H_in', 'H_tot'], n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
                 # Append to dataframe
                 columnnames = ['incidences_mean', 'incidences_median', 'incidences_LL', 'incidences_UL',
                                 'load_mean', 'load_median', 'load_LL', 'load_UL']
-                data = [mean_Hin, median_Hin, LL_Hin, UL_Hin, mean_Htot, median_Htot, LL_Htot, UL_Htot]
+                data = [df_2plot['H_in','mean'], df_2plot['H_in','median'], df_2plot['H_in','LL'], df_2plot['H_in','UL'],
+                            df_2plot['H_tot','mean'],df_2plot['H_tot','median'],df_2plot['H_tot','LL'],df_2plot['H_tot','UL']]
                 for i in range(len(columnnames)):
                     df_sim[scenario, relaxdate, daily_dose, description_order[ldx], columnnames[i]] = data[i]
                 # Append to figure
-                axes[jdx].plot(df_sim.index, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_mean'],'--', linewidth=1, color=colors[k])
-                axes[jdx].fill_between(df_sim.index, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_LL'], df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_UL'], color=colors[k], alpha=0.20)
+                axes[jdx].plot(simtime, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_mean'],'--', linewidth=1, color=colors[k])
+                axes[jdx].fill_between(simtime, df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_LL'], df_sim[scenario, relaxdate, daily_dose, description_order[ldx], 'incidences_UL'], color=colors[k], alpha=0.20)
                 legend_text.append(str(daily_dose)+' doses/day - '+description_order[ldx])
                 k=k+1
 
