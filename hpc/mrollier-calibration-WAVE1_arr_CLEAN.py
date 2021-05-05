@@ -29,7 +29,7 @@ from functools import lru_cache # to save large data files in cache
 
 # Load custom packages
 from covid19model.models import models
-from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_func, make_contact_matrix_function
+from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, make_contact_matrix_function
 from covid19model.models.utils import initial_state
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
@@ -114,9 +114,32 @@ if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+
     raise Exception("Some of the figure path subdirectories do not exist.")
 
 
+# ---------
+# Load data
+# ---------
+
+# Load and format mobility dataframe
+proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
+# Converting the index as date
+# all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
+
+# Contact matrices
+initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
+Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+
+# Google Mobility data
+df_google = mobility.get_google_mobility_data(update=False)
+
+# Sciensano data: *hospitalisations* (H_in) moving average at spatial level {agg}. Column per NIS code
+df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=True, values='hospitalised_IN')
+
+
+
 # -------------------------------
 # Define mobility update function
 # -------------------------------
+
+mobility_update_function = make_mobility_update_function()
 
 # We must define all functions that are used as time-dependent parameter functions here, because otherwise
 # they are not recognised in the multiprocessing
@@ -250,26 +273,6 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
                               school=0)
 
 
-# ---------
-# Load data
-# ---------
-
-# Load and format mobility dataframe
-all_mobility_data, average_mobility_data = mobility.load_all_mobility_data(agg, dtype='fractional', beyond_borders=False)
-# Converting the index as date
-all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
-
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
-
-# Google Mobility data
-df_google = mobility.get_google_mobility_data(update=False)
-
-# Sciensano data: *hospitalisations* (H_in) moving average at spatial level {agg}. Column per NIS code
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=True, values='hospitalised_IN')
-
-
 
 # --------------------
 # Initialize the model
@@ -289,7 +292,7 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
-# mobility_update_func = make_mobility_update_func(agg, dtype='fractional', beyond_borders=False)
+# mobility_update_func = make_mobility_update_function(agg, dtype='fractional', beyond_borders=False)
 params.update({'default_mobility' : None,
                'all_mobility_data' : all_mobility_data,
                'average_mobility_data' : average_mobility_data})
