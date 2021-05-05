@@ -1044,6 +1044,9 @@ if __name__ == '__main__':
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
+    # Create subdirectory
+    fit_postlockdown_subdir = fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_NIS_'+run_date'
+    os.mkdir(fit_postlockdown_subdir)
     # Plot result for each NIS
     for NIS in out.place.values:
         fig,ax = plt.subplots(figsize=(10,5))
@@ -1055,7 +1058,7 @@ if __name__ == '__main__':
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fit_postlockdown_subdir+'/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
 
     ###############################
