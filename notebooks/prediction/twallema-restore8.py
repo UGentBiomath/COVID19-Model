@@ -4,14 +4,14 @@ Deterministic, national-level BIOMATH COVID-19 SEIRD
 
 Example use:
 ------------
-python twallema-restore8.py -s 0 1 2 3 4 5 6 -n 100
+python twallema-restore8.py -f BE_WAVE2_R0_COMP_EFF_2021-04-28.json -s 0 1 2 3 4 5 6 -n 100
 
     Runs all 7 social scenarios with 100 simulations per scenario.
 
 """
 
 __author__      = "Tijs Alleman and Jenna Vergeynst"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 # ----------------------
 # Load required packages
@@ -21,29 +21,23 @@ import gc
 import sys, getopt
 import ujson as json
 import random
-import emcee
 import datetime
-import corner
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import multiprocessing as mp
 from multiprocessing import Pool
 from covid19model.models import models
-from covid19model.optimization.run_optimization import checkplots, calculate_R0
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
-from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
-from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 
 # -----------------------
 # Handle script arguments
 # -----------------------
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-f", "--filename", help="Samples dictionary name")
 parser.add_argument("-s", "--scenarios", help="Scenarios to be simulated", nargs='+')
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
@@ -87,7 +81,6 @@ print('##################################\n')
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
-df_sciensano.index[-1]
 
 print('report: v' + report_version)
 print('scenarios: '+ ', '.join(map(str, scenarios)))
@@ -107,26 +100,27 @@ print('###############\n')
 
 print('1) Loading data\n')
 
+# -------------------
+# Load remaining data
+# -------------------
+
 # Time-integrated contact matrices
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
-# Load samples dictionary of the second wave
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE2_R0_COMP_EFF_2021-04-28.json', 'r') as fp:
-    samples_dict = json.load(fp)
-# Append samples of re-susceptibility estimated from WAVE 1
-samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json'))
-samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
-# Append data on hospitalizations
-residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
-samples_dict.update({'residence_times': residence_time_distributions})
-bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy')
-# First axis: parameter: c, m0, m0_C, m0_ICU
-# Second axis: age group
-# Third axis: bootstrap sample
-samples_dict.update({'samples_fractions': bootstrap_fractions})
+
+# -----------------------
+# Load samples dictionary
+# -----------------------
+
+# Path where MCMC samples are saved
+samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+
+from covid19model.models.utils import load_samples_dict
+samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2)
+warmup = int(samples_dict['warmup'])
 
 print('2) Initializing model\n')
 
@@ -435,24 +429,12 @@ def policies_RESTORE8(t, states, param, l , l_relax, prev_schools, prev_work, pr
 # Helper functions
 # ----------------
 
-def add_poisson(state_name, output, n_samples, n_draws_per_sample, UL=1-0.05*0.5, LL=0.05*0.5):
-    data = output[state_name].sum(dim="Nc").values
-    # Initialize vectors
-    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
-    # Loop over dimension draws
-    for n in range(data.shape[0]):
-        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
-    # Compute mean and median
-    mean = np.mean(vector,axis=1)
-    median = np.median(vector,axis=1)    
-    # Compute quantiles
-    LL = np.quantile(vector, q = LL, axis = 1)
-    UL = np.quantile(vector, q = UL, axis = 1)
-    return mean, median, LL, UL
-
+from covid19model.models.utils import add_poisson
 
 def draw_fcn(param_dict,samples_dict):
+    """ 
+    This draw function differes from the one located in the `~/src/models/utils.py` because daily_dose is not included
+    """
 
     # Calibration of WAVE 1
     # ---------------------
@@ -472,7 +454,6 @@ def draw_fcn(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    #param_dict['daily_dose'] = np.random.uniform(low=50000,high=90000)
     param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
     param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
@@ -518,15 +499,9 @@ params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Social policies
 params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 28})
 # Vaccination
-vacc_order = np.array(range(9))
-vacc_order = vacc_order[::-1]
-daily_dose = 55000
-refusal = 0.2*np.ones(9)
-delay = 21
-d_vacc = 12*30 # duration of vaccine protection
 params.update(
-    {'vacc_order': vacc_order, 'daily_dose': daily_dose,
-     'refusal': refusal, 'delay': delay, 'df_sciensano_start': df_sciensano_start,
+    {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
+     'refusal': 0.2*np.ones(9), 'delay': 21, 'df_sciensano_start': df_sciensano_start,
      'df_sciensano_end': df_sciensano_end}
 )
 # Initialize model
