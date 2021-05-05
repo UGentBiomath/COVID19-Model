@@ -422,10 +422,6 @@ class make_mobility_update_func():
         -----
         t : timestamp
             current date as datetime object
-        states : formal necessity (not used)
-        param : formal necessity (not used)
-        agg : str
-            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
         default_mobility : np.array or None
             If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
