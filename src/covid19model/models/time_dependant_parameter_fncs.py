@@ -396,7 +396,7 @@ def wave1_policies(t, states, param, df_google, Nc_all, l , tau,
 # Mobility update functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class make_mobility_update_func():
+class make_mobility_update_function():
     """
     Output the time-dependent mobility function with the data loaded in cache
     
