@@ -444,7 +444,7 @@ class make_mobility_update_function():
                 place = self.proximus_mobility_data_avg
         return place
 
-    def mobility_wrapper_func(t, states, param, default_mobility=None):
+    def mobility_wrapper_func(self, t, states, param, default_mobility=None):
         t = pd.Timestamp(t.date())
         return self.__call__(t, default_mobility=default_mobility)
     
