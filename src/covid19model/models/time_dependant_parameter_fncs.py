@@ -411,7 +411,7 @@ class make_mobility_update_func():
         self.all_mobility_data = all_mobility_data
         self.average_mobility_data = average_mobility_data
         
-    @lru_cache
+    @lru_cache()
     # Define mobility_update_func
     def __call__(self, t, default_mobility=None):
         """
@@ -434,56 +434,6 @@ class make_mobility_update_func():
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
-        try: # if there is data available for this date (if the key exists)
-            place = all_mobility_data['place'][t]
-        except:
-            if default_mobility: # If there is no data available and a user-defined input is given
-                place = default_mobility
-            else: # No data and no user input: fall back on average mobility
-                place = average_mobility_data
-        return place
-
-def make_mobility_update_func(agg, dtype='fractional', beyond_borders=False):
-    """
-    Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
-    
-    Input
-    -----
-    all_mobility_data : pd.DataFrame
-        DataFrame with dates (in datetime) as indices (under 'DATE') and mobility matrices (np.array with floats) as values (under 'place')
-    average_mobility_data : np.array
-        average mobility matrix over all available dates
-        
-    Returns
-    -------
-    mobility_update_func : function
-        time-dependent function which has a mobility matrix of type dtype for every date.
-        Note: only works with datetime input (no integer time steps)
-        This function has the following properties:
-        
-        Input
-        -----
-        t : timestamp
-            current date as datetime object
-        states : formal necessity (not used)
-        param : formal necessity (not used)
-        agg : str
-            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
-        default_mobility : np.array or None
-            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
-
-        Returns
-        -------
-        place : np.array
-            square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
-    """
-    # Load and format mobility dataframe
-    all_mobility_data, average_mobility_data = load_all_mobility_data(agg, dtype=dtype, beyond_borders=beyond_borders)
-    # Converting the index as date
-    all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
-    
-    @lru_cache()
-    def mobility_update_func(t, default_mobility=None):
         try: # if there is data available for this date (if the key exists)
             place = all_mobility_data['place'][t]
         except:
