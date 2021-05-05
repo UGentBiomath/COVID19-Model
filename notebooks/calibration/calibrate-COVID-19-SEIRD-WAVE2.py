@@ -366,8 +366,8 @@ if job == 'R0':
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
     # Define priors
-    log_prior_fnc = [prior_uniform, prior_uniform]
-    log_prior_fnc_args = [(0.005, 0.15),(0.1, 14)]
+    log_prior_fcn = [prior_uniform, prior_uniform]
+    log_prior_fcn_args = [(0.005, 0.15),(0.1, 14)]
     # Perturbate PSO Estimate
     pars = ['beta','da']
     pert = [0.10, 0.10]
@@ -381,7 +381,7 @@ if job == 'R0':
     labels = ['$\\beta$','$d_{a}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
 
     # ----------------
     # Run MCMC sampler
@@ -506,8 +506,8 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 
 # Setup uniform priors
 pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf','K_hosp']
-log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fnc_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.03,1), (0.03,1), (0.03,1), (0.03,1),(1,1.8),(1,1.8)]
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.03,1), (0.03,1), (0.03,1), (0.03,1),(1,1.8),(1,1.8)]
 # Perturbate PSO Estimate
 pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
@@ -520,7 +520,7 @@ if backend:
 labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$K_{inf}$', '$K_{hosp}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
 
 # ----------------
 # Run MCMC sampler
