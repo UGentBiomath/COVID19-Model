@@ -53,7 +53,7 @@ report_version = '8.0'
 start_sim = '2020-09-01'
 end_sim = '2021-09-01'
 start_calibration = start_sim
-end_calibration = '2021-04-21'
+end_calibration = '2021-04-26'
 model = 'BIOMATH COVID-19 SEIRD national'
 n_samples = args.n_samples
 n_draws = args.n_draws_per_sample
@@ -64,8 +64,8 @@ conf_int = 0.05
 descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
-relaxdates = ['2021-05-08','2021-06-01']
-doses = [60000,80000]
+relaxdates = ['2021-05-01','2021-06-01', '2021-07-01']
+doses = [55000,80000]
 orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
 description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
