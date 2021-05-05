@@ -60,7 +60,7 @@ end_sim = '2021-09-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/'
+fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/WAVE2/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 

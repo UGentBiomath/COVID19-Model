@@ -61,7 +61,7 @@ end_sim = '2020-09-03'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/'
+fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/WAVE1/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
@@ -217,8 +217,8 @@ ax2.set_ylabel('Seroprelevance (%)')
 plt.tight_layout()
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 
 print('3) Visualizing resusceptibility samples')
 
@@ -236,8 +236,8 @@ ax.spines['left'].set_visible(False)
 plt.tight_layout()
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_SEROREVERSION.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_SEROREVERSION.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_SEROREVERSION.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_SEROREVERSION.png', dpi=300, bbox_inches='tight')
 
 
 print('\n4) Visualizing fit on hospitals')
@@ -279,8 +279,8 @@ ax4.set_xlim('2020-03-01',end_sim)
 ax4.set_ylabel('$D_{tot}$ (-)')
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.png', dpi=300, bbox_inches='tight')
 
 print('5) Visualizing fit on deaths')
 
@@ -305,8 +305,8 @@ for idx,date in enumerate(dates):
     axes[idx].grid(False)
 plt.show()
 if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
 
 print('6) Saving model states on 2020-09-01 \n')
 
