@@ -388,7 +388,7 @@ if job == 'R0':
     # Run MCMC sampler
     # ----------------
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
    
     # ---------------
     # Process results
@@ -527,7 +527,7 @@ objective_fcn_args = (model, log_prior_fnc, log_prior_fnc_args, data, states, we
 # Run MCMC sampler
 # ----------------
 
-sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date)
+sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
 
 # ---------------
 # Process results

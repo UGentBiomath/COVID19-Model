@@ -12,7 +12,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -50,10 +50,18 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
             ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            if job == 'FULL':
+                fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            elif job == 'R0':
+                fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
-            traceplot(sampler.get_chain(),labels,
+            if job == 'FULL':
+                traceplot(sampler.get_chain(),labels,
+                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
+                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+            elif job == 'R0':
+                traceplot(sampler.get_chain(),labels,
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -80,10 +88,16 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
-                np.save(f,flat_samples)
-                f.close()
-                gc.collect()
+            if job == 'FULL':
+                with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
+                    np.save(f,flat_samples)
+                    f.close()
+                    gc.collect()
+            elif job == 'R0':
+                with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
+                    np.save(f,flat_samples)
+                    f.close()
+                    gc.collect()
 
     return sampler
 
