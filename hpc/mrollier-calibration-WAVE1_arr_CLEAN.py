@@ -99,7 +99,7 @@ run_date = str(datetime.date.today())
 
 # Path where samples backend should be stored
 results_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
-# Path where figures should be stored
+# Path where figures should be stored. This directory is split up further into autocorrelation, traceplots, cornerplots and others
 fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
 # Path where MCMC samples should be saved
 samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
@@ -109,7 +109,8 @@ if not (os.path.exists(results_folder) and os.path.exists(fig_path) and os.path.
     raise Exception("Some of the results location directories do not exist.")
 
 # Verify that the fig_path subdirectories used in the code exist
-if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
+if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") \
+        and os.path.exists(fig_path+"others/") and os.path.exists(fig_path+"cornerplots/")):
     raise Exception("Some of the figure path subdirectories do not exist.")
 
 
