@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from multiprocessing import Pool
 from covid19model.models import models
-from covid19model.optimization.run_optimization import checkplots, calculate_R0
+from covid19model.optimization.run_optimization import checkplots
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
