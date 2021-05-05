@@ -36,7 +36,7 @@ from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
 from covid19model.visualization.output import _apply_tick_locator 
-from covid19model.visualization.optimization import autocorrelation_plot, traceplot
+from covid19model.visualization.optimization import autocorrelation_plot, traceplot, plot_fit
 from covid19model.visualization.utils import moving_avg
 
 
@@ -451,6 +451,7 @@ plt.close()
 # Define sampling function
 # ------------------------
 
+# Can't this be taken out of the script?
 def draw_fcn(param_dict,samples_dict):
     # pick one random value from the dictionary
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
@@ -510,6 +511,7 @@ for NIS in out.place.values:
 # -----------
 
 print('\n5) Visualizing fit \n')
+# This should be taken out of the script for sure
 
 # Plot
 fig,ax = plt.subplots(figsize=(10,5))
