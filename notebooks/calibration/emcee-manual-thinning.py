@@ -49,7 +49,7 @@ import argparse
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-from covid19model.optimization.run_optimization import samples_dict_to_emcee_chain
+from covid19model.optimization.utils import samples_dict_to_emcee_chain
 from covid19model.visualization.optimization import traceplot
 
 # -----------------------
