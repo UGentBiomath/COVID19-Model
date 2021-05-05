@@ -431,12 +431,12 @@ class make_mobility_update_func():
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
         try: # if there is data available for this date (if the key exists)
-            place = all_mobility_data['place'][t]
+            place = self.all_mobility_data['place'][t]
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
-                place = default_mobility
+                place = self.default_mobility
             else: # No data and no user input: fall back on average mobility
-                place = average_mobility_data
+                place = self.average_mobility_data
         return place
 
 def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
