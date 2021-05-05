@@ -204,10 +204,8 @@ popsize = multiplier*processes
 max_n = maxn_MCMC # 300000
 # Number of samples drawn from MCMC parameter results, used to visualise model fit
 n_samples = 10
-# Confidence level used to visualise binomial model fit
+# Confidence level used to visualise model fit
 conf_int = 0.05
-# Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
-n_draws_per_sample= 10 #1000
 
 # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
 poisson_offset=1
@@ -851,7 +849,6 @@ H_in_base = out["H_in"].sum(dim="Nc")
 
 # Save results for sum over all places. Gives n_samples time series
 H_in = H_in_base.sum(dim='place').values
-# Initialize vectors. Same number of rows as simulated dates, column for every binomial draw for every sample
 # Compute mean and median
 H_in_mean = np.mean(H_in,axis=1)
 H_in_median = np.median(H_in,axis=1)
