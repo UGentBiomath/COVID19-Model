@@ -322,7 +322,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
             pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
             pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
             pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-            pars_dict['d_vacc'] = 12*30 # Default: 12 month coverage of vaccine
+            pars_dict['d_vacc'] = 18*30 # Default: 12 month coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
