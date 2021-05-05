@@ -1,7 +1,6 @@
 """
 This script contains a three-parameter infectivity, two-parameter delayed compliance ramp calibration to regional hospitalization data from the first COVID-19 wave in Belgium.
 Deterministic, spatially explicit BIOMATH COVID-19 SEIQRD.
-Its intended use is the calibration for the descriptive manuscript: "[name TBD]".
 """
 
 __author__      = "Tijs Alleman, Michiel Rollier"
@@ -10,9 +9,10 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
+
 # Load public packages
 import gc # garbage collection, important for long-running programs
-import sys, getopt
+# import sys, getopt # Not in use, I think
 import ujson as json
 import random
 import emcee
@@ -29,7 +29,7 @@ from functools import lru_cache # to save large data files in cache
 
 # Load custom packages
 from covid19model.models import models
-import covid19model.models.time_dependant_parameter_fncs as tdpf # due to pickle issue
+from covid19model.models.time_dependant_parameter_fncs import delayed_ramp_fun, 
 from covid19model.models.utils import initial_state
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
@@ -75,7 +75,6 @@ if args.number:
     maxn_MCMC = int(args.number)
 else:
     maxn_MCMC = 100
-
 # Name
 if args.signature:
     signature = args.signature
@@ -226,7 +225,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
         policy_old = all_contact
         policy_new = contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
-        return tdpf.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
     elif t1 + tau_days + l_days < t <= t2:
         t = pd.Timestamp(t.date())
         return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
@@ -250,7 +249,7 @@ def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, pre
 # ---------
 
 # Load and format mobility dataframe
-all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg, dtype='fractional', beyond_borders=False)
+all_mobility_data, average_mobility_data = mobility.load_all_mobility_data(agg, dtype='fractional', beyond_borders=False)
 # Converting the index as date
 all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
 
@@ -664,6 +663,9 @@ if __name__ == '__main__':
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
+    # Create subdirectory
+    fit_prelockdown_subdir = fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_NIS_'+run_date'
+    os.mkdir(fit_prelockdown_subdir)
     # Plot result for each NIS
     for NIS in out.place.values:
         fig,ax = plt.subplots(figsize=(10,5))
@@ -674,7 +676,7 @@ if __name__ == '__main__':
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fit_prelockdown_subdir+'/'+spatial_unit+'_FIT_BETAs_prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
         
 
