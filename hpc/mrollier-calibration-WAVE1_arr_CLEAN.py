@@ -139,10 +139,7 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=
 # -------------------------------
 
 # Mobility update function from class __call__ and function wrapper to get the right signature
-mobility_update_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg)
-def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
-    t = pd.Timestamp(t.date())
-    return mobility_update_func(t, default_mobility=default_mobility)
+mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
 
 # Social behaviour update function from class __call__ (contact_matrix_4prev) and function wrapper to get the right signature
 policies_wave1_4prev = make_contact_matrix_function(df_google, Nc_all).policies_wave1_4prev
