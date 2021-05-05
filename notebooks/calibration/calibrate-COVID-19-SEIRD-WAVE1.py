@@ -102,18 +102,11 @@ fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
-# --------------------
-# define draw function
-# --------------------
-
-def draw_fcn(param_dict,samples_dict):
-    return param_dict
-
 # -----------------------
 # Define helper functions
 # -----------------------
 
-from covid19model.optimization.utils import assign_PSO, plot_PSO
+from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 
 # ---------------------------------
 # Time-dependant parameter function
@@ -236,11 +229,14 @@ if job == 'R0':
     # run optimisation
     theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, processes=processes)
-    # Visualize optimization
+    # Assign estimate
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     # Perform simulation
-    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
-    plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+    # Visualize fit
+    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+    plt.show()
+    plt.close()
 
     # ------------------
     # Setup MCMC sampler
@@ -251,14 +247,10 @@ if job == 'R0':
     # Define priors
     log_prior_fnc = [prior_uniform, prior_uniform]
     log_prior_fnc_args = [(0.01,0.10), (0.1,14)]
-    # Setup parameter names, bounds, number of chains, etc.
+    # Perturbate PSO estimate
     pars = ['beta','da']
-    ndim = len(pars)
-    nwalkers = ndim*mp.cpu_count()
-    # Perturbate the PSO estimates
-    perturbations_beta = theta[1] + theta[1]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-    perturbations_da = np.expand_dims(np.random.triangular(2,5,9, size=nwalkers),axis=1)
-    pos = np.concatenate((perturbations_beta, perturbations_da),axis=1)
+    pert = [0.10, 0.10]
+    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, 2)
     # Set up the sampler backend if needed
     if backend:
         filename = spatial_unit+'_R0_'+run_date
@@ -279,7 +271,7 @@ if job == 'R0':
     
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, draw_fcn, {}, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson'))
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 100 steps
             if sampler.iteration % 100:
@@ -434,8 +426,9 @@ theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01
 
 model.parameters = assign_PSO(model.parameters, pars, theta)
 out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
-plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-
+ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+plt.show()
+plt.close()
 
 # Example code to pass custom distributions as priors
 # Prior beta
@@ -454,25 +447,9 @@ plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 pars = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fnc_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
-ndim = len(pars)
-nwalkers = ndim*2
-# Perturbate PSO Estimate
-pos = np.zeros([nwalkers,ndim])
-# Beta
-pos[:,0] = theta[0] + theta[0]*5e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-# da
-pos[:,1] = theta[1] + theta[1]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-# l
-pos[:,2] = theta[2] + theta[2]*10e-2*np.random.uniform(low=-1,high=1,size=(nwalkers))
-# prevention work
-pos[:,3] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
-# other prevention
-pos[:,4] = np.random.uniform(low=0.05,high=0.50,size=(nwalkers))
-# home prevention
-pos[:,5] = np.random.uniform(low=0.50,high=0.90,size=(nwalkers))
-# zeta
-pos[:,6] = np.random.uniform(low=1e-4,high=4e-3,size=(nwalkers))
-
+# Perturbate PSO estimate
+pert = [5e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2]
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
 # Set up the sampler backend
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
@@ -495,7 +472,7 @@ labels = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
 
 with Pool() as pool:
     sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, draw_fcn, {}, start_calibration, warmup,'poisson'))
+                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson'))
     for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
        
         if sampler.iteration % 100:
