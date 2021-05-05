@@ -1,4 +1,5 @@
 import gc
+import os
 import emcee
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,7 +7,12 @@ from multiprocessing import Pool
 from covid19model.visualization.optimization import traceplot
 from covid19model.visualization.output import _apply_tick_locator 
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, samples_path,  fig_path, spatial_unit, run_date):
+abs_dir = os.path.dirname(__file__)
+# Path to figures and samples --> used by run_MCMC
+fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
+samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
+
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -35,7 +41,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
             index += 1
 
             # Update autocorrelation plot
-            n = 100 * np.arange(0, index + 1)
+            n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
             ax.plot(n, n / 50.0, "--k")
@@ -47,7 +53,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta$','$\\omega$','$d_{a}$'],
+            traceplot(sampler.get_chain(),labels,
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -113,7 +119,7 @@ def perturbate_PSO(theta, pert, multiplier=2):
     ndim = len(theta)
     nwalkers = ndim*multiplier
     pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-    print('Total number of markov chains: ' + str(nwalkers))
+    print('Total number of markov chains: ' + str(nwalkers)+'\n')
     return ndim, nwalkers, pos
 
 
