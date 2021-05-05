@@ -26,10 +26,10 @@ Example use:
 python emcee-manual-thinning.py -f BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json -n 14 -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home' -d 1000 -t 20
 
 python emcee-manual-thinning.py 
-    -f BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json
-    -n 14
-    -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home'
-    -l '$\\beta$' 'l' '$\\tau$' '$G_{schools}$' '$G_{work}$' '$G_{rest}$' '$G_{home}$'
+    -f BE_WAVE1_R0_COMP_EFF_2021-04-20.json
+    -n 16
+    -k 'beta' 'omega' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
+    -l '$\beta$' '$\omega$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$'
     -d 1000
     -t 20
     -s
@@ -49,7 +49,7 @@ import argparse
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-from covid19model.optimization.run_optimization import samples_dict_to_emcee_chain
+from covid19model.optimization.utils import samples_dict_to_emcee_chain
 from covid19model.visualization.optimization import traceplot
 
 # -----------------------
@@ -82,15 +82,15 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # Optional: remove chains stuck in undesired local minima
 # -------------------------------------------------------
 
-# # Chains beta
-# idx = np.mean(samples[:,:,0],axis=0) >= 0.065
-# print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undersired chains\n')
-# samples=samples[:,idx,:]
+# Chains beta
+#idx = np.mean(samples[:,:,0],axis=0) > 0.030
+#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
+#samples=samples[:,idx,:]
 
-# # Convert to flat samples
-# flat_samples = samples[:,0,:]
-# for i in range(1,samples.shape[1]):
-#     flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
+# Convert to flat samples
+#flat_samples = samples[:,0,:]
+#for i in range(1,samples.shape[1]):
+#    flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
 
 # -----------------
 # Make a cornerplot
@@ -107,7 +107,7 @@ CORNER_KWARGS = dict(
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    range=[(0,0.12),(0,5.2),(0,15),(0,12),(0,2.5),(0,1),(0,1),(0,1),(0,1)],
+    range=[(0,0.12),(0,15),(0,13),(0,1),(0,1),(0,1),(0,1),(1,2),(1,2)],
     title_fmt=".3" 
 )
 

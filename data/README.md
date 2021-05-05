@@ -131,9 +131,11 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 #### Model parameters
 
-+ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
++ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. The analysis is performed using the script `~/notebooks/preprocessing/AZMM-UZG-hospital-data-analysis`.
++ `sciensano_hospital_parameters.csv` contains age-stratified estimates for the hospital parameters of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
++ `sciensano_bootstrap_fractions.npy` contains age-stratified bootstrapped samples for the cohort/ICU distribution and for the mortalities of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
++ `wu_asymptomatic_fraction.xlsx` contains the computation of the symptomatic fraction of the Belgian population per age group based on a study of Wu, 2020 (https://www.nature.com/articles/s41591-020-0822-7/figures/2).
 
-+ `deterministic_22072020.json` contains the posterior distributions of the calibrated model parameters. The distributions are associated with the following preprint: `https://doi.org/10.1101/2020.07.17.20156034`.
 
 #### Belgian Census 2011
 + `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`. First, the raw spreadsheet `data/raw/census_2011/Pop_LPW_NL_25FEB15.xlsx` was modified in MS Excel. The format of the data is as follows:
@@ -209,6 +211,7 @@ Note: only saved locally and on S-drive (not on Git due to NDA). Contains proces
 
 + `sero_national_stratified_own` contains for every of the seven sampling waves and for 10 age groups the mean and 95% confidence interval on the seroprelevance of SARS-CoV-2 IGG antibodies. This dataset is made by analysing `~/data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv` using the script `~/notebooks/preprocessing/herzog-sero-data-analysis.py`. Currently, the positive samples are unweighted, the analysis is performed on the national level and the analysis does not account for the test sensitivity and specificity.
 + `sero_national_overall_herzog.csv` contains for every of the seven sampling waves, the non age-stratified seroprelevance in the Belgian population. Copied from table S1 in the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
++ `table_S1_Herzog.docx` contains table S1 from the manuscript of Sereina Herzog, available on Medrxiv: https://www.medrxiv.org/content/10.1101/2020.06.08.20125179v5.full-text.
 
 ### simulated
 

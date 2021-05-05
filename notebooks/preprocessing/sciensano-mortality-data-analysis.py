@@ -30,35 +30,64 @@ df_raw['age_class'] = pd.cut(df_raw.AGE, bins=[0,10,20,30,40,50,60,70,80,120], l
 
 df = df_raw.groupby(by=['age_class','DATE']).age_class.count()
 df = df.to_frame(name='incidence_total')
-df['incidence_total'] = df['incidence_total'].fillna(0)
-df['incidence_hospital'] = df_raw[((df_raw.PLACE=='Hospital'))].groupby(by=['age_class','DATE']).age_class.count()
-df['incidence_hospital'] = df['incidence_hospital'].fillna(0)
-df['incidence_nursing'] = df_raw[((df_raw.PLACE=='Nursing home'))].groupby(by=['age_class','DATE']).age_class.count()
-df['incidence_nursing'] = df['incidence_nursing'].fillna(0)
-df['incidence_others'] = df_raw[((df_raw.PLACE=='Unknown')|(df_raw.PLACE=='Domicile or other places'))].groupby(by=['age_class','DATE']).age_class.count() 
-df['incidence_others'] = df['incidence_others'].fillna(0)
+df.index = df.index.set_names(['age_class','date'])
 
-df['cumsum_total']=0
-df['cumsum_hospital'] = 0
-df['cumsum_nursing'] = 0
-df['cumsum_others'] = 0
+columns = [['total','total','hospital','hospital','nursing','nursing','others','others'],['incidence','cumsum','incidence','cumsum','incidence','cumsum','incidence','cumsum']]
+tuples = list(zip(*columns))
+columns = pd.MultiIndex.from_tuples(tuples, names=["place", "quantity"])
+df_new = pd.DataFrame(index=df.index, columns=columns)
+df_new['total','incidence'] = df['incidence_total'].fillna(0).astype(int)
+df = df_new
+
+df['hospital','incidence'] = df_raw[((df_raw.PLACE=='Hospital'))].groupby(by=['age_class','DATE']).age_class.count()
+df['hospital','incidence'] = df['hospital','incidence'].fillna(0).astype(int)
+
+df['nursing','incidence'] = df_raw[((df_raw.PLACE=='Nursing home'))].groupby(by=['age_class','DATE']).age_class.count()
+df['nursing','incidence'] = df['nursing','incidence'].fillna(0).astype(int)
+
+df['others','incidence'] = df_raw[((df_raw.PLACE=='Unknown')|(df_raw.PLACE=='Domicile or other places'))].groupby(by=['age_class','DATE']).age_class.count() 
+df['others','incidence'] = df['others','incidence'].fillna(0).astype(int)
+
+df['total','cumsum']=0
+df['hospital','cumsum'] = 0
+df['nursing','cumsum'] = 0
+df['others','cumsum'] = 0
 for age_group in labels:
-    df.loc[age_group,'cumsum_total'] = df.loc[age_group,'incidence_total'].cumsum().values
-    df.loc[age_group,'cumsum_hospital'] = df.loc[age_group,'incidence_hospital'].cumsum().values
-    df.loc[age_group,'cumsum_nursing'] = df.loc[age_group,'incidence_nursing'].cumsum().values
-    df.loc[age_group,'cumsum_others'] = df.loc[age_group,'incidence_others'].cumsum().values
+    df.loc[age_group]['total','cumsum'] = df.loc[age_group]['total','incidence'].cumsum().values
+    df.loc[age_group]['hospital','cumsum'] = df.loc[age_group]['hospital','incidence'].cumsum().values
+    df.loc[age_group]['nursing','cumsum'] = df.loc[age_group]['nursing','incidence'].cumsum().values
+    df.loc[age_group]['others','cumsum'] = df.loc[age_group]['others','incidence'].cumsum().values
 
+# ----------------------
+# Add data over all ages
+# ----------------------
+
+# Initialize new dataframe
+iterables = [["all"], df.index.get_level_values(1).unique().values]
+index_overall = pd.MultiIndex.from_product(iterables, names=["age_class", "date"])
+df_overall = pd.DataFrame(index=index_overall, columns=columns)
+
+# Loop over all columns
+for idx, column in enumerate(df_overall.columns):
+    for jdx, age_group in enumerate(df.index.get_level_values(0).unique().values):
+        if jdx == 0:
+            total = df.xs(key=age_group, level="age_class", drop_level=True)[column].values
+        else:
+            total = total + df.xs(key=age_group, level="age_class", drop_level=True)[column].values
+    df_overall[column] = pd.Series(data=np.squeeze(total), index=df.index.get_level_values(1).unique()).values
+
+# Concatenate result
+df = pd.concat([df_overall,df])
 
 # -----------------------------
 # Make a graphic representation
 # -----------------------------
 
-# Can be used as an example on how to index this dataset
-data = df.xs(key='80+', level="age_class", drop_level=True)[['cumsum_total','cumsum_hospital','cumsum_nursing']]
 fig,ax=plt.subplots(figsize=(12,4))
-ax.scatter(x=data.index,y=data['cumsum_total'], color='black', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
-ax.scatter(x=data.index,y=data['cumsum_hospital'], color='red', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
-ax.scatter(x=data.index,y=data['cumsum_nursing'], color='blue', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
+data = df.xs(key='80+', level="age_class", drop_level=True)
+ax.scatter(x=data.index,y=data['total','cumsum'], color='black', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
+ax.scatter(x=data.index,y=data['hospital','cumsum'], color='red', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
+ax.scatter(x=data.index,y=data['nursing','cumsum'], color='blue', alpha=0.3, linestyle='None', facecolors='none', s=40, linewidth=1)
 plt.legend(['total','hospital','nursing homes'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
 plt.tight_layout()
 plt.show()
