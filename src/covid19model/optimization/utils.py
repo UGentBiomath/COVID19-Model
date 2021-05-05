@@ -1,5 +1,42 @@
+import numpy as np
 import matplotlib.pyplot as plt
 from covid19model.visualization.output import _apply_tick_locator 
+
+def perturbate_PSO(theta, pert, multiplier=2):
+    """ A function to perturbate a PSO estimate and construct a matrix with initial positions for the MCMC chains
+
+    Parameters
+    ----------
+
+    theta : list (of floats)
+        Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
+
+    pert : list (of floats)
+        Relative perturbation factors (plus-minus) on PSO estimate
+
+    multiplier : int
+        Multiplier determining the total numer of markov chains that will be run by emcee. 
+        Total nr. chains = multiplier * nr. parameters
+        Default (minimum): 2
+
+    Returns
+    -------
+    ndim : int
+        Number of parameters
+
+    nwalkers : int
+        Number of chains
+
+    pos : np.array
+        Initial positions for markov chains. Dimensions: [ndim, nwalkers]
+    """
+
+    ndim = len(theta)
+    nwalkers = ndim*multiplier
+    pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+    print('Total number of markov chains: ' + str(nwalkers))
+    return ndim, nwalkers, pos
+
 
 def assign_PSO(param_dict, pars, theta):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
@@ -109,6 +146,4 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
             ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax.set_xlim([start_calibration,end_calibration]) 
     ax = _apply_tick_locator(ax)
-    plt.show()
-    plt.close()
-    return None
+    return ax
