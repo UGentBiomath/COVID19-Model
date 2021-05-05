@@ -110,4 +110,5 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
             ax.set_xlim([start_calibration,end_calibration]) 
     ax = _apply_tick_locator(ax)
     plt.show()
-    return fig
+    plt.close()
+    return None
