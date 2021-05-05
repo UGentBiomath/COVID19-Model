@@ -29,7 +29,7 @@ from functools import lru_cache # to save large data files in cache
 
 # Load custom packages
 from covid19model.models import models
-from covid19model.models.time_dependant_parameter_fncs import delayed_ramp_fun, 
+from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_func, make_contact_matrix_function
 from covid19model.models.utils import initial_state
 from covid19model.optimization.run_optimization import checkplots, calculate_R0
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
@@ -46,7 +46,8 @@ from covid19model.visualization.utils import moving_avg
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA or HOMO")
+parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA (default) or HOMO")
+parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov")
 parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
 parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
@@ -65,6 +66,13 @@ if args.init:
         raise Exception(f"Initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
 else:
     init = 'DATA'
+# Agg
+if args.agg:
+    agg = args.agg
+    if agg not in ['mun', 'arr', 'prov']:
+        raise Exception(f"Aggregation type --agg {agg} is not valid. Choose between 'mun', 'arr', or 'prov'.")
+else:
+    agg = 'arr'.
 # Maxiter
 if args.maxiter:
     maxiter_PSO = int(args.maxiter)
@@ -88,9 +96,6 @@ run_date = str(datetime.date.today())
 # ------------------------
 # Define results locations
 # ------------------------
-
-# Aggregation level is arrondissement (NUTS3)
-agg='arr'
 
 # Path where samples backend should be stored
 results_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
