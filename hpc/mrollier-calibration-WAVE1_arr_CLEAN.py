@@ -38,6 +38,7 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.visualization.utils import moving_avg
+from covid19model.optimization.run_optimization import samples_dict_to_emcee_chain # used for corner plots
 
 
 # -----------------------
@@ -483,7 +484,8 @@ if __name__ == '__main__':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'],
+            labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
+            traceplot(sampler.get_chain(),labels,
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs-prelockdown_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -525,7 +527,8 @@ if __name__ == '__main__':
 
     print('\n3) Sending samples to dictionary\n')
 
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+    discard=0
+    flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
         samples_dict[name] = flat_samples[:,count].tolist() # save samples of every chain to draw from
@@ -536,6 +539,40 @@ if __name__ == '__main__':
         'end_date' : end_calibration_beta,
         'n_chains': int(nwalkers)
     })
+    
+    # ------------------
+    # Create corner plot
+    # ------------------
+    
+    # All necessary information to make a corner plot is in the samples_dict dictionary
+    # Based on Notebooks/calibration/emcee-manual-thinning
+    samples,flat_samples = samples_dict_to_emcee_chain(samples_dict, parNames_mcmc, nwalkers, discard=discard, thin=thin)
+    
+    CORNER_KWARGS = dict(
+        smooth=0.9,
+        label_kwargs=dict(fontsize=14),
+        title_kwargs=dict(fontsize=14),
+        quantiles=[0.05, 0.95],
+        levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
+        plot_density=True,
+        plot_datapoints=False,
+        fill_contours=True,
+        show_titles=True,
+        max_n_ticks=3,
+        title_fmt=".3"
+    )
+        # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
+        
+    # Cornerplots of samples
+    fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
+    # for control of labelsize of x,y-ticks:
+    # ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
+    for idx,ax in enumerate(fig.get_axes()):
+        ax.tick_params(axis='both', labelsize=12, rotation=0)
+        
+    # Save figure
+    fig.savefig(fig_path+'cornerplots/'+spatial_unit+'_FIT_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    plt.close()
 
     # ------------------------
     # Define sampling function
@@ -642,6 +679,7 @@ if __name__ == '__main__':
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
         fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
+        
 
     ###############################
     ####### CALCULATING R0 ########
