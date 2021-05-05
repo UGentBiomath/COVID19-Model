@@ -402,14 +402,14 @@ class make_mobility_update_func():
     
     Input
     -----
-    all_mobility_data : DataFrame
-        Pandas DataFrame with dates as indices and matrices as values. Output of mobility.load_all_mobility_data.
-    average_mobility_data : np.array
+    proximus_mobility_data : DataFrame
+        Pandas DataFrame with dates as indices and matrices as values. Output of mobility.get_proximus_mobility_data.
+    proximus_mobility_data_avg : np.array
         Average mobility matrix over all matrices
     """
-    def __init__(self, all_mobility_data, average_mobility_data):
-        self.all_mobility_data = all_mobility_data
-        self.average_mobility_data = average_mobility_data
+    def __init__(self, proximus_mobility_data, proximus_mobility_data_avg):
+        self.proximus_mobility_data = proximus_mobility_data
+        self.proximus_mobility_data_avg = proximus_mobility_data_avg
         
     @lru_cache()
     # Define mobility_update_func
@@ -431,12 +431,12 @@ class make_mobility_update_func():
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
         try: # if there is data available for this date (if the key exists)
-            place = self.all_mobility_data['place'][t]
+            place = self.proximus_mobility_data['place'][t]
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
                 place = self.default_mobility
             else: # No data and no user input: fall back on average mobility
-                place = self.average_mobility_data
+                place = self.proximus_mobility_data_avg
         return place
 
 def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
