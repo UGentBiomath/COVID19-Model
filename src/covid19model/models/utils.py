@@ -141,10 +141,10 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=55000,high=80000)
+    param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
     param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
+    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
+    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
     param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
 
     # Hospitalization
