@@ -134,144 +134,18 @@ df_google = mobility.get_google_mobility_data(update=False)
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=True, values='hospitalised_IN')
 
 
-
 # -------------------------------
 # Define mobility update function
 # -------------------------------
 
-mobility_update_function = make_mobility_update_function()
-
-# We must define all functions that are used as time-dependent parameter functions here, because otherwise
-# they are not recognised in the multiprocessing
-
-def mobility_update_func(t, all_mobility_data, average_mobility_data, default_mobility=None):
-    try: # if there is data available for this date (if the key exists)
-        place = all_mobility_data['place'][t]
-    except:
-        if default_mobility: # If there is no data available and a user-defined input is given
-            place = default_mobility
-        else: # No data and no user input: fall back on average mobility
-            place = average_mobility_data
-    return place
-
-def mobility_wrapper_func(t, states, param, all_mobility_data, average_mobility_data, default_mobility=None):
+# Mobility update function from class __call__ and function wrapper to get the right signature
+mobility_update_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg)
+def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
     t = pd.Timestamp(t.date())
-    return mobility_update_func(t, all_mobility_data, average_mobility_data, default_mobility=default_mobility)
+    return mobility_update_func(t, default_mobility=default_mobility)
 
-# -----------------------------
-# Define social policy function
-# -----------------------------
-
-# Define contact matrix for 4 prevention parameters
-def contact_matrix_4prev(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
-                   school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):
-    """
-    t : timestamp
-        current date
-    prev_... : float [0,1]
-        prevention parameter to estimate
-    school, work, transport, leisure, others : float [0,1]
-        level of opening of these sectors
-        if None, it is calculated from google mobility data
-        only school cannot be None!
-    SB : str '2a', '2b' or '2c'
-        '2a': september behaviour overall
-        '2b': september behaviour, but work = lockdown behaviour
-        '2c': september behaviour, but leisure = lockdown behaviour
-
-    """
-
-    df_google_array = df_google.values
-    df_google_start = df_google.index[0]
-    df_google_end = df_google.index[-1]
-
-    if t < pd.Timestamp('2020-03-15'):
-        CM = Nc_all['total']
-    else:
-
-        if school is None:
-            raise ValueError(
-            "Please indicate to which extent schools are open")
-
-        if pd.Timestamp('2020-03-15') <= t <= df_google_end:
-            #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-            idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
-            row = -df_google_array[idx]/100
-        else:
-            row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
-
-        if SB == '2a':
-            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-        elif SB == '2b':
-            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-            row[4] = -df_google['2020-03-15':'2020-04-01'].mean()[4]/100 
-        elif SB == '2c':
-            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-            row[0] = -df_google['2020-03-15':'2020-04-01'].mean()[0]/100 
-
-        # columns: retail_recreation grocery parks transport work residential
-        if work is None:
-            work= 1-row[4]
-        if transport is None:
-            transport=1-row[3]
-        if leisure is None:
-            leisure=1-row[0]
-        if others is None:
-            others=1-row[1]
-
-        CM = (prev_home*(1/2.3)*Nc_all['home'] + 
-              prev_schools*school*Nc_all['schools'] + 
-              prev_work*work*Nc_all['work'] + 
-              prev_rest*transport*Nc_all['transport'] + 
-              prev_rest*leisure*Nc_all['leisure'] + 
-              prev_rest*others*Nc_all['others']) 
-
-    return CM
-
-# Define the sloped functions defining the changes in interaction patterns. Copied from JV-calibration-COVID19-SEIRD-WAVE1-comix.ipynb
-def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
-
-    # all_contact is simply Nc_all['total'], and all_contact_no_schools is Nc_all['total'] - Nc_all['schools']
-    all_contact = Nc_all['total']
-    all_contact_no_schools = Nc_all['total'] - Nc_all['schools']
-
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    if t <= t1:
-        return all_contact
-    elif t1 < t < t1 + tau_days:
-        return all_contact
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        t = pd.Timestamp(t.date())
-        policy_old = all_contact
-        policy_new = contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t3 < t <= t4:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                     
-    else:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-
+# Social behaviour update function from class __call__ (contact_matrix_4prev) and function wrapper to get the right signature
+policies_wave1_4prev = make_contact_matrix_function(df_google, Nc_all).policies_wave1_4prev
 
 
 # --------------------
@@ -294,8 +168,8 @@ params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
 # mobility defaults to average mobility of 2020 if no data is available
 # mobility_update_func = make_mobility_update_function(agg, dtype='fractional', beyond_borders=False)
 params.update({'default_mobility' : None,
-               'all_mobility_data' : all_mobility_data,
-               'average_mobility_data' : average_mobility_data})
+               'proximus_mobility_data' : proximus_mobility_data,
+               'proximus_mobility_data_avg' : proximus_mobility_data_avg})
 
 # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
 params.update({'e' : np.zeros(initN.shape[1]),
@@ -342,10 +216,6 @@ n_draws_per_sample= 1000 #1000
 
 # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
 poisson_offset=1
-
-# User-defined thinning parameter
-thin = 50
-
 
 # -------------------------------
 # Range of first and second phase
@@ -453,8 +323,12 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
+    
+    # Save and abort conditions
     sample_step = 100
-
+    chainlength_threshold = 50 # times the integrated autocorrelation time
+    discard=0
+    
     with Pool() as pool:
         # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
@@ -480,10 +354,10 @@ if __name__ == '__main__':
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / thin, "--k") # simply a straight line sloped based on thinning parameter
+            ax.plot(n, n / chainlength_threshold, "--k") # simply a straight line sloped based on threshold parameter
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ymax = max(n[-1]/thin, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/thin, choose index/thin as max
+            ymax = max(n[-1]/chainlength_threshold, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/chainlength_threshold, choose index/chainlength_threshold as max
             ax.set_ylim(0, ymax)
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
@@ -505,7 +379,7 @@ if __name__ == '__main__':
 
             # Check convergence using mean tau
             # Note: double condition!
-            converged = np.all(np.mean(tau) * thin < sampler.iteration)
+            converged = np.all(np.mean(tau) * chainlength_threshold < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             # Stop MCMC if convergence is reached
             if converged:
@@ -526,15 +400,15 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
+    thin=1
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
-        print(f'Warning: The chain is shorter than {thin} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+        print(f'Warning: The chain is shorter than {chainlength_threshold} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
     print('\n3) Sending samples to dictionary\n')
 
-    discard=0
     flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
     samples_dict = {}
     for count,name in enumerate(parNames_mcmc):
@@ -753,8 +627,6 @@ if __name__ == '__main__':
 
     # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
-    
-    thin = 50 # Repeat this, as it may have been overwritten
 
     # ---------------------------
     # Particle Swarm Optimization
@@ -832,7 +704,11 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
+
+    # Save and abort conditions
     sample_step = 100
+    chainlength_threshold = 50 # times the integrated autocorrelation time
+    discard=0
 
     with Pool() as pool:
         # Prepare the samplers
@@ -861,10 +737,10 @@ if __name__ == '__main__':
             n = sample_step * np.arange(0, index + 1)
             y = autocorr[:index+1,:] # I think this ":index+1,:" is superfluous 
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / thin, "--k") # simply a straight line
+            ax.plot(n, n / chainlength_threshold, "--k") # simply a straight line
             ax.plot(n, y, linewidth=2,color='red') # slowly increasing but decellarating autocorrelation
             ax.set_xlim(0, n.max())
-            ymax = max(n[-1]/thin, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/thin, choose index/thin as max
+            ymax = max(n[-1]/chainlength_threshold, np.nanmax(y) + 0.1 * (np.nanmax(y) - np.nanmin(y))) # if smaller than index/chainlength_threshold, choose index/chainlength_threshold as max
             ax.set_ylim(0, ymax)
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
@@ -886,7 +762,7 @@ if __name__ == '__main__':
 
             # Check convergence using mean tau
             # Note: double condition! These conditions are hard-coded
-            converged = np.all(np.mean(tau) * thin < sampler.iteration)
+            converged = np.all(np.mean(tau) * chainlength_threshold < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
             # Stop MCMC if convergence is reached
             if converged:
@@ -907,11 +783,12 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
+    thin=1
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
     except:
-        print(f'Warning: The chain is shorter than {thin} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+        print(f'Warning: The chain is shorter than {chainlength_threshold} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
     print('\n3) Sending samples to dictionary\n')
 
