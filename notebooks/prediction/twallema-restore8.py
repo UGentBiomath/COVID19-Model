@@ -71,7 +71,7 @@ descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-ho
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
 relaxdates = ['2021-05-08','2021-06-01']
-doses = [50000,80000]
+doses = [60000,80000]
 orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
 description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
@@ -474,9 +474,9 @@ def draw_fcn(param_dict,samples_dict):
     # -----------
     #param_dict['daily_dose'] = np.random.uniform(low=50000,high=90000)
     param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.85,high=0.95) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.5,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
+    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
+    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
+    param_dict['delay'] = np.mean(np.random.triangular(1, 40, 40, size=30))
 
     # Hospitalization
     # ---------------
