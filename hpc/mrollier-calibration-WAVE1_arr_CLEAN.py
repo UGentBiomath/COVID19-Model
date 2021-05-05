@@ -543,10 +543,8 @@ if __name__ == '__main__':
     # ------------------
     # Create corner plot
     # ------------------
-    
+
     # All necessary information to make a corner plot is in the samples_dict dictionary
-    # Based on Notebooks/calibration/emcee-manual-thinning
-    samples,flat_samples = samples_dict_to_emcee_chain(samples_dict, parNames_mcmc, nwalkers, discard=discard, thin=thin)
     
     CORNER_KWARGS = dict(
         smooth=0.9,
@@ -563,7 +561,7 @@ if __name__ == '__main__':
     )
         # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
         
-    # Cornerplots of samples
+    # Cornerplots of samples. Also uses flat_samples taken from get_chain method above
     fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
     # for control of labelsize of x,y-ticks:
     # ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
@@ -571,7 +569,7 @@ if __name__ == '__main__':
         ax.tick_params(axis='both', labelsize=12, rotation=0)
         
     # Save figure
-    fig.savefig(fig_path+'cornerplots/'+spatial_unit+'_FIT_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_BETAs_prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
     # ------------------------
@@ -664,7 +662,7 @@ if __name__ == '__main__':
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
     # Plot result for each NIS
@@ -677,7 +675,7 @@ if __name__ == '__main__':
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
         
 
@@ -705,11 +703,11 @@ if __name__ == '__main__':
 
     print('3) Saving dictionary\n')
 
-    with open(samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(spatial_unit)+'_BETAs_prelockdown_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(spatial_unit)}_BETAs-prelockdown_{run_date}.json"'
+    statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(spatial_unit)}_BETAs_prelockdown_{run_date}.json"'
     print(statement)
     print('-'*len(statement) + '\n')
 
@@ -864,7 +862,8 @@ if __name__ == '__main__':
             fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_BETAs_comp_postlockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'],
+            labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l']
+            traceplot(sampler.get_chain(),labels,
                             filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_BETAs_comp_postlockdown_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
@@ -917,8 +916,36 @@ if __name__ == '__main__':
         'end_date' : end_calibration,
         'n_chains': int(nwalkers)
     })
-
-    print(samples_dict)
+    
+    # ------------------
+    # Create corner plot
+    # ------------------
+    
+    CORNER_KWARGS = dict(
+        smooth=0.9,
+        label_kwargs=dict(fontsize=14),
+        title_kwargs=dict(fontsize=14),
+        quantiles=[0.05, 0.95],
+        levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
+        plot_density=True,
+        plot_datapoints=False,
+        fill_contours=True,
+        show_titles=True,
+        max_n_ticks=3,
+        title_fmt=".3"
+    )
+        # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
+        
+    # Cornerplots of samples. Also uses flat_samples taken from get_chain method above
+    fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
+    # for control of labelsize of x,y-ticks:
+    # ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
+    for idx,ax in enumerate(fig.get_axes()):
+        ax.tick_params(axis='both', labelsize=12, rotation=0)
+        
+    # Save figure
+    fig.savefig(fig_path+'cornerplots/'+spatial_unit+'_CORNER_BETAs-comp_postlockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    plt.close()
 
     # ------------------------
     # Define sampling function
@@ -1012,7 +1039,7 @@ if __name__ == '__main__':
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_comp_postlockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
     # Plot result for each NIS
@@ -1026,7 +1053,7 @@ if __name__ == '__main__':
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_comp_postlockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+        fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-comp_postlockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
         plt.close()
 
     ###############################
