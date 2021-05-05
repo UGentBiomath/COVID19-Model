@@ -425,7 +425,7 @@ bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2
 theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
 
 model.parameters = assign_PSO(model.parameters, pars, theta)
-out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
+out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 plt.show()
 plt.close()
