@@ -572,7 +572,7 @@ for idx,scenario in enumerate(scenarios):
     fig.suptitle('Scenario '+scenario+': '+descriptions_scenarios[int(scenario)]+'\n', x=0.92, y=0.99, ha='right')
     
 
-    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.pdf', dpi=400, bbox_inches='tight')
-    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.png', dpi=400, bbox_inches='tight')
+    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.png', dpi=300, bbox_inches='tight')
 
 df_sim.to_csv('../../results/predictions/national/restore_v8.0/RESTORE8_UGent_simulations.csv')
