@@ -358,7 +358,7 @@ if job == 'R0':
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
     plt.show()
     plt.close()
-    
+
     # ------------------
     # Setup MCMC sampler
     # ------------------
@@ -668,7 +668,7 @@ print('\n3) Sending samples to dictionary')
 flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
 
 samples_dict={}
-for count,name in enumerate(parNames_mcmc):
+for count,name in enumerate(pars):
     samples_dict.update({name: flat_samples[:,count].tolist()})
 
 samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
