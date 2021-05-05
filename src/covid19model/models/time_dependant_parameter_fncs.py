@@ -422,6 +422,10 @@ class make_mobility_update_function():
         -----
         t : timestamp
             current date as datetime object
+        states : str
+            formal necessity
+        param : str
+            formal necessity
         default_mobility : np.array or None
             If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
@@ -430,6 +434,7 @@ class make_mobility_update_function():
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
+        t = pd.Timestamp(t.date())
         try: # if there is data available for this date (if the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
@@ -439,9 +444,9 @@ class make_mobility_update_function():
                 place = self.proximus_mobility_data_avg
         return place
 
-def mobility_wrapper_func(t, states, param, mobility_update_func, default_mobility=None):
-    t = pd.Timestamp(t.date())
-    return mobility_update_func(t, default_mobility=default_mobility)
+    def mobility_wrapper_func(t, states, param, default_mobility=None):
+        t = pd.Timestamp(t.date())
+        return self.__call__(t, default_mobility=default_mobility)
     
 # ~~~~~~~~~~~~~
 # VOC functions
@@ -564,18 +569,28 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
                 daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
                 idx = idx + 1
         return N_vacc
-
-
+    
 # ~~~~~~~~~~~~~~~~~~~~~~
 # Google policy function
 # ~~~~~~~~~~~~~~~~~~~~~~
 
 class make_contact_matrix_function():
     """
+    Class that returns contact matrix based on 4 prevention parameters by default, but has other policies defined as well.
+    
+    Input
+    -----
     Nc_all : dictionnary
-            contact matrices for home, schools, work, transport, leisure and others
+        contact matrices for home, schools, work, transport, leisure and others
     df_google : dataframe
-            google mobility data
+        google mobility data
+            
+    Output
+    ------
+    
+    __class__ : default function
+        Default output function, based on contact_matrix_4prev
+    
     """
     def __init__(self, df_google, Nc_all):
         self.df_google = df_google
@@ -586,6 +601,7 @@ class make_contact_matrix_function():
     
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    # This is the default output, what was earlier contact_matrix_4prev
     def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
                        school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):  
         
@@ -647,47 +663,102 @@ class make_contact_matrix_function():
                   prev_rest*others*self.Nc_all['others']) 
 
         return CM
+    
+    # This is a help function for the actual policies
+    def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
+        """
+        t : timestamp
+            current date
+        tau : int
+            number of days before measures start having an effect
+        l : int
+            number of additional days after the time delay until full compliance is reached
+        """
+        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+    
+    def policies_wave1_4prev(self, t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+
+        # all_contact is simply Nc_all['total'], and all_contact_no_schools is Nc_all['total'] - Nc_all['schools']
+        all_contact = self.Nc_all['total']
+        all_contact_no_schools = self.Nc_all['total'] - self.Nc_all['schools']
+
+        # Convert tau and l to dates
+        tau_days = pd.Timedelta(tau, unit='D')
+        l_days = pd.Timedelta(l, unit='D')
+
+        # Define additional dates where intensity or school policy changes
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+        if t <= t1:
+            return all_contact
+        elif t1 < t < t1 + tau_days:
+            return all_contact
+        elif t1 + tau_days < t <= t1 + tau_days + l_days:
+            t = pd.Timestamp(t.date())
+            policy_old = all_contact
+            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, school=0)
+            return self.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        elif t1 + tau_days + l_days < t <= t2:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, school=0)
+        elif t2 < t <= t3:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, school=0)
+        elif t3 < t <= t4:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)                     
+        else:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, school=0)
+    
+# def contact_wrapper_func(t, states, param, contact_matrix_function, **kwargs):
+#     t = pd.Timestamp(t.date())
+#     return contact_matrix_function(t, **kwargs)
 
 # Define policy function
-def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
+# def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
 
-    contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
+#     contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
     
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
+#     # Convert tau and l to dates
+#     tau_days = pd.Timedelta(tau, unit='D')
+#     l_days = pd.Timedelta(l, unit='D')
 
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+#     # Define additional dates where intensity or school policy changes
+#     t1 = pd.Timestamp('2020-03-15') # start of lockdown
+#     t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+#     t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+#     t4 = pd.Timestamp('2020-09-01') # end of summer holidays
 
-    if t <= t1:
-        t = pd.Timestamp(t.date())
-        return all_contact(t)
-    elif t1 < t < t1 + tau_days:
-        t = pd.Timestamp(t.date())
-        return all_contact(t)
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        t = pd.Timestamp(t.date())
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t3 < t <= t4:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                     
-    else:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
+#     if t <= t1:
+#         t = pd.Timestamp(t.date())
+#         return all_contact(t)
+#     elif t1 < t < t1 + tau_days:
+#         t = pd.Timestamp(t.date())
+#         return all_contact(t)
+#     elif t1 + tau_days < t <= t1 + tau_days + l_days:
+#         t = pd.Timestamp(t.date())
+#         policy_old = all_contact(t)
+#         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+#                                     school=0)
+#         return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+#     elif t1 + tau_days + l_days < t <= t2:
+#         t = pd.Timestamp(t.date())
+#         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+#                               school=0)
+#     elif t2 < t <= t3:
+#         t = pd.Timestamp(t.date())
+#         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+#                               school=0)
+#     elif t3 < t <= t4:
+#         t = pd.Timestamp(t.date())
+#         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+#                               school=0)                     
+#     else:
+#         t = pd.Timestamp(t.date())
+#         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
+#                               school=0)
