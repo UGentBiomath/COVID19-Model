@@ -38,7 +38,6 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.visualization.utils import moving_avg
-from covid19model.optimization.run_optimization import samples_dict_to_emcee_chain # used for corner plots
 
 
 # -----------------------
