@@ -190,7 +190,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 ####################################
 
 # Load all data in a big DataFrame
-def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
+def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
     """
     Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
     
@@ -205,9 +205,9 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     
     Returns
     -------
-    all_mobility_data : pd.DataFrame
+    proximus_mobility_data : pd.DataFrame
         DataFrame with datetime objects as indices ('DATE') and np.arrays ('place') as value column
-    average_mobility_data : np.array
+    proximus_mobility_data_avg : np.array
         average mobility matrix over all available dates
     """
 
@@ -254,12 +254,12 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
         all_available_places.append(place)
     # Create new empty dataframe with available dates. Load mobility later
     df = pd.DataFrame({'DATE' : all_available_dates, 'place' : all_available_places}).set_index('DATE')
-    all_mobility_data = df.copy()
+    proximus_mobility_data = df.copy()
     
     # Take average of all available mobility data
-    average_mobility_data = df['place'].values.mean()
+    proximus_mobility_data_avg = df['place'].values.mean()
     
-    return all_mobility_data, average_mobility_data
+    return proximus_mobility_data, proximus_mobility_data_avg
 
 
 def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True, normalise=True):
