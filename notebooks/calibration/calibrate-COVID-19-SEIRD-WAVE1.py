@@ -105,7 +105,7 @@ samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/n
 # Define helper functions
 # -----------------------
 
-from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
+from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
 
 # ---------------------------------
 # Time-dependant parameter function
@@ -200,6 +200,7 @@ maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
 max_n = 10000
+print_n = 100
 
 if job == 'R0':
 
@@ -255,84 +256,21 @@ if job == 'R0':
         filename = spatial_unit+'_R0_'+run_date
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
+    # Labels for traceplots
+    labels = ['$\\beta$','$d_{a}$']
+    # Arguments of chosen objective function
+    objective_fcn = objective_fcns.log_probability
+    objective_fcn_args = (model, log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
 
     # ----------------
     # Run MCMC sampler
     # ----------------
 
-    # We'll track how the average autocorrelation time estimate changes
-    index = 0
-    autocorr = np.empty(max_n)
-    # This will be useful to testing convergence
-    old_tau = np.inf
-    # Initialize autocorr vector and autocorrelation figure
-    autocorr = np.zeros([1,ndim])
-    
-    with Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson'))
-        for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
-            # Only check convergence every 100 steps
-            if sampler.iteration % 100:
-                continue
-            
-            ##################
-            # UPDATE FIGURES #
-            ################## 
-
-            # Compute the autocorrelation time so far
-            tau = sampler.get_autocorr_time(tol=0)
-            autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
-            index += 1
-
-            # Update autocorrelation plot
-            n = 100 * np.arange(0, index + 1)
-            y = autocorr[:index+1,:]
-            fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k")
-            ax.plot(n, y, linewidth=2,color='red')
-            ax.set_xlim(0, n.max())
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-            ax.set_xlabel("number of steps")
-            ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-            
-            # Update traceplot
-            traceplot(sampler.get_chain(),['$\\beta$','$d_{a}$'],
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-
-            plt.close('all')
-            gc.collect()
-
-            #####################
-            # CHECK CONVERGENCE #
-            ##################### 
-
-            # Check convergence using mean tau
-            converged = np.all(np.mean(tau) * 50 < sampler.iteration)
-            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
-            if converged:
-                break
-            old_tau = tau
-
-            ################################
-            # WRITE SAMPLES TO BINARY FILE #
-            ################################
-
-            # Write samples to dictionary every 100 steps
-            if sampler.iteration % 100: 
-                continue
-
-            flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
-                np.save(f,flat_samples)
-                f.close()
-                gc.collect()
-
-    # ----------------------------------------------------
-    # Assign results to samples dictionary without discard
-    # ----------------------------------------------------
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
+   
+    # ---------------
+    # Process results
+    # ---------------
 
     thin = 1
     try:
@@ -388,6 +326,7 @@ maxiter = 3
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
+max_n = 100
 
 print('\n--------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, DA, COMPLIANCE AND EFFECTIVITY')
@@ -454,87 +393,21 @@ if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
+# Labels for traceplots
+labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$\zeta$']
+# Arguments of chosen objective function
+objective_fcn = objective_fcns.log_probability
+objective_fcn_args = (model, log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
 
 # ----------------
 # Run MCMC sampler
 # ----------------
 
-# We'll track how the average autocorrelation time estimate changes
-index = 0
-autocorr = np.empty(max_n)
-# This will be useful to testing convergence
-old_tau = np.inf
-# Initialize autocorr vector and autocorrelation figure
-autocorr = np.zeros([1,ndim])
-# Initialize the labels
-labels = ['beta','da','l', 'prev_work', 'prev_rest', 'prev_home','zeta']
+sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
 
-with Pool() as pool:
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                    args=(model,log_prior_fnc, log_prior_fnc_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson'))
-    for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
-       
-        if sampler.iteration % 100:
-            continue
-
-        ##################
-        # UPDATE FIGURES #
-        ################## 
-
-        # Compute the autocorrelatbinomialion time so far
-        tau = sampler.get_autocorr_time(tol=0)
-        autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
-        index += 1
-
-        # Update autocorrelation plot
-        n = 100 * np.arange(0, index + 1)
-        y = autocorr[:index+1,:]
-        fig,ax = plt.subplots(figsize=(10,5))
-        ax.plot(n, n / 50.0, "--k")
-        ax.plot(n, y, linewidth=2,color='red')
-        ax.set_xlim(0, n.max())
-        ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
-        ax.set_xlabel("number of steps")
-        ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-        fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
-        # Update traceplot
-        traceplot(sampler.get_chain(),labels,
-                        filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
-                        plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-
-        # Close all figures and collect garbage to avoid memory leaks
-        plt.close('all')
-        gc.collect()
-
-        #####################
-        # CHECK CONVERGENCE #
-        ##################### 
-
-        # Check convergence using max tau
-        converged = np.all(np.max(tau) * 50 < sampler.iteration)
-        converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
-        if converged:
-            break
-        old_tau = tau
-
-        ###############################
-        # WRITE SAMPLES TO DICTIONARY #
-        ###############################
-
-        # Write samples to dictionary every 1000 steps
-        if sampler.iteration % 100: 
-            continue
-
-        flat_samples = sampler.get_chain(flat=True)
-        with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
-            np.save(f,flat_samples)
-            f.close()
-            gc.collect()
-
-# ----------------------------------------------------
-# Assign results to samples dictionary without discard
-# ----------------------------------------------------
+# ---------------
+# Process results
+# ---------------
 
 thin = 1
 try:
