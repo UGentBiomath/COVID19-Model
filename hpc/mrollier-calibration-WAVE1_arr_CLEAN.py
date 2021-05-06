@@ -420,6 +420,7 @@ samples_dict.update({
 # ------------------
 
 # All necessary information to make a corner plot is in the samples_dict dictionary
+# This should be put in a separate function
 
 CORNER_KWARGS = dict(
     smooth=0.9,
