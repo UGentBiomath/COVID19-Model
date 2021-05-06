@@ -83,7 +83,7 @@ def get_apple_mobility_data(update=True):
 
     return df_apple
 
-def get_google_mobility_data(update=True, plot=False, filename_plot=None):
+def get_google_mobility_data(update=True, plot=False, filename_plot=None, spatial=False):
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
@@ -99,6 +99,8 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     filename_viz: string
         filename and extension to automatically save the generated visualisation of the data
         The argument has no effect when plot is False
+    spatial : boolean
+        If True, load DataFrame per province/Brussels
 
     Returns
     -----------
@@ -152,9 +154,6 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
             '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv'),
             parse_dates=['date'], dtype=dtypes)
 
-    # Extract values
-    data=df[df['sub_region_1'].isnull().values]
-
     # Assign data to output variables
     variable_mapping = {
         'retail_and_recreation_percent_change_from_baseline': 'retail_recreation',
@@ -164,16 +163,54 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         'workplaces_percent_change_from_baseline': 'work',
         'residential_percent_change_from_baseline': 'residential'
     }
-    data = data.rename(columns=variable_mapping)
-    data = data.set_index("date")
-    data.index.freq = 'D'
-    data = data[list(variable_mapping.values())]
+        
+    data_national=df[df['sub_region_1'].isnull().values]
+    data_national = data_national.rename(columns=variable_mapping)
+    data_national = data_national.set_index("date")
+    data_national.index.freq = 'D'
+    data_national = data_national[list(variable_mapping.values())]
+        
+    if spatial:
+        data_prov = df[df['sub_region_2'].notnull().values]
+        data_bxl = df[df['sub_region_1']=='Brussels']
+        
+        data_prov = data_prov.rename(columns=variable_mapping)
+        data_prov = data_prov.set_index("date")
+        data_prov = data_prov[list(variable_mapping.values()) + ['sub_region_2']].rename(columns={'sub_region_2' : 'NIS'})
+
+        data_bxl = data_bxl.rename(columns=variable_mapping)
+        data_bxl = data_bxl.set_index("date")
+        data_bxl = data_bxl[list(variable_mapping.values()) + ['sub_region_1']].rename(columns={'sub_region_1' : 'NIS'})
+        
+        data_spatial = pd.concat([data_prov, data_bxl])
+        
+        # Define translation between province names and NIS codes
+        NIS_dict = dict({'Brussels' : 21000,
+                 'Antwerp' : 10000,
+                 'East Flanders' : 40000,
+                 'Flemish Brabant' : 20001,
+                 'Limburg' : 70000,
+                 'West Flanders' : 30000,
+                 'Hainaut' : 50000,
+                 'Liege' : 60000,
+                 'Luxembourg' : 80000,
+                 'Province of Namur' : 90000,
+                 'Walloon Brabant' : 20002})
+        
+        data_spatial['NIS'].replace(NIS_dict, inplace=True)
+
+        concat_dict = dict({nis : data_spatial[data_spatial['NIS']==nis].drop(columns='NIS') for nis in list(NIS_dict.values())})
+
+        data_spatial = pd.concat(concat_dict, axis=1, names=['NIS', 'location'] )
+        data_spatial.index.freq='D'
+
 
     if filename_plot and not plot:
         print("Filename plot has no effect, plot is not activated. Set `plot=True` to create plot.")
 
+    # Plot is always of national value
     if plot:
-        fig, ax = google_mobility(data)
+        fig, ax = google_mobility(data_national)
         
         if filename_plot:
             plt.savefig(filename_plot, dpi=600, bbox_inches='tight',
@@ -181,7 +218,10 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         else:
             plt.show()
 
-    return data
+    if spatial:
+        return data_spatial
+    
+    return data_national
 
 
 
