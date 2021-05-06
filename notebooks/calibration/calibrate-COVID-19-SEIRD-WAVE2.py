@@ -338,7 +338,6 @@ if job == 'R0':
 
     data=[df_sciensano['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
-    weights = [1]
 
     # -----------
     # Perform PSO
@@ -348,7 +347,7 @@ if job == 'R0':
     pars = ['warmup','beta','da']
     bounds=((5,30),(0.010,0.100),(3,8))
     # run optimisation
-    theta = pso.fit_pso(model,data,pars,states,weights,bounds,maxiter=maxiter,popsize=popsize,
+    theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, processes=processes)
     # Assign estimate
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -381,7 +380,7 @@ if job == 'R0':
     labels = ['$\\beta$','$d_{a}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars, [1], None, None, start_calibration, warmup,'poisson')
 
     # ----------------
     # Run MCMC sampler
@@ -437,7 +436,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-05-02'
+    end_calibration = '2021-05-04'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
@@ -462,7 +461,6 @@ print('Using ' + str(processes) + ' cores\n')
 
 data=[df_sciensano['H_in'][start_calibration:end_calibration]]
 states = ["H_in"]
-weights = [1]
 
 # -----------
 # Perform PSO
@@ -472,9 +470,8 @@ weights = [1]
 pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf', 'K_hosp']
 bounds=((0.01,0.04),(4,14),(4.5,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.40,0.99),(1,1.6),(1,1.6))
 # run optimization
-#theta = pso.fit_pso(model, data, parNames, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes,
-#                    draw_fcn=draw_fcn, samples=samples_dict)
+#theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes)
 theta = np.array([0.0138, 10.5, 5, 0.60, 0.25, 0.06, 0.90, 1.45, 1.30])
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -507,7 +504,7 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf','K_hosp']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.03,1), (0.03,1), (0.03,1), (0.03,1),(1,1.8),(1,1.8)]
+log_prior_fcn_args = [(0.001, 0.12), (4, 14), (0.1,14), (0.05,1), (0.05,1), (0.05,1), (0.05,1),(1,1.8),(1,1.8)]
 # Perturbate PSO Estimate
 pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
@@ -520,7 +517,7 @@ if backend:
 labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$K_{inf}$', '$K_{hosp}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars, [1], None, None, start_calibration, warmup,'poisson')
 
 # ----------------
 # Run MCMC sampler

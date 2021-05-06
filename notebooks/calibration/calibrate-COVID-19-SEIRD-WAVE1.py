@@ -217,7 +217,6 @@ if job == 'R0':
 
     data=[df_sciensano['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
-    weights = [1]
 
     # -----------
     # Perform PSO
@@ -227,7 +226,7 @@ if job == 'R0':
     pars = ['warmup','beta', 'da']
     bounds=((10,80),(0.020,0.06), (3.0,9.0))
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+    theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, processes=processes)
     # Assign estimate
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -260,7 +259,7 @@ if job == 'R0':
     labels = ['$\\beta$','$d_{a}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars, [1], None, None, start_calibration, warmup,'poisson')
 
     # ----------------
     # Run MCMC sampler
@@ -357,8 +356,8 @@ pars = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
 
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
+#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+#                   start_date=start_calibration, warmup=warmup, processes=processes)
 # Until 2020-07-07
 theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
 
@@ -397,7 +396,7 @@ if backend:
 labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$\zeta$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars, weights, None, None, start_calibration, warmup,'poisson')
 
 # ----------------
 # Run MCMC sampler
