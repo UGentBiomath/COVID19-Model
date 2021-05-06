@@ -655,7 +655,7 @@ class make_contact_matrix_function():
             if others is None:
                 others=1-row[1]
 
-            CM = (prev_home*(1/2.3)*self.Nc_all['home'] + 
+            CM = (prev_home*self.Nc_all['home'] + 
                   prev_schools*school*self.Nc_all['schools'] + 
                   prev_work*work*self.Nc_all['work'] + 
                   prev_rest*transport*self.Nc_all['transport'] + 
