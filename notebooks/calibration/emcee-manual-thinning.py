@@ -23,13 +23,14 @@ Cornerplot of MCMC chains.
 
 Example use:
 ------------
-python emcee-manual-thinning.py -f BE_4_prev_full_2020-12-15_WAVE2_GOOGLE.json -n 14 -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home' -d 1000 -t 20
+python emcee-manual-thinning.py -f BE_WAVE1_R0_COMP_EFF_2021-04-27.json -n 14 -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home' -l '$\beta$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$' -r '(0,0.12)' '(0,15)' '(0,1)' '(0,1)' '(0,1)' '(0,0.01)' -d 1000 -t 20
 
 python emcee-manual-thinning.py 
-    -f BE_WAVE1_R0_COMP_EFF_2021-04-20.json
-    -n 16
-    -k 'beta' 'omega' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
-    -l '$\beta$' '$\omega$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$'
+    -f BE_WAVE1_R0_COMP_EFF_2021-04-27.json
+    -n 14
+    -k 'beta' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
+    -l '$\beta$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$'
+    -r '(0,0.12)' '(0,15)' '(0,1)' '(0,1)' '(0,1)' '(0,0.01)'
     -d 1000
     -t 20
     -s
@@ -43,6 +44,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # Load required packages
 # ----------------------
 
+import ast
 import json
 import corner
 import argparse
@@ -58,6 +60,7 @@ from covid19model.visualization.optimization import traceplot
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--filename", help="Samples dictionary name")
+parser.add_argument("-r", "--range", help="Range used in cornerplot",nargs='+')
 parser.add_argument("-n", "--n_chains", help="Number of parallel MCMC chains")
 parser.add_argument("-k", "--keys", help="List containing keys of sampled parameters",nargs='+')
 parser.add_argument("-l", "--labels", help="List containing labels to be used in visualisations",nargs='+')
@@ -65,6 +68,10 @@ parser.add_argument("-d", "--discard", help="Number of samples to be discarded p
 parser.add_argument("-t", "--thin", help="Thinning factor of MCMC chain")
 parser.add_argument("-s", "--save", help="Save thinned samples dictionary",action='store_true')
 args = parser.parse_args()
+
+range_lst=[]
+for tpl in args.range:
+    range_lst.append(ast.literal_eval(tpl))
 
 # -----------------------
 # Load samples dictionary
@@ -107,7 +114,7 @@ CORNER_KWARGS = dict(
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    range=[(0,0.12),(0,15),(0,13),(0,1),(0,1),(0,1),(0,1),(1,2),(1,2)],
+    range=range_lst,
     title_fmt=".3" 
 )
 
