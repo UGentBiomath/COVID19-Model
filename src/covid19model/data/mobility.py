@@ -132,6 +132,12 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None, spatia
     >>> data = get_google_mobility_data(update=False, plot=True)
     >>> # load google mobility data from raw data directory, create viz and save viz
     >>> data = get_google_mobility_data(update=False, plot=True, filename_plot="my_viz.png")
+    
+    Spatial case:
+    >>> # Load all data
+    >>> df_google=get_google_mobility_data(update=False, spatial=True)
+    >>> # Access particular timeseries for Brussels
+    >>> df_google.iloc[:,df_google.columns.get_level_values('NIS')==21000]
     """
 
     # Data source
