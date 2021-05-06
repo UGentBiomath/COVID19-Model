@@ -155,12 +155,13 @@ backend = None
 labels = ['$\\beta$','$l$','$E_{eff}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
 
 # ----------------
 # Run MCMC sampler
 # ----------------
-sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, args=objective_fcn_args)
+sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, args=objective_fcn_args, kwargs=objective_fcn_kwargs)
 sampler.run_mcmc(pos, max_n, progress=True)
 
 # ---------------

@@ -13,7 +13,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -25,8 +25,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
     autocorr = np.zeros([1,ndim])
 
     with Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn,backend=backend,pool=pool,
-                        args=objective_fcn_args)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % print_n:
