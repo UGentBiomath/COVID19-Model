@@ -71,8 +71,9 @@ else:
 
 # Indexpatients
 if args.indexpatients:
-    init_number = args.indexpatients
-    if type(init_number) != int:
+    try:
+        init_number = int(args.indexpatients)
+    except:
         raise Exception("The number of index patients must be an integer.")
 else:
     init_number = 3
