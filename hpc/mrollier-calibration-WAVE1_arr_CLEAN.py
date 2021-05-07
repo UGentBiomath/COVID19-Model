@@ -133,7 +133,7 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=
 
 
 # -------------------------------
-# Define mobility update function
+# Define time-dependent functions
 # -------------------------------
 
 # Mobility update function from class __call__ and function wrapper to get the right signature
