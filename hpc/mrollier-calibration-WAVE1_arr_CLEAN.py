@@ -83,7 +83,7 @@ if args.agg:
     if agg not in ['mun', 'arr', 'prov']:
         raise Exception(f"Aggregation type --agg {agg} is not valid. Choose between 'mun', 'arr', or 'prov'.")
 else:
-    agg = 'arr'.
+    agg = 'arr'
     
 # Maxiter
 if args.maxiter:
@@ -167,9 +167,9 @@ params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
                'df_google' : df_google, # used in policies_wave1_4prev
                'l' : 5, # will be varied over in the PSO/MCMC
                'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
-               'prev_home' : 0.5 # will be varied over in the PSO/MCMC
+               'prev_home' : 0.5, # will be varied over in the PSO/MCMC
                'prev_schools': 0.5, # will be varied over in the PSO/MCMC
-               'prev_work': 0.5 # will be varied over in the PSO/MCMC
+               'prev_work': 0.5, # will be varied over in the PSO/MCMC
                'prev_rest': 0.5 # will be varied over in the PSO/MCMC
               })
 # Add parameters for the daily update of proximus mobility
@@ -294,7 +294,7 @@ log_prior_fnc_args = bounds[1:]
 # Set up the sampler backend
 # Not sure what this does, tbh
 if backend:
-    filename = signature + '_BETAs_prelockdown' + run_date
+    filename = f'{signature}_BETAs_prelockdown{run_date}'
     backend = emcee.backends.HDFBackend(backend_folder + filename)
     backend.reset(nwalkers, ndim)
 
@@ -345,12 +345,12 @@ if __name__ == '__main__':
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
-            fig.savefig(fig_path+'autocorrelation/'+signature+'_AUTOCORR_BETAs-prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(f'{fig_path}autocorrelation/{signature}_AUTOCORR_BETAs-prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
             labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
             traceplot(sampler.get_chain(),labels,
-                            filename=fig_path+'traceplots/'+signature+'_TRACE_BETAs-prelockdown_'+run_date+'.pdf',
+                            filename=f'{fig_path}traceplots/{signature}_TRACE_BETAs-prelockdown_{run_date}.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -378,7 +378,7 @@ if __name__ == '__main__':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+str(signature)+'_BETAs-prelockdown_'+run_date+'.npy', 'wb') as f:
+            with open(f'{samples_path}{str(signature)}_BETAs-prelockdown_{run_date}.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -434,7 +434,7 @@ for idx,ax in enumerate(fig.get_axes()):
     ax.tick_params(axis='both', labelsize=12, rotation=0)
 
 # Save figure
-fig.savefig(fig_path+'cornerplots/'+signature+'_CORNER_BETAs_prelockdown_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+fig.savefig(f'{fig_path}cornerplots/{signature}_CORNER_BETAs_prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
 plt.close()
 
 # ------------------------
@@ -481,14 +481,14 @@ H_in_LL = np.quantile(H_in, q = LL, axis = 1)
 H_in_UL = np.quantile(H_in, q = UL, axis = 1)
 
 # Save results for every individual place. Same strategy.
-H_in_places = dict({})=
+H_in_places = dict({})
 H_in_places_mean = dict({})
 H_in_places_median = dict({})
 H_in_places_LL = dict({})
 H_in_places_UL = dict({})
 
 for NIS in out.place.values:
-    H_in_places[NIS] = H_in_base.sel(place=NIS).values=
+    H_in_places[NIS] = H_in_base.sel(place=NIS).values
     # Compute mean and median
     H_in_places_mean[NIS] = np.mean(H_in_places[NIS],axis=1)
     H_in_places_median[NIS] = np.median(H_in_places[NIS],axis=1)
@@ -515,11 +515,11 @@ ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=
 ax = _apply_tick_locator(ax)
 ax.set_xlim(start_calibration,end_sim)
 ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(fig_path+'others/'+signature+'_FIT_BETAs_prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+fig.savefig(f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_SUM_{run_date}.pdf', dpi=400, bbox_inches='tight')
 plt.close()
 
 # Create subdirectory
-fit_prelockdown_subdir = fig_path+'others/'+signature+'_FIT_BETAs_prelockdown_NIS_'+run_date'
+fit_prelockdown_subdir = f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_NIS_{run_date}'
 os.mkdir(fit_prelockdown_subdir)
 # Plot result for each NIS
 for NIS in out.place.values:
@@ -531,7 +531,7 @@ for NIS in out.place.values:
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-    fig.savefig(fit_prelockdown_subdir+'/'+signature+'_FIT_BETAs_prelockdown_' + str(NIS) + '_' + run_date+'.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(f'{fit_prelockdown_subdir}/{signature}_FIT_BETAs_prelockdown_{str(NIS)}_{run_date}.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
 
@@ -559,7 +559,7 @@ samples_dict.update({
 
 print('3) Saving dictionary\n')
 
-with open(samples_path+str(signature)+'_BETAs_prelockdown_'+run_date+'.json', 'w') as fp:
+with open(f'{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json', 'w') as fp:
     json.dump(samples_dict, fp)
 
 print('DONE!')
