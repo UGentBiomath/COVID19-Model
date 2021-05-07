@@ -109,9 +109,8 @@ if not (os.path.exists(fig_path) and os.path.exists(samples_path) and os.path.ex
     raise Exception("Some of the results location directories do not exist.")
 
 # Verify that the fig_path subdirectories used in the code exist
-if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") \
-        and os.path.exists(fig_path+"others/") and os.path.exists(fig_path+"cornerplots/")):
-    raise Exception("Some of the figure path subdirectories do not exist.")
+if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/")):
+    raise Exception(f"The directory {fig_path} should have subdirectories 'autocorrelation' and 'traceplots'.")
 
 
 # ---------
