@@ -119,12 +119,11 @@ if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+
 
 # Load and format mobility dataframe
 proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-# Converting the index as date
+# Converting the index as date. Probably not necessary because it's already done.
 # all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
 
-# Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
-Nc_all = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+# Total population and contact matrices
+initN, Nc_all = get_integrated_willem2012_interaction_matrices(spatial=agg)
 
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
