@@ -19,6 +19,10 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
+    weights: list
+        Weight attributed to each time series and (if agg != None) within those time series to each NIS.
+        weights = list of floats (one per time series), or (in spatial case) list of dicts (one per time series),
+        with NIS codes as keys and weights as values.
     parNames: list
         names of parameters to be fitted
     dist : str
@@ -42,7 +46,7 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
 
     Example use
     -----------
-    MLE = MLE(model,thetas,data,parNames,positions)
+    MLE = MLE(thetas, model, data, states, weights, parNames)
     """
 
     # ~~~~~~~~~~~~~~~~~~~~
