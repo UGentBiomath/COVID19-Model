@@ -664,7 +664,7 @@ class make_contact_matrix_function():
 
         return CM
 
-    return contact_matrix_4prev, all_contact, all_contact_no_schools
+#     return contact_matrix_4prev, all_contact, all_contact_no_schools
 
 # Define policy function
 def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
