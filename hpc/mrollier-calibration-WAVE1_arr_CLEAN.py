@@ -162,11 +162,9 @@ policies_wave1_4prev = make_contact_matrix_function(df_google, Nc_all).policies_
 # -------------------------
 
 # Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
+params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, VOC=False)
 # Add the time-dependant parameter function arguments
-params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
-               'df_google' : df_google, # used in policies_wave1_4prev
-               'l' : 5, # will be varied over in the PSO/MCMC
+params.update({'l' : 5, # will be varied over in the PSO/MCMC
                'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
                'prev_home' : 0.5, # will be varied over in the PSO/MCMC
                'prev_schools': 0.5, # will be varied over in the PSO/MCMC
