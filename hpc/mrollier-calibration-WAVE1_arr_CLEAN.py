@@ -167,10 +167,10 @@ params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
                'df_google' : df_google, # used in policies_wave1_4prev
                'l' : 5, # will be varied over in the PSO/MCMC
                'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
+               'prev_home' : 0.5 # will be varied over in the PSO/MCMC
                'prev_schools': 0.5, # will be varied over in the PSO/MCMC
                'prev_work': 0.5 # will be varied over in the PSO/MCMC
                'prev_rest': 0.5 # will be varied over in the PSO/MCMC
-               'prev_home' : 0.5 # will be varied over in the PSO/MCMC
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
@@ -244,7 +244,7 @@ print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
 # set PSO parameters and boundaries
-parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
+parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
 bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))
 
 
