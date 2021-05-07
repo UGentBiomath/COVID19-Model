@@ -236,7 +236,7 @@ print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
 # define dataset
-data=[df_sciensano[start_calibration:end_calibration_beta]]
+data=[df_sciensano[start_calibration:end_calibration]]
 states = [["H_in"]]
 
 # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
@@ -398,7 +398,7 @@ for count,name in enumerate(parNames_mcmc):
 samples_dict.update({
     'warmup' : warmup,
     'start_date' : start_calibration,
-    'end_date' : end_calibration_beta,
+    'end_date' : end_calibration,
     'n_chains': int(nwalkers)
 })
     
@@ -508,8 +508,8 @@ ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, 
 ax.plot(out['time'],H_in_mean,'--', color='blue')
 
 # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
-ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index, df_sciensano[start_calibration:end_calibration_beta].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax = _apply_tick_locator(ax)
 ax.set_xlim(start_calibration,end_sim)
 ax.set_ylabel('$H_{in}$ (-)')
@@ -524,8 +524,8 @@ for NIS in out.place.values:
     fig,ax = plt.subplots(figsize=(10,5))
     ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
     ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
-    ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index, df_sciensano[start_calibration:end_calibration_beta][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
