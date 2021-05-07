@@ -161,7 +161,6 @@ params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
-# mobility_update_func = make_mobility_update_function(agg, dtype='fractional', beyond_borders=False)
 params.update({'default_mobility' : None})
 
 # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
