@@ -131,7 +131,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
             raise ValueError(
                 "The specified comix survey wave number '{0}' must be an integer number".format(wave))
         # Extract interaction matrices
-        Nc = pd.read_excel(os.path.join(matrix_path, "wave"+str(wave)+".xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc = pd.read_excel(os.path.join(matrix_path, "wave"+str(wave)+".xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
         # Convert interaction matrices
         Nc[0,:] = Nc[:,0] # Assume reciprocity
         Nc[0,0] = Nc[1,1] # Assume interactions of 0-10 yo are equal to interactions 10-20 yo
@@ -293,13 +293,13 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['Nc'] = Nc_dict['total']
 
         # Assign AZMM and UZG estimates to correct variables
-        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0])
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0], engine='openpyxl')
         pars_dict['h'] = np.array([0.015, 0.015, 0.03, 0.03, 0.03, 0.075, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
         pars_dict['c'] = np.array(fractions['c'].values[:-1])
         pars_dict['m_C'] = np.array(fractions['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}'].values[:-1])
 
-        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1])
+        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
         pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
         pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1]) 
         pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
@@ -309,7 +309,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
         # Wu et al.
-        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
+        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"), engine='openpyxl')
         pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
 
         # Davies et al.
