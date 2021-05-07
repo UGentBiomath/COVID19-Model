@@ -176,27 +176,14 @@ params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
 # mobility defaults to average mobility of 2020 if no data is available
 params.update({'default_mobility' : None})
 
-# Include values of vaccination strategy, that are currently NOT used, but necessary for programming
-params.update({'e' : np.zeros(initN.shape[1]),
-               'K' : 1,
-               'N_vacc' : np.zeros(initN.shape[1]),
-               'leakiness' : np.zeros(initN.shape[1]),
-               'v' : np.zeros(initN.shape[1]),
-               'injection_day' : 500, # Doesn't really matter
-               'injection_ratio' : 0})
-
-# Remove superfluous parameters
-params.pop('alpha')
-
-
-# Initial states, depending on args parser
-init_number=3
+# Initial states, depending on args parser. Age is hard-coded
+age=40
 if init=='BXL':
-    initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
+    initE = initial_state(dist='bxl', agg=agg, age=age, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
 elif init=='DATA':
-    initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
+    initE = initial_state(dist='data', agg=agg, age=age, number=init_number) # 40-somethings dropped in the initial hotspots
 else:
-    initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
+    initE = initial_state(dist='hom', agg=agg, age=age, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
 initial_states = {'S': initN, 'E': initE}
 
 
