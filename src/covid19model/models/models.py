@@ -617,8 +617,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R + V # calculate total population per age bin using 2D array
-        VE = S + R + E + I + A
+        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -635,12 +634,9 @@ class COVID19_SEIRD_spatial(BaseModel):
         T_eff = np.matmul(np.transpose(place_eff), T)
         A_eff = np.matmul(np.transpose(place_eff), A)
         I_eff = np.matmul(np.transpose(place_eff), I)
-        V_eff = np.matmul(np.transpose(place_eff), V)
-        alpha_eff = np.matmul(np.transpose(place_eff), alpha)
                 
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
-        V_Susc = place_eff[:,:,np.newaxis]*V[:,np.newaxis,:]
         
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
@@ -667,11 +663,8 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
         
-        # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age], 
-        beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K*beta[:,np.newaxis]
-        
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
-        multip = np.matmul( (I_eff + A_eff + leakiness*V)/T_eff , np.transpose(Nc) )
+        multip = np.matmul( (I_eff + A_eff)/T_eff , np.transpose(Nc) )
         
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
         multip *= np.outer(f, s*zi)
@@ -685,43 +678,27 @@ class COVID19_SEIRD_spatial(BaseModel):
             multip *= beta_weighted_av
         else:
             Susc *= beta_weighted_av[:,np.newaxis,:]
-            V_Susc *= beta_weighted_av[:,np.newaxis,:]
         
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
-        # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age] and dV_inf[patch,age].
+        # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
         dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-        dV_inf = (V_Susc * multip[np.newaxis,:,:]).sum(axis=1)
 
-        dS  = -dS_inf + zeta*R - N_vacc/VE*S
-        dE  = dS_inf - E/sigma - N_vacc/VE*E + (1-e)*dV_inf # Unsuccesful vaccinations are added to Exposed population
-        dI = (1/sigma)*E - (1/omega)*I - N_vacc/VE*I
-        dA = (a/omega)*I - A/da - N_vacc/VE*A
+        dS  = -dS_inf + zeta*R
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
         dER = M*(h/dhospital) - (1/der)*ER
         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - N_vacc/VE*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        dV_new = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - V_new
-        dV = N_vacc/VE*S + N_vacc/VE*R + N_vacc/VE*E + N_vacc/VE*I + N_vacc/VE*A - (1-e)*dV_inf
-        dVE = dS + dR + dE + dI + dA
-        dalpha = alpha*K/(1-alpha+alpha*K) - alpha
-        # If A and I are both zero, a division error occurs
-        dalpha[np.isnan(dalpha)] = 0
-        
 
-
-
-        # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
-        if (t >= injection_day) & (alpha.sum().sum()==0):
-            dalpha += injection_ratio
-        
-
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dVE, dV_new, dV, dalpha)
+        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
     
 class COVID19_SEIRD_spatial_vacc(BaseModel):
     """
