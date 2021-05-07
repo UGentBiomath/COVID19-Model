@@ -205,7 +205,7 @@ def get_integrated_willem2012_interaction_matrices(spatial=None):
 
     return initN, Nc_dict
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, VOC=True, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -409,8 +409,9 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['beta_M'] = 0.03492 # metropolitan
         
     # Co-infection model: infectivity gain
-    pars_dict['alpha'] = 0
-    pars_dict['K_inf'] = 1
-    pars_dict['K_hosp'] = 1
+    if VOC:
+        pars_dict['alpha'] = 0
+        pars_dict['K_inf'] = 1
+        pars_dict['K_hosp'] = 1
 
     return pars_dict
