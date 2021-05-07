@@ -193,7 +193,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
+                                           {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_function}, spatial=agg)
 
 # --------------------
 # Range of calibration
