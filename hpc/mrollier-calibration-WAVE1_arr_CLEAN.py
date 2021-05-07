@@ -245,8 +245,7 @@ print(f'Using {processes} cores for a population of {popsize}, for maximally {ma
 
 # set PSO parameters and boundaries
 parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
-bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060))
-
+bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (0, 1), (0, 1), (0, 1))
 
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
