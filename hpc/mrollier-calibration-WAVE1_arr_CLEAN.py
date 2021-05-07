@@ -105,7 +105,7 @@ samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{ag
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
 # Verify that these paths exists
-if not (os.path.exists(backend_folder) and os.path.exists(fig_path) and os.path.exists(samples_path)):
+if not (os.path.exists(fig_path) and os.path.exists(samples_path) and os.path.exists(backend_folder)):
     raise Exception("Some of the results location directories do not exist.")
 
 # Verify that the fig_path subdirectories used in the code exist
