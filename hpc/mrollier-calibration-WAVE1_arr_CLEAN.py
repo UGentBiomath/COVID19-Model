@@ -255,13 +255,15 @@ if __name__ == '__main__':
     
 # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
 warmup = int(theta_pso[0])
-theta_pso = theta_pso[1:] # Beta values
+theta_pso = theta_pso[1:] # all other values
 
 print(f'\n------------')
 print(f'PSO RESULTS:')
 print(f'------------')
 print(f'warmup: {warmup}')
-print(f'betas {parNames[1:]}: {theta_pso}.\n')
+print(f'infectivities {parNames[1:4]}: {theta_pso[0:3]}.\n')
+print(f'compliance {parNames[4]}: {theta_pso[3]}.\n')
+print(f'effectivities {parNames[5:]}: {theta_pso[4:]}.\n')
 
 # ------------------------
 # Markov-Chain Monte-Carlo
