@@ -203,6 +203,9 @@ start_calibration = '2020-03-05' # first available date
 # last datapoint used for full calibration
 end_calibration = '2020-07-01'
 
+# Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
+init_warmup = 60
+
 # ---------------------------
 # Objective(s) of calibration
 # ---------------------------
@@ -223,10 +226,6 @@ popsize = multiplier*processes
 
 # MCMC settings
 max_n = maxn_MCMC # 300000
-# Number of samples drawn from MCMC parameter results, used to visualise model fit
-n_samples = 10
-# Confidence level used to visualise model fit
-conf_int = 0.05
 
 # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
 poisson_offset=1
@@ -235,6 +234,7 @@ poisson_offset=1
 # Particle Swarm Optimization
 # ---------------------------
 
+# Print statement to stdout
 print(f'\n----------------------')
 print(f'PERFORMING CALIBRATION')
 print(f'----------------------\n')
@@ -242,9 +242,6 @@ print(f'Using data from {start_calibration} until {end_calibration}')
 print(f'Initial conditions: {init} for {init_number} subjects.\n')
 print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-
-# Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
-init_warmup = 60
 
 # set PSO parameters and boundaries
 parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M'] # no compliance parameters yet
