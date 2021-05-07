@@ -137,7 +137,7 @@ proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobil
 # all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
 
 # Total population and contact matrices
-initN, Nc_all = get_integrated_willem2012_interaction_matrices(spatial=agg)
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
 
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
