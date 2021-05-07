@@ -97,12 +97,12 @@ run_date = str(datetime.date.today())
 # Define results locations
 # ------------------------
 
-# Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 # Path where figures should be stored. This directory is split up further into autocorrelation, traceplots, cornerplots and others
 fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
 # Path where MCMC samples should be saved
 samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+# Path where samples backend should be stored
+backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
 # Verify that these paths exists
 if not (os.path.exists(backend_folder) and os.path.exists(fig_path) and os.path.exists(samples_path)):
