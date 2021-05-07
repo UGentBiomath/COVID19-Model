@@ -46,8 +46,9 @@ from covid19model.visualization.utils import moving_avg
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA (default) or HOMO")
-parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov")
+parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA (default) or HOMO.")
+parser.add_argument("-p", "--indexpatients", help="Total number of index patients at start of simulation.")
+parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
 parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
 parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
@@ -59,6 +60,7 @@ if args.backend == False:
     backend = None
 else:
     backend = True
+    
 # Init
 if args.init:
     init = args.init
@@ -66,6 +68,15 @@ if args.init:
         raise Exception(f"Initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
 else:
     init = 'DATA'
+
+# Indexpatients
+if args.indexpatients:
+    init_number = args.indexpatients
+    if type(init_number) != int:
+        raise Exception("The number of index patients must be an integer.")
+else:
+    init_number = 3
+    
 # Agg
 if args.agg:
     agg = args.agg
@@ -73,6 +84,7 @@ if args.agg:
         raise Exception(f"Aggregation type --agg {agg} is not valid. Choose between 'mun', 'arr', or 'prov'.")
 else:
     agg = 'arr'.
+    
 # Maxiter
 if args.maxiter:
     maxiter_PSO = int(args.maxiter)
@@ -83,6 +95,7 @@ if args.number:
     maxn_MCMC = int(args.number)
 else:
     maxn_MCMC = 100
+    
 # Name
 if args.signature:
     signature = args.signature
