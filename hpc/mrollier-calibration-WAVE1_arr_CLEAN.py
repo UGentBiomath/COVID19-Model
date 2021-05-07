@@ -150,14 +150,14 @@ policies_wave1_4prev = make_contact_matrix_function(df_google, Nc_all).policies_
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg)
 # Add the time-dependant parameter function arguments
-params.update({'Nc_all' : Nc_all, # used in tdpf.policies_wave1_4prev
-               'df_google' : df_google, # used in tdpf.policies_wave1_4prev
+params.update({'Nc_all' : Nc_all, # used in policies_wave1_4prev
+               'df_google' : df_google, # used in policies_wave1_4prev
                'l' : 5, # will be varied over in the PSO/MCMC
                'tau' : 0.1, # 5, # Tijs's tip: tau has little to no influence. Fix it.
-               'prev_schools': 1, # hard-coded
-               'prev_work': 0.16, # 0.5 # taken from Tijs's analysis
-               'prev_rest': 0.28, # 0.5 # taken from Tijs's analysis
-               'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
+               'prev_schools': 0.5, # will be varied over in the PSO/MCMC
+               'prev_work': 0.5 # will be varied over in the PSO/MCMC
+               'prev_rest': 0.5 # will be varied over in the PSO/MCMC
+               'prev_home' : 0.5 # will be varied over in the PSO/MCMC
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
