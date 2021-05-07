@@ -203,6 +203,14 @@ start_calibration = '2020-03-05' # first available date
 # last datapoint used for full calibration
 end_calibration = '2020-07-01'
 
+# ---------------------------
+# Objective(s) of calibration
+# ---------------------------
+
+data=[df_sciensano[start_calibration:end_calibration]]
+states = ["H_in"]
+weights = [1] # must be 1 if only one state (one type of time series) is used. This may be altered for the spatial case!
+
 # ---------------------
 # PSO and MCMC settings
 # ---------------------
@@ -234,10 +242,6 @@ print(f'Using data from {start_calibration} until {end_calibration}')
 print(f'Initial conditions: {init} for {init_number} subjects.\n')
 print(f'1) Particle swarm optimization\n')
 print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-
-# define dataset
-data=[df_sciensano[start_calibration:end_calibration]]
-states = [["H_in"]]
 
 # Initial value for warmup time (all other initial values are given by loading in get_COVID19_SEIRD_parameters
 init_warmup = 60
