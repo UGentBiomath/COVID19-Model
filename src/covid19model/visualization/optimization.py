@@ -1,6 +1,7 @@
 import datetime
 import random
 import math
+import corner
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -9,6 +10,28 @@ import numpy as np
 import emcee
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
+
+def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
+    
+    samples = sampler.get_chain(discard=discard,thin=thin,flat=False)
+    flatsamples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+    
+    # Traceplots of samples
+    traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+    plt.savefig(fig_path+'traceplots/'+str(spatial_unit)+'_TRACE_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    # Autocorrelation plots of chains
+    autocorrelation_plot(samples)
+    plt.savefig(fig_path+'autocorrelation/'+str(spatial_unit)+'_AUTOCORR_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    # Cornerplots of samples
+    fig = corner.corner(flatsamples,labels=labels)
+    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    return
 
 def autocorrelation_plot(samples):
     """Make a visualization of autocorrelation of each chain

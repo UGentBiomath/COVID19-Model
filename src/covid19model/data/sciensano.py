@@ -3,8 +3,93 @@ import datetime
 import pandas as pd
 import numpy as np
 
+def get_mortality_data():
+    """Load and return the detailed mortality data for Belgium
+
+    Returns
+    -------
+    mortality_df : pd.dataframe
+        Dataframe containing both the incidence and cumulative sums for the number of deaths in total, hospitals, nursing homes and other locations. Data available per age group and per day.
+        The dataframe has two index levels: age group ('all', '10-20', ..., '80+'), and date. The dataframe has two column levels: 'place' ('total', 'hospital' ,'nursing', 'others') and 'quantity' ('incidence' or 'cumsum')
+
+    Example use
+    -----------
+    mortality_df = get_mortality_data()
+    # slice out 80+ age group
+    slice = mortality_df.xs(key='80+', level="age_class", drop_level=True)
+    # extract cumulative total in age group 80+
+    data = slice['total','cumsum']
+    """
+
+    return pd.read_csv(os.path.join(os.path.dirname(__file__),'../../../data/interim/sciensano/sciensano_detailed_mortality.csv'), index_col=[0,1], header=[0,1])
+
+def get_serological_data():
+    """Load and format the available serological data for Belgium
+
+    Returns
+    -------
+
+    df_sero_herzog: pandas.DataFrame
+        DataFrame with the number of individuals (mean, 5% quantile, 95% quantile) that have anti-SARS-CoV-2 antibodies in their blood as estimated by Sereina Herzog. Seroprevelance provided as absolute figure (number of individuals) as well as relative figure (fraction of population).
+
+    df_sero_sciensano: pandas.DataFrame
+        DataFrame with the number of individuals (mean, 5% quantile, 95% quantile) that have anti-SARS-CoV-2 antibodies in their blood as estimated by Sciensano. Seroprevelance provided as absolute figure (number of individuals) as well as relative figure (fraction of population).
+
+    Example use
+    -----------
+    df_sero_herzog, df_sero_sciensano = get_serological_data()
+    The resulting dataframes have the same format and use pandas multicolumns.
+    >> To extract the fraction of individuals with anti-SARS-CoV-2 antibodies in the blood
+        df_sero_herzog['rel','mean']
+    >> To extract the number of individuals with anti-SARS-CoV-2 antibodies in the blood
+        df_sero_herzog['abs','mean']
+    """
+    
+    # Load demographic data
+    abs_dir = os.path.dirname(__file__)
+    initN_data = "../../../data/interim/demographic/initN_arr.csv"
+    initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+    initN = initN_df.values[:,:-1].sum(axis=0)
+    # Load and format serodata of Herzog
+    data = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/sero/sero_national_overall_herzog.csv'), parse_dates=True)
+    data.index = data['collection_midpoint']
+    data.index.names = ['date']
+    data.index = pd.to_datetime(data.index)
+    data = data.drop(columns=['collection_midpoint','age_cat'])
+    columns = [[],[]]
+    tuples = list(zip(*columns))
+    columns = pd.MultiIndex.from_tuples(tuples, names=["abs/rel", "data"])
+    df = pd.DataFrame(index=data.index, columns=columns)
+    df['abs','mean'] = data['mean']*sum(initN) 
+    df['abs','LL'] = data['LL']*sum(initN)
+    df['abs','UL'] = data['UL']*sum(initN)
+    df['rel','mean'] = data['mean']
+    df['rel','LL'] = data['LL']
+    df['rel','UL'] = data['UL']
+    df_sero_herzog = df
+
+    # Load and format serodata of Sciensano
+    data= pd.read_csv(os.path.join(abs_dir,'../../../data/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv'), parse_dates=True)
+    data.index = data['Date']
+    data.index = pd.to_datetime(data.index)
+    data = data.drop(columns=['Date'])
+    data.index.names = ['date']
+    columns = [[],[]]
+    tuples = list(zip(*columns))
+    columns = pd.MultiIndex.from_tuples(tuples, names=["abs/rel", "data"])
+    df = pd.DataFrame(index=data.index, columns=columns)
+    df['abs','mean'] = data['mean']*sum(initN) 
+    df['abs','LL'] = data['LL']*sum(initN)
+    df['abs','UL'] = data['UL']*sum(initN)
+    df['rel','mean'] = data['mean']
+    df['rel','LL'] = data['LL']
+    df['rel','UL'] = data['UL']
+    df_sero_sciensano = df
+
+    return df_sero_herzog, df_sero_sciensano
+
 def get_sciensano_COVID19_data(update=True):
-    """Download Sciensano hospitalisation cases data
+    """Download and convert public Sciensano data
 
     This function returns the publically available Sciensano data
     on COVID-19 related cases, hospitalizations, deaths and vaccinations.

@@ -4,14 +4,307 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import zarr
+import ujson as json
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def sample_beta_binomial(n, p, k, size=None):
-    p = np.random.beta(k/(1-p), k/p, size=size)
-    r = np.random.binomial(n, p)
-    return r
+
+def load_samples_dict(filepath, wave=1):
+    """
+    A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
+
+    Parameters
+    ----------
+
+    filepath : str
+        Path to samples dictionary
+    
+    wave : int (1 or 2)
+        2020 COVID-19 wave
+        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
+    
+    Returns
+    -------
+
+    samples_dict: dict
+        Original samples dict plus bootstrapped samples of hospitalization mortalities ('samples_fractions') and parameters of distributions of residence times in hospital ('residence_times')
+        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
+    """
+    
+    # Load raw samples dict
+    samples_dict = json.load(open(filepath))
+    # Append data on hospitalizations
+    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    samples_dict.update({'residence_times': residence_time_distributions})
+    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy')
+    samples_dict.update({'samples_fractions': bootstrap_fractions})
+    if wave == 2:
+        # Append samples of re-susceptibility estimated from WAVE 1
+        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json'))
+        samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
+    return samples_dict
+
+
+def draw_fcn_WAVE1(param_dict,samples_dict):
+    """
+    A function to draw samples from the posterior distributions of the model parameters calibrated to WAVE 1
+    Tailored for use with the national COVID-19 SEIQRD
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 1
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    # Calibration of WAVE 1
+    # ---------------------
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['da'] = samples_dict['da'][idx]
+    param_dict['l'] = samples_dict['l'][idx] 
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(9):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=30
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
+    return param_dict
+
+def draw_fcn_WAVE2(param_dict,samples_dict):
+    """
+    A function to draw samples from the posterior distributions of the model parameters calibrated to WAVE 2
+    Tailored for use with the national COVID-19 SEIQRD
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    # Calibration of WAVE 1
+    # ---------------------
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+
+    # Calibration of WAVE 2
+    # ---------------------
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['da'] = samples_dict['da'][idx]
+    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    param_dict['K_inf'] = samples_dict['K_inf'][idx]
+    param_dict['K_hosp'] = samples_dict['K_hosp'][idx]
+
+    # Vaccination
+    # -----------
+    param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
+    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
+    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
+    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
+    param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(9):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=100
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
+    return param_dict
+
+def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+    """
+    A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
+    and format the model output in a pandas dataframe for easy acces
+
+
+    Parameters
+    ----------
+
+    output : xarray
+        Simulation output xarray
+
+    states : xarray
+        Model states on which to add the a-posteriori poisson uncertainty
+
+    n_samples : int
+        Total number of model trajectories in the xarray output
+
+    n_draws_per_sample : int
+        Number of poisson experiments to be added to each simulated trajectory (default: 1)
+
+    UL : float
+        Upper quantile of simulation result (default: 97.5%)
+
+    LL : float
+        Lower quantile of simulation result (default: 2.5%)
+
+    Returns
+    -------
+
+    simtime : list
+        contains datetimes of simulation output
+
+    df : pd.DataFrame
+        contains for every model state the mean, median, lower- and upper quantiles
+        index is equal to simtime
+
+    Example use
+    -----------
+
+    simtime, df_2plot = output_to_visuals(output, 100, 1, LL = 0.05/2, UL = 1 - 0.05/2)
+    # x-values do not need to be supplied when using `plt.plot`
+    plt.plot(df_2plot['H_in', 'mean'])
+    # x-values must be supplied when using `plt.fill_between`
+    plt.fill_between(simtime, df_2plot['H_in', 'LL'], df_2plot['H_in', 'UL'])
+
+    """
+    # Extract simulation timesteps
+    simtime = pd.to_datetime(output['time'].values)
+    # Initialize a pandas dataframe for results
+    columns = [[],[]]
+    tuples = list(zip(*columns))
+    columns = pd.MultiIndex.from_tuples(tuples, names=["model state", "quantity"])
+    df = pd.DataFrame(index=simtime, columns=columns)
+    df.index.name = 'simtime'
+    # Loop over output states
+    for state_name in states:
+        simtime, mean, median, LL_lst, UL_lst = add_poisson(state_name, output, n_samples, n_draws_per_sample, UL, LL)
+        df[state_name,'mean'] = mean
+        df[state_name,'median'] = median
+        df[state_name,'LL'] = LL_lst
+        df[state_name,'UL'] = UL_lst
+    return simtime, df
+
+def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+    """ A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
+
+    Parameters
+    ----------
+
+    state_name : string
+        Must be a state of the epidemiological model used.
+
+    output : xarray
+        Simulation output xarray
+
+    n_samples : int
+        Total number of model trajectories in the xarray output
+
+    n_draws_per_sample : int
+        Number of poisson experiments to be added to each simulated trajectory (default: 1)
+
+    UL : float
+        Upper quantile of simulation result (default: 97.5%)
+
+    LL : float
+        Lower quantile of simulation result (default: 2.5%)
+
+    Returns
+    -------
+
+    simtime : list
+        contains datetimes of simulation output
+
+    mean: np.array
+        contains mean model prediction for 'state_name' at simulation times 'simtime'
+
+    median : np.array
+        contains median model prediction for 'state_name' at simulation times 'simtime'
+
+    LL_lst : np.array
+        contains lower quantile of model prediction for 'state_name' at simulation times 'simtime'
+
+    UL_lst : np.array
+        contains upper quantile of model prediction for 'state_name' at simulation times 'simtime'
+
+    Example use
+    -----------
+    simtime, mean, median, LL, UL = add_poisson('H_in', output, 100, 1)
+
+    """
+    # Check on user-provided state name
+    if not state_name in list(output.data_vars):
+        raise ValueError(
+        "variable state_name '{0}' is not a model state".format(state_name)
+        )   
+    # Extract simulation timesteps
+    simtime = pd.to_datetime(output['time'].values)
+    # Extract output of correct state and sum over all ages
+    data = output[state_name].sum(dim="Nc").values
+    # Initialize vectors
+    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
+    # Loop over dimension draws
+    for n in range(data.shape[0]):
+        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
+        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+    # Compute mean and median
+    mean = np.mean(vector,axis=1)
+    median = np.median(vector,axis=1)    
+    # Compute quantiles
+    LL_lst = np.quantile(vector, q = LL, axis = 1)
+    UL_lst = np.quantile(vector, q = UL, axis = 1)
+    return simtime, mean, median, LL_lst, UL_lst
 
 def name2nis(name):
     """
@@ -248,86 +541,6 @@ def read_coordinates_nis(spatial='arr'):
     NIS = initN_df.index.values
 
     return NIS
-
-def draw_sample_COVID19_SEIRD(parameter_dictionary,samples_dict, to_sample=['beta','l','tau','prevention']):
-    """
-    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
-    Tailor-made for the BIOMATH COVID-19 SEIRD model.
-
-    Parameters
-    ----------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-    
-    samples_dict : dictionary
-        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
-
-    to_sample : list
-        list of parameters to sample, default ['beta','l','tau','prevention']
-
-    Returns
-    -------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-
-    """
-    
-    if 'beta' in to_sample:
-        parameter_dictionary['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    if 'l' in to_sample:
-        idx,parameter_dictionary['l'] = random.choice(list(enumerate(samples_dict['l'])))
-        parameter_dictionary['tau'] = samples_dict['tau'][idx]
-        if 'prevention' in to_sample:
-            parameter_dictionary['prevention'] = samples_dict['prevention'][idx]
-    return parameter_dictionary
-
-def draw_sample_COVID19_SEIRD_google(param_dict,samples_dict,google=False):
-    """
-    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
-    Tailor-made for the BIOMATH COVID-19 SEIRD model.
-
-    Parameters
-    ----------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-    
-    samples_dict : dictionary
-        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
-
-    Returns
-    -------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-
-    """
-    
-    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    idx,param_dict['l'] = random.choice(list(enumerate(samples_dict['l'])))
-    param_dict['tau'] = samples_dict['tau'][idx]    
-    return param_dict
-
-
-def draw_sample_beta_COVID19_SEIRD(param_dict,samples_dict):
-    """
-    A function to draw parameter samples obtained with MCMC during model calibration and assign them to the parameter dictionary of the model.
-    Tailor-made for the BIOMATH COVID-19 SEIRD model.
-
-    Parameters
-    ----------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-    
-    samples_dict : dictionary
-        Dictionary containing the MCMC samples of the BIOMATH COVID-19 model parameters: beta, l and tau.
-
-    Returns
-    ----------
-    param_dict : dict
-        Parameter dictionary of the BIOMATH COVID-19 model.
-
-    """
-    param_dict['beta'] = np.random.choice(samples_dict['beta'],1,replace=False)
-    return param_dict
 
 def dens_dep(rho, xi=0.01):
     """

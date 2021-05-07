@@ -146,7 +146,6 @@ class COVID19_SEIRD(BaseModel):
         I : infected
         A : asymptomatic
         M : mild
-        ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
         ICU : intensive care
@@ -173,7 +172,6 @@ class COVID19_SEIRD(BaseModel):
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
         dc : average length of a hospital stay when not in ICU
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
@@ -195,16 +193,16 @@ class COVID19_SEIRD(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -219,7 +217,7 @@ class COVID19_SEIRD(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R
+        T = S + E + I + A + M + C + C_icurec + ICU + R
 
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -239,17 +237,18 @@ class COVID19_SEIRD(BaseModel):
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
-        dER = M*(h_new/dhospital) - (1/der)*ER
-        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
-        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
-        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
-        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
-        dH_in = M*(h_new/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h_new/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
 class COVID19_SEIRD_vacc(BaseModel):
@@ -272,7 +271,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         I : infected
         A : asymptomatic
         M : mild
-        ER: emergency room, buffer ward (hospitalized state)
         C : cohort
         C_icurec : cohort after recovery from ICU
         ICU : intensive care
@@ -284,7 +282,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         I_v : infected and vaccinated
         A_v : asymptomatic and vaccinated
         M_v : mild and vaccinated
-        ER_v : emergency room, buffer ward (hospitalized state)
         C_v : cohort and vaccinated
         C_icurec_v : cohort after recovery from ICU and vaccinated
         ICU_v : intensive care and vaccinated
@@ -293,8 +290,6 @@ class COVID19_SEIRD_vacc(BaseModel):
         H_in : new hospitalizations
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
-
-        
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
@@ -313,13 +308,10 @@ class COVID19_SEIRD_vacc(BaseModel):
         m : probability of an initially mild infection (m=1-a)
         da : duration of the infection in case of asymptomatic
         dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
         dc : average length of a hospital stay when not in ICU
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
         e_i : vaccine effectiveness in reducing infectiousness (--> if vaccinated person becomes infectious, how infectious is he?)
         e_s : vaccine effectiveness in reducing susceptibility to SARS-CoV-2 infection
         e_h : vaccine effectivenes in reducing hospital admission propensity
@@ -343,17 +335,17 @@ class COVID19_SEIRD_vacc(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
-                    'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'ER_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'der', 'dc_R','dc_D','dICU_R', 
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
+                    'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['Nc']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, S_v, E_v, I_v, A_v, M_v, ER_v, C_v, C_icurec_v, ICU_v, R_v,
-                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v,
+                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
                   s, a, h, c, m_C, m_ICU, N_vacc,
                   Nc):
         """
@@ -368,8 +360,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R\
-            + S_v + E_v + I_v + A_v + M_v + ER_v + C_v + C_icurec_v + ICU_v + R_v
+        T = S + E + I + A + M + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
 
         # Compute the number of vaccine elegible individuals
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -394,11 +386,10 @@ class COVID19_SEIRD_vacc(BaseModel):
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
-        dER = M*(h_new/dhospital) - (1/der)*ER
-        dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
-        dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
-        dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
+        dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
 
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -408,11 +399,11 @@ class COVID19_SEIRD_vacc(BaseModel):
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
         dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h_new)/dm) - M_v*(1-e_h)*h_new/dhospital
-        dER_v = M_v*((1-e_h)*h_new/dhospital) - (1/der)*ER_v
-        dC_v = c*(1/der)*ER_v - (1-m_C)*C_v*(1/dc_R) - m_C*C_v*(1/dc_D)
-        dC_icurec_v = ((1-m_ICU)/dICU_R)*ICU_v - C_icurec_v*(1/dICUrec)
-        dICUstar_v = (1-c)*(1/der)*ER_v - (1-m_ICU)*ICU_v/dICU_R - m_ICU*ICU_v/dICU_D
+        dC_v = M_v*(1-e_h)*(h_new/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
+        dICUstar_v = M_v*(1-e_h)*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
+        dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - C_icurec_v*(1/dICUrec)
         dR_v  = A_v/da + ((1-(1-e_h)*h_new)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C + (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
 
         # Compute the hospital rates of changes
@@ -424,7 +415,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
             + M_v*((1-e_h)*h_new/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
 
-        return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dER_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
 class COVID19_SEIRD_sto(BaseModel):
