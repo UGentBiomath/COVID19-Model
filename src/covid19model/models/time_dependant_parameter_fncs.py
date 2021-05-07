@@ -664,7 +664,77 @@ class make_contact_matrix_function():
 
         return CM
 
-#     return contact_matrix_4prev, all_contact, all_contact_no_schools
+    def policies_wave1_4prev(self, t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+        '''
+        Function that loads the correct prevention parameters and includes compliance for the first wave. Returns contact matrix.
+        
+        Input
+        -----
+        t : Timestamp
+        states : formality
+        param : formality
+        l : float
+            Compliance parameter for delayed_ramp_fun
+        tau : float
+            Compliance parameter for delayed_ramp_fun
+        prev_{location} : float
+            Effectivity of prevention measures at {location}
+        
+        Returns
+        -------
+        CM : np.array
+            Effective contact matrix (output of __call__ function)
+        '''
+        all_contact = self.Nc_all['total']
+        all_contact_no_schools = self.Nc_all['total'] - self.Nc_all['schools']
+
+        # Convert tau and l to dates
+        tau_days = pd.Timedelta(tau, unit='D')
+        l_days = pd.Timedelta(l, unit='D')
+
+        # Define additional dates where intensity or school policy changes
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+        if t <= t1:
+            return all_contact
+        elif t1 < t < t1 + tau_days:
+            return all_contact
+        elif t1 + tau_days < t <= t1 + tau_days + l_days:
+            t = pd.Timestamp(t.date())
+            policy_old = all_contact
+            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
+                                       school=0)
+            return self.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        elif t1 + tau_days + l_days < t <= t2:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        elif t2 < t <= t3:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        elif t3 < t <= t4:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)                     
+        else:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        
+    def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
+        """
+        t : timestamp
+            current date
+        tau : int
+            number of days before measures start having an effect
+        l : int
+            number of additional days after the time delay until full compliance is reached
+        """
+        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
 
 # Define policy function
 def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
