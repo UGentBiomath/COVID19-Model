@@ -186,6 +186,16 @@ else:
     initE = initial_state(dist='hom', agg=agg, age=age, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
 initial_states = {'S': initN, 'E': initE}
 
+# --------------------
+# Range of calibration
+# --------------------
+
+# Date of first data collection
+start_calibration = '2020-03-05' # first available date
+# Last datapoint used to calibrate pre-lockdown phase
+end_calibration_beta = '2020-03-16' # '2020-03-21'
+# last datapoint used for full calibration and plotting of simulation
+end_calibration = '2020-07-01'
 
 # ---------------------
 # PSO and MCMC settings
@@ -206,17 +216,6 @@ conf_int = 0.05
 
 # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
 poisson_offset=1
-
-# -------------------------------
-# Range of first and second phase
-# -------------------------------
-
-# Date of first data collection
-start_calibration = '2020-03-05' # first available date
-# Last datapoint used to calibrate pre-lockdown phase
-end_calibration_beta = '2020-03-16' # '2020-03-21'
-# last datapoint used for full calibration and plotting of simulation
-end_calibration = '2020-07-01'
 
 ####################################################
 ## PRE-LOCKDOWN PHASE: CALIBRATE BETAs and WARMUP ##
