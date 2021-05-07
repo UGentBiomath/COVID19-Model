@@ -192,9 +192,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Date of first data collection
 start_calibration = '2020-03-05' # first available date
-# Last datapoint used to calibrate pre-lockdown phase
-end_calibration_beta = '2020-03-16' # '2020-03-21'
-# last datapoint used for full calibration and plotting of simulation
+# last datapoint used for full calibration
 end_calibration = '2020-07-01'
 
 # ---------------------
