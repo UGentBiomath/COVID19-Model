@@ -158,11 +158,11 @@ def get_integrated_willem2012_interaction_matrices(spatial=None):
 
 	Returns
 	-------
+    initN : np.array
+        number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
     Nc_dict: dict
         Dictionary containing the integrated interaction matrices per place.
         Dictionary keys: ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total']
-    initN : np.array
-        number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
     """
 
     ##############################
