@@ -705,7 +705,7 @@ def make_contact_matrix_function(df_google, Nc_all):
             if others is None:
                 others=1-row[1]
 
-            CM = (prev_home*(1/2.3)*Nc_all['home'] + 
+            CM = (prev_home*Nc_all['home'] + 
                   prev_schools*school*Nc_all['schools'] + 
                   prev_work*work*Nc_all['work'] + 
                   prev_rest*transport*Nc_all['transport'] + 
