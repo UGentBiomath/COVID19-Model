@@ -43,21 +43,31 @@ parser.add_argument("-n", "--n_samples", help="Number of samples used to visuali
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 args = parser.parse_args()
 
+# -----------------------
+# Load samples dictionary
+# -----------------------
+
+# Path where MCMC samples are saved
+samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+
+from covid19model.models.utils import load_samples_dict
+samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2)
+warmup = int(samples_dict['warmup'])
+
 ###########################
 ### Simulation control  ###
 ###########################
 
 import sys, getopt
 scenarios = args.scenarios
-report_version = '8.0'
+report_version = 'v8.0'
 start_sim = '2020-09-01'
 end_sim = '2021-09-01'
-start_calibration = start_sim
-end_calibration = '2021-04-26'
+start_calibration = samples_dict['start_calibration']
+end_calibration = samples_dict['end_calibration']
 model = 'BIOMATH COVID-19 SEIRD national'
 n_samples = args.n_samples
 n_draws = args.n_draws_per_sample
-warmup = 0
 conf_int = 0.05
 
 # Scenario settings
@@ -78,7 +88,7 @@ print('### RESTORE SIMULATION SUMMARY ###')
 print('##################################\n')
 
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
 
@@ -89,6 +99,8 @@ print('number of samples: ' + str(n_samples))
 print('confidence level: ' + str(conf_int*100) +' %')
 print('start of simulation: ' + start_sim)
 print('end of simulation: ' + end_sim)
+print('start of calibration: ' + start_calibration)
+print('end of calibration: ' + end_calibration)
 print('last hospitalization datapoint: '+str(df_sciensano.index[-1]))
 print('last vaccination datapoint: '+str(df_sciensano.index[-1]))
 print('last mobility datapoint: '+str(df_google.index[-1]))
@@ -110,17 +122,6 @@ levels = initN.size
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
-
-# -----------------------
-# Load samples dictionary
-# -----------------------
-
-# Path where MCMC samples are saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
-
-from covid19model.models.utils import load_samples_dict
-samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2)
-warmup = int(samples_dict['warmup'])
 
 print('2) Initializing model\n')
 
@@ -458,6 +459,9 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
     param_dict['delay'] = np.mean(np.random.triangular(1, 40, 40, size=30))
+    param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
+                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
+                                np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
 
     # Hospitalization
     # ---------------
@@ -564,7 +568,7 @@ for idx,scenario in enumerate(scenarios):
         axes[jdx].scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
         axes[jdx] = _apply_tick_locator(axes[jdx])
         axes[jdx].set_xlim('2020-09-01',end_sim)
-        axes[jdx].set_ylim(0,1200)
+        axes[jdx].set_ylim(0,1000)
         axes[jdx].set_ylabel('$H_{in}$ (-)')
         axes[jdx].set_title('Relaxation on '+relaxdate, fontsize=13)
         if jdx == 0:
