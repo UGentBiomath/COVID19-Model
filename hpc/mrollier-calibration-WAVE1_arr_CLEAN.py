@@ -269,8 +269,8 @@ if __name__ == '__main__':
                             poisson_offset=poisson_offset, agg=agg)
     
     # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
-    warmup = int(theta_pso[0])
-    theta_PSO = theta_pso[1:] # all other values
+    warmup = int(theta_PSO[0])
+    theta_PSO = theta_PSO[1:] # all other values
 
     # Print statement to stdout once
     print(f'\n------------')
@@ -293,8 +293,8 @@ if __name__ == '__main__':
     ndim, nwalkers, pos = perturbate_PSO(theta_PSO, MCMC_perturbations, multiplier=nwalkers)
     
 #     perturbation_beta_fraction = 1e-2
-#     perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-#     pos = theta_pso + perturbations_beta
+#     perturbations_beta = theta_PSO * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+#     pos = theta_PSO + perturbations_beta
 
     # Set up the sampler backend
     # Not sure what this does, tbh
