@@ -342,12 +342,11 @@ if __name__ == '__main__':
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             # Overwrite figure every time
-            fig.savefig(f'{fig_path}autocorrelation/{signature}_AUTOCORR_BETAs-prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
+            fig.savefig(f'{fig_path}autocorrelation/{signature}_AUTOCORR_{run_date}.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
-            labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
             traceplot(sampler.get_chain(),labels,
-                            filename=f'{fig_path}traceplots/{signature}_TRACE_BETAs-prelockdown_{run_date}.pdf',
+                            filename=f'{fig_path}traceplots/{signature}_TRACE_{run_date}.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -375,7 +374,7 @@ if __name__ == '__main__':
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
-            with open(f'{samples_path}{str(signature)}_BETAs-prelockdown_{run_date}.npy', 'wb') as f:
+            with open(f'{samples_path}{str(signature)}_{run_date}.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()
@@ -401,168 +400,8 @@ if __name__ == '__main__':
         'n_chains': int(nwalkers)
     })
     
-    # ------------------
-    # Create corner plot
-    # ------------------
-
-    # All necessary information to make a corner plot is in the samples_dict dictionary
-    # This should be put in a separate function
-
-    CORNER_KWARGS = dict(
-        smooth=0.9,
-        label_kwargs=dict(fontsize=14),
-        title_kwargs=dict(fontsize=14),
-        quantiles=[0.05, 0.95],
-        levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
-        plot_density=True,
-        plot_datapoints=False,
-        fill_contours=True,
-        show_titles=True,
-        max_n_ticks=3,
-        title_fmt=".3"
-    )
-        # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
-
-    # Cornerplots of samples. Also uses flat_samples taken from get_chain method above
-    fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
-    # for control of labelsize of x,y-ticks:
-    # ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
-    for idx,ax in enumerate(fig.get_axes()):
-        ax.tick_params(axis='both', labelsize=12, rotation=0)
-
-    # Save figure
-    fig.savefig(f'{fig_path}cornerplots/{signature}_CORNER_BETAs_prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
-    plt.close()
-
-    # ------------------------
-    # Define sampling function
-    # ------------------------
-
-    # Can't this be taken out of the script?
-    def draw_fcn(param_dict,samples_dict):
-        # pick one random value from the dictionary
-        idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-        # take out the other parameters that belong to the same iteration
-        param_dict['beta_U'] = samples_dict['beta_U'][idx]
-        param_dict['beta_M'] = samples_dict['beta_M'][idx]
-        return param_dict
-
-    # ----------------
-    # Perform sampling
-    # ----------------
-
-    # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
-    print('\n4) Simulating using sampled parameters\n')
-    start_sim = start_calibration
-    end_sim = '2020-03-26' # only plot until the peak for this part
-    out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-
-    # ----------------------------------------
-    # Define the simulation output of interest
-    # ----------------------------------------
-
-    # This is typically set at 0.05 (1.7 sigma i.e. 95% certainty)
-    LL = conf_int/2
-    UL = 1-conf_int/2
-
-    # Take sum over all ages for hospitalisations
-    H_in_base = out["H_in"].sum(dim='Nc')
-
-    # Save results for sum over all places. Gives n_samples time series
-    H_in = H_in_base.sum(dim='place').values
-    # Compute mean and median
-    H_in_mean = np.mean(H_in,axis=1)
-    H_in_median = np.median(H_in,axis=1)
-    # Compute quantiles
-    H_in_LL = np.quantile(H_in, q = LL, axis = 1)
-    H_in_UL = np.quantile(H_in, q = UL, axis = 1)
-
-    # Save results for every individual place. Same strategy.
-    H_in_places = dict({})
-    H_in_places_mean = dict({})
-    H_in_places_median = dict({})
-    H_in_places_LL = dict({})
-    H_in_places_UL = dict({})
-
-    for NIS in out.place.values:
-        H_in_places[NIS] = H_in_base.sel(place=NIS).values
-        # Compute mean and median
-        H_in_places_mean[NIS] = np.mean(H_in_places[NIS],axis=1)
-        H_in_places_median[NIS] = np.median(H_in_places[NIS],axis=1)
-        # Compute quantiles
-        H_in_places_LL[NIS] = np.quantile(H_in_places[NIS], q = LL, axis = 1)
-        H_in_places_UL[NIS] = np.quantile(H_in_places[NIS], q = UL, axis = 1)
-
-    # -----------
-    # Visualising
-    # -----------
-
-    print('\n5) Visualizing fit \n')
-    # This should be taken out of the script for sure
-
-    # Plot
-    fig,ax = plt.subplots(figsize=(10,5))
-    # Incidence
-    ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
-    ax.plot(out['time'],H_in_mean,'--', color='blue')
-
-    # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
-    ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax = _apply_tick_locator(ax)
-    ax.set_xlim(start_calibration,end_sim)
-    ax.set_ylabel('$H_{in}$ (-)')
-    fig.savefig(f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_SUM_{run_date}.pdf', dpi=400, bbox_inches='tight')
-    plt.close()
-
-    # Create subdirectory
-    fit_prelockdown_subdir = f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_NIS_{run_date}'
-    os.mkdir(fit_prelockdown_subdir)
-    # Plot result for each NIS
-    for NIS in out.place.values:
-        fig,ax = plt.subplots(figsize=(10,5))
-        ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
-        ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
-        ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax = _apply_tick_locator(ax)
-        ax.set_xlim(start_calibration,end_sim)
-        ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-        fig.savefig(f'{fit_prelockdown_subdir}/{signature}_FIT_BETAs_prelockdown_{str(NIS)}_{run_date}.pdf', dpi=400, bbox_inches='tight')
-        plt.close()
-
-
-    ###############################
-    ####### CALCULATING R0 ########
-    ###############################
-
-
-    print('-----------------------------------')
-    print('COMPUTING BASIC REPRODUCTION NUMBER')
-    print('-----------------------------------\n')
-
-    print('1) Computing\n')
-
-    # if spatial: R0_stratified_dict produces the R0 values resp. every region, every age, every sample.
-    # Probably better to generalise this to ages and NIS codes (instead of indices)
-    R0, R0_stratified_dict = calculate_R0(samples_dict, model_wave1, initN, Nc_total, agg=agg)
-
-    print('2) Sending samples to dictionary\n')
-
-    samples_dict.update({
-        'R0': R0,
-        'R0_stratified_dict': R0_stratified_dict,
-    })
-
-    print('3) Saving dictionary\n')
-
-    with open(f'{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json', 'w') as fp:
+    with open(f'{samples_path}{str(signature)}_{run_date}.json', 'w') as fp:
         json.dump(samples_dict, fp)
-
-    print('DONE!')
-    statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json"'
-    print(statement)
-    print('-'*len(statement) + '\n')
     
 #########
 ## FIN ##
