@@ -38,6 +38,7 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot, plot_fit
 from covid19model.visualization.utils import moving_avg
+from covid19model.optimization.utils import perturbate_PSO
 
 
 # -----------------------
@@ -235,18 +236,26 @@ chainlength_threshold = 50 # times the integrated autocorrelation time
 autocorrelation_change_threshold = 0.03
 discard=0
 
-# ---------------------------
-# Particle Swarm Optimization
-# ---------------------------
-
 # set PSO parameters and boundaries
-parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
+parNames_PSO = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
 bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (0, 1), (0, 1), (0, 1))
+
+# Set MCMC parameters and boundaries
+parNames_MCMC = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
+# Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
+log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+# Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
+log_prior_fnc_args = bounds[1:]
+MCMC_perturbations = [0.05, 0.05, 0.05, 0.05, 0.2, 0.2, 0.2, 0.2] # These are the max values. Min values are [0.02, ..., 0.1, ...]
+
+ndim = len(parNames_MCMC)
+# An MCMC walker for every processing core and for every parameter
+nwalkers = ndim*processes
 
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
     
-    # Print statement to stdout
+    # Print statement to stdout once
     print(f'\n----------------------')
     print(f'PERFORMING CALIBRATION')
     print(f'----------------------\n')
@@ -255,21 +264,22 @@ if __name__ == '__main__':
     print(f'1) Particle swarm optimization\n')
     print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     
-    theta_pso = pso.fit_pso(model_wave1,data,parNames,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
+    theta_PSO = pso.fit_pso(model_wave1,data,parNames_PSO,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
                             start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', \
                             poisson_offset=poisson_offset, agg=agg)
     
     # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
     warmup = int(theta_pso[0])
-    theta_pso = theta_pso[1:] # all other values
+    theta_PSO = theta_pso[1:] # all other values
 
+    # Print statement to stdout once
     print(f'\n------------')
     print(f'PSO RESULTS:')
     print(f'------------')
     print(f'warmup: {warmup}')
-    print(f'infectivities {parNames[1:4]}: {theta_pso[0:3]}.\n')
-    print(f'compliance {parNames[4]}: {theta_pso[3]}.\n')
-    print(f'effectivities {parNames[5:]}: {theta_pso[4:]}.\n')
+    print(f'infectivities {parNames_PSO[1:4]}: {theta_PSO[0:3]}.')
+    print(f'compliance {parNames_PSO[4]}: {theta_PSO[3]}.')
+    print(f'effectivities {parNames_PSO[5:]}: {theta_PSO[4:]}.')
 
     # ------------------------
     # Markov-Chain Monte-Carlo
@@ -278,24 +288,13 @@ if __name__ == '__main__':
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-    # Setup parameter names, bounds, number of chains, etc.
-    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
-
-    ndim = len(parNames_mcmc)
-    # An MCMC walker for every processing core and for every parameter
-    nwalkers = ndim*processes
-
     # Add perturbations to the best-fit value from the PSO
     # Note: this causes a warning IF the resuling values are outside the prior range
-    perturbation_beta_fraction = 1e-2
-    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-    pos = theta_pso + perturbations_beta
-
-    # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
-    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
-    # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
-    log_prior_fnc_args = bounds[1:]
-
+    ndim, nwalkers, pos = perturbate_PSO(theta_PSO, MCMC_perturbations, multiplier=nwalkers)
+    
+#     perturbation_beta_fraction = 1e-2
+#     perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+#     pos = theta_pso + perturbations_beta
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -315,7 +314,7 @@ if __name__ == '__main__':
     with Pool() as pool:
         # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
-                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_mcmc), kwargs={'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg})
+                        args=(model_wave1, log_prior_fnc, log_prior_fnc_args, data, states, parNames_MCMC), kwargs={'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg})
         # Actually execute the sampler
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence (i.e. only execute code below) every 100 steps
@@ -394,7 +393,7 @@ if __name__ == '__main__':
 
     flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
     samples_dict = {}
-    for count,name in enumerate(parNames_mcmc):
+    for count,name in enumerate(parNames_MCMC):
         samples_dict[name] = flat_samples[:,count].tolist() # save samples of every chain to draw from
 
     samples_dict.update({
