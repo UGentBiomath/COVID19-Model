@@ -249,7 +249,7 @@ labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_{home}$', '$
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
 log_prior_fnc_args = bounds[1:]
-MCMC_perturbations = [0.05, 0.05, 0.05, 0.05, 0.2, 0.2, 0.2, 0.2] # These are the max values. Min values are [0.02, ..., 0.1, ...]
+MCMC_perturbations = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2] # Min values are [0.02, ..., 0.1, ...]
 
 ndim = len(parNames_MCMC)
 # An MCMC walker for every processing core and for every parameter
