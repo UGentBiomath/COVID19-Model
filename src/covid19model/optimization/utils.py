@@ -138,7 +138,6 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
         for idx in range(len(theta)):
             lower_bound = bounds[idx][0] / (1 - pert[idx])
             upper_bound = bounds[idx][1] / (1 + pert[idx])
-            print(lower_bound, upper_bound)
             if theta[idx] <= lower_bound:
                 theta[idx] = lower_bound
             elif theta[idx] >= upper_bound:
