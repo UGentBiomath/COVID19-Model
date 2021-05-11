@@ -238,7 +238,8 @@ discard=0
 
 # set PSO parameters and boundaries
 parNames_PSO = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
-bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (0, 1), (0, 1), (0, 1))
+# Bounds are better off not being precisely 0 due to perturbation method later on in the code
+bounds=((40.0,80.0), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20), (0.001, 1), (0.001, 1), (0.001, 1), (0.001, 1))
 
 # Set MCMC parameters and boundaries
 parNames_MCMC = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
@@ -292,7 +293,7 @@ if __name__ == '__main__':
 
     # Add perturbations to the best-fit value from the PSO
     # Note: this causes a warning IF the resuling values are outside the prior range
-    ndim, nwalkers, pos = perturbate_PSO(theta_PSO, MCMC_perturbations, multiplier=processes)
+    pos = perturbate_PSO(theta_PSO, MCMC_perturbations, multiplier=processes, bounds=bounds)[2]
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -325,7 +326,10 @@ if __name__ == '__main__':
 
             # Compute the autocorrelation time so far
             # Do not confuse this tau with the compliance tau
-            tau = sampler.get_autocorr_time(tol=0)
+            try:
+                tau = sampler.get_autocorr_time(tol=0)
+            except:
+                tau = [np.nan]*ndim
             # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
