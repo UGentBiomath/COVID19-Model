@@ -668,15 +668,14 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
         multip *= np.outer(f, s*zi)
         
-        # Multiply with beta_weighted_av[patch,age]
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
         # Change this in hard-code depending on preference
         beta_localised = True
         if beta_localised:
-            multip *= beta_weighted_av
+            multip *= beta
         else:
-            Susc *= beta_weighted_av[:,np.newaxis,:]
+            Susc *= beta[:,np.newaxis,:]
         
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
