@@ -38,7 +38,7 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot, plot_fit
 from covid19model.visualization.utils import moving_avg
-from covid19model.optimization.utils import perturbate_PSO
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC
 
 
 # -----------------------
@@ -291,10 +291,6 @@ if __name__ == '__main__':
     # Add perturbations to the best-fit value from the PSO
     # Note: this causes a warning IF the resuling values are outside the prior range
     ndim, nwalkers, pos = perturbate_PSO(theta_PSO, MCMC_perturbations, multiplier=processes)
-    
-#     perturbation_beta_fraction = 1e-2
-#     perturbations_beta = theta_PSO * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-#     pos = theta_PSO + perturbations_beta
 
     # Set up the sampler backend
     # Not sure what this does, tbh
