@@ -591,7 +591,7 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta','da', 'dm','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
     parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
@@ -602,7 +602,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
                         dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
@@ -616,7 +616,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+        T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -673,32 +673,28 @@ class COVID19_SEIRD_spatial(BaseModel):
         # Change this in hard-code depending on preference
         beta_localised = True
         if beta_localised:
-            multip *= beta
+            multip *= beta[:,np.newaxis]
         else:
             Susc *= beta[:,np.newaxis,:]
         
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
         dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-
+        
         dS  = -dS_inf + zeta*R
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
-#         dER = M*(h/dhospital) - (1/der)*ER
-#         dC = c*(1/der)*ER - (1-m_C)*C*(1/dc_R) - m_C*C*(1/dc_D)
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-#         dC_icurec = ((1-m_ICU)/dICU_R)*ICU - C_icurec*(1/dICUrec)
         dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-#         dICUstar = (1-c)*(1/der)*ER - (1-m_ICU)*ICU/dICU_R - m_ICU*ICU/dICU_D
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-
+        
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
     
 class COVID19_SEIRD_spatial_vacc(BaseModel):
