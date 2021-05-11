@@ -135,6 +135,8 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
     """
 
     if bounds:
+        if len(bounds) != len(theta):
+            raise Exception("The boundaries list should be of the same length as the paramer values list.")
         for idx in range(len(theta)):
             lower_bound = bounds[idx][0] / (1 - pert[idx])
             upper_bound = bounds[idx][1] / (1 + pert[idx])
