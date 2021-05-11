@@ -229,6 +229,12 @@ max_n = maxn_MCMC # 300000
 # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
 poisson_offset=1
 
+# Save and abort conditions for MCMC
+sample_step = 100
+chainlength_threshold = 50 # times the integrated autocorrelation time
+autocorrelation_change_threshold = 0.03
+discard=0
+
 # ---------------------------
 # Particle Swarm Optimization
 # ---------------------------
@@ -248,69 +254,63 @@ bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (
 
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
-    theta_pso = pso.fit_pso(model_wave1,data,parNames,states,bounds,maxiter=maxiter,popsize=popsize, \
+    theta_pso = pso.fit_pso(model_wave1,data,parNames,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
                             start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', \
                             poisson_offset=poisson_offset, agg=agg)
     
-# Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
-warmup = int(theta_pso[0])
-theta_pso = theta_pso[1:] # all other values
+    # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
+    warmup = int(theta_pso[0])
+    theta_pso = theta_pso[1:] # all other values
 
-print(f'\n------------')
-print(f'PSO RESULTS:')
-print(f'------------')
-print(f'warmup: {warmup}')
-print(f'infectivities {parNames[1:4]}: {theta_pso[0:3]}.\n')
-print(f'compliance {parNames[4]}: {theta_pso[3]}.\n')
-print(f'effectivities {parNames[5:]}: {theta_pso[4:]}.\n')
+    print(f'\n------------')
+    print(f'PSO RESULTS:')
+    print(f'------------')
+    print(f'warmup: {warmup}')
+    print(f'infectivities {parNames[1:4]}: {theta_pso[0:3]}.\n')
+    print(f'compliance {parNames[4]}: {theta_pso[3]}.\n')
+    print(f'effectivities {parNames[5:]}: {theta_pso[4:]}.\n')
 
-# ------------------------
-# Markov-Chain Monte-Carlo
-# ------------------------
+    # ------------------------
+    # Markov-Chain Monte-Carlo
+    # ------------------------
 
-# User information
-print('\n2) Markov-Chain Monte-Carlo sampling\n')
+    # User information
+    print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
-# Setup parameter names, bounds, number of chains, etc.
-parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
+    # Setup parameter names, bounds, number of chains, etc.
+    parNames_mcmc = ['beta_R', 'beta_U', 'beta_M']
 
-ndim = len(parNames_mcmc)
-# An MCMC walker for every processing core and for every parameter
-nwalkers = ndim*processes
+    ndim = len(parNames_mcmc)
+    # An MCMC walker for every processing core and for every parameter
+    nwalkers = ndim*processes
 
-# Add perturbations to the best-fit value from the PSO
-# Note: this causes a warning IF the resuling values are outside the prior range
-perturbation_beta_fraction = 1e-2
-perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-pos = theta_pso + perturbations_beta
+    # Add perturbations to the best-fit value from the PSO
+    # Note: this causes a warning IF the resuling values are outside the prior range
+    perturbation_beta_fraction = 1e-2
+    perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+    pos = theta_pso + perturbations_beta
 
-# Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
-log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
-# Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
-log_prior_fnc_args = bounds[1:]
+    # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
+    log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform]
+    # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
+    log_prior_fnc_args = bounds[1:]
 
 
-# Set up the sampler backend
-# Not sure what this does, tbh
-if backend:
-    filename = f'{signature}_BETAs_prelockdown{run_date}'
-    backend = emcee.backends.HDFBackend(backend_folder + filename)
-    backend.reset(nwalkers, ndim)
+    # Set up the sampler backend
+    # Not sure what this does, tbh
+    if backend:
+        filename = f'{signature}_BETAs_prelockdown{run_date}'
+        backend = emcee.backends.HDFBackend(backend_folder + filename)
+        backend.reset(nwalkers, ndim)
 
-# Run sampler
-# We'll track how the average autocorrelation time estimate changes
-index = 0
-# This will be useful for testing convergence
-old_tau = np.inf # can only decrease from there
-# Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
-autocorr = np.zeros([1,ndim])
-
-# Save and abort conditions
-sample_step = 100
-chainlength_threshold = 50 # times the integrated autocorrelation time
-discard=0
+    # Run sampler
+    # We'll track how the average autocorrelation time estimate changes
+    index = 0
+    # This will be useful for testing convergence
+    old_tau = np.inf # can only decrease from there
+    # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
+    autocorr = np.zeros([1,ndim])
     
-if __name__ == '__main__': 
     with Pool() as pool:
         # Prepare the samplers
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcns.log_probability,backend=backend,pool=pool,
@@ -362,7 +362,7 @@ if __name__ == '__main__':
             # Check convergence using mean tau
             # Note: double condition!
             converged = np.all(np.mean(tau) * chainlength_threshold < sampler.iteration)
-            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
+            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < autocorrelation_change_threshold)
             # Stop MCMC if convergence is reached
             if converged:
                 break
@@ -382,189 +382,189 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-thin=1
-try:
-    autocorr = sampler.get_autocorr_time()
-    thin = int(0.5 * np.min(autocorr))
-except:
-    print(f'Warning: The chain is shorter than {chainlength_threshold} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+    thin=1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = int(0.5 * np.min(autocorr))
+    except:
+        print(f'Warning: The chain is shorter than {chainlength_threshold} times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
-print('\n3) Sending samples to dictionary\n')
+    print('\n3) Sending samples to dictionary\n')
 
-flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
-samples_dict = {}
-for count,name in enumerate(parNames_mcmc):
-    samples_dict[name] = flat_samples[:,count].tolist() # save samples of every chain to draw from
+    flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(parNames_mcmc):
+        samples_dict[name] = flat_samples[:,count].tolist() # save samples of every chain to draw from
 
-samples_dict.update({
-    'warmup' : warmup,
-    'start_date' : start_calibration,
-    'end_date' : end_calibration,
-    'n_chains': int(nwalkers)
-})
+    samples_dict.update({
+        'warmup' : warmup,
+        'start_date' : start_calibration,
+        'end_date' : end_calibration,
+        'n_chains': int(nwalkers)
+    })
     
-# ------------------
-# Create corner plot
-# ------------------
+    # ------------------
+    # Create corner plot
+    # ------------------
 
-# All necessary information to make a corner plot is in the samples_dict dictionary
-# This should be put in a separate function
+    # All necessary information to make a corner plot is in the samples_dict dictionary
+    # This should be put in a separate function
 
-CORNER_KWARGS = dict(
-    smooth=0.9,
-    label_kwargs=dict(fontsize=14),
-    title_kwargs=dict(fontsize=14),
-    quantiles=[0.05, 0.95],
-    levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
-    plot_density=True,
-    plot_datapoints=False,
-    fill_contours=True,
-    show_titles=True,
-    max_n_ticks=3,
-    title_fmt=".3"
-)
-    # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
+    CORNER_KWARGS = dict(
+        smooth=0.9,
+        label_kwargs=dict(fontsize=14),
+        title_kwargs=dict(fontsize=14),
+        quantiles=[0.05, 0.95],
+        levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
+        plot_density=True,
+        plot_datapoints=False,
+        fill_contours=True,
+        show_titles=True,
+        max_n_ticks=3,
+        title_fmt=".3"
+    )
+        # range=[(0,0.12),(0,5.2),(0,15)] # add this to CORNER_KWARGS if range is not automatically good
 
-# Cornerplots of samples. Also uses flat_samples taken from get_chain method above
-fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
-# for control of labelsize of x,y-ticks:
-# ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
-for idx,ax in enumerate(fig.get_axes()):
-    ax.tick_params(axis='both', labelsize=12, rotation=0)
+    # Cornerplots of samples. Also uses flat_samples taken from get_chain method above
+    fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
+    # for control of labelsize of x,y-ticks:
+    # ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
+    for idx,ax in enumerate(fig.get_axes()):
+        ax.tick_params(axis='both', labelsize=12, rotation=0)
 
-# Save figure
-fig.savefig(f'{fig_path}cornerplots/{signature}_CORNER_BETAs_prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
-plt.close()
-
-# ------------------------
-# Define sampling function
-# ------------------------
-
-# Can't this be taken out of the script?
-def draw_fcn(param_dict,samples_dict):
-    # pick one random value from the dictionary
-    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-    # take out the other parameters that belong to the same iteration
-    param_dict['beta_U'] = samples_dict['beta_U'][idx]
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]
-    return param_dict
-
-# ----------------
-# Perform sampling
-# ----------------
-
-# Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
-print('\n4) Simulating using sampled parameters\n')
-start_sim = start_calibration
-end_sim = '2020-03-26' # only plot until the peak for this part
-out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-
-# ----------------------------------------
-# Define the simulation output of interest
-# ----------------------------------------
-
-# This is typically set at 0.05 (1.7 sigma i.e. 95% certainty)
-LL = conf_int/2
-UL = 1-conf_int/2
-
-# Take sum over all ages for hospitalisations
-H_in_base = out["H_in"].sum(dim='Nc')
-
-# Save results for sum over all places. Gives n_samples time series
-H_in = H_in_base.sum(dim='place').values
-# Compute mean and median
-H_in_mean = np.mean(H_in,axis=1)
-H_in_median = np.median(H_in,axis=1)
-# Compute quantiles
-H_in_LL = np.quantile(H_in, q = LL, axis = 1)
-H_in_UL = np.quantile(H_in, q = UL, axis = 1)
-
-# Save results for every individual place. Same strategy.
-H_in_places = dict({})
-H_in_places_mean = dict({})
-H_in_places_median = dict({})
-H_in_places_LL = dict({})
-H_in_places_UL = dict({})
-
-for NIS in out.place.values:
-    H_in_places[NIS] = H_in_base.sel(place=NIS).values
-    # Compute mean and median
-    H_in_places_mean[NIS] = np.mean(H_in_places[NIS],axis=1)
-    H_in_places_median[NIS] = np.median(H_in_places[NIS],axis=1)
-    # Compute quantiles
-    H_in_places_LL[NIS] = np.quantile(H_in_places[NIS], q = LL, axis = 1)
-    H_in_places_UL[NIS] = np.quantile(H_in_places[NIS], q = UL, axis = 1)
-
-# -----------
-# Visualising
-# -----------
-
-print('\n5) Visualizing fit \n')
-# This should be taken out of the script for sure
-
-# Plot
-fig,ax = plt.subplots(figsize=(10,5))
-# Incidence
-ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
-ax.plot(out['time'],H_in_mean,'--', color='blue')
-
-# Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
-ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_calibration,end_sim)
-ax.set_ylabel('$H_{in}$ (-)')
-fig.savefig(f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_SUM_{run_date}.pdf', dpi=400, bbox_inches='tight')
-plt.close()
-
-# Create subdirectory
-fit_prelockdown_subdir = f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_NIS_{run_date}'
-os.mkdir(fit_prelockdown_subdir)
-# Plot result for each NIS
-for NIS in out.place.values:
-    fig,ax = plt.subplots(figsize=(10,5))
-    ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
-    ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
-    ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax = _apply_tick_locator(ax)
-    ax.set_xlim(start_calibration,end_sim)
-    ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
-    fig.savefig(f'{fit_prelockdown_subdir}/{signature}_FIT_BETAs_prelockdown_{str(NIS)}_{run_date}.pdf', dpi=400, bbox_inches='tight')
+    # Save figure
+    fig.savefig(f'{fig_path}cornerplots/{signature}_CORNER_BETAs_prelockdown_{run_date}.pdf', dpi=400, bbox_inches='tight')
     plt.close()
 
+    # ------------------------
+    # Define sampling function
+    # ------------------------
 
-###############################
-####### CALCULATING R0 ########
-###############################
+    # Can't this be taken out of the script?
+    def draw_fcn(param_dict,samples_dict):
+        # pick one random value from the dictionary
+        idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
+        # take out the other parameters that belong to the same iteration
+        param_dict['beta_U'] = samples_dict['beta_U'][idx]
+        param_dict['beta_M'] = samples_dict['beta_M'][idx]
+        return param_dict
+
+    # ----------------
+    # Perform sampling
+    # ----------------
+
+    # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
+    print('\n4) Simulating using sampled parameters\n')
+    start_sim = start_calibration
+    end_sim = '2020-03-26' # only plot until the peak for this part
+    out = model_wave1.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+
+    # ----------------------------------------
+    # Define the simulation output of interest
+    # ----------------------------------------
+
+    # This is typically set at 0.05 (1.7 sigma i.e. 95% certainty)
+    LL = conf_int/2
+    UL = 1-conf_int/2
+
+    # Take sum over all ages for hospitalisations
+    H_in_base = out["H_in"].sum(dim='Nc')
+
+    # Save results for sum over all places. Gives n_samples time series
+    H_in = H_in_base.sum(dim='place').values
+    # Compute mean and median
+    H_in_mean = np.mean(H_in,axis=1)
+    H_in_median = np.median(H_in,axis=1)
+    # Compute quantiles
+    H_in_LL = np.quantile(H_in, q = LL, axis = 1)
+    H_in_UL = np.quantile(H_in, q = UL, axis = 1)
+
+    # Save results for every individual place. Same strategy.
+    H_in_places = dict({})
+    H_in_places_mean = dict({})
+    H_in_places_median = dict({})
+    H_in_places_LL = dict({})
+    H_in_places_UL = dict({})
+
+    for NIS in out.place.values:
+        H_in_places[NIS] = H_in_base.sel(place=NIS).values
+        # Compute mean and median
+        H_in_places_mean[NIS] = np.mean(H_in_places[NIS],axis=1)
+        H_in_places_median[NIS] = np.median(H_in_places[NIS],axis=1)
+        # Compute quantiles
+        H_in_places_LL[NIS] = np.quantile(H_in_places[NIS], q = LL, axis = 1)
+        H_in_places_UL[NIS] = np.quantile(H_in_places[NIS], q = UL, axis = 1)
+
+    # -----------
+    # Visualising
+    # -----------
+
+    print('\n5) Visualizing fit \n')
+    # This should be taken out of the script for sure
+
+    # Plot
+    fig,ax = plt.subplots(figsize=(10,5))
+    # Incidence
+    ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
+    ax.plot(out['time'],H_in_mean,'--', color='blue')
+
+    # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
+    ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax = _apply_tick_locator(ax)
+    ax.set_xlim(start_calibration,end_sim)
+    ax.set_ylabel('$H_{in}$ (-)')
+    fig.savefig(f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_SUM_{run_date}.pdf', dpi=400, bbox_inches='tight')
+    plt.close()
+
+    # Create subdirectory
+    fit_prelockdown_subdir = f'{fig_path}others/{signature}_FIT_BETAs_prelockdown_NIS_{run_date}'
+    os.mkdir(fit_prelockdown_subdir)
+    # Plot result for each NIS
+    for NIS in out.place.values:
+        fig,ax = plt.subplots(figsize=(10,5))
+        ax.fill_between(pd.to_datetime(out['time'].values),H_in_places_LL[NIS], H_in_places_UL[NIS],alpha=0.20, color = 'blue')
+        ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
+        ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax = _apply_tick_locator(ax)
+        ax.set_xlim(start_calibration,end_sim)
+        ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))
+        fig.savefig(f'{fit_prelockdown_subdir}/{signature}_FIT_BETAs_prelockdown_{str(NIS)}_{run_date}.pdf', dpi=400, bbox_inches='tight')
+        plt.close()
 
 
-print('-----------------------------------')
-print('COMPUTING BASIC REPRODUCTION NUMBER')
-print('-----------------------------------\n')
+    ###############################
+    ####### CALCULATING R0 ########
+    ###############################
 
-print('1) Computing\n')
 
-# if spatial: R0_stratified_dict produces the R0 values resp. every region, every age, every sample.
-# Probably better to generalise this to ages and NIS codes (instead of indices)
-R0, R0_stratified_dict = calculate_R0(samples_dict, model_wave1, initN, Nc_total, agg=agg)
+    print('-----------------------------------')
+    print('COMPUTING BASIC REPRODUCTION NUMBER')
+    print('-----------------------------------\n')
 
-print('2) Sending samples to dictionary\n')
+    print('1) Computing\n')
 
-samples_dict.update({
-    'R0': R0,
-    'R0_stratified_dict': R0_stratified_dict,
-})
+    # if spatial: R0_stratified_dict produces the R0 values resp. every region, every age, every sample.
+    # Probably better to generalise this to ages and NIS codes (instead of indices)
+    R0, R0_stratified_dict = calculate_R0(samples_dict, model_wave1, initN, Nc_total, agg=agg)
 
-print('3) Saving dictionary\n')
+    print('2) Sending samples to dictionary\n')
 
-with open(f'{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json', 'w') as fp:
-    json.dump(samples_dict, fp)
+    samples_dict.update({
+        'R0': R0,
+        'R0_stratified_dict': R0_stratified_dict,
+    })
 
-print('DONE!')
-statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json"'
-print(statement)
-print('-'*len(statement) + '\n')
+    print('3) Saving dictionary\n')
+
+    with open(f'{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json', 'w') as fp:
+        json.dump(samples_dict, fp)
+
+    print('DONE!')
+    statement=f'SAMPLES DICTIONARY SAVED IN "{samples_path}{str(signature)}_BETAs_prelockdown_{run_date}.json"'
+    print(statement)
+    print('-'*len(statement) + '\n')
     
 #########
 ## FIN ##
