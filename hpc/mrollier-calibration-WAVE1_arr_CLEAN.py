@@ -231,15 +231,15 @@ max_n = maxn_MCMC # 300000
 poisson_offset=1
 
 # Save and abort conditions for MCMC
-sample_step = 5 # 100
+sample_step = 10 # 100
 chainlength_threshold = 50 # times the integrated autocorrelation time
 autocorrelation_change_threshold = 0.03
 discard=0
 
 # set PSO parameters and boundaries
 parNames_PSO = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
-# Bounds are better off not being precisely 0 due to perturbation method later on in the code
-bounds=((40.0,80.0), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20), (0.001, 1), (0.001, 1), (0.001, 1), (0.001, 1))
+# Bounds should be floats and are better off not being precisely 0 due to perturbation method later on in the code
+bounds=((40.0,80.0), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
 
 # Set MCMC parameters and boundaries
 parNames_MCMC = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
@@ -267,13 +267,17 @@ if __name__ == '__main__':
     print(f'1) Particle swarm optimization\n')
     print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     
-    theta_PSO = pso.fit_pso(model_wave1,data,parNames_PSO,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
-                            start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', \
-                            poisson_offset=poisson_offset, agg=agg)
+    # Delete this later: skip PSO
+    theta_PSO = np.array([49, 0.02145615, 0.02333, 0.02647522, 5.903226634, 0.49880264, 0.83624762, 0.03025183, 0.3052776])
+    
+#     theta_PSO = pso.fit_pso(model_wave1,data,parNames_PSO,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
+#                             start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', \
+#                             poisson_offset=poisson_offset, agg=agg)
     
     # Warmup time is only calculated in the PSO, not in the MCMC, because they are correlated
     warmup = int(theta_PSO[0])
     theta_PSO = theta_PSO[1:] # all other values
+    bounds = bounds[1:]
 
     # Print statement to stdout once
     print(f'\n------------')
@@ -290,6 +294,7 @@ if __name__ == '__main__':
 
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
+    print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
 
     # Add perturbations to the best-fit value from the PSO
     # Note: this causes a warning IF the resuling values are outside the prior range
@@ -326,10 +331,7 @@ if __name__ == '__main__':
 
             # Compute the autocorrelation time so far
             # Do not confuse this tau with the compliance tau
-            try:
-                tau = sampler.get_autocorr_time(tol=0)
-            except:
-                tau = [np.nan]*ndim
+            tau = sampler.get_autocorr_time(tol=0)
             # transpose is not really necessary?
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
