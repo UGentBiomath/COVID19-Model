@@ -231,7 +231,7 @@ max_n = maxn_MCMC # 300000
 poisson_offset=1
 
 # Save and abort conditions for MCMC
-sample_step = 100
+sample_step = 5 # 100
 chainlength_threshold = 50 # times the integrated autocorrelation time
 autocorrelation_change_threshold = 0.03
 discard=0
@@ -243,7 +243,7 @@ bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (
 # Set MCMC parameters and boundaries
 parNames_MCMC = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
 # Labels for traceplot
-labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_\text{home}$', '$\Omega_\text{schools}$', '$\Omega_\text{work}$', '$\Omega_\text{rest}$']
+labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_{home}$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$']
 # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
@@ -400,8 +400,14 @@ if __name__ == '__main__':
         'n_chains': int(nwalkers)
     })
     
-    with open(f'{samples_path}{str(signature)}_{run_date}.json', 'w') as fp:
+    save_samples_loc = f'{samples_path}{str(signature)}_{run_date}.json'
+    with open(save_samples_loc, 'w') as fp:
         json.dump(samples_dict, fp)
+    
+    print('DONE!')
+    statement=f'SAMPLES DICTIONARY SAVED IN "{save_samples_loc}".'
+    print(statement)
+    print('-'*len(statement) + '\n')
     
 #########
 ## FIN ##
