@@ -239,21 +239,22 @@ discard=0
 # Particle Swarm Optimization
 # ---------------------------
 
-# Print statement to stdout
-print(f'\n----------------------')
-print(f'PERFORMING CALIBRATION')
-print(f'----------------------\n')
-print(f'Using data from {start_calibration} until {end_calibration}')
-print(f'Initial conditions: {init} for {init_number} subjects.\n')
-print(f'1) Particle swarm optimization\n')
-print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-
 # set PSO parameters and boundaries
 parNames = ['warmup', 'beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
 bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (0, 1), (0, 1), (0, 1))
 
 # On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
+    
+    # Print statement to stdout
+    print(f'\n----------------------')
+    print(f'PERFORMING CALIBRATION')
+    print(f'----------------------\n')
+    print(f'Using data from {start_calibration} until {end_calibration}')
+    print(f'Initial conditions: {init} for {init_number} subjects.\n')
+    print(f'1) Particle swarm optimization\n')
+    print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    
     theta_pso = pso.fit_pso(model_wave1,data,parNames,states,weights,bounds,maxiter=maxiter,popsize=popsize, \
                             start_date=start_calibration, warmup=init_warmup, processes=processes, dist='poisson', \
                             poisson_offset=poisson_offset, agg=agg)
