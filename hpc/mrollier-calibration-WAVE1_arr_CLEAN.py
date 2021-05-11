@@ -210,7 +210,7 @@ init_warmup = 60
 # ---------------------------
 
 data=[df_sciensano[start_calibration:end_calibration]]
-states = ["H_in"]
+states = [["H_in"]]
 weights = [1] # must be 1 if only one state (one type of time series) is used. This may be altered for the spatial case!
 
 # ---------------------
