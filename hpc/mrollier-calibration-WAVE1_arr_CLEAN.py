@@ -242,6 +242,8 @@ bounds=((40,80), (0.010,0.060), (0.010,0.060), (0.010,0.060), (0, 20), (0, 1), (
 
 # Set MCMC parameters and boundaries
 parNames_MCMC = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
+# Labels for traceplot
+labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_\text{home}$', '$\Omega_\text{schools}$', '$\Omega_\text{work}$', '$\Omega_\text{rest}$']
 # Define priors functions for Bayesian analysis in MCMC. One per param. MLE returns infinity if parameter go outside this boundary.
 log_prior_fnc = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 # Define arguments of prior functions. In this case the boundaries of the uniform prior. These priors are the same as the PSO boundaries
