@@ -88,7 +88,7 @@ print('### RESTORE SIMULATION SUMMARY ###')
 print('##################################\n')
 
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
 
@@ -451,7 +451,7 @@ def draw_fcn(param_dict,samples_dict):
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
     model.parameters['K_inf'] = samples_dict['K_inf'][idx]
-    model.parameters['K_hosp'] = samples_dict['K_hosp'][idx]
+    model.parameters['K_hosp'] = np.random.uniform(low=1.3,high=1.5)
 
     # Vaccination
     # -----------
