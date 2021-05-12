@@ -342,7 +342,7 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
-def stratify_beta(beta_R, beta_U, beta_M, agg, RU_threshold=400, UM_threshold=4000):
+def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM_threshold=4000):
     """
     Function that returns a spatially stratified infectivity parameter. IMPORTANT: this assumes that throughout the model, all NIS values are in order (e.g. 11000 to 93000). Currently hard-coded on threshold densities of 400/km2 and 4000/km2. Indices indicated in order of density.
     
@@ -356,6 +356,10 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, RU_threshold=400, UM_threshold=40
         Infectivity in metropolitan areas
     agg : str
         Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
+    areas : np.array
+        G-fold numpy.array with areas of all regions in order of increasing NIS code
+    pops : np.array
+        G-fold numpy.array with populations in all regions in order of increasing NIS code
     RU_threshold : float
         Threshold population density to distinguish between rural and urbanised regions. Default: 400/km2
     UM_threshold : float
@@ -371,27 +375,14 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, RU_threshold=400, UM_threshold=40
         raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     if (RU_threshold >= UM_threshold) or (RU_threshold < 0) or (UM_threshold < 0):
         raise Exception(f"RU_threshold ({RU_threshold}) must be smaller than UM_threshold ({UM_threshold}) and both values must be positive (units of people/km2).")
-
-    # Load areas in ordered array in km2
-    areas = (pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + agg + '.csv'))['area']/1e6).values
-    # Load populations in ordered array
-    pops = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + agg + '.csv'))['total'].values
+        
     # Define densities
     dens = pops/areas
 
     # Initialise and fill beta array
-#     beta = np.empty(len(dens))
-    beta = np.array([])
-    for i in range(len(dens)):
-        if dens[i] < RU_threshold:
-#             beta[i] = beta_R
-            beta = np.append(beta, beta_R)
-        elif RU_threshold <= dens[i] < UM_threshold:
-#             beta[i] = beta_U
-            beta = np.append(beta, beta_U)
-        else:
-#             beta[i] = beta_M
-            beta = np.append(beta, beta_M)
+    beta = np.full(len(dens), beta_U) # np.ones(len(dens))*beta_U # inbetween values
+    beta = np.where(dens < RU_threshold, beta_R, beta) # lower-than-threshold values
+    beta = np.where(dens >= UM_threshold, beta_M, beta) # higher-than-threshold values
 
     return beta
 

@@ -1,6 +1,6 @@
 """
 This script contains a three-parameter infectivity, two-parameter delayed compliance ramp calibration to regional hospitalization data from the first COVID-19 wave in Belgium.
-Deterministic, spatially explicit BIOMATH COVID-19 SEIRD.
+Deterministic, spatially explicit BIOMATH COVID-19 SEIQRD.
 Its intended use is the calibration for the descriptive manuscript: "[name TBD]".
 """
 
@@ -26,6 +26,8 @@ import multiprocessing as mp
 from multiprocessing import Pool
 import os
 
+from functools import lru_cache
+
 from covid19model.models import models
 import covid19model.models.time_dependant_parameter_fncs as tdpf # due to pickle issue
 # from covid19model.models.time_dependant_parameter_fncs import ramp_fun, mobility_update_func, contact_matrix, wave1_policies
@@ -38,19 +40,168 @@ from covid19model.visualization.output import _apply_tick_locator
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.visualization.utils import moving_avg
 
-# On Windows the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
+# -------------------------------
+# Define mobility update function
+# -------------------------------
+
+# We must define all functions that are used as time-dependent parameter functions here, because otherwise
+# they are not recognised in the multiprocessing
+
+# Aggregation level is arrondissement (NUTS3)
+agg='arr'
+
+# Load and format mobility dataframe
+all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg, dtype='fractional', beyond_borders=False)
+# Converting the index as date
+all_mobility_data.index = pd.to_datetime(all_mobility_data.index)
+
+# @lru_cache()
+def mobility_update_func(t, all_mobility_data, average_mobility_data, default_mobility=None):
+    try: # if there is data available for this date (if the key exists)
+        place = all_mobility_data['place'][t]
+    except:
+        if default_mobility: # If there is no data available and a user-defined input is given
+            place = default_mobility
+        else: # No data and no user input: fall back on average mobility
+            place = average_mobility_data
+    return place
+
+def mobility_wrapper_func(t, states, param, mobility_update_func, all_mobility_data, average_mobility_data, default_mobility=None):
+    t = pd.Timestamp(t.date())
+    return mobility_update_func(t, all_mobility_data, average_mobility_data, default_mobility=default_mobility)
+
+# -----------------------------
+# Define social policy function
+# -----------------------------
+
+# Define contact matrix for 4 prevention parameters
+def contact_matrix_4prev(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
+                   school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):
+    """
+    t : timestamp
+        current date
+    prev_... : float [0,1]
+        prevention parameter to estimate
+    school, work, transport, leisure, others : float [0,1]
+        level of opening of these sectors
+        if None, it is calculated from google mobility data
+        only school cannot be None!
+    SB : str '2a', '2b' or '2c'
+        '2a': september behaviour overall
+        '2b': september behaviour, but work = lockdown behaviour
+        '2c': september behaviour, but leisure = lockdown behaviour
+
+    """
+
+    df_google_array = df_google.values
+    df_google_start = df_google.index[0]
+    df_google_end = df_google.index[-1]
+
+    if t < pd.Timestamp('2020-03-15'):
+        CM = Nc_all['total']
+    else:
+
+        if school is None:
+            raise ValueError(
+            "Please indicate to which extent schools are open")
+
+        if pd.Timestamp('2020-03-15') <= t <= df_google_end:
+            #take t.date() because t can be more than a date! (e.g. when tau_days is added)
+            idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
+            row = -df_google_array[idx]/100
+        else:
+            row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
+
+        if SB == '2a':
+            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+        elif SB == '2b':
+            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+            row[4] = -df_google['2020-03-15':'2020-04-01'].mean()[4]/100 
+        elif SB == '2c':
+            row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+            row[0] = -df_google['2020-03-15':'2020-04-01'].mean()[0]/100 
+
+        # columns: retail_recreation grocery parks transport work residential
+        if work is None:
+            work= 1-row[4]
+        if transport is None:
+            transport=1-row[3]
+        if leisure is None:
+            leisure=1-row[0]
+        if others is None:
+            others=1-row[1]
+
+        CM = (prev_home*(1/2.3)*Nc_all['home'] + 
+              prev_schools*school*Nc_all['schools'] + 
+              prev_work*work*Nc_all['work'] + 
+              prev_rest*transport*Nc_all['transport'] + 
+              prev_rest*leisure*Nc_all['leisure'] + 
+              prev_rest*others*Nc_all['others']) 
+
+    return CM
+
+# Define the sloped functions defining the changes in interaction patterns. Copied from JV-calibration-COVID19-SEIRD-WAVE1-comix.ipynb
+def policies_wave1_4prev(t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home, df_google, Nc_all):
+
+    contact_matrix_4prev = tdpf.make_contact_matrix_function(df_google, Nc_all)
+    # all_contact is simply Nc_all['total'], and all_contact_no_schools is Nc_all['total'] - Nc_all['schools']
+    all_contact = Nc_all['total']
+    all_contact_no_schools = Nc_all['total'] - Nc_all['schools']
+
+    # Convert tau and l to dates
+    tau_days = pd.Timedelta(tau, unit='D')
+    l_days = pd.Timedelta(l, unit='D')
+
+    # Define additional dates where intensity or school policy changes
+    t1 = pd.Timestamp('2020-03-15') # start of lockdown
+    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+    if t <= t1:
+        return all_contact
+    elif t1 < t < t1 + tau_days:
+        return all_contact
+    elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        t = pd.Timestamp(t.date())
+        policy_old = all_contact
+        policy_new = contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
+                                    school=0)
+        return tdpf.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+    elif t1 + tau_days + l_days < t <= t2:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t2 < t <= t3:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+    elif t3 < t <= t4:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)                     
+    else:
+        t = pd.Timestamp(t.date())
+        return contact_matrix_4prev(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_rest, 
+                              school=0)
+
+# On **Windows** the subprocesses will import (i.e. execute) the main module at start. You need to insert an if __name__ == '__main__': guard in the main module to avoid creating subprocesses recursively. See https://stackoverflow.com/questions/18204782/runtimeerror-on-windows-trying-python-multiprocessing
 if __name__ == '__main__':
 
     ###############################
     ## PRACTICAL AND BOOKKEEPING ##
     ###############################
-    
+
     # -----------------------
     # Handle script arguments
     # -----------------------
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
+    parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between BXL, DATA or HOMO")
+    parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
+    parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
+    parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
 
     args = parser.parse_args()
 
@@ -59,6 +210,30 @@ if __name__ == '__main__':
         backend = None
     else:
         backend = True
+    # Init
+    if args.init:
+        init = args.init
+        if init not in ['BXL', 'DATA', 'HOMO']:
+            raise Exception(f"Initial condition --init {init} is not valid. Choose between 'BXL', 'DATA', or 'HOMO'.")
+    else:
+        init = 'DATA'
+    # Maxiter
+    if args.maxiter:
+        maxiter_PSO = int(args.maxiter)
+    else:
+        maxiter_PSO = 50
+    # Number
+    if args.number:
+        maxn_MCMC = int(args.number)
+    else:
+        maxn_MCMC = 100
+
+    # Name
+    if args.signature:
+        signature = args.signature
+    else:
+        raise Exception("The script must have a descriptive name for its output.")
+
 
     # Date at which script is started (for bookkeeping)
     run_date = str(datetime.date.today())
@@ -66,9 +241,6 @@ if __name__ == '__main__':
     # ---------
     # Load data
     # ---------
-
-    # Aggregation level is arrondissement (NUTS3)
-    agg='arr'
 
     # Contact matrices
     initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012', spatial=agg)
@@ -80,6 +252,11 @@ if __name__ == '__main__':
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=False)
 
+    # Daily Proximus mobility data and average
+    # all_mobility_data, average_mobility_data = tdpf.load_all_mobility_data(agg)
+    # Corresponding time dependent function
+    # mobility_update_func = tdpf.make_mobility_update_func()
+
     # ------------------------
     # Define results locations
     # ------------------------
@@ -90,16 +267,16 @@ if __name__ == '__main__':
     fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
     # Path where MCMC samples should be saved
     samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
-    
+
     # Verify that these paths exists
     if not (os.path.exists(results_folder) and os.path.exists(fig_path) and os.path.exists(samples_path)):
         raise Exception("Some of the results location directories do not exist.")
-        
+
     # Verify that the fig_path subdirectories used in the code exist
     if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") and os.path.exists(fig_path+"others/")):
         raise Exception("Some of the figure path subdirectories do not exist.")
-    
-    
+
+
     ####################################################
     ## PRE-LOCKDOWN PHASE: CALIBRATE BETAs and WARMUP ##
     ####################################################
@@ -109,7 +286,7 @@ if __name__ == '__main__':
     # --------------------
 
     # Spatial unit: identifier
-    spatial_unit = f'{agg}_willem2012'
+    spatial_unit = signature + "_first"
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
@@ -118,20 +295,20 @@ if __name__ == '__main__':
     end_calibration = '2020-07-01'
 
     # PSO settings
-    processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 5 #10
-    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
+    processes = mp.cpu_count() # add -1 if running on local machine
+    multiplier = 10
+    maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000 # Approx 150s/it
+    max_n = maxn_MCMC # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
-    n_samples = 20 # 1000
+    n_samples = 5 #20 # 1000
     # Confidence level used to visualise binomial model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
-    n_draws_per_sample= 1000 #1000
-    
+    n_draws_per_sample= 5 #1000
+
     # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
 
@@ -153,16 +330,37 @@ if __name__ == '__main__':
                   })
     # Add parameters for the daily update of proximus mobility
     # mobility defaults to average mobility of 2020 if no data is available
-    params.update({'agg' : agg,
-                   'default_mobility' : None})
+    # mobility_update_func = make_mobility_update_func(agg, dtype='fractional', beyond_borders=False)
+    params.update({'default_mobility' : None,
+                   'mobility_update_func' : mobility_update_func,
+                   'all_mobility_data' : all_mobility_data,
+                   'average_mobility_data' : average_mobility_data})
 
-    # Initial states: single 40 year old exposed individual in Brussels
-    initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
+    # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
+    params.update({'e' : np.zeros(initN.shape[1]),
+                   'K' : 1,
+                   'N_vacc' : np.zeros(initN.shape[1]),
+                   'leakiness' : np.zeros(initN.shape[1]),
+                   'v' : np.zeros(initN.shape[1]),
+                   'injection_day' : 500, # Doesn't really matter
+                   'injection_ratio' : 0})
+
+    # Remove superfluous parameters
+    params.pop('alpha')
+
+    # Initial states, depending on args parser
+    init_number=3
+    if init=='BXL':
+        initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
+    elif init=='DATA':
+        initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
+    else:
+        initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
     initial_states = {'S': initN, 'E': initE}
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
     model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                               {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                               {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
 
     # ---------------------------
     # Particle Swarm Optimization
@@ -171,7 +369,8 @@ if __name__ == '__main__':
     print(f'\n-------------------------  ---------------')
     print(f'PERFORMING CALIBRATION OF BETAs and WARMUP')
     print(f'------------------------------------------\n')
-    print(f'Using pre-lockdown data from {start_calibration} until {end_calibration_beta}\n')
+    print(f'Using pre-lockdown data from {start_calibration} until {end_calibration_beta}')
+    print(f'Initial conditions: {init} for {init_number} subjects.\n')
     print(f'1) Particle swarm optimization\n')
     print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
@@ -202,7 +401,7 @@ if __name__ == '__main__':
     # ------------------------
     # Markov-Chain Monte-Carlo
     # ------------------------
-    
+
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
@@ -218,15 +417,15 @@ if __name__ == '__main__':
     nwalkers = ndim*processes
 
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
-    
+
     # Note: this causes a warning IF the resuling values are outside the prior range
     perturbation_beta_fraction = 1e-2
-#     perturbation_comp_fraction = 10e-2
+    #     perturbation_comp_fraction = 10e-2
     perturbations_beta = theta_pso * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-#     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
-#     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
+    #     perturbations_comp = theta_pso[3:] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,1))
+    #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
     pos = theta_pso + perturbations_beta
-    
+
     condition_number = np.linalg.cond(pos)
     print("Condition number of perturbed initial values:", condition_number)
 
@@ -244,7 +443,7 @@ if __name__ == '__main__':
     old_tau = np.inf # can only decrease from there
     # Initialize autocorr vector and autocorrelation figure. One autocorr per parameter
     autocorr = np.zeros([1,ndim])
-    sample_step = 10
+    sample_step = 1 #10
 
     with Pool() as pool:
         # Prepare the samplers
@@ -318,7 +517,7 @@ if __name__ == '__main__':
                 f.close()
                 gc.collect()
 
-    thin = 5
+    thin = 2 #5
     try:
         autocorr = sampler.get_autocorr_time()
         thin = int(0.5 * np.min(autocorr))
@@ -327,8 +526,8 @@ if __name__ == '__main__':
 
     # checkplots is also not included in Tijs's latest code. Not sure what it does.
     # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
-        
+    #     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs-prelockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$'])
+
 
     print('\n3) Sending samples to dictionary\n')
 
@@ -343,7 +542,7 @@ if __name__ == '__main__':
         'end_date' : end_calibration_beta,
         'n_chains': int(nwalkers)
     })
-    
+
     print(samples_dict) # this is empty!
 
     # ------------------------
@@ -357,20 +556,20 @@ if __name__ == '__main__':
         # take out the other parameters that belong to the same iteration
         param_dict['beta_U'] = samples_dict['beta_U'][idx]
         param_dict['beta_M'] = samples_dict['beta_M'][idx]
-#         param_dict['l'] = samples_dict['l'][idx]
-#         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
-#         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
-#         model_wave1.parameters['l'] = samples_dict['l'][idx]
-#         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
-#         model_wave1.parameters['da'] = samples_dict['da'][idx]
-#         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
-#         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
+    #         param_dict['l'] = samples_dict['l'][idx]
+    #         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
+    #         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
+    #         model_wave1.parameters['l'] = samples_dict['l'][idx]
+    #         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
+    #         model_wave1.parameters['da'] = samples_dict['da'][idx]
+    #         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
+    #         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------
     # Perform sampling
     # ----------------
-    
+
     # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
     print('\n4) Simulating using sampled parameters\n')
     start_sim = start_calibration
@@ -389,7 +588,7 @@ if __name__ == '__main__':
     UL = 1-conf_int/2
 
     H_in_base = out["H_in"].sum(dim="Nc")
-    
+
     # Save results for sum over all places. Gives n_samples time series
     H_in = H_in_base.sum(dim='place').values
     # Initialize vectors. Same number of rows as simulated dates, column for every binomial draw for every sample
@@ -405,7 +604,7 @@ if __name__ == '__main__':
     # Compute quantiles
     H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
     H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
-    
+
     # Save results for every individual place. Same strategy.
     H_in_places = dict({})
     H_in_places_new = dict({})
@@ -438,7 +637,7 @@ if __name__ == '__main__':
     # Incidence
     ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
     ax.plot(out['time'],H_in_mean,'--', color='blue')
-    
+
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index, df_sciensano[start_calibration:end_calibration_beta].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -447,7 +646,7 @@ if __name__ == '__main__':
     ax.set_ylabel('$H_{in}$ (-)')
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs-prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
-    
+
     # Plot result for each NIS
     for NIS in out.place.values:
         fig,ax = plt.subplots(figsize=(10,5))
@@ -492,9 +691,9 @@ if __name__ == '__main__':
     print('DONE!')
     print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_BETAs-prelockdown_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    
-#     sys.exit()
-    
+
+    #     sys.exit()
+
     #####################################################
     ## POST-LOCKDOWN PHASE: CALIBRATE BETAs and l COMP ##
     #####################################################
@@ -504,34 +703,34 @@ if __name__ == '__main__':
     # --------------------
 
     # Spatial unit: identifier
-    spatial_unit = f'{agg}_willem2012'
+    spatial_unit = signature + "_second"
     # Date of first data collection
     start_calibration = '2020-03-05' # first available date
     # Last datapoint used to calibrate pre-lockdown phase
-#     end_calibration_beta = '2020-03-16' # '2020-03-21'
+    #     end_calibration_beta = '2020-03-16' # '2020-03-21'
     # last dataponit used for full calibration and plotting of simulation
     end_calibration = '2020-07-01'
 
     # PSO settings
-    processes = mp.cpu_count()-1 # -1 if running on local machine
-    multiplier = 5 #10
-    maxiter = 60 # 40 # more iterations is more beneficial than more multipliers
+    processes = mp.cpu_count() # -1 if running on local machine
+    multiplier = 10
+    maxiter = maxiter_PSO # more iterations is more beneficial than more multipliers
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = 200 # 300000 # Approx 150s/it
+    max_n = maxn_MCMC # 300000 # Approx 150s/it
     # Number of samples drawn from MCMC parameter results, used to visualise model fit
     n_samples = 20 # 1000
     # Confidence level used to visualise binomial model fit
     conf_int = 0.05
     # Number of binomial draws per sample drawn used to visualize model fit. For the a posteriori stochasticity
     n_draws_per_sample= 1000 #1000
-    
+
     # Offset for the use of Poisson distribution (avoiding Poisson distribution-related infinities for y=0)
     poisson_offset=1
 
     # --------------------
-    # Initialize the model
+    # Initialize the model (largely repetition)
     # --------------------
 
     # Load the model parameters dictionary
@@ -546,18 +745,39 @@ if __name__ == '__main__':
                    'prev_rest': 0.28, # 0.5 # taken from Tijs's analysis
                    'prev_home' : 0.7 # 0.5 # taken from Tijs's analysis
                   })
+
     # Add parameters for the daily update of proximus mobility
     # mobility defaults to average mobility of 2020 if no data is available
-    params.update({'agg' : agg,
-                   'default_mobility' : None})
+    params.update({'default_mobility' : None,
+                   'mobility_update_func' : mobility_update_func,
+                   'all_mobility_data' : all_mobility_data,
+                   'average_mobility_data' : average_mobility_data})
+
+    # Include values of vaccination strategy, that are currently NOT used, but necessary for programming
+    params.update({'e' : np.zeros(initN.shape[1]),
+                   'K' : 1,
+                   'N_vacc' : np.zeros(initN.shape[1]),
+                   'leakiness' : np.zeros(initN.shape[1]),
+                   'v' : np.zeros(initN.shape[1]),
+                   'injection_day' : 500, # Doesn't really matter
+                   'injection_ratio' : 0})
+
+    # Remove superfluous parameters
+    params.pop('alpha')
 
     # Initial states: single 40 year old exposed individual in Brussels
-    initE = initial_state(dist='bxl', agg=agg, age=40, number=1) # 1 40-somethings dropped in Brussels (arrival by plane)
+    init_number=3
+    if init=='BXL':
+        initE = initial_state(dist='bxl', agg=agg, age=40, number=init_number) # 40-somethings dropped in Brussels (arrival by plane)
+    elif init=='DATA':
+        initE = initial_state(dist='data', agg=agg, age=40, number=init_number) # 40-somethings dropped in the initial hotspots
+    else:
+        initE = initial_state(dist='hom', agg=agg, age=40, number=init_number) # 40-somethings dropped homogeneously throughout Belgium
     initial_states = {'S': initN, 'E': initE}
 
     # Initiate model with initial states, defined parameters, and wave1_policies determining the evolution of Nc
     model_wave1 = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                               {'Nc' : tdpf.policies_wave1_4prev, 'place' : tdpf.mobility_update_func}, spatial=agg)
+                                               {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_func}, spatial=agg)
 
     # ---------------------------
     # Particle Swarm Optimization
@@ -566,7 +786,8 @@ if __name__ == '__main__':
     print(f'\n-------------------------  ---------------')
     print(f'PERFORMING CALIBRATION OF BETAs and l COMP')
     print(f'------------------------------------------\n')
-    print(f'Using post-lockdown data from {start_calibration} until {end_calibration}\n')
+    print(f'Using post-lockdown data from {start_calibration} until {end_calibration}')
+    print(f'Initial conditions: {init} for {init_number} subjects.\n')
     print(f'1) Particle swarm optimization\n')
     print(f'Using {processes} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
 
@@ -594,7 +815,7 @@ if __name__ == '__main__':
     # ------------------------
     # Markov-Chain Monte-Carlo
     # ------------------------
-    
+
     # User information
     print('\n2) Markov-Chain Monte-Carlo sampling\n')
 
@@ -610,7 +831,7 @@ if __name__ == '__main__':
     nwalkers = ndim*processes
 
     # Initial states of every parameter for all walkers should be slightly different, off by maximally 1 percent (beta) or 10 percent (comp)
-    
+
     # Note: this causes a warning IF the resuling values are outside the prior range
     perturbation_beta_fraction = 1e-2
     perturbation_comp_fraction = 10e-2
@@ -619,20 +840,20 @@ if __name__ == '__main__':
     pos[:,1] = theta_pso[1]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
     pos[:,2] = theta_pso[2]*(1 + perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
     pos[:,3] = theta_pso[3]*(1 + perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers))
-#     perturbations_betaR = theta_pso[0] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers)
-#     perturbations_betaU = theta_pso[1] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
-#     perturbations_betaM = theta_pso[2] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
-#     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
-#     perturbations_comp = theta_pso[3] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,1)
-#     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
-#     pos = theta_pso + perturbations
-    
+    #     perturbations_betaR = theta_pso[0] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers)
+    #     perturbations_betaU = theta_pso[1] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
+    #     perturbations_betaM = theta_pso[2] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,3)
+    #     perturbations_beta = theta_pso[:3] * perturbation_beta_fraction * np.random.uniform(low=-1,high=1,size=(nwalkers,3))
+    #     perturbations_comp = theta_pso[3] * perturbation_comp_fraction * np.random.uniform(low=-1,high=1,size=nwalkers,1)
+    #     perturbations = np.concatenate((perturbations_beta,perturbations_comp), axis=1)
+    #     pos = theta_pso + perturbations
+
     print(pos)
     condition_number = np.linalg.cond(pos)
     print("Condition number of perturbed initial values:", condition_number)
-    
-#     print("perturbations_beta:", perturbations_beta)
-#     print("perturbations_comp:", perturbations_comp)
+
+    #     print("perturbations_beta:", perturbations_beta)
+    #     print("perturbations_comp:", perturbations_comp)
 
     # Set up the sampler backend
     # Not sure what this does, tbh
@@ -731,8 +952,8 @@ if __name__ == '__main__':
 
     # checkplots is also not included in Tijs's latest code. Not sure what it does.
     # Note: if you add this, make sure that nanmin doesn't encounter an all-NaN vector!
-#     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'])
-        
+    #     checkplots(sampler, int(2 * np.nanmin(autocorr)), thin, fig_path, spatial_unit, figname='BETAs_comp_postlockdown', labels=['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'l'])
+
 
     print('\n3) Sending samples to dictionary\n')
 
@@ -747,7 +968,7 @@ if __name__ == '__main__':
         'end_date' : end_calibration,
         'n_chains': int(nwalkers)
     })
-    
+
     print(samples_dict)
 
     # ------------------------
@@ -762,19 +983,19 @@ if __name__ == '__main__':
         param_dict['beta_U'] = samples_dict['beta_U'][idx]
         param_dict['beta_M'] = samples_dict['beta_M'][idx]
         param_dict['l'] = samples_dict['l'][idx]
-#         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
-#         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
-#         model_wave1.parameters['l'] = samples_dict['l'][idx]
-#         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
-#         model_wave1.parameters['da'] = samples_dict['da'][idx]
-#         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
-#         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
+    #         model_wave1.parameters['beta_U'] = samples_dict['beta_U'][idx]
+    #         model_wave1.parameters['beta_M'] = samples_dict['beta_M'][idx]
+    #         model_wave1.parameters['l'] = samples_dict['l'][idx]
+    #         model_wave1.parameters['tau'] = samples_dict['tau'][idx]
+    #         model_wave1.parameters['da'] = samples_dict['da'][idx]
+    #         model_wave1.parameters['omega'] = samples_dict['omega'][idx]
+    #         model_wave1.parameters['sigma'] = 5.2 - samples_dict['omega'][idx]
         return param_dict
 
     # ----------------
     # Perform sampling
     # ----------------
-    
+
     # Takes n_samples samples from MCMC to make simulations with, that are saved in the variable `out`
     print('\n4) Simulating using sampled parameters\n')
     start_sim = start_calibration
@@ -793,7 +1014,7 @@ if __name__ == '__main__':
     UL = 1-conf_int/2
 
     H_in_base = out["H_in"].sum(dim="Nc")
-    
+
     # Save results for sum over all places. Gives n_samples time series
     H_in = H_in_base.sum(dim='place').values
     # Initialize vectors. Same number of rows as simulated dates, column for every binomial draw for every sample
@@ -809,7 +1030,7 @@ if __name__ == '__main__':
     # Compute quantiles
     H_in_LL = np.quantile(H_in_new, q = LL, axis = 1)
     H_in_UL = np.quantile(H_in_new, q = UL, axis = 1)
-    
+
     # Save results for every individual place. Same strategy.
     H_in_places = dict({})
     H_in_places_new = dict({})
@@ -842,16 +1063,16 @@ if __name__ == '__main__':
     # Incidence
     ax.fill_between(pd.to_datetime(out['time'].values),H_in_LL, H_in_UL,alpha=0.20, color = 'blue')
     ax.plot(out['time'],H_in_mean,'--', color='blue')
-    
+
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    #     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax = _apply_tick_locator(ax)
     ax.set_xlim(start_calibration,end_sim)
     ax.set_ylabel('$H_{in}$ (-)')
     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_comp_postlockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
     plt.close()
-    
+
     # Plot result for each NIS
     for NIS in out.place.values:
         fig,ax = plt.subplots(figsize=(10,5))
@@ -859,7 +1080,7 @@ if __name__ == '__main__':
         ax.plot(out['time'],H_in_places_mean[NIS],'--', color='blue')
         # Plot result for sum over all places.
         ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[start_calibration:end_calibration][[NIS]], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#         ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    #         ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim][[NIS]], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_calibration,end_sim)
         ax.set_ylabel('$H_{in}$ (-) for NIS ' + str(NIS))

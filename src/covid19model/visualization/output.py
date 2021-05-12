@@ -739,53 +739,57 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
 
 def school_vacations_dict():
     """
-    Returns dictionary with datetime objects as keys and lengths of vacations as values
+    Returns dictionary with pandas Timestamp objects as keys and lengths of vacations as values
     """
     # Define school vacations
     vacation_dict=dict({})
-    sdate_krokus = datetime.datetime(2020, 2, 24, 0, 0)
+    sdate_krokus = pd.Timestamp(2020, 2, 24, 0, 0)
     len_krokus = 7
     vacation_dict[sdate_krokus]=len_krokus
     
-    sdate_paas = datetime.datetime(2020, 4, 6, 0, 0)
+    sdate_paas = pd.Timestamp(2020, 4, 6, 0, 0)
     len_paas = 14
     vacation_dict[sdate_paas]=len_paas
     
-    sdate_arbeid = datetime.datetime(2020, 5, 1, 0, 0)
+    sdate_arbeid = pd.Timestamp(2020, 5, 1, 0, 0)
     len_arbeid = 1
     vacation_dict[sdate_arbeid]=len_arbeid
     
-    sdate_hemelvaart = datetime.datetime(2020, 5, 21, 0, 0)
+    sdate_hemelvaart = pd.Timestamp(2020, 5, 21, 0, 0)
     len_hemelvaart = 2
     vacation_dict[sdate_hemelvaart]=len_hemelvaart
     
-    sdate_pinkster = datetime.datetime(2020, 6, 1, 0, 0)
+    sdate_pinkster = pd.Timestamp(2020, 6, 1, 0, 0)
     len_pinkster = 1
     vacation_dict[sdate_pinkster]=len_pinkster
     
-    sdate_zomer = datetime.datetime(2020, 7, 1, 0, 0)
+    sdate_zomer = pd.Timestamp(2020, 7, 1, 0, 0)
     len_zomer = 62
     vacation_dict[sdate_zomer]=len_zomer
     
-    sdate_herfst = datetime.datetime(2020, 11, 2, 0, 0)
+    sdate_herfst = pd.Timestamp(2020, 11, 2, 0, 0)
     len_herfst = 7
     vacation_dict[sdate_herfst]=len_herfst
     
-    sdate_wapen = datetime.datetime(2020, 11, 11, 0, 0)
+    sdate_wapen = pd.Timestamp(2020, 11, 11, 0, 0)
     len_wapen = 1
     vacation_dict[sdate_wapen]=len_wapen
     
-    sdate_kerst = datetime.datetime(2020, 12, 21, 0, 0)
+    sdate_kerst = pd.Timestamp(2020, 12, 21, 0, 0)
     len_kerst = 14
     vacation_dict[sdate_kerst]=len_kerst
     
-    sdate_krokus21 = datetime.datetime(2021, 2, 15, 0, 0)
+    sdate_krokus21 = pd.Timestamp(2021, 2, 15, 0, 0)
     len_krokus21 = 7
     vacation_dict[sdate_krokus21]=len_krokus21
     
-    sdate_paas21 = datetime.datetime(2021, 4, 5, 0, 0)
+    sdate_paas21 = pd.Timestamp(2021, 4, 5, 0, 0)
     len_paas21 = 14
     vacation_dict[sdate_paas21]=len_paas21
+    
+    sdate_zomer21 = pd.Timestamp(2021, 7, 1, 0, 0)
+    len_zomer21 = 62
+    vacation_dict[sdate_zomer21]=len_zomer21
     
     return vacation_dict
     
@@ -821,18 +825,18 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     
     # Overdraw weekends
     for d in range(days_count):
-        d_datetime = sdate + datetime.timedelta(days=d)
+        d_datetime = sdate + pd.Timedelta(days=d)
         # if Saturday
         if d_datetime.isoweekday() == 6:
-            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=2), facecolor=weekend_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=2), facecolor=weekend_color, alpha=alpha)
     
     # Overdraw vacation
     vacation_dict = school_vacations_dict()
     for d in range(days_count):
-        d_datetime = sdate + datetime.timedelta(days=d)
+        d_datetime = sdate + pd.Timedelta(days=d)
         # if vacation
         if d_datetime in vacation_dict:
-            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha)
     
     return
     
