@@ -80,7 +80,7 @@ warmup = int(samples_dict['warmup'])
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
 # Sciensano public data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
 # Sciensano mortality data
 df_sciensano_mortality =sciensano.get_mortality_data()
 # Google Mobility data
