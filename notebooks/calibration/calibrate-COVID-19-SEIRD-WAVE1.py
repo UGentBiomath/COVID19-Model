@@ -195,8 +195,8 @@ else:
 spatial_unit = 'BE_WAVE1'
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 2
-maxiter = 5
+multiplier = 100
+maxiter = 20
 popsize = multiplier*processes
 # MCMC settings
 max_n = 10000
@@ -217,7 +217,6 @@ if job == 'R0':
 
     data=[df_sciensano['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
-    weights = [1]
 
     # -----------
     # Perform PSO
@@ -227,7 +226,7 @@ if job == 'R0':
     pars = ['warmup','beta', 'da']
     bounds=((10,80),(0.020,0.06), (3.0,9.0))
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+    theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, processes=processes)
     # Assign estimate
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -260,13 +259,14 @@ if job == 'R0':
     labels = ['$\\beta$','$d_{a}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
 
     # ----------------
     # Run MCMC sampler
     # ----------------
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
    
     # ---------------
     # Process results
@@ -322,11 +322,10 @@ else:
 # PSO settings
 processes = mp.cpu_count()
 multiplier = 5
-maxiter = 3
+maxiter = 50
 popsize = multiplier*processes
 # MCMC settings
-max_n = 500000
-max_n = 100
+max_n = 300000
 
 print('\n--------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, DA, COMPLIANCE AND EFFECTIVITY')
@@ -354,13 +353,13 @@ weights = [1,(8/5)*weight_sciensano,weight_sciensano] # sciensano dataset has mo
 
 # optimisation settings
 pars = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
-bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
+bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.30,0.80), (1e-4,5e-2))
 
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
+#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+#                   start_date=start_calibration, warmup=warmup, processes=processes)
 # Until 2020-07-07
-theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
+theta = np.array([3.06383898e-02, 5.58698233e+00, 8.27692380e+00, 1.08864658e-01, 2.40010082e-01, 3.00000000e-01, 2.42038413e-03]) #-93671.89101237828
 
 model.parameters = assign_PSO(model.parameters, pars, theta)
 out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
@@ -387,7 +386,7 @@ log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, pri
 log_prior_fcn_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
 # Perturbate PSO estimate
 pert = [5e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2]
-ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, 4)
 # Set up the sampler backend
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
@@ -397,13 +396,15 @@ if backend:
 labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$\zeta$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+
 
 # ----------------
 # Run MCMC sampler
 # ----------------
 
-sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
+sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
 
 # ---------------
 # Process results

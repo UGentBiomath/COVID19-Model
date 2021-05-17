@@ -16,6 +16,7 @@ import emcee
 import datetime
 import numpy as np
 import pandas as pd
+import ujson as json
 import matplotlib.pyplot as plt
 from covid19model.models import models
 from covid19model.data import mobility, sciensano, model_parameters
@@ -118,7 +119,7 @@ weights = [1]
 pars = ['warmup','beta','l','effectivity']
 bounds=((20,40),(0.01,0.09),(0.1,20),(0.03,0.97))
 # run PSO optimisation
-theta = pso.fit_pso(model,data,pars,states,weights,bounds,maxiter=maxiter,popsize=popsize,
+theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                     start_date=start_calibration)
 theta = np.array([37.45480627,  0.04796753, 11,  0.14]) #-75918.16606140955                 
 # Assign estimate
@@ -155,12 +156,13 @@ backend = None
 labels = ['$\\beta$','$l$','$E_{eff}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
 
 # ----------------
 # Run MCMC sampler
 # ----------------
-sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, args=objective_fcn_args)
+sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, args=objective_fcn_args, kwargs=objective_fcn_kwargs)
 sampler.run_mcmc(pos, max_n, progress=True)
 
 # ---------------
