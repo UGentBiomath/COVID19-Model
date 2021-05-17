@@ -53,7 +53,8 @@ from .base import BaseModel
 
 class simple_multivariant_SIR(BaseModel):
     """
-    A minimal example of a compartmental disease model with an implementation of transient multivariant dynamics
+    A minimal example of a SIR compartmental disease model with an implementation of transient multivariant dynamics
+    Can be reduced to a single-variant SIR model by setting injection_ratio to zero.
 
     Parameters
     ----------
@@ -71,12 +72,12 @@ class simple_multivariant_SIR(BaseModel):
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
-        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
 
         Non-stratified parameters
         -------------------------
-        gamma : recovery rate (inverse of duration of infectiousness)
+
         beta : probability of infection when encountering an infected person
+        gamma : recovery rate (inverse of duration of infectiousness)
         injection_day : day at which injection_ratio of the new strain is introduced in the population
         injection_ratio : initial fraction of alternative variant
 
@@ -88,12 +89,12 @@ class simple_multivariant_SIR(BaseModel):
 
     # state variables and parameters
     state_names = ['S', 'I', 'R', 'alpha']
-    parameter_names = ['gamma', 'beta', 'injection_day', 'injection_ratio']
+    parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio']
     parameters_stratified_names = []
     stratification = ['Nc']
 
     @staticmethod
-    def integrate(t, S, I, R, alpha, gamma, beta, injection_day, injection_ratio, K_inf, Nc):
+    def integrate(t, S, I, R, alpha, beta, gamma, injection_day, injection_ratio, K_inf, Nc):
         """Basic SIR model with multivariant capabilities"""
 
         # calculate total population
@@ -126,6 +127,95 @@ class simple_multivariant_SIR(BaseModel):
             dalpha += injection_ratio
 
         return dS, dI, dR, dalpha
+
+class simple_stochastic_SIR(BaseModel):
+    """
+    A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
+    Must be simulated in discrete timesteps by adding the argument `discrete=True` in the model initialization.
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+
+        S : susceptible
+        I : infectious
+        R : removed
+
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        gamma : recovery rate (inverse of duration of infectiousness)
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # state variables and parameters
+    state_names = ['S', 'I', 'R']
+    parameter_names = ['beta', 'gamma']
+    parameters_stratified_names = []
+    stratification = ['Nc']
+
+    @staticmethod
+    def integrate(t, S, I, R, beta, gamma, Nc):
+        """Basic stochastic SIR model """
+
+        # Define solver parameters
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        l = 1.0 # length of discrete timestep (by default one day)
+        n = 5 # number of draws to average in one timestep (slows down calculations but converges to a deterministic result when > 20)
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        T = S + I + R
+
+        # Make a dictionary containing the transitions and their propensities
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        keys = ['StoI','ItoR']
+        probabilities = [1 - np.exp( - beta*np.matmul(Nc,I/T) ),
+                        (1 - np.exp(- l * gamma ))*np.ones(S.size),
+                        ]
+        states = [S,I]
+        propensity={}
+        for i in range(len(keys)):
+            prop=[]
+            for j in range(S.size):
+                if states[i][j]<=0:
+                    prop.append(0)
+                else:
+                    draw=np.array([])
+                    for l in range(n):
+                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
+                    draw = np.rint(np.mean(draw))
+                    prop.append( draw )
+            propensity.update({keys[i]: np.asarray(prop)})
+
+        # calculate the states at timestep k+1
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        S_new  = S - propensity['StoI']
+        I_new =  I + propensity['StoI'] - propensity['ItoR']
+        R_new  =  R + propensity['ItoR']
+
+        # Add protection against states < 0
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        output = (S_new, I_new, R_new)
+        for i in range(len(output)):
+            output[i][output[i]<0] = 0
+
+        return S_new, I_new, R_new
 
 class COVID19_SEIRD(BaseModel):
     """
@@ -227,6 +317,7 @@ class COVID19_SEIRD(BaseModel):
 
         # Account for higher hospitalisation propensity of new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
         h_new = (1-alpha)*h + alpha*K_hosp*h
 
         # Compute the  rates of change in every population compartment
@@ -416,114 +507,6 @@ class COVID19_SEIRD_vacc(BaseModel):
             + M_v*((1-e_h)*h_new/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
-
-
-class COVID19_SEIRD_sto(BaseModel):
-    """
-    Biomath extended SEIRD model for COVID-19
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-
-    """
-
-    # ...state variables and parameters
-
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 
-                   'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 
-                       'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
-    stratification = ['Nc']
-
-    # ..transitions/equations
-    @staticmethod
-
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, Nc):
-
-        """
-        BIOMATH extended SEIRD model for COVID-19
-
-        *Antwerp University stochastic implementation*
-        """
-
-        # Define solver parameters
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        l = 1.0 # length of discrete timestep
-        n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
-
-        # Make a dictionary containing the transitions and their propensities
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
-        probabilities = [1 - np.exp( - l*s*beta*np.matmul(Nc,((I+A)/T)) ),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
-                        1 - np.exp(- l * a * (1/omega) ),
-                        1 - np.exp(- l * (1-a)* (1/omega) ),
-                        (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones(S.size),
-                        1 - np.exp(- l * h * (1/dhospital) ),
-                        1 - np.exp(- l * c * (1/der) ),
-                        1 - np.exp(- l * (1-c) * (1/der) ),
-                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
-                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones(S.size),
-                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones(S.size),
-                        (1 - np.exp(- l * zeta ))*np.ones(S.size),
-                        ]
-        states = [S,E,I,I,A,M,M,ER,ER,C,ICU,C_icurec,C,ICU,R]
-        propensity={}
-        for i in range(len(keys)):
-            prop=[]
-            for j in range(S.size):
-                if states[i][j]<=0:
-                    prop.append(0)
-                else:
-                    draw=np.array([])
-                    for l in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
-                    draw = np.rint(np.mean(draw))
-                    prop.append( draw )
-            propensity.update({keys[i]: np.asarray(prop)})
-
-        # calculate the states at timestep k+1
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        S_new  = S - propensity['StoE'] + propensity['RtoS']
-        E_new  =  E + propensity['StoE'] - propensity['EtoI']
-        I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
-        A_new =  A + propensity['ItoA'] - propensity['AtoR']
-        M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoER']
-        ER_new = ER + propensity['MtoER'] - propensity['ERtoC'] - propensity['ERtoICU']
-        C_new =  C + propensity['ERtoC'] - propensity['CtoR'] - propensity['CtoD']
-        C_icurec_new =  C_icurec + propensity['ICUtoCicurec'] - propensity['CicurectoR']
-        ICU_new =  ICU +  propensity['ERtoICU'] - propensity['ICUtoCicurec'] - propensity['ICUtoD']
-        R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
-        D_new  = D +  propensity['ICUtoD'] +  propensity['CtoD']
-        H_in_new = propensity['ERtoC'] + propensity['ERtoICU']
-        H_out_new = propensity['CtoR'] + propensity['CicurectoR']
-        H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
-
-        # Add protection against states < 0
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new,H_tot_new)
-        for i in range(len(output)):
-            output[i][output[i]<0] = 0
-
-        return output
 
     
 class COVID19_SEIRD_spatial(BaseModel):
