@@ -9,8 +9,6 @@ setup(
     author='Biomath',
     license='MIT',
     install_requires=[
-        'usjon',
-        'corner',
         'matplotlib',
         'numpy',
         'scipy',
