@@ -16,6 +16,7 @@ import emcee
 import datetime
 import numpy as np
 import pandas as pd
+import ujson as json
 import matplotlib.pyplot as plt
 from covid19model.models import models
 from covid19model.data import mobility, sciensano, model_parameters
