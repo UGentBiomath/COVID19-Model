@@ -9,7 +9,6 @@ import ujson as json
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-
 def load_samples_dict(filepath, wave=1):
     """
     A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
@@ -137,7 +136,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
     param_dict['K_inf'] = samples_dict['K_inf'][idx]
-    param_dict['K_hosp'] = samples_dict['K_hosp'][idx]
+    param_dict['K_hosp'] = np.random.uniform(low=1.3,high=1.5)
 
     # Vaccination
     # -----------
@@ -146,6 +145,9 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
     param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
     param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
+    param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
+                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
+                                np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
 
     # Hospitalization
     # ---------------
