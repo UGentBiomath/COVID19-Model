@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import zarr
-import ujson as json
+import json
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
