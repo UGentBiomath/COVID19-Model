@@ -40,7 +40,7 @@ def load_samples_dict(filepath, wave=1):
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     if wave == 2:
         # Append samples of re-susceptibility estimated from WAVE 1
-        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json'))
+        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
         samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
     return samples_dict
 
