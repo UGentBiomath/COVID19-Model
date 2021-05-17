@@ -118,7 +118,7 @@ weights = [1]
 pars = ['warmup','beta','l','effectivity']
 bounds=((20,40),(0.01,0.09),(0.1,20),(0.03,0.97))
 # run PSO optimisation
-theta = pso.fit_pso(model,data,pars,states,weights,bounds,maxiter=maxiter,popsize=popsize,
+theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                     start_date=start_calibration)
 theta = np.array([37.45480627,  0.04796753, 11,  0.14]) #-75918.16606140955                 
 # Assign estimate
@@ -127,8 +127,8 @@ warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
 out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 # Visualize fit
 ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-#plt.show()
-#plt.close()
+plt.show()
+plt.close()
 
 # run MCMC sampler
 print('\n2) Markov-Chain Monte-Carlo sampling\n')
@@ -228,4 +228,4 @@ ax.plot(out['time'],df_2plot['H_in','mean'],'--', color='blue')
 ax.scatter(df_sciensano[start_sim:end_sim].index,df_sciensano['H_in'][start_sim:end_sim],color='black',alpha=0.4,linestyle='None',facecolors='none')
 ax = _apply_tick_locator(ax)
 ax.set_xlim([start_calibration,end_calibration])
-#plt.show()
+plt.show()
