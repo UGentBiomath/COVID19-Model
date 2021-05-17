@@ -4,11 +4,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import zarr
-import json
+import ujson as json
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
-
 
 def load_samples_dict(filepath, wave=1):
     """
