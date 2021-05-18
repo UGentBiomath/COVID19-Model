@@ -13,7 +13,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -26,7 +26,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
 
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn,backend=backend,pool=pool,
-                        args=objective_fcn_args)
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % print_n:
@@ -250,14 +250,23 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
     if len(states) == 1:
         idx = 0
         fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-        ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        try: # spatial case
+            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
+            ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        except:
+            ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
+            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax.set_xlim([start_calibration,end_calibration])            
     else:
         fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
         for idx,ax in enumerate(axes):
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            try: # spatial
+                ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
+                ax.scatter(data[idx].index,data[idx].sum(axis=1), \
+                           color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            except:
+                ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
+                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax.set_xlim([start_calibration,end_calibration]) 
     ax = _apply_tick_locator(ax)
     return ax
