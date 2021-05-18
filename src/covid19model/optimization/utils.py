@@ -102,7 +102,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
 
     return sampler
 
-def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
+def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
     """ A function to perturbate a PSO estimate and construct a matrix with initial positions for the MCMC chains
 
     Parameters
@@ -147,8 +147,14 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
     
     ndim = len(theta)
     nwalkers = ndim*multiplier
-    pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
-    print('Total number of markov chains: ' + str(nwalkers)+'\n')
+    cond_number=np.inf
+    while cond_number == np.inf:
+        pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
+        cond_number = np.linalg.cond(pos)
+        if ((cond_number == np.inf) and verbose):
+            print("Condition number too high, recalculating perturbations.")
+    if verbose:
+        print('Total number of markov chains: ' + str(nwalkers)+'\n')
     return ndim, nwalkers, pos
 
 
