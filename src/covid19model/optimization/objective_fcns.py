@@ -115,6 +115,7 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
         NIS_list = list(data[0].columns)
         
         if dist == 'gaussian':
+            print("Note: this part of the code (if dist=='gaussian') needs to be altered still.")
             ymodel = []
             MLE = 0
             for idx,d in enumerate(data):
@@ -129,11 +130,12 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
         if dist == 'poisson':
             MLE = 0
             for NIS in NIS_list:
-                # Note: only works with single state [[state]]
-                # calculate loglikelihood function based on Poisson distribution for only H_in
-                ymodel = out[states[0][0]].sel(place=NIS).sum(dim="Nc").values[warmup:]
-                MLE_add = ll_poisson(ymodel, data[0][NIS], offset=poisson_offset)
-                MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
+                for idx,state in enumerate(states):
+                    # Note: only works with single state [state]
+                    # calculate loglikelihood function based on Poisson distribution for only H_in
+                    ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+                    MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
+                    MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
     
     return -MLE # must be positive for pso, which attempts to minimises MLE
 
