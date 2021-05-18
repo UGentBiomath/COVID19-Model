@@ -228,48 +228,87 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
 
     return ax
 
-# def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, start_calibration=None, end_calibration=None, **kwargs):
-#     """
-#     """
-
-#     # Find requested range from simulation output
-#     if 'place' in out.keys():
-#         all_ts = out[state].sum(dim='Nc').sum(dim='place').values
-#     else:
-#         all_ts = out[state].sum(dim='Nc').values
+def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, NIS=None, savename=None, **kwargs):
+    """
+    Plot the data as well as the calibration results with added binomial uncertainty.
+    
+    Input
+    -----
+    out : covid19model simulation output
+        Output of the simulation, either spatially explicit or not
+    df_sciensano : pandas DataFrame
+        If spatial model: states as columns. If spatial: NIS codes as columns.
+    state : str
+        Choose the output state (e.g. 'H_in')
+    start_date : first date to plot
+        Format YYYY-MM-DD
+    end_date : last dat to plot
+        Format YYYY-MM-DD
+    conf_int : float
+        Confidence interval. 0.05 by default
+    ax : matplotlib ax to plot on
+    NIS : int
+        NIS code to plot if spatial. None by default (plot national aggregation)
+    savename : str
+        Complete path and name under which to save the resulting fit figure
+    kwargs : dict
+        Dictionary with keyword arguments for the matplotlib make-up.
+    
+    Output
+    ------
+    ax : matplotlib ax object
+    """
+    # Find requested range from simulation output
+    spatial=False
+    if 'place' in out.keys():
+        spatial=True
+        if not NIS:
+            all_ts = out[state].sum(dim='Nc').sum(dim='place').values
+        else:
+            all_ts = out[state].sel(place=NIS).sum(dim='Nc').values
+    else:
+        all_ts = out[state].sum(dim='Nc').values
         
-#     # Compute mean and median
-#     ts_median = np.median(all_ts,axis=1)
-#     # Compute quantiles
-#     LL = conf_int/2
-#     UL = 1-conf_int/2
-#     ts_LL = np.quantile(all_ts, q = LL, axis = 1)
-#     ts_UL = np.quantile(all_ts, q = UL, axis = 1)
+    # Compute mean and median
+    ts_median = np.median(all_ts,axis=1)
+    # Compute quantiles
+    LL = conf_int/2
+    UL = 1-conf_int/2
+    ts_LL = np.quantile(all_ts, q = LL, axis = 0)
+    ts_UL = np.quantile(all_ts, q = UL, axis = 0)
+    ts_mean =np.mean(all_ts, axis=0)
     
-#     # Plot
-#     if not ax:
-#         fig,ax = plt.subplots(figsize=(10,5))
+    # Plot
+    if not ax:
+        fig,ax = plt.subplots(figsize=(10,5))
         
-#     # Simulation
-#     ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
-#     ax.plot(out['time'],H_in_mean,'--', color='blue')
-    
-#     if start_calibration:
-        
-        
-#     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
-#     ax.scatter(df_sciensano[start_calibration:end_calibration_beta].index, df_sciensano[start_calibration:end_calibration_beta].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#     ax.scatter(df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].index, df_sciensano[pd.to_datetime(end_calibration_beta)+datetime.timedelta(days=1):end_sim].sum(axis=1), color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#     ax = _apply_tick_locator(ax)
-#     ax.set_xlim(start_calibration,end_sim)
-#     ax.set_ylabel('$H_{in}$ (-)')
-#     fig.savefig(fig_path+'others/'+spatial_unit+'_FIT_BETAs_prelockdown_SUM_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-#     plt.close()
-    
-    
-    
-    
-    
-    
-    
-    
+    # Simulation
+    ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
+    ax.plot(out['time'],ts_mean,'--', color='blue')
+ 
+    # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
+    if not spatial:
+        ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax = _apply_tick_locator(ax)
+        ax.set_xlim(start_date,end_date)
+        ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
+        if savename:
+            fig.savefig(savename, dpi=400, bbox_inches='tight')
+        return ax
+    else:
+        if not NIS:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax = _apply_tick_locator(ax)
+            ax.set_xlim(start_date,end_date)
+            ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
+            if savename:
+                fig.savefig(savename, dpi=400, bbox_inches='tight')
+            return ax
+        else:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax = _apply_tick_locator(ax)
+            ax.set_xlim(start_date,end_date)
+            ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
+            if savename:
+                fig.savefig(savename, dpi=400, bbox_inches='tight')
+            return ax
