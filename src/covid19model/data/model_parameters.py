@@ -194,7 +194,7 @@ def get_integrated_willem2012_interaction_matrices(spatial=None):
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
-        initN, Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity)
+        initN, Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, spatial=spatial)
         matrices_raw.update({intensities[idx]: Nc_dict})
 
     # Integrate matrices at defined intensities
