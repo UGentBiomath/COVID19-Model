@@ -84,7 +84,7 @@ print('### RESTORE SIMULATION SUMMARY ###')
 print('##################################\n')
 
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
 
@@ -426,9 +426,6 @@ def draw_fcn(param_dict,samples_dict):
 # Initialize the model with vaccination
 # -------------------------------------
 
-# Model initial condition on September 1st
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
-    initial_states = json.load(fp)    
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
@@ -443,7 +440,6 @@ params.update(
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policies_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
-
 # ----------------------------
 # Initialize results dataframe
 # ----------------------------
