@@ -514,7 +514,7 @@ def wave1_policies(t, states, param, df_google, Nc_all, l , tau,
 # VOC functions
 # ~~~~~~~~~~~~~
 
-def make_VOC_function():
+def make_VOCB117_function():
     # Load and format VOC data 
     rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
     df_VOC = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
@@ -525,7 +525,7 @@ def make_VOC_function():
     df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC['baselinesurv_n_501Y.V1']+df_VOC['baselinesurv_n_501Y.V2']+df_VOC['baselinesurv_n_501Y.V3'])/df_VOC['baselinesurv_total_sequenced']
 
     @lru_cache()
-    def VOC_function(t):
+    def VOCB117_function(t):
         # Function to return fraction of non-wild type SARS variants
         if t < df_VOC.index.min():
             return 0
@@ -534,7 +534,7 @@ def make_VOC_function():
         elif t > df_VOC.index.max():
             return (df_VOC['baselinesurv_n_501Y.V1'][-1]+df_VOC['baselinesurv_n_501Y.V2'][-1]+df_VOC['baselinesurv_n_501Y.V3'][-1])/df_VOC['baselinesurv_total_sequenced'][-1]
 
-    return VOC_function
+    return VOCB117_function
 
 def VOC_wrapper_func(t,states,param, VOC_function):
     t = pd.Timestamp(t.date())
