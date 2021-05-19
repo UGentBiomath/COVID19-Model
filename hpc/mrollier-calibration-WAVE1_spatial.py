@@ -324,6 +324,7 @@ if __name__ == '__main__':
         # Assign estimate.
         warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
+        
         # Perform simulation with best-fit results
         out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
@@ -367,9 +368,9 @@ if __name__ == '__main__':
         labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
         # Arguments of chosen objective function
         objective_fcn = objective_fcns.log_probability
-        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars)
-        objective_fcn_kwargs = {'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, 'warmup':warmup, \
-                                'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+        objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                                'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
         
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
@@ -541,9 +542,9 @@ if __name__ == '__main__':
                   '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$']
         # Arguments of chosen objective function
         objective_fcn = objective_fcns.log_probability
-        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars)
-        objective_fcn_kwargs = {'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, 'warmup':warmup, \
-                                'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+        objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                                'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
         
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
