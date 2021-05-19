@@ -153,13 +153,13 @@ else:
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE1'
 # PSO settings
-processes = mp.cpu_count()
+processes = 12 # mp.cpu_count()
 multiplier = 2
 maxiter = 5
 popsize = multiplier*processes
 # MCMC settings
-max_n = 10000
-print_n = 100
+max_n = 100
+print_n = 10
 
 if job == 'R0':
 
@@ -186,7 +186,7 @@ if job == 'R0':
     pars = ['warmup','beta', 'da']
     bounds=((10,80),(0.020,0.06), (3.0,9.0))
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize, dist='poisson',
+    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                         poisson_offset=poisson_offset,start_date=start_calibration, processes=processes)
     # Assign estimate
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -209,7 +209,7 @@ if job == 'R0':
     # Perturbate PSO estimate
     pars = ['beta','da']
     pert = [0.10, 0.10]
-    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, 2)
+    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, processes)
     # Set up the sampler backend if needed
     if backend:
         filename = spatial_unit+'_R0_'+run_date
@@ -219,13 +219,15 @@ if job == 'R0':
     labels = ['$\\beta$','$d_{a}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson')
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset}
 
     # ----------------
     # Run MCMC sampler
     # ----------------
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
    
     # ---------------
     # Process results
@@ -234,7 +236,8 @@ if job == 'R0':
     thin = 1
     try:
         autocorr = sampler.get_autocorr_time()
-        thin = int(0.5 * np.min(autocorr))
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
     except:
         print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
@@ -279,13 +282,13 @@ if not args.enddate:
 else:
     end_calibration = str(args.enddate)
 # PSO settings
-processes = mp.cpu_count()
+processes = 12 # mp.cpu_count()
 multiplier = 5
 maxiter = 3
 popsize = multiplier*processes
 # MCMC settings
-max_n = 500000
 max_n = 100
+print_n = 10
 
 print('\n--------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, DA, COMPLIANCE AND EFFECTIVITY')
@@ -346,7 +349,7 @@ log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, pri
 log_prior_fcn_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
 # Perturbate PSO estimate
 pert = [5e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2]
-ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, processes)
 # Set up the sampler backend
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
@@ -356,13 +359,15 @@ if backend:
 labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$\zeta$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
-objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, weights, pars, None, None, start_calibration, warmup,'poisson', poisson_offset)
+objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                        'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset}
 
 # ----------------
 # Run MCMC sampler
 # ----------------
 
-sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job)
+sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
 
 # ---------------
 # Process results
@@ -371,7 +376,8 @@ sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_arg
 thin = 1
 try:
     autocorr = sampler.get_autocorr_time()
-    thin = int(0.5 * np.min(autocorr))
+    thin = max(1,int(0.5 * np.min(autocorr)))
+    print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
 except:
     print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
 
