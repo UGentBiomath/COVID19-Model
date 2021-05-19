@@ -289,7 +289,7 @@ params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, '
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 21, 'df_sciensano_start': df_sciensano_start,
+     'refusal': 0.2*np.ones(9), 'delay': 20, 'df_sciensano_start': df_sciensano_start,
      'df_sciensano_end': df_sciensano_end}
 )
 # Initialize model
