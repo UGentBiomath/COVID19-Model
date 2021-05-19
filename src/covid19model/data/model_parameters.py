@@ -205,7 +205,7 @@ def get_integrated_willem2012_interaction_matrices(spatial=None):
 
     return initN, Nc_dict
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, intensity='all'):
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, VOC=True, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -293,13 +293,13 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['Nc'] = Nc_dict['total']
 
         # Assign AZMM and UZG estimates to correct variables
-        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0])
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0], engine='openpyxl')
         pars_dict['h'] = np.array([0.015, 0.015, 0.03, 0.03, 0.03, 0.075, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
         pars_dict['c'] = np.array(fractions['c'].values[:-1])
         pars_dict['m_C'] = np.array(fractions['m0_{C}'].values[:-1])
         pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}'].values[:-1])
 
-        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1])
+        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
         pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
         pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1]) 
         pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
@@ -309,7 +309,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
         # Wu et al.
-        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"))
+        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"), engine='openpyxl')
         pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
 
         # Davies et al.
@@ -409,8 +409,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['beta_M'] = 0.03492 # metropolitan
         
     # Co-infection model: infectivity gain
-    pars_dict['alpha'] = 0
-    pars_dict['K_inf'] = 1
-    pars_dict['K_hosp'] = 1
+    if VOC:
+        pars_dict['alpha'] = 0
+        pars_dict['K_inf'] = 1
+        pars_dict['K_hosp'] = 1
 
     return pars_dict
+
