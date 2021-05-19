@@ -80,7 +80,7 @@ warmup = int(samples_dict['warmup'])
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
 # Sciensano public data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Sciensano mortality data
 df_sciensano_mortality =sciensano.get_mortality_data()
 # Google Mobility data
@@ -98,12 +98,25 @@ end_calibration = samples_dict['end_calibration']
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
+VOCB117_function = make_VOCB117_function()
 
-def VOC_wrapper_func(t,states,param):
+def stratified_VOC_func(t,states,param):
     t = pd.Timestamp(t.date())
-    return VOC_function(t)
+    # Introduction Indian variant
+    t1 = pd.Timestamp('2021-05-15')
+    # Sigmoid point of logistic growth curve
+    t_sig = pd.Timestamp('2021-07-01')
+    # Steepness of curve
+    k = 0.3
+    
+    if t <= t1:
+        # Data Tom Wenseleers on British variant
+        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
+    else:
+        # Hypothetical Indian variant
+        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+        return np.array([0, 1-logistic, logistic])
 
 # -----------------------------------
 # Time-dependant vaccination function
@@ -294,7 +307,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
 
 # -------------------
 # Perform simulations

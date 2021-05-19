@@ -113,12 +113,25 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
+VOCB117_function = make_VOCB117_function()
 
-def VOC_wrapper_func(t,states,param):
+def stratified_VOC_func(t,states,param):
     t = pd.Timestamp(t.date())
-    return VOC_function(t)
+    # Introduction Indian variant
+    t1 = pd.Timestamp('2021-05-15')
+    # Sigmoid point of logistic growth curve
+    t_sig = pd.Timestamp('2021-07-01')
+    # Steepness of curve
+    k = 0.3
+    
+    if t <= t1:
+        # Data Tom Wenseleers on British variant
+        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
+    else:
+        # Hypothetical Indian variant
+        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+        return np.array([0, 1-logistic, logistic])
 
 # -----------------------------------
 # Time-dependant vaccination function
@@ -294,7 +307,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave2, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_wave2, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
 
 #############
 ## JOB: R0 ##
@@ -469,7 +482,7 @@ states = ["H_in"]
 
 # optimisation settings
 model.parameters['K_hosp'] = 1.4
-pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf']
+pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf1']
 bounds=((0.008,0.04),(3,14),(3,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.20,0.99),(1,1.6))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
@@ -505,7 +518,7 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf']
+pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf1']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.10,1), (0.10,1), (0.10,1), (0.10,1),(1.3,1.8)]
 # Perturbate PSO Estimate
