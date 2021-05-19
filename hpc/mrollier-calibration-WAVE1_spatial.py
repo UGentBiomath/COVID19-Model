@@ -324,7 +324,7 @@ if __name__ == '__main__':
         # Assign estimate.
         warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
-        
+
         # Perform simulation with best-fit results
         out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
@@ -334,7 +334,7 @@ if __name__ == '__main__':
         print(f'------------')
         print(f'warmup: {warmup}')
         print(f'infectivities {pars[1:]}: {theta[1:]}.')
-        
+
         # Visualize fit and save in order to check the validity of the first step
         ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
         title=f'warmup: {round(warmup)}; {pars[1:]}: {[round(th,3) for th in theta[1:]]}.'
@@ -345,7 +345,7 @@ if __name__ == '__main__':
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
         plt.close()
 
-        
+
         # ------------------
         # Setup MCMC sampler
         # ------------------
@@ -357,13 +357,13 @@ if __name__ == '__main__':
         pars = ['beta_R', 'beta_U', 'beta_M']
         pert = [0.02, 0.02, 0.02]
         ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args)
-        
+
         # Set up the sampler backend if needed
         if backend:
             filename = f'{spatial_unit}_backend_{run_date}'
             backend = emcee.backends.HDFBackend(results_folder+filename)
             backend.reset(nwalkers, ndim)
-            
+
         # Labels for traceplots
         labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
         # Arguments of chosen objective function
@@ -371,20 +371,20 @@ if __name__ == '__main__':
         objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
         objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
-        
+
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
 
-        
+
         # ----------------
         # Run MCMC sampler
         # ----------------
-        
+
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
                            objective_fcn_kwargs, backend, spatial_unit, run_date, job)
 
-        
+
         # ---------------
         # Process results
         # ---------------
@@ -421,15 +421,15 @@ if __name__ == '__main__':
 
         # Work is done
         sys.exit()
-        
-#######################################################################################################################################
-        
+
+    #######################################################################################################################################
+
     ###############
     ## JOB: FULL ##
     ###############
 
     elif job == 'FULL':
-        
+
         # ------------------
         # Calibration set-up
         # ------------------
@@ -445,7 +445,7 @@ if __name__ == '__main__':
             end_calibration = str(args.enddate)
         # Spatial unit: depends on aggregation
         spatial_unit = f'{agg}_WAVE1-{job}_{signature}'
-            
+
         # PSO settings
         processes = mp.cpu_count()
         multiplier = 10
@@ -458,7 +458,7 @@ if __name__ == '__main__':
 
         # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
         poisson_offset = 1
-            
+
 
         # -------------------------
         # Print statement to stdout
@@ -470,8 +470,8 @@ if __name__ == '__main__':
         print('Using data from '+start_calibration+' until '+end_calibration+'\n')
         print('1) Particle swarm optimization\n')
         print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-        
-        
+
+
         # --------------
         # define dataset
         # --------------
@@ -480,8 +480,8 @@ if __name__ == '__main__':
         data=[df_sciensano[start_calibration:end_calibration]]
         states = ["H_in"]
         weights = [1]
-        
-        
+
+
         # -----------
         # Perform PSO
         # -----------
@@ -506,7 +506,7 @@ if __name__ == '__main__':
         print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
         print(f'compliance l: {theta[3]}')
         print(f'effectivities prev_home, prev_schools, prev_work, prev_rest: {theta[4:]}')
-        
+
         # Visualize fit and save in order to check the validity of the first step
         ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
         title=f'Full calibration (infectivities, compliance, effectivity).'
@@ -530,13 +530,13 @@ if __name__ == '__main__':
         pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
         pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
         ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args)
-        
+
         # Set up the sampler backend if needed
         if backend:
             filename = f'{spatial_unit}_backend_{run_date}'
             backend = emcee.backends.HDFBackend(results_folder+filename)
             backend.reset(nwalkers, ndim)
-            
+
         # Labels for traceplots
         labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_{home}$', \
                   '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$']
@@ -545,20 +545,20 @@ if __name__ == '__main__':
         objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
         objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
-        
+
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
-        
-        
+
+
         # ----------------
         # Run MCMC sampler
         # ----------------
-        
+
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
                            objective_fcn_kwargs, backend, spatial_unit, run_date, job)
-        
-        
+
+
         # ---------------
         # Process results
         # ---------------
@@ -592,4 +592,3 @@ if __name__ == '__main__':
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-        
