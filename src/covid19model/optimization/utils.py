@@ -118,6 +118,14 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Multiplier determining the total numer of markov chains that will be run by emcee.
         Total nr. chains = multiplier * nr. parameters
         Default (minimum): 2
+        
+    bounds : array of tuples of floats
+        Ordered boundaries for the parameter values, e.g. ((0.1, 1.0), (1.0, 10.0)) if there are two parameters.
+        Note: bounds must not be zero, because the perturbation is based on a percentage of the value,
+        and any percentage of zero returns zero, causing a 
+        
+    verbose : boolean
+        Print user feedback to stdout
 
     Returns
     -------
@@ -131,14 +139,31 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Initial positions for markov chains. Dimensions: [ndim, nwalkers]
     """
 
+    # Validation
+    if len(theta) != len(pert):
+        raise Exception('The parameter value array "theta" must have the same length as the perturbation value array "pert".')
+    if bounds and (len(bounds) != len(theta)):
+        raise Exception('If bounds is not None, it must contain a tuple for every parameter in theta')
+        
+    if bounds:
+        # Define clipping values: perturbed value must not fall outside this range
+        lower_bounds = [bounds[i][0]/(1-pert[i]) for i in range(len(bounds))]
+        upper_bounds = [bounds[i][1]/(1+pert[i]) for i in range(len(bounds))]
+    
     ndim = len(theta)
     nwalkers = ndim*multiplier
     cond_number=np.inf
+    retry_counter=0
     while cond_number == np.inf:
+        if bounds:
+            theta = np.clip(theta, lower_bounds, upper_bounds)
         pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
         cond_number = np.linalg.cond(pos)
-        if ((cond_number == np.inf) and verbose):
-            print("Condition number too high, recalculating perturbations.")
+        if ((cond_number == np.inf) and verbose and (retry_counter<20)):
+            print("Condition number too high, recalculating perturbations. Perhaps one or more of the bounds is zero?")
+            retry_counter += 1
+        elif retry_counter >= 20:
+            raise Exception("Attempted 20 times to perturb parameter values but the condition number remains too large.")
     if verbose:
         print('Total number of markov chains: ' + str(nwalkers)+'\n')
     return ndim, nwalkers, pos
