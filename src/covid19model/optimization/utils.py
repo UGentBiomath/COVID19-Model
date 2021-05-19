@@ -13,7 +13,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, backend, spatial_unit, run_date, job):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -25,8 +25,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
     autocorr = np.zeros([1,ndim])
 
     with Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn,backend=backend,pool=pool,
-                        args=objective_fcn_args)
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % print_n:
@@ -102,7 +102,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, bac
 
     return sampler
 
-def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
+def perturbate_PSO(theta, pert, multiplier=2):
     """ A function to perturbate a PSO estimate and construct a matrix with initial positions for the MCMC chains
 
     Parameters
@@ -118,9 +118,6 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
         Multiplier determining the total numer of markov chains that will be run by emcee. 
         Total nr. chains = multiplier * nr. parameters
         Default (minimum): 2
-        
-    bounds: list of tuples of floats
-        boundary values of the parameters. Perturbation should not go outside this value. Bounds should not be zero!
 
     Returns
     -------
@@ -134,17 +131,6 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None):
         Initial positions for markov chains. Dimensions: [ndim, nwalkers]
     """
 
-    if bounds:
-        if len(bounds) != len(theta):
-            raise Exception("The boundaries list should be of the same length as the paramer values list.")
-        for idx in range(len(theta)):
-            lower_bound = bounds[idx][0] / (1 - pert[idx])
-            upper_bound = bounds[idx][1] / (1 + pert[idx])
-            if theta[idx] <= lower_bound:
-                theta[idx] = lower_bound
-            elif theta[idx] >= upper_bound:
-                theta[idx] = upper_bound
-    
     ndim = len(theta)
     nwalkers = ndim*multiplier
     pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
