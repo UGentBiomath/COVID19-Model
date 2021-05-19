@@ -272,7 +272,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,weights,bounds,draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
+def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
@@ -324,7 +324,7 @@ def fit_pso(model,data,parNames,states,weights,bounds,draw_fcn=None,samples=None
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
 
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,weights,parNames), kwargs={'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'weights': weights, 'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
 
     theta_hat = p_hat
 

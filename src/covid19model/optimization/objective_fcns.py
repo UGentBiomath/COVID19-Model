@@ -3,7 +3,7 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
-def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):
+def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset.
@@ -19,10 +19,6 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
         list containing dataseries
     states: list
         list containg the names of the model states to be fitted to data
-    weights: list
-        Weight attributed to each time series and (if agg != None) within those time series to each NIS.
-        weights = list of floats (one per time series), or (in spatial case) list of dicts (one per time series),
-        with NIS codes as keys and weights as values.
     parNames: list
         names of parameters to be fitted
     dist : str
@@ -46,7 +42,7 @@ def MLE(thetas,model,data,states,weights,parNames,draw_fcn=None,samples=None,sta
 
     Example use
     -----------
-    MLE = MLE(thetas, model, data, states, weights, parNames)
+    MLE = MLE(model,thetas,data,parNames,positions)
     """
 
     # ~~~~~~~~~~~~~~~~~~~~
@@ -322,7 +318,7 @@ def prior_weibull(x,weibull_params):
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
 
-def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,weights,parNames,draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset=0, agg=None):
+def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset=0, agg=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -373,4 +369,4 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,we
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,weights,parNames,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
+        return lp - MLE(thetas,model,data,states,parNames,weights=weights,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee

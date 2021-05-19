@@ -23,7 +23,7 @@ register_matplotlib_converters()
 
 from .utils import stratify_beta # read_coordinates_nis, dens_dep
 from ..optimization import pso
-from .QALY import create_life_table 
+from .QALY import create_life_table
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
@@ -53,7 +53,8 @@ from .base import BaseModel
 
 class simple_multivariant_SIR(BaseModel):
     """
-    A minimal example of a compartmental disease model with an implementation of transient multivariant dynamics
+    A minimal example of a SIR compartmental disease model with an implementation of transient multivariant dynamics
+    Can be reduced to a single-variant SIR model by setting injection_ratio to zero.
 
     Parameters
     ----------
@@ -71,12 +72,12 @@ class simple_multivariant_SIR(BaseModel):
 
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
-        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
 
         Non-stratified parameters
         -------------------------
-        gamma : recovery rate (inverse of duration of infectiousness)
+
         beta : probability of infection when encountering an infected person
+        gamma : recovery rate (inverse of duration of infectiousness)
         injection_day : day at which injection_ratio of the new strain is introduced in the population
         injection_ratio : initial fraction of alternative variant
 
@@ -88,12 +89,12 @@ class simple_multivariant_SIR(BaseModel):
 
     # state variables and parameters
     state_names = ['S', 'I', 'R', 'alpha']
-    parameter_names = ['gamma', 'beta', 'injection_day', 'injection_ratio']
+    parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio']
     parameters_stratified_names = []
     stratification = ['Nc']
 
     @staticmethod
-    def integrate(t, S, I, R, alpha, gamma, beta, injection_day, injection_ratio, K_inf, Nc):
+    def integrate(t, S, I, R, alpha, beta, gamma, injection_day, injection_ratio, K_inf, Nc):
         """Basic SIR model with multivariant capabilities"""
 
         # calculate total population
@@ -127,11 +128,100 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
+class simple_stochastic_SIR(BaseModel):
+    """
+    A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
+    Must be simulated in discrete timesteps by adding the argument `discrete=True` in the model initialization.
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+
+        S : susceptible
+        I : infectious
+        R : removed
+
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        gamma : recovery rate (inverse of duration of infectiousness)
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # state variables and parameters
+    state_names = ['S', 'I', 'R']
+    parameter_names = ['beta', 'gamma']
+    parameters_stratified_names = []
+    stratification = ['Nc']
+
+    @staticmethod
+    def integrate(t, S, I, R, beta, gamma, Nc):
+        """Basic stochastic SIR model """
+
+        # Define solver parameters
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        l = 1.0 # length of discrete timestep (by default one day)
+        n = 5 # number of draws to average in one timestep (slows down calculations but converges to a deterministic result when > 20)
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        T = S + I + R
+
+        # Make a dictionary containing the transitions and their propensities
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        keys = ['StoI','ItoR']
+        probabilities = [1 - np.exp( - beta*np.matmul(Nc,I/T) ),
+                        (1 - np.exp(- l * gamma ))*np.ones(S.size),
+                        ]
+        states = [S,I]
+        propensity={}
+        for i in range(len(keys)):
+            prop=[]
+            for j in range(S.size):
+                if states[i][j]<=0:
+                    prop.append(0)
+                else:
+                    draw=np.array([])
+                    for l in range(n):
+                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
+                    draw = np.rint(np.mean(draw))
+                    prop.append( draw )
+            propensity.update({keys[i]: np.asarray(prop)})
+
+        # calculate the states at timestep k+1
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        S_new  = S - propensity['StoI']
+        I_new =  I + propensity['StoI'] - propensity['ItoR']
+        R_new  =  R + propensity['ItoR']
+
+        # Add protection against states < 0
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        output = (S_new, I_new, R_new)
+        for i in range(len(output)):
+            output[i][output[i]<0] = 0
+
+        return S_new, I_new, R_new
+
 class COVID19_SEIRD(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
-    
+
     Parameters
     ----------
     To initialise the model, provide following inputs:
@@ -194,7 +284,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R',
                         'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
@@ -210,13 +300,13 @@ class COVID19_SEIRD(BaseModel):
 
         *Deterministic implementation*
         """
- 
+
         if Nc is None:
             print(t)
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         T = S + E + I + A + M + C + C_icurec + ICU + R
 
         # Compute infection pressure (IP) of both variants
@@ -227,26 +317,27 @@ class COVID19_SEIRD(BaseModel):
 
         # Account for higher hospitalisation propensity of new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
         h_new = (1-alpha)*h + alpha*K_hosp*h
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R 
-        dE  = (IP_old + IP_new)*S - E/sigma 
-        dI = (1/sigma)*E - (1/omega)*I 
-        dA = (a/omega)*I - A/da      
+        dS  = - (IP_old + IP_new)*S + zeta*R
+        dE  = (IP_old + IP_new)*S - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
 
         dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
-        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C
         dH_in = M*(h_new/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
@@ -256,7 +347,7 @@ class COVID19_SEIRD_vacc(BaseModel):
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
     Model compartments doubled for fundamental vaccination research.
-    
+
     Parameters
     ----------
     To initialise the model, provide following inputs:
@@ -285,7 +376,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         C_v : cohort and vaccinated
         C_icurec_v : cohort after recovery from ICU and vaccinated
         ICU_v : intensive care and vaccinated
-        R_v : recovered and vaccinated        
+        R_v : recovered and vaccinated
 
         H_in : new hospitalizations
         H_out : new hospital discharges
@@ -337,7 +428,7 @@ class COVID19_SEIRD_vacc(BaseModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
                     'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
+    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R',
                         'dICU_D', 'dICUrec','dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['Nc']
@@ -359,7 +450,7 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         # Calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         T = S + E + I + A + M + C + C_icurec + ICU + R\
             + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
 
@@ -381,10 +472,10 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
-        dE  = (IP_old + IP_new)*S - E/sigma 
-        dI = (1/sigma)*E - (1/omega)*I 
-        dA = (a/omega)*I - A/da      
+        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)
+        dE  = (IP_old + IP_new)*S - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
         dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
@@ -393,11 +484,11 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R - (1/d_vacc)*S_v
-        dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma 
-        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
-        dA_v = (a/omega)*I_v - A_v/da      
+        dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v
+        dA_v = (a/omega)*I_v - A_v/da
         dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h_new)/dm) - M_v*(1-e_h)*h_new/dhospital
         dC_v = M_v*(1-e_h)*(h_new/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h)*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
@@ -417,113 +508,6 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
-
-class COVID19_SEIRD_sto(BaseModel):
-    """
-    Biomath extended SEIRD model for COVID-19
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-
-    """
-
-    # ...state variables and parameters
-
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 
-                   'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta', 'da', 'dm', 'der', 
-                       'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
-    stratification = ['Nc']
-
-    # ..transitions/equations
-    @staticmethod
-
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, der, dc_R, dc_D, dICU_R, dICU_D, dICUrec,
-                  dhospital, s, a, h, c, m_C, m_ICU, Nc):
-
-        """
-        BIOMATH extended SEIRD model for COVID-19
-
-        *Antwerp University stochastic implementation*
-        """
-
-        # Define solver parameters
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        l = 1.0 # length of discrete timestep
-        n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
-
-        # Make a dictionary containing the transitions and their propensities
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
-        probabilities = [1 - np.exp( - l*s*beta*np.matmul(Nc,((I+A)/T)) ),
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones(S.size),
-                        1 - np.exp(- l * a * (1/omega) ),
-                        1 - np.exp(- l * (1-a)* (1/omega) ),
-                        (1 - np.exp(- l * (1/da) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones(S.size),
-                        1 - np.exp(- l * h * (1/dhospital) ),
-                        1 - np.exp(- l * c * (1/der) ),
-                        1 - np.exp(- l * (1-c) * (1/der) ),
-                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones(S.size),
-                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones(S.size),
-                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones(S.size),
-                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones(S.size),
-                        (1 - np.exp(- l * zeta ))*np.ones(S.size),
-                        ]
-        states = [S,E,I,I,A,M,M,ER,ER,C,ICU,C_icurec,C,ICU,R]
-        propensity={}
-        for i in range(len(keys)):
-            prop=[]
-            for j in range(S.size):
-                if states[i][j]<=0:
-                    prop.append(0)
-                else:
-                    draw=np.array([])
-                    for l in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
-                    draw = np.rint(np.mean(draw))
-                    prop.append( draw )
-            propensity.update({keys[i]: np.asarray(prop)})
-
-        # calculate the states at timestep k+1
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        S_new  = S - propensity['StoE'] + propensity['RtoS']
-        E_new  =  E + propensity['StoE'] - propensity['EtoI']
-        I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
-        A_new =  A + propensity['ItoA'] - propensity['AtoR']
-        M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoER']
-        ER_new = ER + propensity['MtoER'] - propensity['ERtoC'] - propensity['ERtoICU']
-        C_new =  C + propensity['ERtoC'] - propensity['CtoR'] - propensity['CtoD']
-        C_icurec_new =  C_icurec + propensity['ICUtoCicurec'] - propensity['CicurectoR']
-        ICU_new =  ICU +  propensity['ERtoICU'] - propensity['ICUtoCicurec'] - propensity['ICUtoD']
-        R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
-        D_new  = D +  propensity['ICUtoD'] +  propensity['CtoD']
-        H_in_new = propensity['ERtoC'] + propensity['ERtoICU']
-        H_out_new = propensity['CtoR'] + propensity['CicurectoR']
-        H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
-
-        # Add protection against states < 0
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new,ICU_new, R_new, D_new,H_in_new,H_out_new,H_tot_new)
-        for i in range(len(output)):
-            output[i][output[i]<0] = 0
-
-        return output
 
 class COVID19_SEIRD_spatial(BaseModel):
     """
@@ -591,183 +575,9 @@ class COVID19_SEIRD_spatial(BaseModel):
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta','da', 'dm','dhospital', 
-                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
-    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
-    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
-    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
-    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
-
-    # ..transitions/equations
-    @staticmethod
-
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
-                  area, sg, p,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
-                  place, Nc): # stratified parameters that determine stratification dimensions
-
-        """
-        BIOMATH extended SEIRD model for COVID-19
-        """
-
-#         print('CHECKPOINT: start integration function')
-        
-        # calculate total population
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
-
-        # Define all the parameters needed to determine the rates of change
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
-        # For total population and for the relevant compartments I and A
-        G = place.shape[0] # spatial stratification
-        N = Nc.shape[0] # age stratification
-        
-        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
-        # TO DO: add age stratification for p
-        
-        # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
-        T_eff = np.matmul(np.transpose(place_eff), T)
-        A_eff = np.matmul(np.transpose(place_eff), A)
-        I_eff = np.matmul(np.transpose(place_eff), I)
-                
-        # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
-        Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
-        
-        # Density dependence per patch: f[patch]
-        T_eff_total = T_eff.sum(axis=1)
-        rho = T_eff_total / area
-        f = 1 + (1 - np.exp(-xi * rho))
-
-        # Normalisation factor per age class: zi[age]
-        # Population per age class
-        Ti = T.sum(axis=0)
-        zi = Ti / np.matmul(np.transpose(T_eff),f)
-        
-        # infer aggregation (prov, arr or mun)
-        agg = None
-        if G == 11:
-            agg = 'prov'
-        elif G == 43:
-            agg = 'arr'
-        elif G == 581:
-            agg = 'mun'
-        else:
-            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
-        
-        # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
-        # Default values for RU_threshold and UM_threshold are taken. beta[patch]
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
-        
-        # Define the number of contacts multiplier per patch and age, multip[patch,age]
-        multip = np.matmul( (I_eff + A_eff)/T_eff , np.transpose(Nc) )
-        
-        # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
-        multip *= np.outer(f, s*zi)
-        
-        # if infectivity depends on VISITED region (beta^h), beta_localised = True
-        # if infectivity depends on region of origin (beta^g), beta_localised = False
-        # Change this in hard-code depending on preference
-        beta_localised = True
-        if beta_localised:
-            multip *= beta[:,np.newaxis]
-        else:
-            Susc *= beta[:,np.newaxis,:]
-        
-        # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
-        # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
-        dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-        
-        dS  = -dS_inf + zeta*R
-        dE  = dS_inf - E/sigma
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
-        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
-        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
-        dH_in = M*(h/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        
-        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
-    
-class COVID19_SEIRD_spatial_vacc(BaseModel):
-    """
-    BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-
-        Non-stratified parameters
-        -------------------------
-        beta_R : probability of infection when encountering an infected person in rural environment
-        beta_U : probability of infection when encountering an infected person in urban environment
-        beta_M : probability of infection when encountering an infected person in metropolitan environment
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
-        sigma : length of the latent period
-        omega : length of the pre-symptomatic infectious period
-        zeta : effect of re-susceptibility and seasonality
-        a : probability of an asymptomatic cases
-        m : probability of an initially mild infection (m=1-a)
-        da : duration of the infection in case of asymptomatic
-        dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
-        dc : average length of a hospital stay when not in ICU
-        dICU_R : average length of a hospital stay in ICU in case of recovery
-        dICU_D: average length of a hospital stay in ICU in case of death
-        dhospital : time before a patient reaches the hospital
-        xi : factor controlling the contact dependence on density f
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
-
-        Age-stratified parameters
-        -------------------------
-        s: relative susceptibility to infection
-        a : probability of a subclinical infection
-        h : probability of hospitalisation for a mild infection
-        c : probability of hospitalisation in Cohort (non-ICU)
-        m_C : mortality in Cohort
-        m_ICU : mortality in ICU
-        pi : mobility parameter (1 by default = no measures)
-        N_vacc : daily number of people vaccinated in each age group
-        e : vaccine effectivity
-        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
-
-        Spatially-stratified parameters
-        -------------------------------
-        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
-        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
-        sg : average size of a household per patch. Not used as of yet.
-
-
-        Other parameters
-        ----------------
-        Nc : contact matrix between all age groups in stratification
-
-    """
-
-    # ...state variables and parameters
-
     state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'VE', 'V', 'V_new','alpha']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 
-                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio', 'K_inf', 'K_hosp']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'K', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital',
+                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'injection_day', 'injection_ratio']
     parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'v', 'e', 'N_vacc', 'leakiness']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -777,9 +587,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, VE, V, V_new, alpha, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
-                  injection_day,  injection_ratio, K_inf, K_hosp, # co-infection params
+                  beta_R, beta_U, beta_M, K, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D,
+                        dICU_R, dICU_D, dICUrec, xi, injection_day,  injection_ratio,# SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, v, e, N_vacc, leakiness, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -796,26 +605,26 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
-        
+
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
         # TO DO: add age stratification for p
-        
+
         # Effective population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
         T_eff = np.matmul(np.transpose(place_eff), T)
         A_eff = np.matmul(np.transpose(place_eff), A)
         I_eff = np.matmul(np.transpose(place_eff), I)
         V_eff = np.matmul(np.transpose(place_eff), V)
         alpha_eff = np.matmul(np.transpose(place_eff), alpha)
-                
+
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         V_Susc = place_eff[:,:,np.newaxis]*V[:,np.newaxis,:]
-        
+
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
@@ -825,7 +634,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Population per age class
         Ti = T.sum(axis=0)
         zi = Ti / np.matmul(np.transpose(T_eff),f)
-        
+
         # infer aggregation (prov, arr or mun)
         agg = None
         if G == 11:
@@ -836,20 +645,20 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
             agg = 'mun'
         else:
             raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
-        
+
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
-        
-        # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age], 
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg)
+
+        # Define actual beta due to VOCs, which is in general age-dependent. beta_weighted_av[patch,age],
         beta_weighted_av = (1-alpha_eff)*beta[:,np.newaxis] + alpha_eff*K*beta[:,np.newaxis]
-        
+
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         multip = np.matmul( (I_eff + A_eff + leakiness*V)/T_eff , np.transpose(Nc) )
-        
+
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
         multip *= np.outer(f, s*zi)
-        
+
         # Multiply with beta_weighted_av[patch,age]
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
@@ -860,7 +669,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         else:
             Susc *= beta_weighted_av[:,np.newaxis,:]
             V_Susc *= beta_weighted_av[:,np.newaxis,:]
-        
+
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age] and dV_inf[patch,age].
         dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
@@ -886,215 +695,16 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dalpha = alpha*K/(1-alpha+alpha*K) - alpha
         # If A and I are both zero, a division error occurs
         dalpha[np.isnan(dalpha)] = 0
-        
+
 
 
 
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
-        
+
 
         return (dS, dE, dI, dA, dM, dER, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dVE, dV_new, dV, dalpha)
-    
-    
-class COVID19_SEIRD_sto_spatial(BaseModel):
-    """
-    TO DO: this needs to be entirely updated!
-    
-    BIOMATH stochastic extended SEIRD model for COVID-19, spatially explicit. Note: enable discrete=True in model simulation.
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-
-    """
-
-    # ...state variables and parameters
-
-    state_names = ['S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'der','dhospital', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
-    parameters_stratified_names = [['area', 'sg'], ['s','a','h', 'c', 'm_C','m_ICU', 'pi']]
-    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
-    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
-    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
-
-    # ..transitions/equations
-    @staticmethod
-
-    def integrate(t, S, E, I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta, sigma, omega, zeta, da, dm, der, dhospital, dc_R, dc_D, dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
-                  area, sg,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, pi, # age-stratified parameters
-                  place, Nc): # stratified parameters that determine stratification dimensions
-
-        """
-        BIOMATH extended SEIRD model for COVID-19
-
-        *Antwerp University stochastic implementation*
-        """
-
-        # Define solver parameters
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        l = 1.0 # length of discrete timestep
-        n = 1 # number of draws to average in one timestep (slows down calculations but converges to deterministic results when > 20)
-        T = S + E + I + A + M + ER + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
-
-
-        # Define all the parameters needed to calculate the probability for an agent to get infected (following Arenas 2020)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Effective population per age class per patch: T[patch][age] due to mobility pi[age]
-        # For total population and for the relevant compartments I and A
-        G = place.shape[0] # spatial stratification
-        N = Nc.shape[0] # age stratification
-        T_eff = np.zeros([G,N]) # initialise
-        A_eff = np.zeros([G,N])
-        I_eff = np.zeros([G,N])
-        for g in range(G):
-            for i in range(N):
-                sumT = 0
-                sumA = 0
-                sumI = 0
-                # h is taken, so iterator for a sum is gg
-                for gg in range(G):
-                    term1 = (1 - pi[i]) * np.identity(G)[gg][g]
-                    term2 = pi[i] * place[gg][g]
-                    sumT += (term1 + term2) * T[gg][i]
-                    sumA += (term1 + term2) * A[gg][i]
-                    sumI += (term1 + term2) * I[gg][i]
-                T_eff[g][i] = sumT
-                A_eff[g][i] = sumA
-                I_eff[g][i] = sumI
-
-        # Density dependence per patch: f[patch]
-        T_eff_total = T_eff.sum(axis=1)
-        rho = T_eff_total / area
-        f = 1 + (1 - np.exp(-xi * rho))
-
-        # Normalisation factor per age class: zi[age]
-        # Population per age class
-        Ti = T.sum(axis=0)
-        denom = np.zeros(N)
-        for gg in range(G):
-            value = f[gg] * T_eff[gg]
-            denom += value
-        zi = Ti / denom
-
-        # The probability to get infected in the 'home patch' when in a particular age class: P[patch][age]
-        # initialisation for the summation over all ages below
-        argument = np.zeros([G,N])
-        for i in range(N):
-            for g in range(G):
-                summ = 0
-                for j in range(N):
-                    term = - beta * s[i] * zi[i] * f[g] * Nc[i,j] * (I_eff[g,j] + A_eff[g,j]) / T_eff[g,j] # this used to be T_eff[g,i]
-                    summ += term
-                argument[g,i] = summ
-        P = 1 - np.exp(l*argument) # multiplied by length of timestep
-        
-        # The probability to get infected in any patch when in a particular age class: Pbis[patch][age]
-        Pbis = np.zeros([G,N]) # initialise
-        # THIS NEEDS TO BE CHANGED if PLACE BECOMES AGE-STRATIFIED
-        for i in range(N):
-            for g in range(G):
-                summ = 0
-                for gg in range(G):
-                    term = place[g,gg] * P[gg,i]
-                    summ += term
-                Pbis[g,i] = summ
-
-        # The total probability bigP[patch][age], depending on mobility parameter pi[age]
-        bigP = np.zeros([G,N])
-        for i in range(N):
-            for g in range(G):
-                bigP[g,i] = (1 - pi[i]) * P[g,i] + pi[i] * Pbis[g,i]
-
-
-        # To be added: effect of average family size (sigma^g or sg)
-
-
-        # Make a dictionary containing the propensities of the system
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        keys = ['StoE','EtoI','ItoA','ItoM','AtoR','MtoR','MtoER','ERtoC','ERtoICU','CtoR','ICUtoCicurec','CicurectoR','CtoD','ICUtoD','RtoS']
-
-
-        # Probabilities for a single agent to migrate between SEIR compartments in one unit of the timestep (typically days)
-        probabilities = [bigP,
-                        (1 - np.exp(- l * (1/sigma) ))*np.ones([G,N]),
-                        1 - np.exp(- l * a * (1/omega) )*np.ones([G,N]),
-                        1 - np.exp(- l * (1-a)* (1/omega) )*np.ones([G,N]),
-                        (1 - np.exp(- l * (1/da) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * (1-h)* (1/dm) ))*np.ones([G,N]),
-                        1 - np.exp(- l * h * (1/dhospital) )*np.ones([G,N]),
-                        1 - np.exp(- l * c * (1/der) )*np.ones([G,N]),
-                        1 - np.exp(- l * (1-c) * (1/der) )*np.ones([G,N]),
-                        (1 - np.exp(- l * (1-m_C) * (1/dc_R) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * (1-m_ICU) * (1/dICU_R) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * (1/dICUrec) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * m_C * (1/dc_D) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * m_ICU * (1/dICU_D) ))*np.ones([G,N]),
-                        (1 - np.exp(- l * zeta ))*np.ones([G,N]),
-                        ]
-        
-        states = [S, E, I, I, A, M, M, ER, ER, C, ICU, C_icurec, C, ICU, R]
-        propensity={}
-        # Calculate propensity for each migration (listed in keys)
-        for k in range(len(keys)):
-            prop=np.zeros([G,N])
-            for g in range(G):
-                for i in range(N):
-                    # If state is empty, no one can migrate out of it
-                    if states[k][g][i]<=0:
-                        prop[g,i]=0
-                    else:
-                        draw=np.array([])
-                        # Loop over number of draws. Calculate binomial random number per draw and pick average
-                        for l in range(n):
-                            draw = np.append(draw,np.random.binomial(states[k][g][i],probabilities[k][g][i]))
-                        draw = np.rint(np.mean(draw)) # round to nearest integer
-                        prop[g,i] = draw
-            # Define migration flow
-            propensity.update({keys[k]: np.asarray(prop)})
-
-        # calculate the states at timestep k+1
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Add and subtract the ins and outs calculated binomially above
-        S_new  = S - propensity['StoE'] + propensity['RtoS']
-        E_new  =  E + propensity['StoE'] - propensity['EtoI']
-        I_new =  I + propensity['EtoI'] - propensity['ItoA'] - propensity['ItoM']
-        A_new =  A + propensity['ItoA'] - propensity['AtoR']
-        M_new =  M + propensity['ItoM'] - propensity['MtoR'] - propensity['MtoER']
-        ER_new = ER + propensity['MtoER'] - propensity['ERtoC'] - propensity['ERtoICU']
-        C_new =  C + propensity['ERtoC'] - propensity['CtoR'] - propensity['CtoD']
-        C_icurec_new =  C_icurec + propensity['ICUtoCicurec'] - propensity['CicurectoR']
-        ICU_new =  ICU +  propensity['ERtoICU'] - propensity['ICUtoCicurec'] - propensity['ICUtoD']
-        R_new  =  R + propensity['AtoR'] + propensity['MtoR'] + propensity['CtoR'] + propensity['CicurectoR'] - propensity['RtoS']
-        D_new  = D +  propensity['ICUtoD'] +  propensity['CtoD']
-        H_in_new = propensity['ERtoC'] + propensity['ERtoICU']
-        H_out_new = propensity['CtoR'] + propensity['CicurectoR']
-        H_tot_new = H_tot + H_in_new - H_out_new - propensity['ICUtoD'] -  propensity['CtoD']
-
-
-        # Add protection against states < 0
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, E_new, I_new, A_new, M_new, ER_new, C_new, C_icurec_new, ICU_new, R_new, D_new, H_in_new, H_out_new, H_tot_new)
-        # Any SEIR class with a negative population is brought to zero
-        for i in range(len(output)):
-            output[i][output[i]<0] = 0
-
-        return output
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 from covid19model.visualization.optimization import traceplot
-from covid19model.visualization.output import _apply_tick_locator 
+from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
@@ -25,16 +25,16 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     autocorr = np.zeros([1,ndim])
 
     with Pool() as pool:
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn,backend=backend,pool=pool,
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs)
         for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
             # Only check convergence every 10 steps
             if sampler.iteration % print_n:
                 continue
-            
+
             ##################
             # UPDATE FIGURES #
-            ################## 
+            ##################
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
@@ -55,7 +55,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             elif job == 'R0':
                 fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-            
+
             # Update traceplot
             if job == 'FULL':
                 traceplot(sampler.get_chain(),labels,
@@ -71,7 +71,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
 
             #####################
             # CHECK CONVERGENCE #
-            ##################### 
+            #####################
 
             # Check convergence using mean tau
             converged = np.all(np.mean(tau) * 50 < sampler.iteration)
@@ -85,7 +85,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ###############################
 
             # Write samples to dictionary every 200 steps
-            if sampler.iteration % print_n: 
+            if sampler.iteration % print_n:
                 continue
 
             flat_samples = sampler.get_chain(flat=True)
@@ -115,12 +115,9 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Relative perturbation factors (plus-minus) on PSO estimate
 
     multiplier : int
-        Multiplier determining the total numer of markov chains that will be run by emcee. 
+        Multiplier determining the total numer of markov chains that will be run by emcee.
         Total nr. chains = multiplier * nr. parameters
         Default (minimum): 2
-        
-    bounds: list of tuples of floats
-        boundary values of the parameters. Perturbation should not go outside this value. Bounds should not be zero!
 
     Returns
     -------
@@ -134,17 +131,6 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Initial positions for markov chains. Dimensions: [ndim, nwalkers]
     """
 
-    if bounds:
-        if len(bounds) != len(theta):
-            raise Exception("The boundaries list should be of the same length as the paramer values list.")
-        for idx in range(len(theta)):
-            lower_bound = bounds[idx][0] / (1 - pert[idx])
-            upper_bound = bounds[idx][1] / (1 + pert[idx])
-            if theta[idx] <= lower_bound:
-                theta[idx] = lower_bound
-            elif theta[idx] >= upper_bound:
-                theta[idx] = upper_bound
-    
     ndim = len(theta)
     nwalkers = ndim*multiplier
     cond_number=np.inf
@@ -204,7 +190,7 @@ def assign_PSO(param_dict, pars, theta):
             else:
                 param_dict[par] = theta[idx]
         return warmup, param_dict
-            
+
 def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
@@ -214,13 +200,13 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
 
     output : xr.DataArray
         Model simulation
-    
+
     theta : list (of floats)
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     pars : list (of strings)
         Names of model parameters estimated using PSO
-        
+
     data : list
         List containing dataseries to compare model output to in calibration objective function
 
@@ -229,7 +215,7 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
 
     start_calibration : string
         Startdate of calibration, 'YYYY-MM-DD'
-    
+
     end_calibration : string
         Enddate of calibration, 'YYYY-MM-DD'
 
@@ -262,7 +248,7 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
         except:
             ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
             ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax.set_xlim([start_calibration,end_calibration])            
+        ax.set_xlim([start_calibration,end_calibration])
     else:
         fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
         for idx,ax in enumerate(axes):
@@ -273,7 +259,7 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
             except:
                 ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
                 ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax.set_xlim([start_calibration,end_calibration]) 
+            ax.set_xlim([start_calibration,end_calibration])
     ax = _apply_tick_locator(ax)
     return ax
 
@@ -285,7 +271,7 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     ----------
     samples_dict : dict
         Dictionary containing MCMC samples
-    
+
     keys : lst
         List containing the names of the sampled parameters
 
@@ -328,7 +314,7 @@ def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     samples_discard = np.zeros([(samples_raw.shape[0]-discard),n_chains,flat_samples_raw.shape[1]])
     for i in range(samples_raw.shape[1]):
         for j in range(flat_samples_raw.shape[1]):
-            samples_discard[:,i,j] = samples_raw[discard:,i,j]  
+            samples_discard[:,i,j] = samples_raw[discard:,i,j]
     # Do thin
     samples = samples_discard[::thin,:,:]
     # Convert to flat samples
@@ -342,7 +328,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """
     Function to calculate the initial R value, based on prepandemic social contact and a dictionary of infectivity values.
     TO DO: the syntax of this function is very unpythonic.
-    
+
     Input
     -----
     samples_beta: dict
@@ -355,15 +341,15 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
         Intergenerational contact matrices
     agg: str
         If not None (default), choose between 'arr', 'prov' or 'mun', depending on spatial aggregation
-    
+
     Return
     ------
     R0 : float
         Resulting R0 value
     R0_stratified_dict: dict of float
-        Resulting R0 value per age (and per region if agg==True)    
+        Resulting R0 value per age (and per region if agg==True)
     """
-    
+
     if agg:
         beta = stratify_beta('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
         sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R
@@ -372,7 +358,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     else:
         sample_size = len(samples_beta['beta'])
         N = initN.size
-        
+
     if agg:
         # Define values for 'normalisation' of contact matrices
         T_eff = np.zeros([G,N])
@@ -396,7 +382,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
             for jj in range(N):
                 for hh in range(G):
                     Nc_total_spatial[hh][ii][jj] = zi[ii] * f[hh] * Nc_total[ii][jj]
-        
+
     R0 =[]
     # Weighted average R0 value over all ages (and all places). This needs to be modified if beta is further stratified
     for j in range(sample_size):
@@ -413,7 +399,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
                         model.parameters['s'][i] * np.sum(Nc_total, axis=1)[i] * initN[i]
             R0_temp = som / np.sum(initN)
         R0.append(R0_temp)
-        
+
     # Stratified R0 value: R0_stratified[place][age][chain] or R0_stratified[age][chain]
     # This needs to be modified if 'beta' is further stratified
     R0_stratified_dict = dict({})

@@ -45,7 +45,8 @@ samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD
 # --------------------
 
 # Contact matrices
-initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = model_parameters.get_interaction_matrices(dataset='willem_2012')
+initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
+levels = initN.size
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
 
@@ -59,7 +60,7 @@ R0 = np.zeros([N,sample_size])
 R0_norm = np.zeros([N,sample_size])
 for i in range(N):
     for j in range(sample_size):
-        R0[i,j] = (params['a'][i] * samples_dict['da'][j] + samples_dict['omega'][j]) * samples_dict['beta'][j] * np.sum(Nc_total, axis=1)[i]
+        R0[i,j] = (params['a'][i] * samples_dict['da'][j] + params['omega']) * samples_dict['beta'][j] * np.sum(Nc_all['total'], axis=1)[i]
     R0_norm[i,:] = R0[i,:]*(initN[i]/sum(initN))
     
 R0_age = np.mean(R0,axis=1)
@@ -73,5 +74,5 @@ print(np.quantile(np.sum(R0_norm,axis=0),q=1-0.05/2), R0_overall, np.quantile(np
 print(np.quantile(np.sum(R0_norm,axis=0),q=0.25), R0_overall, np.quantile(np.sum(R0_norm,axis=0),q=0.75))
 
 
-plt.hist(np.sum(R0_norm,axis=0),bins=20)
+plt.hist(np.sum(R0_norm,axis=0),bins=12)
 plt.show()

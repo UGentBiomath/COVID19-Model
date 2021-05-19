@@ -12,10 +12,10 @@ from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
 def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
-    
+
     samples = sampler.get_chain(discard=discard,thin=thin,flat=False)
     flatsamples = sampler.get_chain(discard=discard,thin=thin,flat=True)
-    
+
     # Traceplots of samples
     traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
     plt.savefig(fig_path+'traceplots/'+str(spatial_unit)+'_TRACE_'+figname+'_'+str(datetime.date.today())+'.pdf',
@@ -35,7 +35,7 @@ def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
 
 def autocorrelation_plot(samples):
     """Make a visualization of autocorrelation of each chain
-    
+
     Parameters
     ----------
     samples: np.array
@@ -231,7 +231,7 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
 def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, NIS=None, savename=None, **kwargs):
     """
     Plot the data as well as the calibration results with added binomial uncertainty.
-    
+
     Input
     -----
     out : covid19model simulation output
@@ -253,7 +253,7 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
         Complete path and name under which to save the resulting fit figure
     kwargs : dict
         Dictionary with keyword arguments for the matplotlib make-up.
-    
+
     Output
     ------
     ax : matplotlib ax object
@@ -268,7 +268,7 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
             all_ts = out[state].sel(place=NIS).sum(dim='Nc').values
     else:
         all_ts = out[state].sum(dim='Nc').values
-        
+
     # Compute mean and median
     ts_median = np.median(all_ts,axis=1)
     # Compute quantiles
@@ -277,15 +277,15 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
     ts_LL = np.quantile(all_ts, q = LL, axis = 0)
     ts_UL = np.quantile(all_ts, q = UL, axis = 0)
     ts_mean =np.mean(all_ts, axis=0)
-    
+
     # Plot
     if not ax:
         fig,ax = plt.subplots(figsize=(10,5))
-        
+
     # Simulation
     ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
     ax.plot(out['time'],ts_mean,'--', color='blue')
- 
+
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     if not spatial:
         ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
