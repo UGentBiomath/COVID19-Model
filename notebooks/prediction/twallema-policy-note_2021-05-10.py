@@ -350,8 +350,9 @@ def draw_fcn_no_vacc(param_dict,samples_dict):
     model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
-    model.parameters['K_inf'] = samples_dict['K_inf'][idx]
-    model.parameters['K_hosp'] = 1.4
+    model.parameters['K_inf1'] = samples_dict['K_inf'][idx]
+    model.parameters['K_inf2'] = samples_dict['K_inf'][idx]*np.random.uniform(low=1.3,high=1.5)
+    model.parameters['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
 
     # Hospitalization
     # ---------------
@@ -386,16 +387,17 @@ def draw_fcn_no_vacc(param_dict,samples_dict):
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-05-08', 'l_relax': 20})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-05-08', 'l_relax': 31})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 21, 'df_sciensano_start': df_sciensano_start,
+     'refusal': 0.2*np.ones(9), 'delay': 20, 'df_sciensano_start': df_sciensano_start,
      'df_sciensano_end': df_sciensano_end}
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policies_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
+                        
 # ----------------------------
 # Initialize results dataframe
 # ----------------------------
@@ -480,7 +482,7 @@ rm = ['df_sciensano_end','df_sciensano_start','refusal','delay','daily_dose','va
 for key in rm:
     del params[key]
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_full_relaxation, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_full_relaxation, 'alpha': stratified_VOC_func})
 model.parameters['relaxdate'] = '2021-06-01'
 model.parameters['N_vacc'] = np.zeros(9)
 out_no_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn_no_vacc,samples=samples_dict)

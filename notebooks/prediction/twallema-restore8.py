@@ -75,7 +75,7 @@ descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-ho
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
 relaxdates = ['2021-05-01','2021-06-01', '2021-07-01']
-doses = [55000,80000]
+doses = [80000]
 orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
 description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
@@ -469,7 +469,7 @@ def draw_fcn(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    
+
     param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1),
