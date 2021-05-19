@@ -87,6 +87,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         The objective values at each position in p
 
     """
+    
+#     print('CHECKPOINT: start of optim function')
+    
     lb, ub = [], []
     for variable_bounds in bounds:
         lb.append(variable_bounds[0])
@@ -123,10 +126,16 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     is_feasible = partial(_is_feasible_wrapper, cons)
 
+#     print('CHECKPOINT: right before first mention of multiprocessing in optim function')
+    
     # Initialize the multiprocessing module if necessary
     if processes > 1:
         import multiprocessing
+#         print('CHECKPOINT: multiprocessing is imported')
         mp_pool = multiprocessing.Pool(processes)
+        
+#     print('CHECKPOINT: right after first mention of multiprocessing in optim function')
+#     print(f'CHECKPOINT: processes = {processes}.')
     
     # Initialize the particle swarm ############################################
     S = swarmsize
@@ -177,6 +186,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     # Iterate until termination criterion met ##################################
     it = 1
+    
+#     print('CHECKPOINT: start of while loop in optim function')
+    
     while it <= maxiter:
         rp = np.random.uniform(size=(S, D))
         rg = np.random.uniform(size=(S, D))
@@ -194,19 +206,28 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
 
         # Update objectives and constraints
+        
+#         print('CHECKPOINT: right before multiprocessing pool init in optim function')
+        
         if processes > 1:
+#             print(f'CHECKPOINT: processes == {processes} in optim function')
             fx = np.array(mp_pool.map(obj, x))
             fs = np.array(mp_pool.map(is_feasible, x))
         else:
+#             print(f'CHECKPOINT: processes == {processes} in optim function')
             for i in range(S):
                 fx[i] = obj(x[i, :])
                 fs[i] = is_feasible(x[i, :])
+                
+#         print('CHECKPOINT: right after multiprocessing pool init in optim function')
 
         # Store particle's best position (if constraints are satisfied)
         i_update = np.logical_and((fx < fp), fs)
         p[i_update, :] = x[i_update, :].copy()
         fp[i_update] = fx[i_update]
 
+#         print('CHECKPOINT: end of first update in optim function')
+        
         # Compare swarm's best position with global best position
         i_min = np.argmin(fp)
         if fp[i_min] < fg:
@@ -289,6 +310,8 @@ def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
+#     print('CHECKPOINT: start of fit_pso function')
+    
     # Exceptions
     if processes > mp.cpu_count():
         raise ValueError(
