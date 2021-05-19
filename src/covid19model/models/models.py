@@ -309,35 +309,39 @@ class COVID19_SEIRD(BaseModel):
         
         T = S + E + I + A + M + C + C_icurec + ICU + R
 
-        # Compute infection pressure (IP) of both variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
-        IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A)/T))
-
         # Account for higher hospitalisation propensity of new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        h_new = (1-alpha)*h + alpha*K_hosp*h
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.sum(np.outer(beta*s*np.matmul(Nc,((I+A)/T)), alpha*K_inf),axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R 
-        dE  = (IP_old + IP_new)*S - E/sigma 
+        dS  = - IP*S + zeta*R 
+        dE  = IP*S - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da      
-        dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
 
-        dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
-        dH_in = M*(h_new/dhospital) - H_in
+        dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
@@ -345,7 +349,7 @@ class COVID19_SEIRD(BaseModel):
 class COVID19_SEIRD_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
-    Can account for re-infection and co-infection with a new COVID-19 variant.
+    Can account for re-infection and co-infection with a new COVID-19 variants.
     Model compartments doubled for fundamental vaccination research.
     
     Parameters
@@ -462,7 +466,7 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         # Compute weighted average hospitalization propensity and vaccination parameters in accordance with variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         if sum(alpha) != 1:
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
