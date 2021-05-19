@@ -597,7 +597,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         BIOMATH extended SEIRD model for COVID-19
         """
 
-        print('CHECKPOINT: start integration function')
+#         print('CHECKPOINT: start integration function')
         
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
