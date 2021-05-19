@@ -353,7 +353,7 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
 
     Example use
     -----------
-    lp = log_probability(model,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    lp = log_probability(model,thetas,bounds,data,states,parNames,weights=weights,checkpoints=None,method='MLE')
     """
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -369,4 +369,4 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,weights=weights,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
+        return lp - MLE(thetas, model, data, states, parNames, weights=weights, draw_fcn=draw_fcn, samples=samples, start_date=start_date, warmup=warmup, dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
