@@ -155,7 +155,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
     cond_number=np.inf
     retry_counter=0
     while cond_number == np.inf:
-        if bounds:
+        if bounds and (retry_counter==0):
             theta = np.clip(theta, lower_bounds, upper_bounds)
         pos = theta + theta*pert*np.random.uniform(low=-1,high=1,size=(nwalkers,ndim))
         cond_number = np.linalg.cond(pos)
