@@ -129,12 +129,25 @@ print('2) Initializing model\n')
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
+VOCB117_function = make_VOCB117_function()
 
-def VOC_wrapper_func(t,states,param):
+def stratified_VOC_func(t,states,param):
     t = pd.Timestamp(t.date())
-    return VOC_function(t)
+    # Introduction Indian variant
+    t1 = pd.Timestamp('2021-05-15')
+    # Sigmoid point of logistic growth curve
+    t_sig = pd.Timestamp('2021-07-01')
+    # Steepness of curve
+    k = 0.3
+    
+    if t <= t1:
+        # Data Tom Wenseleers on British variant
+        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
+    else:
+        # Hypothetical Indian variant
+        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+        return np.array([0, 1-logistic, logistic])
 
 # -----------------------------------
 # Time-dependant vaccination function
@@ -450,15 +463,23 @@ def draw_fcn(param_dict,samples_dict):
     model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
-    model.parameters['K_inf'] = samples_dict['K_inf'][idx]
-    model.parameters['K_hosp'] = np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_inf1'] = samples_dict['K_inf'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf'][idx]*np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
 
     # Vaccination
     # -----------
-    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    param_dict['delay'] = np.mean(np.random.triangular(1, 40, 40, size=30))
+    
+    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
+    param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
+                                  np.random.uniform(low=0.8,high=1),
+                                  np.random.uniform(low=0.8,high=1)])
+    param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
+                                  np.random.uniform(low=0.90,high=0.99),
+                                  np.random.uniform(low=0.90,high=0.99)])                          
+    param_dict['e_h'] = np.array([np.random.uniform(low=0.8,high=1.0),
+                                  np.random.uniform(low=0.8,high=1.0),
+                                  np.random.uniform(low=0.8,high=1.0)])
     param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
@@ -501,7 +522,7 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 28})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 20})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
@@ -510,7 +531,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
 
 # ----------------------------
 # Initialize results dataframe

@@ -124,12 +124,25 @@ print('2) Initializing model\n')
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
+VOCB117_function = make_VOCB117_function()
 
-def VOC_wrapper_func(t,states,param):
+def stratified_VOC_func(t,states,param):
     t = pd.Timestamp(t.date())
-    return VOC_function(t)
+    # Introduction Indian variant
+    t1 = pd.Timestamp('2021-05-15')
+    # Sigmoid point of logistic growth curve
+    t_sig = pd.Timestamp('2021-07-01')
+    # Steepness of curve
+    k = 0.3
+    
+    if t <= t1:
+        # Data Tom Wenseleers on British variant
+        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
+    else:
+        # Hypothetical Indian variant
+        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+        return np.array([0, 1-logistic, logistic])
 
 # -----------------------------------
 # Time-dependant vaccination function
@@ -317,11 +330,11 @@ def policies_full_relaxation(t, states, param, l , l_relax, prev_schools, prev_w
 # Helper functions
 # ----------------
 
-from covid19model.models.utils import output_to_visuals
+from covid19model.models.utils import output_to_visuals, draw_fcn_WAVE2
 
 def draw_fcn_no_vacc(param_dict,samples_dict):
     """ 
-    This draw function differes from the one located in the `~/src/models/utils.py` because daily_dose is not included
+    This draw function differes from the one located in the `~/src/models/utils.py` because the vaccination is excluded
     """
 
     # Calibration of WAVE 1
@@ -339,63 +352,6 @@ def draw_fcn_no_vacc(param_dict,samples_dict):
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
     model.parameters['K_inf'] = samples_dict['K_inf'][idx]
     model.parameters['K_hosp'] = 1.4
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(9):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=100
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-
-    return param_dict
-
-def draw_fcn(param_dict,samples_dict):
-    """ 
-    This draw function differes from the one located in the `~/src/models/utils.py` because daily_dose is not included
-    """
-
-    # Calibration of WAVE 1
-    # ---------------------
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
-
-    # Calibration of WAVE 2
-    # ---------------------
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    model.parameters['da'] = samples_dict['da'][idx]
-    model.parameters['l'] = samples_dict['l'][idx]  
-    model.parameters['prev_schools'] = samples_dict['prev_schools'][idx]    
-    model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
-    model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
-    model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
-    model.parameters['K_inf'] = samples_dict['K_inf'][idx]
-    model.parameters['K_hosp'] = 1.4
-
-    # Vaccination
-    # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
-    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    param_dict['delay'] = np.mean(np.random.triangular(1, 40, 40, size=30))
-    param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
 
     # Hospitalization
     # ---------------
@@ -430,7 +386,7 @@ def draw_fcn(param_dict,samples_dict):
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-05-08', 'l_relax': 15})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-05-08', 'l_relax': 20})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
@@ -439,7 +395,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
 # ----------------------------
 # Initialize results dataframe
 # ----------------------------
@@ -462,7 +418,7 @@ df_sim = df_sim_virgin.copy(deep=True)
 for idx,relaxdate in enumerate(relaxdates):
     model.parameters.update({'relaxdate': relaxdate})
     print('\t# relaxdate '+relaxdate)
-    out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+    out_vacc = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
     simtime, df_2plot = output_to_visuals(out_vacc, states, n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
     for idx,state in enumerate(states):
         for jdx, quantity in enumerate(quantities):
