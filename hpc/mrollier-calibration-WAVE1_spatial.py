@@ -317,9 +317,9 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-        bounds=((10,80),(0.020,0.060), (0.020,0.060), (0.020,0.060))
+        bounds=((10.0,80.0),(0.020,0.060), (0.020,0.060), (0.020,0.060))
         # run optimisation
-        theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize, dist='poisson',
+        theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
         # Assign estimate.
         warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -489,7 +489,7 @@ if __name__ == '__main__':
         pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
         bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
         # run optimisation
-        theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize, dist='poisson',
+        theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
