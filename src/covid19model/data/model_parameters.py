@@ -409,7 +409,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['beta_M'] = 0.03492 # metropolitan
         
     # Co-infection model: infectivity gain
-    pars_dict['alpha'] = 0
+    pars_dict['alpha'] = [1] # Must be a list so we can check if "sum(alpha) == 1" 
     pars_dict['K_inf'] = 1
     pars_dict['K_hosp'] = 1
 
