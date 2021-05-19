@@ -398,7 +398,9 @@ class COVID19_SEIRD_vacc(BaseModel):
         -------------------------
         beta : probability of infection when encountering an infected person
         alpha : fraction of alternative COVID-19 variant
-        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf2 : infectivity gain of Indian COVID-19 variant
+        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
         K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
