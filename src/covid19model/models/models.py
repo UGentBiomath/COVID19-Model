@@ -445,6 +445,7 @@ class COVID19_SEIRD_vacc(BaseModel):
         *Deterministic implementation*
         """
 
+        # Print timestep of faulty social policy
         if Nc is None:
             print(t)
 
@@ -462,6 +463,8 @@ class COVID19_SEIRD_vacc(BaseModel):
         # Compute weighted average hospitalization propensity and vaccination parameters in accordance with variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        # NOTE: This requires the sizes of alpha, K_hosp, K_inf, e_i, e_s, e_h, e_a to be consistent 
+        # However, because this requires a for loop, we omit a test
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
         e_i = np.sum(alpha*e_i)
         e_s = np.sum(alpha*e_s)
