@@ -462,7 +462,11 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         # Compute weighted average hospitalization propensity and vaccination parameters in accordance with variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
         # NOTE: This requires the sizes of alpha, K_hosp, K_inf, e_i, e_s, e_h, e_a to be consistent 
         # However, because this requires a for loop, we omit a test
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
