@@ -276,7 +276,7 @@ if __name__ == '__main__':
         spatial_unit = f'{agg}_WAVE1-{job}_{signature}'
 
         # PSO settings
-        processes = mp.cpu_count()
+        processes = os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())
         multiplier = 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
@@ -447,7 +447,7 @@ if __name__ == '__main__':
         spatial_unit = f'{agg}_WAVE1-{job}_{signature}'
 
         # PSO settings
-        processes = mp.cpu_count()
+        processes = os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())
         multiplier = 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
