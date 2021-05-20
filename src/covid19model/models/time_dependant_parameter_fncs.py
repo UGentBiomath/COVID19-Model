@@ -24,54 +24,6 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
 
-
-def contact_matrix(t, df_google, Nc_all, prev_home=1, prev_schools=1, prev_work=1, prev_transport=1, prev_leisure=1, prev_others=1, school=None, work=None, transport=None, leisure=None, others=None):
-    """
-    t : timestamp
-        current date
-    Nc_all : dictionnary
-        contact matrices for home, schools, work, transport, leisure and others
-    prev_... : float [0,1]
-        prevention parameter to estimate
-    school, work, transport, leisure, others : float [0,1]
-        level of opening of these sectors
-        if None, it is calculated from google mobility data
-        only school cannot be None!
-    """
-    
-    if t < pd.Timestamp('2020-03-15'):
-        CM = Nc_all['total']
-    else:
-        
-        if school is None:
-            raise ValueError(
-            "Please indicate to which extend schools are open")
-        
-        if pd.Timestamp('2020-03-15') < t <= df_google.index[-1]:
-            #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-            row = -df_google[df_google.index == pd.Timestamp(t.date())]/100 
-        else:
-            row = -df_google.iloc[[-1],:]/100
-
-        if work is None:
-            work=(1-row['work'].values)[0]
-        if transport is None:
-            transport=(1-row['transport'].values)[0]
-        if leisure is None:
-            leisure=(1-row['retail_recreation'].values)[0]
-        if others is None:
-            others=(1-row['grocery'].values)[0]
-
-        CM = (prev_home*(1/2.3)*Nc_all['home'] + 
-              prev_schools*school*Nc_all['schools'] + 
-              prev_work*work*Nc_all['work'] + 
-              prev_transport*transport*Nc_all['transport'] + 
-              prev_leisure*leisure*Nc_all['leisure'] + 
-              prev_others*others*Nc_all['others']) 
-
-
-    return CM
-
 def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     """
     Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
@@ -142,32 +94,40 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     return all_mobility_data, average_mobility_data
     
 
-def make_mobility_update_func():
+# ~~~~~~~~~~~~~~~~~~~~~~~~~
+# Mobility update functions
+# ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class make_mobility_update_function():
     """
-    Function that outputs the mobility_update_func and puts the data in cache, such that the CSV files do not have to be visited for every time step.
-    
+    Output the time-dependent mobility function with the data loaded in cache
+
     Input
     -----
-    all_mobility_data : pd.DataFrame
-        DataFrame with dates (in datetime) as indices (under 'DATE') and mobility matrices (np.array with floats) as values (under 'place')
-    average_mobility_data : np.array
-        average mobility matrix over all available dates
-        
-    Returns
-    -------
-    mobility_update_func : function
+    proximus_mobility_data : DataFrame
+        Pandas DataFrame with dates as indices and matrices as values. Output of mobility.get_proximus_mobility_data.
+    proximus_mobility_data_avg : np.array
+        Average mobility matrix over all matrices
+    """
+    def __init__(self, proximus_mobility_data, proximus_mobility_data_avg):
+        self.proximus_mobility_data = proximus_mobility_data
+        self.proximus_mobility_data_avg = proximus_mobility_data_avg
+
+    @lru_cache()
+    # Define mobility_update_func
+    def __call__(self, t, default_mobility=None):
+        """
         time-dependent function which has a mobility matrix of type dtype for every date.
-        Note: only works with datetime input (no integer time steps)
-        This function has the following properties:
-        
+        Note: only works with datetime input (no integer time steps). This
+
         Input
         -----
         t : timestamp
             current date as datetime object
-        states : formal necessity (not used)
-        param : formal necessity (not used)
-        agg : str
-            Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
+        states : str
+            formal necessity
+        param : str
+            formal necessity
         default_mobility : np.array or None
             If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
@@ -175,20 +135,21 @@ def make_mobility_update_func():
         -------
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
-    """
-
-#     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def mobility_update_func(t, states, param, all_mobility_data, average_mobility_data, default_mobility=None):
+        """
+        t = pd.Timestamp(t.date())
         try: # if there is data available for this date (if the key exists)
-            place = all_mobility_data.loc[pd.to_datetime(t), 'place']
+            place = self.proximus_mobility_data['place'][t]
         except:
             if default_mobility: # If there is no data available and a user-defined input is given
-                place = default_mobility
+                place = self.default_mobility
             else: # No data and no user input: fall back on average mobility
-                place = average_mobility_data
+                place = self.proximus_mobility_data_avg
         return place
-    
-    return mobility_update_func
+
+    def mobility_wrapper_func(self, t, states, param, default_mobility=None):
+        t = pd.Timestamp(t.date())
+        return self.__call__(t, default_mobility=default_mobility)
+
 
 def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
     """
@@ -215,221 +176,6 @@ def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
         return delayed_ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
     else:
         return prevention*policy1
-    
-def policies_until_september(t,states,param,start_date,policy0,policy1,policy2,policy3,policy4,policy5,
-                               policy6,policy7,policy8,policy9,l,tau,prevention):
-    """
-    t : timestamp
-        current date
-    policy0 : matrix
-        policy before lockdown (= no policy)
-    policy1 : matrix
-        policy during lockdown
-    policy 2: matrix
-        reopening industry
-    policy 3: matrix
-        merging of two bubbels
-    policy 4: matrix
-        reopening of businesses
-    policy 5: matrix
-        partial reopening schools
-    policy 6: matrix
-        reopening schools, bars, restaurants
-    policy 7: matrix
-        school holidays, gatherings 15 people, cultural event
-    policy 8: matrix
-       "second" wave 
-    policy 9: matrix
-        opening schools
-    tau : int
-        number of days before measures start having an effect
-    l : int
-        number of additional days after the time delay until full compliance is reached
-    start_date : timestamp
-        start date of the data
-    
-
-    """
-
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    t1 = pd.Timestamp('2020-05-04') # reopening industry
-    t2 = pd.Timestamp('2020-05-06') # merging of two bubbels
-    t3 = pd.Timestamp('2020-05-11') # reopening of businesses
-    t4 = pd.Timestamp('2020-05-18') # partial reopening schools
-    t5 = pd.Timestamp('2020-06-04') # reopening schools, bars, restaurants
-    t6 = pd.Timestamp('2020-07-01') # school holidays, gatherings 15 people, cultural event
-    t7 = pd.Timestamp('2020-07-31') # "second" wave
-    t8 = pd.Timestamp('2020-09-01') # opening schools
-    
-    if t <= start_date + tau_days:
-        return policy0
-    elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return delayed_ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
-    elif start_date + tau_days + l_days < t <= t1: 
-        return prevention*policy1 # lockdown
-    elif t1 < t <= t2:
-        return prevention*policy2 # re-opening industry
-    elif t2 < t <= t3:
-        return prevention*policy3
-    elif t3 < t <= t4:
-        return prevention*policy4
-    elif t4 < t <= t5:
-        return prevention*policy5
-    elif t5 < t <= t6:
-        return prevention*policy6
-    elif t6 < t <= t7:
-        return prevention*policy7
-    elif t7 < t <= t8:
-        return prevention*policy8
-    elif t8 < t:
-        return prevention*policy9
-
-def google_lockdown(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau, prevention):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.Timestamp('2020-08-01')
-    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.Timestamp('2020-10-19') # lockdown
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-04') # schools re-open
-
-    # get mobility reductions
-    if t < t1:
-        return Nc_all['total']
-    elif t1 <= t <= df_google.index[-1]:
-        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
-    elif t > df_google.index[-1]:
-        row=-df_google[df_google.index == df_google.index[-1]]/100
-    
-    work=(1-row['work'].values)[0]
-    transport=(1-row['transport'].values)[0]
-    leisure=(1-row['retail_recreation'].values)[0]
-    others=(1-row['grocery'].values)[0]
-
-    # define policies
-    if t1 < t <= t1 + tau_days:
-        school = 0
-        return (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        school = 0
-        policy_old = (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']  
-    elif t2 < t <= t3:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-    elif t3 < t <= t4:
-        school = 0
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others'] 
-    elif t4 < t <= t5:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']     
-    elif t5 < t <= t6 + tau_days:
-        school = 1
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-    elif t6 + tau_days < t <= t6 + tau_days + l_days:
-        school = 1
-        policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
-    elif t6 + tau_days + l_days < t <= t7:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t7 < t <= t8:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t8 < t <= t9:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    else:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-
-    
-def google_lockdown_no_prev(t,states,param,df_google, Nc_all, Nc_15min, Nc_1hr, l , tau):
-    
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    prevention = 1
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer: COVID-urgency very low
-    t4 = pd.Timestamp('2020-08-01')
-    t5 = pd.Timestamp('2020-09-01') # september: lockdown relaxation narrative in newspapers reduces sense of urgency
-    t6 = pd.Timestamp('2020-10-19') # lockdown
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # schools close
-    t9 = pd.Timestamp('2021-01-04') # schools re-open
-
-    # get mobility reductions
-    if t < t1:
-        return Nc_all['total']
-    elif t1 <= t <= df_google.index[-1]:
-        row = -df_google[df_google.index == pd.Timestamp(t.date())]/100
-    elif t > df_google.index[-1]:
-        row=-df_google[df_google.index == df_google.index[-1]]/100
-    
-    work=(1-row['work'].values)[0]
-    transport=(1-row['transport'].values)[0]
-    leisure=(1-row['retail_recreation'].values)[0]
-    others=(1-row['grocery'].values)[0]
-
-    # define policies
-    if t1 < t <= t1 + tau_days:
-        school = 0
-        return (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        school = 0
-        policy_old = (1/2.3)*Nc_all['home'] + work*Nc_all['work'] + school*Nc_all['schools'] + transport*Nc_all['transport'] + leisure*Nc_all['leisure'] + others*Nc_all['others']
-        policy_new = (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']  
-    elif t2 < t <= t3:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']
-    elif t3 < t <= t4:
-        school = 0
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others'] 
-    elif t4 < t <= t5:
-        school = 0
-        return (1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others']     
-    elif t5 < t <= t6 + tau_days:
-        school = 1
-        return (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-    elif t6 + tau_days < t <= t6 + tau_days + l_days:
-        school = 1
-        policy_old = (1/2.3)*Nc_15min['home'] + work*Nc_15min['work'] + school*Nc_15min['schools'] + transport*Nc_15min['transport'] + leisure*Nc_15min['leisure'] + others*Nc_15min['others']
-        policy_new = prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + 0*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-        return ramp_fun(policy_old, policy_new, t, tau_days, l, t6)
-    elif t6 + tau_days + l_days < t <= t7:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t7 < t <= t8:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    elif t8 < t <= t9:
-        school = 0
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
-    else:
-        school = 1
-        return prevention*((1/2.3)*Nc_1hr['home'] + work*Nc_1hr['work'] + school*Nc_1hr['schools'] + transport*Nc_1hr['transport'] + leisure*Nc_1hr['leisure'] + others*Nc_1hr['others'])
 
 def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
     """
@@ -473,42 +219,6 @@ def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
         if tt > tau + l:
             state = policy2
     return state
-
-
-# Define policy function
-def wave1_policies(t, states, param, df_google, Nc_all, l , tau, 
-                   prev_schools, prev_work, prev_transport, prev_leisure, prev_others, prev_home):
-
-    # Convert tau and l to dates
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-18') # gradual re-opening of schools (15%)
-    t3 = pd.Timestamp('2020-06-04') # further re-opening of schools (65%)
-    t4 = pd.Timestamp('2020-07-01') # closing schools (end calibration wave1)
-
-    if t <= t1 + tau_days:
-        return contact_matrix(t, df_google, Nc_all, school=1)
-    elif t1 + tau_days < t <= t1 + tau_days + l_days:
-        policy_old = contact_matrix(t, df_google, Nc_all, school=1)
-        policy_new = contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                                    prev_leisure, prev_others, school=0)
-        return delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-    elif t1 + tau_days + l_days < t <= t2:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0)
-    elif t2 < t <= t3:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0.15)
-    elif t3 < t <= t4:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0.65)
-    else:
-        return contact_matrix(t, df_google, Nc_all, prev_home, prev_schools, prev_work, prev_transport, 
-                              prev_leisure, prev_others, school=0)
-
 
 # ~~~~~~~~~~~~~
 # VOC functions
@@ -632,29 +342,37 @@ def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df
 # Google policy function
 # ~~~~~~~~~~~~~~~~~~~~~~
 
-def make_contact_matrix_function(df_google, Nc_all):
+class make_contact_matrix_function():
     """
-    Nc_all : dictionnary
-            contact matrices for home, schools, work, transport, leisure and others
-    df_google : dataframe
-            google mobility data
-    """
-    
-    df_google_array = df_google.values
-    df_google_start = df_google.index[0]
-    df_google_end = df_google.index[-1]
-    
-    @lru_cache()
-    def all_contact(t):
-        return Nc_all['total']
+    Class that returns contact matrix based on 4 prevention parameters by default, but has other policies defined as well.
 
-    @lru_cache()
-    def all_contact_no_schools(t):
-        return Nc_all['total'] - Nc_all['schools']
+    Input
+    -----
+    Nc_all : dictionnary
+        contact matrices for home, schools, work, transport, leisure and others
+    df_google : dataframe
+        google mobility data
+
+    Output
+    ------
+
+    __class__ : default function
+        Default output function, based on contact_matrix_4prev
+
+    """
+    def __init__(self, df_google, Nc_all):
+        self.df_google = df_google
+        self.df_google_array = df_google.values
+        self.df_google_start = df_google.index[0]
+        self.df_google_end = df_google.index[-1]
+        self.Nc_all = Nc_all
+
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def contact_matrix_4prev(t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
+    # This is the default output, what was earlier contact_matrix_4prev
+    def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
                        school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):
+
         """
         t : timestamp
             current date
@@ -672,29 +390,29 @@ def make_contact_matrix_function(df_google, Nc_all):
         """
 
         if t < pd.Timestamp('2020-03-15'):
-            CM = Nc_all['total']
+            CM = self.Nc_all['total']
         else:
 
             if school is None:
                 raise ValueError(
                 "Please indicate to which extend schools are open")
 
-            if pd.Timestamp('2020-03-15') <= t <= df_google_end:
+            if pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
                 #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-                idx = int((t - df_google_start) / pd.Timedelta("1 day")) 
-                row = -df_google_array[idx]/100
+                idx = int((t - self.df_google_start) / pd.Timedelta("1 day"))
+                row = -self.df_google_array[idx]/100
             else:
-                row = -df_google[-7:-1].mean()/100 # Extrapolate mean of last week
+                row = -self.df_google[-7:-1].mean()/100 # Extrapolate mean of last week
 
             if SB == '2a':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
             elif SB == '2b':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[4] = -df_google['2020-03-15':'2020-04-01'].mean()[4]/100 
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[4] = -self.df_google['2020-03-15':'2020-04-01'].mean()[4]/100
             elif SB == '2c':
-                row = -df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[0] = -df_google['2020-03-15':'2020-04-01'].mean()[0]/100 
-                
+                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
+                row[0] = -self.df_google['2020-03-15':'2020-04-01'].mean()[0]/100
+
             # columns: retail_recreation grocery parks transport work residential
             if work is None:
                 work= 1-row[4]
@@ -705,17 +423,87 @@ def make_contact_matrix_function(df_google, Nc_all):
             if others is None:
                 others=1-row[1]
 
-            CM = (prev_home*Nc_all['home'] + 
-                  prev_schools*school*Nc_all['schools'] + 
-                  prev_work*work*Nc_all['work'] + 
-                  prev_rest*transport*Nc_all['transport'] + 
-                  prev_rest*leisure*Nc_all['leisure'] + 
-                  prev_rest*others*Nc_all['others']) 
-
+            CM = (prev_home*self.Nc_all['home'] +
+                  prev_schools*school*self.Nc_all['schools'] +
+                  prev_work*work*self.Nc_all['work'] +
+                  prev_rest*transport*self.Nc_all['transport'] +
+                  prev_rest*leisure*self.Nc_all['leisure'] +
+                  prev_rest*others*self.Nc_all['others'])
 
         return CM
 
-    return contact_matrix_4prev, all_contact, all_contact_no_schools
+    def policies_wave1_4prev(self, t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+        '''
+        Function that loads the correct prevention parameters and includes compliance for the first wave. Returns contact matrix.
+        
+        Input
+        -----
+        t : Timestamp
+        states : formality
+        param : formality
+        l : float
+            Compliance parameter for delayed_ramp_fun
+        tau : float
+            Compliance parameter for delayed_ramp_fun
+        prev_{location} : float
+            Effectivity of prevention measures at {location}
+        
+        Returns
+        -------
+        CM : np.array
+            Effective contact matrix (output of __call__ function)
+        '''
+        all_contact = self.Nc_all['total']
+        all_contact_no_schools = self.Nc_all['total'] - self.Nc_all['schools']
+
+        # Convert tau and l to dates
+        tau_days = pd.Timedelta(tau, unit='D')
+        l_days = pd.Timedelta(l, unit='D')
+
+        # Define additional dates where intensity or school policy changes
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+        if t <= t1:
+            return all_contact
+        elif t1 < t < t1 + tau_days:
+            return all_contact
+        elif t1 + tau_days < t <= t1 + tau_days + l_days:
+            t = pd.Timestamp(t.date())
+            policy_old = all_contact
+            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
+                                       school=0)
+            return self.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
+        elif t1 + tau_days + l_days < t <= t2:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        elif t2 < t <= t3:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        elif t3 < t <= t4:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)                     
+        else:
+            t = pd.Timestamp(t.date())
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
+                                  school=0)
+        
+    def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
+        """
+        t : timestamp
+            current date
+        tau : int
+            number of days before measures start having an effect
+        l : int
+            number of additional days after the time delay until full compliance is reached
+        """
+        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+
 
 # Define policy function
 def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):

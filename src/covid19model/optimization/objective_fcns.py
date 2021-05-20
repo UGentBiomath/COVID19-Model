@@ -111,6 +111,7 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
         NIS_list = list(data[0].columns)
         
         if dist == 'gaussian':
+            print("Note: this part of the code (if dist=='gaussian') needs to be altered still.")
             ymodel = []
             MLE = 0
             for idx,d in enumerate(data):
@@ -125,11 +126,12 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
         if dist == 'poisson':
             MLE = 0
             for NIS in NIS_list:
-                # Note: only works with single state [[state]]
-                # calculate loglikelihood function based on Poisson distribution for only H_in
-                ymodel = out[states[0][0]].sel(place=NIS).sum(dim="Nc").values[warmup:]
-                MLE_add = ll_poisson(ymodel, data[0][NIS], offset=poisson_offset)
-                MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
+                for idx,state in enumerate(states):
+                    # Note: only works with single state [state]
+                    # calculate loglikelihood function based on Poisson distribution for only H_in
+                    ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+                    MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
+                    MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
     
     return -MLE # must be positive for pso, which attempts to minimises MLE
 
@@ -351,7 +353,7 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
 
     Example use
     -----------
-    lp = log_probability(model,thetas,bounds,data,states,parNames,weights,checkpoints=None,method='MLE')
+    lp = log_probability(model,thetas,bounds,data,states,parNames,weights=weights,checkpoints=None,method='MLE')
     """
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -367,4 +369,4 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
     if not np.isfinite(lp).all():
         return - np.inf
     else:
-        return lp - MLE(thetas,model,data,states,parNames,weights=weights,draw_fcn=draw_fcn,samples=samples,start_date=start_date,warmup=warmup,dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
+        return lp - MLE(thetas, model, data, states, parNames, weights=weights, draw_fcn=draw_fcn, samples=samples, start_date=start_date, warmup=warmup, dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
