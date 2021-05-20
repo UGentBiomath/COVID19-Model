@@ -74,8 +74,8 @@ conf_int = 0.05
 descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
-relaxdates = ['2021-05-01','2021-06-01', '2021-07-01']
-doses = [80000]
+relaxdates = ['2021-05-01','2021-06-01']
+doses = [60000]
 orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
 description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
@@ -129,95 +129,15 @@ print('2) Initializing model\n')
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
-VOCB117_function = make_VOCB117_function()
-
-def stratified_VOC_func(t,states,param):
-    t = pd.Timestamp(t.date())
-    # Introduction Indian variant
-    t1 = pd.Timestamp('2021-05-15')
-    # Sigmoid point of logistic growth curve
-    t_sig = pd.Timestamp('2021-07-01')
-    # Steepness of curve
-    k = 0.3
-    
-    if t <= t1:
-        # Data Tom Wenseleers on British variant
-        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
-    else:
-        # Hypothetical Indian variant
-        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
-        return np.array([0, 1-logistic, logistic])
+from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+VOC_function = make_VOC_function()
 
 # -----------------------------------
 # Time-dependant vaccination function
 # -----------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
-
-def vacc_strategy(t, states, param, df_sciensano_start, df_sciensano_end,
-                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
-    """
-    time-dependent function for the Belgian vaccination strategy
-    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-  
-    Parameters
-    ----------
-    t : int
-        Simulation time
-    states: dict
-        Dictionary containing values of model states
-    param : dict
-        Model parameter dictionary
-    sciensano_first_dose : function
-        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
-    df_sciensano_start : date
-        Start date of Sciensano vaccination data frame
-    df_sciensano_end : date
-        End date of Sciensano vaccination data frame
-    daily_dose : int
-        Number of doses administered per day. Default is 30000 doses/day.
-    delay : int
-        Time delay between first dose vaccination and start of immunity. Default is 21 days.
-    vacc_order : array
-        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-    refusal: array
-        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
-
-    Return
-    ------
-    N_vacc : array
-        Number of individuals to be vaccinated at simulation time "t"
-        
-    """
-
-    # Convert time to suitable format
-    t = pd.Timestamp(t.date())
-    # Convert delay to a timedelta
-    delay = pd.Timedelta(str(int(delay))+'D')
-    # Compute the number of vaccine eligible individuals
-    VE = states['S'] + states['R']
-    
-    if t <= df_sciensano_start + delay:
-        return np.zeros(9)
-    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
-        return sciensano_first_dose(t-delay)
-    else:
-        N_vacc = np.zeros(9)
-        # Vaccines distributed according to vector 'order'
-        # With residue 'refusal' remaining in each age group
-        idx = 0
-        while daily_dose > 0:
-            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
-                N_vacc[vacc_order[idx]] = daily_dose
-                daily_dose = 0
-            else:
-                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                idx = idx + 1
-        return N_vacc
+vacc_strategy = make_vaccination_function(df_sciensano)
 
 # --------------------------------------
 # Time-dependant social contact function
@@ -523,15 +443,16 @@ params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
 params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 20})
+# VOCs
+params.update({'t_sig': '2021-07-01'})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 21, 'df_sciensano_start': df_sciensano_start,
-     'df_sciensano_end': df_sciensano_end}
+     'refusal': 0.2*np.ones(9), 'delay': 21}
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
+                        time_dependent_parameters={'Nc': policies_RESTORE8, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
 
 # ----------------------------
 # Initialize results dataframe
