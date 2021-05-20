@@ -4,6 +4,10 @@ import numpy as np
 import pandas as pd
 from functools import lru_cache
 
+##########################
+## Compliance functions ##
+##########################
+
 def delayed_ramp_fun(Nc_old, Nc_new, t, tau_days, l, t_start):
     """
     t : timestamp
@@ -23,6 +27,11 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
         number of additional days after the time delay until full compliance is reached
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
+
+###############################
+## Mobility update functions ##
+###############################
 
 def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     """
@@ -92,11 +101,6 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     average_mobility_data = df['place'].values.mean()
     
     return all_mobility_data, average_mobility_data
-    
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~
-# Mobility update functions
-# ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class make_mobility_update_function():
     """
@@ -150,197 +154,138 @@ class make_mobility_update_function():
         t = pd.Timestamp(t.date())
         return self.__call__(t, default_mobility=default_mobility)
 
+###################
+## VOC functions ##
+###################
 
-def lockdown_func(t,states,param,policy0,policy1,l,tau,prevention,start_date):
-    """
-    Lockdown function handling t as datetime
-    
-    t : timestamp
-        current date
-    policy0 : matrix
-        policy before lockdown (= no policy)
-    policy1 : matrix
-        policy during lockdown
-    tau : int
-        number of days before measures start having an effect
-    l : int
-        number of additional days after the time delay until full compliance is reached
-    start_date : timestamp
-        start date of the data
-    """
-    tau_days = pd.Timedelta(tau, unit='D')
-    l_days = pd.Timedelta(l, unit='D')
-    if t <= start_date + tau_days:
-        return policy0
-    elif start_date + tau_days < t <= start_date + tau_days + l_days:
-        return delayed_ramp_fun(policy0, prevention*policy1, t, tau_days, l, start_date)
-    else:
-        return prevention*policy1
+class make_VOC_function():
 
-def social_policy_func(t,states,param,policy_time,policy1,policy2,tau,l):
-    """
-    Delayed ramp social policy function to implement a gradual change between policy1 and policy2. Copied from Michiel and superfluous in the mean time.
-    
-    Parameters
-    ----------
-    t : int
-        Time parameter. Runs simultaneously with simulation time
-    param : 
-        Currently obsolete parameter that may be used in a future stage
-    policy_time : int
-        Time in the simulation at which a new policy is imposed
-    policy1 : float or int or list or matrix
-        Value corresponding to the policy before t = policy_time (e.g. full mobility)
-    policy2 : float or int or list or matrix (same dimensions as policy1)
-        Value corresponding to the policy after t = policy_time (e.g. 50% mobility)
-    tau : int
-        Delayed ramp parameter: number of days before the new policy has any effect
-    l : int
-        Delayed ramp parameter: number of days after t = policy_time + tau the new policy reaches full effect (policy2)
-        
-    Return
-    ------
-    state : float or int or list or matrix
-        Either policy1, policy2 or an intermediate state.
-        
-    """
-    # Nothing changes before policy_time
-    if t < policy_time:
-        state = policy1
-    # From t = policy time onward, the delayed ramp takes effect toward policy2
-    else:
-        # Time starting at policy_time
-        tt = t-policy_time
-        if tt <= tau:
-            state = policy1
-        if (tt > tau) & (tt <= tau + l):
-            intermediate = (policy2 - policy1) / l * (tt - tau) + policy1
-            state = intermediate
-        if tt > tau + l:
-            state = policy2
-    return state
-
-# ~~~~~~~~~~~~~
-# VOC functions
-# ~~~~~~~~~~~~~
-
-def make_VOCB117_function():
-    # Load and format VOC data 
-    rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
-    df_VOC = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
-    # Converting the index as date
-    df_VOC.index = pd.to_datetime(df_VOC.index)
-    # Extrapolate missing dates to obtain a continuous index
-    df_VOC = df_VOC.resample('D').interpolate('linear')
-    df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC['baselinesurv_n_501Y.V1']+df_VOC['baselinesurv_n_501Y.V2']+df_VOC['baselinesurv_n_501Y.V3'])/df_VOC['baselinesurv_total_sequenced']
+    def __init__(self):
+        # Load and format B1.1.7 VOC data 
+        rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
+        df_VOC_B117 = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
+        # Converting the index as date
+        df_VOC_B117.index = pd.to_datetime(df_VOC_B117.index)
+        # Extrapolate missing dates to obtain a continuous index
+        df_VOC_B117 = df_VOC_B117.resample('D').interpolate('linear')
+        df_VOC_B117['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC_B117['baselinesurv_n_501Y.V1']+df_VOC_B117['baselinesurv_n_501Y.V2']+df_VOC_B117['baselinesurv_n_501Y.V3'])/df_VOC_B117['baselinesurv_total_sequenced']
+        # Assign data to class
+        self.df_VOC_B117 = df_VOC_B117
 
     @lru_cache()
-    def VOCB117_function(t):
+    def VOC_B117_function(self,t):
         # Function to return fraction of non-wild type SARS variants
-        if t < df_VOC.index.min():
+        if t < self.df_VOC_B117.index.min():
             return 0
-        elif df_VOC.index.min() <= t <= df_VOC.index.max():
-            return df_VOC['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
-        elif t > df_VOC.index.max():
-            return (df_VOC['baselinesurv_n_501Y.V1'][-1]+df_VOC['baselinesurv_n_501Y.V2'][-1]+df_VOC['baselinesurv_n_501Y.V3'][-1])/df_VOC['baselinesurv_total_sequenced'][-1]
+        elif self.df_VOC_B117.index.min() <= t <= self.df_VOC_B117.index.max():
+            return self.df_VOC_B117['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
+        elif t > self.df_VOC_B117.index.max():
+            return (self.df_VOC_B117['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_B117['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_B117['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_B117['baselinesurv_total_sequenced'][-1]
 
-    return VOCB117_function
+    # Default VOC function includes British and Indian variants
+    def __call__(self, t, states, param, t_sig):
+        # Convert time to timestamp
+        t = pd.Timestamp(t.date())
+        # Introduction Indian variant
+        t1 = pd.Timestamp('2021-05-15')
+        # Sigmoid point of logistic growth curve
+        t_sig = pd.Timestamp(t_sig)
+        # Steepness of curve
+        k = 0.3
+        # Construct alpha
+        if t <= t1:
+            # Data Tom Wenseleers on British variant
+            return np.array([1-self.VOC_B117_function(t), self.VOC_B117_function(t), 0])
+        else:
+            # Hypothetical Indian variant
+            logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+            return np.array([0, 1-logistic, logistic])
 
-def VOC_wrapper_func(t,states,param, VOC_function):
-    t = pd.Timestamp(t.date())
-    return VOC_function(t)
+###########################
+## Vaccination functions ##
+###########################
 
-# ~~~~~~~~~~~~~~~~~~~~~
-# Vaccination functions
-# ~~~~~~~~~~~~~~~~~~~~~
+class make_vaccination_function():
 
-def make_vaccination_function(df_sciensano):
-    df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-    df_sciensano_end = df_sciensano.index[-1]
+    def __init__(self, df_sciensano):
+        self.df_sciensano = df_sciensano
+        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        self.df_sciensano_end = df_sciensano.index[-1]
 
     @lru_cache()
-    def sciensano_first_dose(t):
-        # Extrapolate Sciensano n0. vaccinations to the model's native age bins
+    def get_sciensano_first_dose(self,t):
+        # Extrapolate Sciensano n0. first dose vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
-        N_vacc[1] = (2/17)*df_sciensano['V1_18_34'][t] # 10-20
-        N_vacc[2] = (10/17)*df_sciensano['V1_18_34'][t] # 20-30
-        N_vacc[3] = (5/17)*df_sciensano['V1_18_34'][t] + (5/10)*df_sciensano['V1_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*df_sciensano['V1_35_44'][t] + (5/10)*df_sciensano['V1_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*df_sciensano['V1_45_54'][t] + (5/10)*df_sciensano['V1_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*df_sciensano['V1_55_64'][t] + (5/10)*df_sciensano['V1_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*df_sciensano['V1_65_74'][t] + (5/10)*df_sciensano['V1_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*df_sciensano['V1_75_84'][t] + (5/10)*df_sciensano['V1_85+'][t]# 80+
+        N_vacc[1] = (2/17)*self.df_sciensano['V1_18_34'][t] # 10-20
+        N_vacc[2] = (10/17)*self.df_sciensano['V1_18_34'][t] # 20-30
+        N_vacc[3] = (5/17)*self.df_sciensano['V1_18_34'][t] + (5/10)*self.df_sciensano['V1_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*self.df_sciensano['V1_35_44'][t] + (5/10)*self.df_sciensano['V1_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*self.df_sciensano['V1_45_54'][t] + (5/10)*self.df_sciensano['V1_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*self.df_sciensano['V1_55_64'][t] + (5/10)*self.df_sciensano['V1_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*self.df_sciensano['V1_65_74'][t] + (5/10)*self.df_sciensano['V1_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*self.df_sciensano['V1_75_84'][t] + (5/10)*self.df_sciensano['V1_85+'][t]# 80+
         return N_vacc
     
-    return sciensano_first_dose, df_sciensano_start, df_sciensano_end
+    # Default vaccination strategy
+    def __call__(self, t, states, param, daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+        """
+        time-dependent function for the Belgian vaccination strategy
+        First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+        given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+    
+        Parameters
+        ----------
+        t : int
+            Simulation time
+        states: dict
+            Dictionary containing values of model states
+        param : dict
+            Model parameter dictionary
+        daily_dose : int
+            Number of doses administered per day. Default is 30000 doses/day.
+        delay : int
+            Time delay between first dose vaccination and start of immunity. Default is 21 days.
+        vacc_order : array
+            Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+        refusal: array
+            Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
 
-def vacc_strategy(t, states, param, sciensano_first_dose, df_sciensano_start, df_sciensano_end,
-                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
-    """
-    time-dependent function for the Belgian vaccination strategy
-    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-  
-    Parameters
-    ----------
-    t : int
-        Simulation time
-    states: dict
-        Dictionary containing values of model states
-    param : dict
-        Model parameter dictionary
-    sciensano_first_dose : function
-        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
-    df_sciensano_start : date
-        Start date of Sciensano vaccination data frame
-    df_sciensano_end : date
-        End date of Sciensano vaccination data frame
-    daily_dose : int
-        Number of doses administered per day. Default is 30000 doses/day.
-    delay : int
-        Time delay between first dose vaccination and start of immunity. Default is 21 days.
-    vacc_order : array
-        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-    refusal: array
-        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+        Return
+        ------
+        N_vacc : array
+            Number of individuals to be vaccinated at simulation time "t"
+            
+        """
 
-    Return
-    ------
-    N_vacc : array
-        Number of individuals to be vaccinated at simulation time "t"
+        # Convert time to suitable format
+        t = pd.Timestamp(t.date())
+        # Convert delay to a timedelta
+        delay = pd.Timedelta(str(int(delay))+'D')
+        # Compute the number of vaccine eligible individuals
+        VE = states['S'] + states['R']
         
-    """
+        if t <= self.df_sciensano_start + delay:
+            return np.zeros(9)
+        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
+            return self.get_sciensano_first_dose(t-delay)
+        else:
+            N_vacc = np.zeros(9)
+            # Vaccines distributed according to vector 'order'
+            # With residue 'refusal' remaining in each age group
+            idx = 0
+            while daily_dose > 0:
+                if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                    N_vacc[vacc_order[idx]] = daily_dose
+                    daily_dose = 0
+                else:
+                    N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                    daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
+                    idx = idx + 1
+            return N_vacc
 
-    # Convert time to suitable format
-    t = pd.Timestamp(t.date())
-    # Convert delay to a timedelta
-    delay = pd.Timedelta(str(int(delay))+'D')
-    # Compute the number of vaccine eligible individuals
-    VE = states['S'] + states['R']
-    
-    if t <= df_sciensano_start + delay:
-        return np.zeros(9)
-    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
-        return sciensano_first_dose(t-delay)
-    else:
-        N_vacc = np.zeros(9)
-        # Vaccines distributed according to vector 'order'
-        # With residue 'refusal' remaining in each age group
-        idx = 0
-        while daily_dose > 0:
-            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
-                N_vacc[vacc_order[idx]] = daily_dose
-                daily_dose = 0
-            else:
-                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                idx = idx + 1
-        return N_vacc
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~
-# Google policy function
-# ~~~~~~~~~~~~~~~~~~~~~~
+############################
+## Google policy function ##
+############################
 
 class make_contact_matrix_function():
     """
@@ -499,6 +444,91 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
                                   school=0)
         
+    def policies_wave2_full_relaxation(self, t, states, param, l , l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate):
+        
+        t = pd.Timestamp(t.date())
+
+        # Convert compliance tau and l to dates
+        l_days = pd.Timedelta(l, unit='D')
+
+        # Convert relaxation l to dates
+        l_relax_days = pd.Timedelta(l_relax, unit='D')
+
+        # Define key dates of first wave
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+
+        # Define key dates of second wave
+        t5 = pd.Timestamp('2020-10-19') # lockdown (1)
+        t6 = pd.Timestamp('2020-11-02') # lockdown (2)
+        t7 = pd.Timestamp('2020-11-16') # schools re-open
+        t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+        t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+        t10 = pd.Timestamp('2021-02-15') # Spring break starts
+        t11 = pd.Timestamp('2021-02-21') # Spring break ends
+        t12 = pd.Timestamp('2021-02-28') # Contact increase in children
+        t13 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+        t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
+        t15 = pd.Timestamp(relaxdate) # Relaxation date
+        t16 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+        t17 = pd.Timestamp('2021-09-01') 
+
+        # Second wave
+        if t4 < t <= t5:
+            return self.__call__(t, school=1)
+        elif t5  < t <= t5 + l_days:
+            policy_old = self.__call__(t, school=1)
+            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest, 
+                                        school=1)
+            return ramp_fun(policy_old, policy_new, t, t5, l)
+        elif t5 + l_days < t <= t6:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+        elif t6 < t <= t7:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+        elif t7 < t <= t8:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1) 
+        elif t8 < t <= t9:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)
+        elif t9 < t <= t10:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+        elif t10 < t <= t11:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=0)    
+        elif t11 < t <= t12:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+        elif t12 < t <= t13:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
+                                school=1)
+        elif t13 < t <= t14:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                    school=0)                           
+        elif t14 < t <= t15:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)   
+        elif t15 < t <= t15 + l_relax_days:
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
+        elif t15 + l_relax_days < t <= t16:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t16 < t <= t17:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.8, leisure=1, transport=0.90, others=1, school=0)                                      
+        else:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+
     def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
         """
         t : timestamp
