@@ -194,7 +194,7 @@ def vacc_strategy(t, states, param, df_sciensano_start, df_sciensano_end,
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
-contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
 def policies_WAVE2(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
