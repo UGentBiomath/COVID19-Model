@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters
+from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 
@@ -87,6 +87,8 @@ df_sciensano_mortality =sciensano.get_mortality_data()
 df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# VOC data
+df_VOC_501Y = VOC.get_501Y_data()
 # Start of data collection
 start_data = df_sciensano.idxmin()
 # Start of calibration warmup and beta
@@ -98,194 +100,30 @@ end_calibration = samples_dict['end_calibration']
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOCB117_function
-VOCB117_function = make_VOCB117_function()
-
-def stratified_VOC_func(t,states,param):
-    t = pd.Timestamp(t.date())
-    # Introduction Indian variant
-    t1 = pd.Timestamp('2021-05-15')
-    # Sigmoid point of logistic growth curve
-    t_sig = pd.Timestamp('2021-07-01')
-    # Steepness of curve
-    k = 0.3
-    
-    if t <= t1:
-        # Data Tom Wenseleers on British variant
-        return np.array([1-VOCB117_function(t), VOCB117_function(t), 0])
-    else:
-        # Hypothetical Indian variant
-        logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
-        return np.array([0, 1-logistic, logistic])
+from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+VOC_function = make_VOC_function(df_VOC_501Y)
 
 # -----------------------------------
 # Time-dependant vaccination function
 # -----------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
-
-def vacc_strategy(t, states, param, df_sciensano_start, df_sciensano_end,
-                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
-    """
-    time-dependent function for the Belgian vaccination strategy
-    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-  
-    Parameters
-    ----------
-    t : int
-        Simulation time
-    states: dict
-        Dictionary containing values of model states
-    param : dict
-        Model parameter dictionary
-    sciensano_first_dose : function
-        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
-    df_sciensano_start : date
-        Start date of Sciensano vaccination data frame
-    df_sciensano_end : date
-        End date of Sciensano vaccination data frame
-    daily_dose : int
-        Number of doses administered per day. Default is 30000 doses/day.
-    delay : int
-        Time delay between first dose vaccination and start of immunity. Default is 21 days.
-    vacc_order : array
-        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-    refusal: array
-        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
-
-    Return
-    ------
-    N_vacc : array
-        Number of individuals to be vaccinated at simulation time "t"
-        
-    """
-
-    # Convert time to suitable format
-    t = pd.Timestamp(t.date())
-    # Convert delay to a timedelta
-    delay = pd.Timedelta(str(int(delay))+'D')
-    # Compute the number of vaccine eligible individuals
-    VE = states['S'] + states['R']
-    
-    if t <= df_sciensano_start + delay:
-        return np.zeros(9)
-    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
-        return sciensano_first_dose(t-delay)
-    else:
-        N_vacc = np.zeros(9)
-        # Vaccines distributed according to vector 'order'
-        # With residue 'refusal' remaining in each age group
-        idx = 0
-        while daily_dose > 0:
-            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
-                N_vacc[vacc_order[idx]] = daily_dose
-                daily_dose = 0
-            else:
-                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                idx = idx + 1
-        return N_vacc
+vacc_strategy = make_vaccination_function(df_sciensano)
 
 # --------------------------------------
 # Time-dependant social contact function
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-
-# Define policy function
-def policies_WAVE2(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
+policies_wave2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_wave2_full_relaxation
     
-    # Convert tau and l to dates
-    l_days = pd.Timedelta(l, unit='D')
+# ---------------------------------------------------
+# Function to add poisson draws and sampling function
+# ---------------------------------------------------
 
-    # Define key dates of first wave
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    # Define key dates of second wave
-    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
-    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-    t10 = pd.Timestamp('2021-02-15') # Spring break starts
-    t11 = pd.Timestamp('2021-02-21') # Spring break ends
-    t12 = pd.Timestamp('2021-03-26') # Easter holiday starts
-    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
-
-    t = pd.Timestamp(t.date())
-    # First wave
-    if t <= t1:
-        return all_contact(t)
-    elif t1 < t < t1:
-        return all_contact(t)
-    elif t1  < t <= t1  + l_days:
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t3 < t <= t4:
-        return contact_matrix_4prev(t, school=0)
-    # Second wave
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, school=1)
-    elif t5 < t <= t5 + l_days:
-        policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
-                                    school=1)
-        return ramp_fun(policy_old, policy_new, t, t5, l)
-    elif t5 + l_days < t <= t6:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t6 < t <= t7:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t7 < t <= t8:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1) 
-    elif t8 < t <= t9:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t9 < t <= t10:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t10 < t <= t11:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)    
-    elif t11 < t <= t12:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t12 < t <= t13:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                                                                                                                                                     
-    else:
-        t = pd.Timestamp(t.date())
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-
-# -----------------------------
-# Function to add poisson draws
-# -----------------------------
-
-from covid19model.models.utils import output_to_visuals
-
-# -----------------
-# Sampling function
-# -----------------
-
-from covid19model.models.utils import draw_fcn_WAVE2
+from covid19model.models.utils import output_to_visuals,draw_fcn_WAVE2
 
 # --------------------
 # Initialize the model
@@ -298,16 +136,17 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-06-01', 'l_relax': 31})
+# VOC
+params.update({'t_sig': '2021-07-01'})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 20, 'df_sciensano_start': df_sciensano_start,
-     'df_sciensano_end': df_sciensano_end}
+     'refusal': 0.2*np.ones(9), 'delay': 20}
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha': stratified_VOC_func})
+                        time_dependent_parameters={'Nc': policies_wave2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 # -------------------
 # Perform simulations

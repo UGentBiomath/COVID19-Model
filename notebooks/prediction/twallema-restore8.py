@@ -28,7 +28,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters
+from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 
@@ -119,6 +119,8 @@ print('1) Loading data\n')
 # Time-integrated contact matrices
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
+# VOC data
+df_VOC_501Y = VOC.get_501Y_data()
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
@@ -130,7 +132,7 @@ print('2) Initializing model\n')
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+VOC_function = make_VOC_function(df_VOC_501Y)
 
 # -----------------------------------
 # Time-dependant vaccination function
