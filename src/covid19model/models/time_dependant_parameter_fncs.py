@@ -160,27 +160,18 @@ class make_mobility_update_function():
 
 class make_VOC_function():
 
-    def __init__(self):
-        # Load and format B1.1.7 VOC data 
-        rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
-        df_VOC_B117 = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
-        # Converting the index as date
-        df_VOC_B117.index = pd.to_datetime(df_VOC_B117.index)
-        # Extrapolate missing dates to obtain a continuous index
-        df_VOC_B117 = df_VOC_B117.resample('D').interpolate('linear')
-        df_VOC_B117['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'] = (df_VOC_B117['baselinesurv_n_501Y.V1']+df_VOC_B117['baselinesurv_n_501Y.V2']+df_VOC_B117['baselinesurv_n_501Y.V3'])/df_VOC_B117['baselinesurv_total_sequenced']
-        # Assign data to class
-        self.df_VOC_B117 = df_VOC_B117
+    def __init__(self, df_VOC_501Y):
+        self.df_VOC_501Y = df_VOC_501Y
 
     @lru_cache()
-    def VOC_B117_function(self,t):
+    def VOC_501Y_function(self,t):
         # Function to return fraction of non-wild type SARS variants
-        if t < self.df_VOC_B117.index.min():
+        if t < self.df_VOC_501Y.index.min():
             return 0
-        elif self.df_VOC_B117.index.min() <= t <= self.df_VOC_B117.index.max():
-            return self.df_VOC_B117['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
-        elif t > self.df_VOC_B117.index.max():
-            return (self.df_VOC_B117['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_B117['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_B117['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_B117['baselinesurv_total_sequenced'][-1]
+        elif self.df_VOC_501Y.index.min() <= t <= self.df_VOC_501Y.index.max():
+            return self.df_VOC_501Y['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
+        elif t > self.df_VOC_501Y.index.max():
+            return (self.df_VOC_501Y['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_501Y['baselinesurv_total_sequenced'][-1]
 
     # Default VOC function includes British and Indian variants
     def __call__(self, t, states, param, t_sig):
@@ -195,7 +186,7 @@ class make_VOC_function():
         # Construct alpha
         if t <= t1:
             # Data Tom Wenseleers on British variant
-            return np.array([1-self.VOC_B117_function(t), self.VOC_B117_function(t), 0])
+            return np.array([1-self.VOC_501Y_function(t), self.VOC_501Y_function(t), 0])
         else:
             # Hypothetical Indian variant
             logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
