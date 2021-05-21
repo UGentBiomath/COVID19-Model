@@ -295,13 +295,13 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-05-09'
+    end_calibration = '2021-05-20'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = mp.cpu_count()
-multiplier = 5
-maxiter = 50
+multiplier = 3
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -326,14 +326,12 @@ states = ["H_in"]
 # -----------
 
 # optimisation settings
-model.parameters['K_hosp'] = 1.4
 pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf1']
 bounds=((0.008,0.04),(3,14),(3,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.20,0.99),(1,1.6))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-theta = np.array([0.01270721, 9.61815466, 4.13959732, 0.77967164, 0.19201644, 0.1262784, 0.36082905, 1.47727337]) #-236284.49464481114
-theta = np.array([0.0127, 9.5, 4.3, 0.65, 0.15, 0.11, 0.55, 1.50])
+theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.101, 0.649, 1.47])
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
@@ -368,7 +366,7 @@ log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, pri
 log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.10,1), (0.10,1), (0.10,1), (0.10,1),(1.3,1.8)]
 # Perturbate PSO Estimate
 pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
-ndim, nwalkers, pos = perturbate_PSO(theta, pert, 6)
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, 3)
 # Set up the sampler backend if needed
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
