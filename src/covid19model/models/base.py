@@ -264,10 +264,9 @@ class BaseModel:
 
         # Call integrate function with initial values to check if the function returns all states
         fun = self._create_fun(None)
-        if self.spatial:
-            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
-        else:
-            y0 = list(itertools.chain(*self.initial_states.values()))
+        y0 = list(itertools.chain(*self.initial_states.values()))
+        while np.array(y0).ndim > 1:
+            y0 = list(itertools.chain(*y0))
         check = True
         try:
             result = fun(pd.Timestamp('2020-09-01'), np.array(y0), self.parameters)
@@ -334,10 +333,9 @@ class BaseModel:
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
         
         # Initial conditions must be one long list of values
-        if self.spatial:
-            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
-        else:
-            y0 = list(itertools.chain(*self.initial_states.values()))
+        y0 = list(itertools.chain(*self.initial_states.values()))
+        while np.array(y0).ndim > 1:
+            y0 = list(itertools.chain(*y0))
 
         if self.discrete == False:
             output = solve_ivp(fun, time,
