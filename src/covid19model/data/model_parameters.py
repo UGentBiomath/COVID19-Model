@@ -410,7 +410,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         
     # Co-infection model: infectivity gain
     if VOC:
-        pars_dict['alpha'] = [1] # Must be a list so we can check if "sum(alpha) == 1" 
+        pars_dict['alpha'] = [1, 0, 0] # Must be a list so we can check if "sum(alpha) == 1" 
         pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
         pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain
         pars_dict['K_hosp'] = 1
