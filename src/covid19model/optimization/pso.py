@@ -2,6 +2,7 @@ from functools import partial
 import numpy as np
 import multiprocessing as mp
 from covid19model.optimization import objective_fcns
+import sys
 
 def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
@@ -114,14 +115,17 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         if not len(ieqcons):
             if debug:
                 print('No constraints given.')
+                sys.stdout.flush()
             cons = _cons_none_wrapper
         else:
             if debug:
                 print('Converting ieqcons to a single constraint function')
+                sys.stdout.flush()
             cons = partial(_cons_ieqcons_wrapper, ieqcons, args, kwargs)
     else:
         if debug:
             print('Single constraint function given in f_ieqcons')
+            sys.stdout.flush()
         cons = partial(_cons_f_ieqcons_wrapper, f_ieqcons, args, kwargs)
 
     is_feasible = partial(_is_feasible_wrapper, cons)
@@ -234,13 +238,14 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
             if debug:
                 print('New best for swarm at iteration {:}: {:} {:}'\
                     .format(it, p[i_min, :], fp[i_min]))
-
+                sys.stdout.flush()
             p_min = p[i_min, :].copy()
             stepsize = np.sqrt(np.sum((g - p_min)**2))
 
             if np.abs(fg - fp[i_min]) <= minfunc:
                 print('Stopping search: Swarm best objective change less than {:}'\
                     .format(minfunc))
+                sys.stdout.flush()
                 if particle_output:
                     return p_min, fp[i_min], p, fp
                 else:
@@ -248,6 +253,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
             elif stepsize <= minstep:
                 print('Stopping search: Swarm best position change less than {:}'\
                     .format(minstep))
+                sys.stdout.flush()
                 if particle_output:
                     return p_min, fp[i_min], p, fp
                 else:
@@ -258,15 +264,18 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
         if debug:
             print('Best after iteration {:}: {:} {:}'.format(it, g, fg))
+            sys.stdout.flush()
         it += 1
 
     print('Stopping search: maximum iterations reached --> {:}'.format(maxiter))
+    sys.stdout.flush()
     
     if processes > 1:
         mp_pool.close()
 
     if not is_feasible(g):
         print("However, the optimization couldn't find a feasible design. Sorry")
+        sys.stdout.flush()
     if particle_output:
         return g, fg, p, fp
     else:
