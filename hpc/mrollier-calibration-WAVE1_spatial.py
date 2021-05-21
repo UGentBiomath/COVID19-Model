@@ -54,6 +54,9 @@ from covid19model.visualization.output import _apply_tick_locator
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.models.utils import initial_state
 
+# Time the runtime
+initial_time = datetime.datetime.now()
+
 # -----------------------
 # Handle script arguments
 # -----------------------
@@ -420,6 +423,11 @@ if __name__ == '__main__':
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
 
+        # Print runtime in hours
+        final_time = datetime.datetime.now()
+        runtime = (final_time - initial_time).microseconds / 1e6 / 3600
+        print(f'\nTotal runtime: {runtime} hours.')
+        
         # Work is done
         sys.exit()
 
@@ -593,3 +601,8 @@ if __name__ == '__main__':
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+
+        # Print runtime in hours
+        final_time = datetime.datetime.now()
+        runtime = (final_time - initial_time).microseconds / 1e6 / 3600
+        print(f'\nTotal runtime: {runtime} hours.')
