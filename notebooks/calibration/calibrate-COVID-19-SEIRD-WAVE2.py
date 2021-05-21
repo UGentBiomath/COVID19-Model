@@ -124,92 +124,10 @@ vacc_strategy = make_vaccination_function(df_sciensano)
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-
-# Define policy function
-def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
+policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation
     
-    # Convert tau and l to dates
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define key dates of first wave
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    # Define key dates of second wave
-    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
-    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-    t10 = pd.Timestamp('2021-02-15') # Spring break starts
-    t11 = pd.Timestamp('2021-02-21') # Spring break ends
-    t12 = pd.Timestamp('2021-03-26') # Easter holiday starts
-    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
-    t14 = pd.Timestamp('2021-07-01') # Summer holidays
-
-    t = pd.Timestamp(t.date())
-
-    # First wave
-    if t <= t1:
-        return all_contact(t)
-    elif t1 < t < t1:
-        return all_contact(t)
-    elif t1  < t <= t1  + l_days:
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t3 < t <= t4:
-        return contact_matrix_4prev(t, school=0)
-    # Second wave
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, school=1)
-    elif t5 < t <= t5 + l_days:
-        policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
-                                    school=1)
-        return ramp_fun(policy_old, policy_new, t, t5, l)
-    elif t5 + l_days < t <= t6:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t6 < t <= t7:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t7 < t <= t8:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1) 
-    elif t8 < t <= t9:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t9 < t <= t10:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t10 < t <= t11:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)    
-    elif t11 < t <= t12:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t12 < t <= t13:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t13 < t <= t14:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)                                                                                                                                                                                   
-    else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-
 # --------------------
 # Initialize the model
 # --------------------
@@ -218,7 +136,7 @@ def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, pre
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-07-01', 'l_relax' : 31})
 # VOC
 params.update({'t_sig': '2021-08-01'}) # No new Indian variant currently
 # Vaccination
@@ -228,7 +146,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave2, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
+                        time_dependent_parameters={'Nc': policies_WAVE2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
 
 # -----------------------------------
 # Define calibration helper functions

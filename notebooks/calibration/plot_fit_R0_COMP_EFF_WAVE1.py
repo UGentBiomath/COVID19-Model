@@ -101,52 +101,7 @@ end_calibration = samples_dict['end_calibration']
 
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
-contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-all_contact = make_contact_matrix_function(df_google, Nc_all).all_contact
-
-# Define policy function
-def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
-
-    # Convert time to timestamp
-    t = pd.Timestamp(t.date())
-
-    # Convert l to a date
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-08-07') # end of 'second wave' in antwerp
-    t5 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    if t <= t1:
-        return all_contact()
-    elif t1 < t <= t1 + l_days:
-        policy_old = all_contact()
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
-    ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
-    ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
-    elif t3 < t <= t3 + l_days:
-        policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-        return ramp_fun(policy_old, policy_new, t, t3, l)
-    elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
-                              school=0)                                          
-    else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
+policies_WAVE1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1
 
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function

@@ -117,7 +117,7 @@ vacc_strategy = make_vaccination_function(df_sciensano)
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-policies_wave2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_wave2_full_relaxation
+policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation
     
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function
@@ -146,7 +146,7 @@ params.update(
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+                        time_dependent_parameters={'Nc': policies_WAVE2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 # -------------------
 # Perform simulations

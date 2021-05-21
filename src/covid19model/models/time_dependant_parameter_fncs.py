@@ -159,7 +159,24 @@ class make_mobility_update_function():
 ###################
 
 class make_VOC_function():
+    """
+    Class that returns a time-dependant parameter function for COVID-19 SEIRD model parameter alpha (variant fraction).
+    Current implementation includes the 501Y.Vx mutated strains (British, SA, Brazilian) using data by prof. Tom Wenseleers and a hypothetical implementation of the novel indian variant.
 
+    Input
+    -----
+    df_VOC_501Y: pd.dataFrame
+        Prelevance dataset by Tom Wenseleers, obtained using:
+        `from covid19model.data import VOC`
+        `df_VOC_501Y = VOC.get_501Y_data()`
+
+    Output
+    ------
+
+    __class__ : function
+        Default variant function
+
+    """
     def __init__(self, df_VOC_501Y):
         self.df_VOC_501Y = df_VOC_501Y
 
@@ -197,7 +214,23 @@ class make_VOC_function():
 ###########################
 
 class make_vaccination_function():
+    """
+    Class that returns a two-fold time-dependant parameter function for the vaccination strategy by default. First, first dose data by sciensano are used. In the future, a hyptothetical scheme is used.
 
+    Input
+    -----
+    df_sciensano : pd.dataFrame
+        Sciensano public dataset, obtained using:
+        `from covid19model.data import sciensano`
+        `df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)`
+
+    Output
+    ------
+
+    __class__ : function
+        Default vaccination function
+
+    """
     def __init__(self, df_sciensano):
         self.df_sciensano = df_sciensano
         self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
@@ -222,8 +255,9 @@ class make_vaccination_function():
         """
         time-dependent function for the Belgian vaccination strategy
         First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-        given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-    
+        administered in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+        # TODO: end of vaccination campaign returns an error
+
         Parameters
         ----------
         t : int
@@ -374,21 +408,24 @@ class make_contact_matrix_function():
     def all_contact_no_schools(self):
         return self.Nc_all['total'] - self.Nc_all['schools']
 
-    def policies_wave1_4prev(self, t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):
+    def policies_WAVE1(self, t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
         '''
-        Function that loads the correct prevention parameters and includes compliance for the first wave. Returns contact matrix.
+        Function that returns the time-dependant social contact matrix Nc for the first 2020 COVID-19 wave. Includes a manual tweaking of the 2020 COVID-19 Antwerp summer wave.
         
         Input
         -----
         t : Timestamp
-        states : formality
-        param : formality
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
         l : float
-            Compliance parameter for delayed_ramp_fun
+            Compliance parameter for ramp_fun
         tau : float
-            Compliance parameter for delayed_ramp_fun
+            Compliance parameter for ramp_fun
         prev_{location} : float
-            Effectivity of prevention measures at {location}
+            Effectivity of contacts at {location}
         
         Returns
         -------
@@ -399,44 +436,73 @@ class make_contact_matrix_function():
         all_contact_no_schools = self.Nc_all['total'] - self.Nc_all['schools']
 
         # Convert tau and l to dates
-        tau_days = pd.Timedelta(tau, unit='D')
         l_days = pd.Timedelta(l, unit='D')
 
         # Define additional dates where intensity or school policy changes
         t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
+        t4 = pd.Timestamp('2020-08-07') # end of 'second wave' in antwerp        
+        t5 = pd.Timestamp('2020-09-01') # end of summer holidays
 
         if t <= t1:
             return all_contact
-        elif t1 < t < t1 + tau_days:
-            return all_contact
-        elif t1 + tau_days < t <= t1 + tau_days + l_days:
+        elif t1 < t <= t1 + l_days:
             t = pd.Timestamp(t.date())
             policy_old = all_contact
             policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
                                        school=0)
-            return self.delayed_ramp_fun(policy_old, policy_new, t, tau_days, l, t1)
-        elif t1 + tau_days + l_days < t <= t2:
+            return self.ramp_fun(policy_old, policy_new, t, t1, l)
+        elif t1 + l_days < t <= t2:
             t = pd.Timestamp(t.date())
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
                                   school=0)
         elif t2 < t <= t3:
             t = pd.Timestamp(t.date())
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
-                                  school=0)
-        elif t3 < t <= t4:
-            t = pd.Timestamp(t.date())
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
-                                  school=0)                     
+                                  school=0)                  
+        ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
+        ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
+        ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
+        elif t3 < t <= t3 + l_days:
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, 0.75, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)
+        elif t3 + l_days < t <= t4:
+            return self.__call__(t, prev_home, prev_schools, prev_work, 0.75, school=0)
+        elif t4 < t <= t5:
+            return self.__call__(t, prev_home, prev_schools, 0.05, 0.05, 
+                                school=0)                                          
         else:
-            t = pd.Timestamp(t.date())
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, 
-                                  school=0)
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                school=1)
+    
+    def policies_WAVE2_full_relaxation(self, t, states, param, l , l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate):
+        '''
+        Function that returns the time-dependant social contact matrix Nc for the second 2020 COVID-19 wave. Includes a full relaxation of measures on relaxdate.
         
-    def policies_wave2_full_relaxation(self, t, states, param, l , l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate):
+        Input
+        -----
+        t : Timestamp
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
+        l : float
+            Compliance parameter for ramp_fun
+        tau : float
+            Compliance parameter for ramp_fun
+        prev_{location} : float
+            Effectivity of contacts at {location}
+        relaxdate : str
+            String containing a date (YYYY-MM-DD) on which all measures are relaxed
         
+        Returns
+        -------
+        CM : np.array (9x9)
+            Effective contact matrix (output of __call__ function)
+        '''
         t = pd.Timestamp(t.date())
 
         # Convert compliance tau and l to dates
@@ -473,7 +539,7 @@ class make_contact_matrix_function():
             policy_old = self.__call__(t, school=1)
             policy_new = self.__call__(t, prev_schools, prev_work, prev_rest, 
                                         school=1)
-            return ramp_fun(policy_old, policy_new, t, t5, l)
+            return self.ramp_fun(policy_old, policy_new, t, t5, l)
         elif t5 + l_days < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=1)
@@ -520,10 +586,23 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
+    def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
+        """
+        t : timestamp
+            current simulation time
+        t_start : timestamp
+            start of policy change
+        l : int
+            number of additional days after the time delay until full compliance is reached
+        """
+        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
     def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
         """
         t : timestamp
-            current date
+            current simulation time
+        t_start : timestamp
+            start of policy  change
         tau : int
             number of days before measures start having an effect
         l : int
@@ -561,18 +640,4 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
     elif t2 < t <= t3:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
-    ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
-    ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
-    ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
-    elif t3 < t <= t3 + l_days:
-        policy_old = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-        return ramp_fun(policy_old, policy_new, t, t3, l)
-    elif t3 + l_days < t <= t4:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, prev_home, prev_schools, 0.05, 0.05, 
-                              school=0)                                          
-    else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
+
