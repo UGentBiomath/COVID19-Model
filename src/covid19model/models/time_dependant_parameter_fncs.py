@@ -368,10 +368,10 @@ class make_contact_matrix_function():
 
         return CM
 
-    def all_contact(self,t,states,param):
+    def all_contact(self):
         return self.Nc_all['total']
 
-    def all_contact_no_schools(self,t,states,param):
+    def all_contact_no_schools(self):
         return self.Nc_all['total'] - self.Nc_all['schools']
 
     def policies_wave1_4prev(self, t, states, param, l , tau, prev_schools, prev_work, prev_rest, prev_home):

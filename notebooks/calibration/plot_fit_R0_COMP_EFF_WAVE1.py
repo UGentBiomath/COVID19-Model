@@ -100,7 +100,7 @@ end_calibration = samples_dict['end_calibration']
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun, policies_WAVE1
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 all_contact = make_contact_matrix_function(df_google, Nc_all).all_contact
 
@@ -121,9 +121,9 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
     t5 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     if t <= t1:
-        return all_contact(t)
+        return all_contact()
     elif t1 < t <= t1 + l_days:
-        policy_old = all_contact(t)
+        policy_old = all_contact()
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, t1, l)
@@ -148,17 +148,11 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
     else:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
 
-# ------------------------------
-# Function to add poisson draws
-# ------------------------------
+# ---------------------------------------------------
+# Function to add poisson draws and sampling function
+# ---------------------------------------------------
 
-from covid19model.models.utils import output_to_visuals
-
-# -----------------
-# Sampling function
-# -----------------
-
-from covid19model.models.utils import draw_fcn_WAVE1
+from covid19model.models.utils import output_to_visuals, draw_fcn_WAVE1
 
 # --------------------
 # Initialize the model

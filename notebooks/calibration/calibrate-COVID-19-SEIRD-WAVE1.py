@@ -133,9 +133,9 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
     t5 = pd.Timestamp('2020-09-01') # end of summer holidays
 
     if t <= t1:
-        return all_contact(t)
+        return all_contact()
     elif t1 < t <= t1 + l_days:
-        policy_old = all_contact(t)
+        policy_old = all_contact()
         policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                                     school=0)
         return ramp_fun(policy_old, policy_new, t, t1, l)
