@@ -281,7 +281,7 @@ if __name__ == '__main__':
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         print(f'Number of processes: {processes}')
-        multiplier = 10
+        multiplier = 1 # 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
@@ -457,7 +457,7 @@ if __name__ == '__main__':
 
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier = 10
+        multiplier = 1 # 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
