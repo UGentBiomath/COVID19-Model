@@ -253,7 +253,9 @@ class COVID19_SEIRD(BaseModel):
         -------------------------
         beta : probability of infection when encountering an infected person
         alpha : fraction of alternative COVID-19 variant
-        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf2 : infectivity gain of Indian COVID-19 variant
+        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
         K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
@@ -284,7 +286,7 @@ class COVID19_SEIRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R',
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
@@ -292,7 +294,7 @@ class COVID19_SEIRD(BaseModel):
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -300,6 +302,8 @@ class COVID19_SEIRD(BaseModel):
 
         *Deterministic implementation*
         """
+ 
+        K_inf = np.array([1, K_inf1, K_inf2])
 
         if Nc is None:
             print(t)
@@ -309,35 +313,39 @@ class COVID19_SEIRD(BaseModel):
 
         T = S + E + I + A + M + C + C_icurec + ICU + R
 
-        # Compute infection pressure (IP) of both variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A)/T))
-        IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A)/T))
-
         # Account for higher hospitalisation propensity of new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        h_new = (1-alpha)*h + alpha*K_hosp*h
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+
+        # Compute infection pressure (IP) of both variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.sum(np.outer(beta*s*np.matmul(Nc,((I+A)/T)), alpha*K_inf),axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R
-        dE  = (IP_old + IP_new)*S - E/sigma
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
+        dS  = - IP*S + zeta*R 
+        dE  = IP*S - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I 
+        dA = (a/omega)*I - A/da      
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
 
-        dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
-        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C
-        dH_in = M*(h_new/dhospital) - H_in
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R 
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec)
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
@@ -345,7 +353,7 @@ class COVID19_SEIRD(BaseModel):
 class COVID19_SEIRD_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
-    Can account for re-infection and co-infection with a new COVID-19 variant.
+    Can account for re-infection and co-infection with a new COVID-19 variants.
     Model compartments doubled for fundamental vaccination research.
 
     Parameters
@@ -390,7 +398,9 @@ class COVID19_SEIRD_vacc(BaseModel):
         -------------------------
         beta : probability of infection when encountering an infected person
         alpha : fraction of alternative COVID-19 variant
-        K_inf : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf2 : infectivity gain of Indian COVID-19 variant
+        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
         K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
@@ -428,7 +438,7 @@ class COVID19_SEIRD_vacc(BaseModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot',
                     'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R',
+    parameter_names = ['beta', 'alpha', 'K_inf1','K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
                         'dICU_D', 'dICUrec','dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['Nc']
@@ -436,7 +446,7 @@ class COVID19_SEIRD_vacc(BaseModel):
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v,
-                  beta, alpha, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc,
                   s, a, h, c, m_C, m_ICU, N_vacc,
                   Nc):
         """
@@ -445,6 +455,9 @@ class COVID19_SEIRD_vacc(BaseModel):
         *Deterministic implementation*
         """
 
+        K_inf = np.array([1, K_inf1, K_inf2])
+
+        # Print timestep of faulty social policy
         if Nc is None:
             print(t)
 
@@ -459,52 +472,62 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         VE = S + R
 
+        # Compute weighted average hospitalization propensity and vaccination parameters in accordance with variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+        # NOTE: This requires the sizes of alpha, K_hosp, K_inf, e_i, e_s, e_h, e_a to be consistent 
+        # However, because this requires a for loop, we omit a test
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        e_i = np.sum(alpha*e_i)
+        e_s = np.sum(alpha*e_s)
+        e_h = np.sum(alpha*e_h)
+        e_a = np.sum(alpha*e_a)
+
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP_old = (1-alpha)*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
-        IP_new = alpha*K_inf*beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T))
-
-        # Account for higher hospitalisation propensity of new variant
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        h_new = (1-alpha)*h + alpha*K_hosp*h
+        IP = np.sum(np.outer(beta*s*np.matmul(Nc,((I+A+(1-e_i)*(I_v+A_v))/T)), alpha*K_inf),axis=1)
 
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS  = - (IP_old + IP_new)*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)
-        dE  = (IP_old + IP_new)*S - E/sigma
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h_new)/dm) - M*h_new/dhospital
-        dC = M*(h_new/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+        dS  = - IP*S + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)  
+        dE  = IP*S - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I 
+        dA = (a/omega)*I - A/da      
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
+        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
         dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_new)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R - e_a*N_vacc/VE*R
 
         # Compute the  rates of change in every population compartment (vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        dS_v  = - (1-e_s)*(IP_old + IP_new)*S_v + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R - (1/d_vacc)*S_v
-        dE_v  = (1-e_s)*(IP_old + IP_new)*S_v - E_v/sigma
-        dI_v = (1/sigma)*E_v - (1/omega)*I_v
-        dA_v = (a/omega)*I_v - A_v/da
-        dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h_new)/dm) - M_v*(1-e_h)*h_new/dhospital
-        dC_v = M_v*(1-e_h)*(h_new/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
-        dICUstar_v = M_v*(1-e_h)*(h_new/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
+        
+        dS_v  = - (1-e_s)*IP*S_v + e_a*N_vacc/VE*S + e_a*N_vacc/VE*R - (1/d_vacc)*S_v
+        dE_v  = (1-e_s)*IP*S_v - E_v/sigma 
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
+        dA_v = (a/omega)*I_v - A_v/da      
+        dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h)*h)/dm) - M_v*(1-e_h)*h/dhospital
+        dC_v = M_v*(1-e_h)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
+        dICUstar_v = M_v*(1-e_h)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R-dICUrec) - C_icurec_v*(1/dICUrec)
-        dR_v  = A_v/da + ((1-(1-e_h)*h_new)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dR_v  = A_v/da + ((1-(1-e_h)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
 
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C + (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
 
         # Compute the hospital rates of changes
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dH_in = M*(h_new/dhospital) + M_v*((1-e_h)*h_new/dhospital) - H_in
+        dH_in = M*(h/dhospital) + M_v*((1-e_h)*h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
             + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
-        dH_tot = M*(h_new/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
-            + M_v*((1-e_h)*h_new/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
+            + M_v*((1-e_h)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 

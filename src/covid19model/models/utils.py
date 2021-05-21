@@ -40,7 +40,7 @@ def load_samples_dict(filepath, wave=1):
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     if wave == 2:
         # Append samples of re-susceptibility estimated from WAVE 1
-        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-04-27.json'))
+        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
         samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
     return samples_dict
 
@@ -135,16 +135,24 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['K_inf'] = samples_dict['K_inf'][idx]
-    param_dict['K_hosp'] = np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_inf1'] = samples_dict['K_inf'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf'][idx]*np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
+
 
     # Vaccination
     # -----------
     param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
-    param_dict['e_i'] = np.random.uniform(low=0.8,high=1) # Vaccinated individual is 80-100% less infectious than non-vaccinated indidivudal
-    param_dict['e_s'] = np.random.uniform(low=0.90,high=0.99) # Vaccine results in a 85-95% lower susceptibility
-    param_dict['e_h'] = np.random.uniform(low=0.8,high=1.0) # Vaccine blocks hospital admission between 50-100%
-    param_dict['delay'] = np.mean(np.random.triangular(1, 45, 45, size=30))
+    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
+    param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
+                                  np.random.uniform(low=0.8,high=1),
+                                  np.random.uniform(low=0.8,high=1)])
+    param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
+                                  np.random.uniform(low=0.90,high=0.99),
+                                  np.random.uniform(low=0.90,high=0.99)])                          
+    param_dict['e_h'] = np.array([np.random.uniform(low=0.8,high=1.0),
+                                  np.random.uniform(low=0.8,high=1.0),
+                                  np.random.uniform(low=0.8,high=1.0)])
     param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-

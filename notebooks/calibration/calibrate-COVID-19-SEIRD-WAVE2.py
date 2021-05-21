@@ -25,7 +25,7 @@ import multiprocessing as mp
 from multiprocessing import Pool
 from covid19model.models import models
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
-from covid19model.data import mobility, sciensano, model_parameters
+from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.optimization import pso, objective_fcns
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
@@ -86,11 +86,13 @@ levels = initN.size
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
+# Serological data
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# VOC data
+df_VOC_501Y = VOC.get_501Y_data()
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
-# Serological data
-df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # ------------------------
 # Define results locations
@@ -103,180 +105,29 @@ fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
 # Path where MCMC samples should be saved
 samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
-# -----------------------------------
-# Define calibration helper functions
-# -----------------------------------
-
-from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
-
 # ---------------------------
 # Time-dependant VOC function
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
-
-def VOC_wrapper_func(t,states,param):
-    t = pd.Timestamp(t.date())
-    return VOC_function(t)
+VOC_function = make_VOC_function(df_VOC_501Y)
 
 # -----------------------------------
 # Time-dependant vaccination function
 # -----------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
-sciensano_first_dose, df_sciensano_start, df_sciensano_end = make_vaccination_function(df_sciensano)
-
-def vacc_strategy(t, states, param, df_sciensano_start, df_sciensano_end,
-                    daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
-    """
-    time-dependent function for the Belgian vaccination strategy
-    First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-    given in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-  
-    Parameters
-    ----------
-    t : int
-        Simulation time
-    states: dict
-        Dictionary containing values of model states
-    param : dict
-        Model parameter dictionary
-    sciensano_first_dose : function
-        Function returning the number of (first dose) vaccinated individuals at simulation time t, according to the data made public by Sciensano.
-    df_sciensano_start : date
-        Start date of Sciensano vaccination data frame
-    df_sciensano_end : date
-        End date of Sciensano vaccination data frame
-    daily_dose : int
-        Number of doses administered per day. Default is 30000 doses/day.
-    delay : int
-        Time delay between first dose vaccination and start of immunity. Default is 21 days.
-    vacc_order : array
-        Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-    refusal: array
-        Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
-
-    Return
-    ------
-    N_vacc : array
-        Number of individuals to be vaccinated at simulation time "t"
-        
-    """
-
-    # Convert time to suitable format
-    t = pd.Timestamp(t.date())
-    # Convert delay to a timedelta
-    delay = pd.Timedelta(str(int(delay))+'D')
-    # Compute the number of vaccine eligible individuals
-    VE = states['S'] + states['R']
-    
-    if t <= df_sciensano_start + delay:
-        return np.zeros(9)
-    elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
-        return sciensano_first_dose(t-delay)
-    else:
-        N_vacc = np.zeros(9)
-        # Vaccines distributed according to vector 'order'
-        # With residue 'refusal' remaining in each age group
-        idx = 0
-        while daily_dose > 0:
-            if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
-                N_vacc[vacc_order[idx]] = daily_dose
-                daily_dose = 0
-            else:
-                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                daily_dose = daily_dose - VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]])
-                idx = idx + 1
-        return N_vacc
+vacc_strategy = make_vaccination_function(df_sciensano)
 
 # --------------------------------------
 # Time-dependant social contact function
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
-contact_matrix_4prev, all_contact, all_contact_no_schools = make_contact_matrix_function(df_google, Nc_all)
-
-# Define policy function
-def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
+policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation
     
-    # Convert tau and l to dates
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define key dates of first wave
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    # Define key dates of second wave
-    t5 = pd.Timestamp('2020-10-19') # lockdown (1)
-    t6 = pd.Timestamp('2020-11-02') # lockdown (2)
-    t7 = pd.Timestamp('2020-11-16') # schools re-open
-    t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-    t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-    t10 = pd.Timestamp('2021-02-15') # Spring break starts
-    t11 = pd.Timestamp('2021-02-21') # Spring break ends
-    t12 = pd.Timestamp('2021-03-26') # Easter holiday starts
-    t13 = pd.Timestamp('2021-04-18') # Easter holiday ends
-
-    t = pd.Timestamp(t.date())
-
-    # First wave
-    if t <= t1:
-        return all_contact(t)
-    elif t1 < t < t1:
-        return all_contact(t)
-    elif t1  < t <= t1  + l_days:
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t3 < t <= t4:
-        return contact_matrix_4prev(t, school=0)
-    # Second wave
-    elif t4 < t <= t5:
-        return contact_matrix_4prev(t, school=1)
-    elif t5 < t <= t5 + l_days:
-        policy_old = contact_matrix_4prev(t, school=1)
-        policy_new = contact_matrix_4prev(t, prev_schools, prev_work, prev_rest, 
-                                    school=1)
-        return ramp_fun(policy_old, policy_new, t, t5, l)
-    elif t5 + l_days < t <= t6:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t6 < t <= t7:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t7 < t <= t8:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1) 
-    elif t8 < t <= t9:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)
-    elif t9 < t <= t10:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t10 < t <= t11:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)    
-    elif t11 < t <= t12:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-    elif t12 < t <= t13:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=0)                                                                                                                                                     
-    else:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
-                              school=1)
-
 # --------------------
 # Initialize the model
 # --------------------
@@ -285,16 +136,23 @@ def policies_wave2(t, states, param, l , prev_schools, prev_work, prev_rest, pre
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-07-01', 'l_relax' : 31})
+# VOC
+params.update({'t_sig': '2021-08-01'}) # No new Indian variant currently
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 21, 'df_sciensano_start': df_sciensano_start,
-     'df_sciensano_end': df_sciensano_end}
+     'refusal': 0.2*np.ones(9), 'delay': 20}
 )
 # Initialize model
 model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_wave2, 'N_vacc': vacc_strategy, 'alpha': VOC_wrapper_func})
+                        time_dependent_parameters={'Nc': policies_WAVE2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
+
+# -----------------------------------
+# Define calibration helper functions
+# -----------------------------------
+
+from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
 
 #############
 ## JOB: R0 ##
@@ -469,7 +327,7 @@ states = ["H_in"]
 
 # optimisation settings
 model.parameters['K_hosp'] = 1.4
-pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf']
+pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf1']
 bounds=((0.008,0.04),(3,14),(3,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.20,0.99),(1,1.6))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
@@ -505,7 +363,7 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf']
+pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf1']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.10,1), (0.10,1), (0.10,1), (0.10,1),(1.3,1.8)]
 # Perturbate PSO Estimate
