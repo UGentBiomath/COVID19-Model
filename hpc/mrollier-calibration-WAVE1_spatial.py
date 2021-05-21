@@ -207,7 +207,7 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, make_mobility_update_function
 
 # Define contact matrix functions based on 4 prevention parameters (effectivity parameters)
-policies_wave1_4prev = make_contact_matrix_function(df_google, Nc_all).policies_wave1_4prev # with delayed-ramp function
+policies_wave1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1 # with delayed-ramp function
 
 # Mobility update function from class __call__ and function wrapper to get the right signature
 mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
@@ -243,7 +243,7 @@ initial_states = {'S': initN, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : policies_wave1_4prev, 'place' : mobility_wrapper_function}, spatial=agg)
+                                           {'Nc' : policies_WAVE1, 'place' : mobility_wrapper_function}, spatial=agg)
 
 
 # The code was applicable to both jobs until this point.
