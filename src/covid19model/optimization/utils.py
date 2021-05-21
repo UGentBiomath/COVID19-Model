@@ -13,7 +13,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=True):
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -27,7 +27,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs)
-        for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
@@ -88,6 +88,9 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             if sampler.iteration % print_n:
                 continue
 
+            if not progress:
+                print(f"Saving samples for iteration {sampler.iteration} of maximally {max_n} iterations.")
+                
             flat_samples = sampler.get_chain(flat=True)
             if job == 'FULL':
                 with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
