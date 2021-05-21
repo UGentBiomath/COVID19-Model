@@ -57,6 +57,9 @@ from covid19model.models.utils import initial_state
 # Time the runtime
 initial_time = datetime.datetime.now()
 
+# Choose to show progress bar. This cannot be shown on HPC
+progress = False
+
 # -----------------------
 # Handle script arguments
 # -----------------------
@@ -386,7 +389,7 @@ if __name__ == '__main__':
 
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
 
 
         # ---------------
@@ -565,7 +568,7 @@ if __name__ == '__main__':
 
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
 
 
         # ---------------
