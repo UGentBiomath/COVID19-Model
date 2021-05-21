@@ -381,6 +381,11 @@ if __name__ == '__main__':
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
+        
+        # Print runtime in hours
+        intermediate_time = datetime.datetime.now()
+        runtime = (intermediate_time - initial_time).microseconds / 1e6 / 3600
+        print(f'\nTotal runtime: {runtime} hours.')
 
 
         # ----------------
@@ -560,6 +565,11 @@ if __name__ == '__main__':
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
+        
+        # Print runtime in hours
+        intermediate_time = datetime.datetime.now()
+        runtime = (intermediate_time - initial_time).microseconds / 1e6 / 3600
+        print(f'\nTotal runtime: {runtime} hours.')
 
 
         # ----------------
