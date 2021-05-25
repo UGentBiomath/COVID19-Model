@@ -251,7 +251,7 @@ class make_vaccination_function():
         return N_vacc
     
     # Default vaccination strategy
-    def __call__(self, t, states, param, daily_dose=30000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    def __call__(self, t, states, param, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
         """
         time-dependent function for the Belgian vaccination strategy
         First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
