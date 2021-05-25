@@ -60,7 +60,7 @@ warmup = int(samples_dict['warmup'])
 
 import sys, getopt
 scenarios = args.scenarios
-report_version = 'v8.0'
+report_version = 'v8.1'
 start_sim = '2020-09-01'
 end_sim = '2021-09-01'
 start_calibration = samples_dict['start_calibration']
@@ -74,8 +74,8 @@ conf_int = 0.05
 descriptions_scenarios = ['Current contact behaviour', 'Relaxation of work-at-home - schools open', 'Relaxation of work-at-home - schools closed',
                     'Relaxation of leisure - schools open', 'Relaxation of leisure - schools closed',
                     'Relaxation of work-at-home and leisure - schools open', 'Relaxation of work-at-home and leisure - schools closed']
-relaxdates = ['2021-05-01','2021-06-01']
-doses = [60000]
+relaxdates = ['2021-05-08','2021-06-09']
+doses = [60000,120000]
 orders = [np.array(range(9))[::-1]]#[np.array(range(9)), np.array(range(9))[::-1]]
 description_order = ['old --> young']#['young (0 yo.) --> old', 'old --> young'] # Add contact order, and/or add young to old, starting at 20 yo.
 
@@ -92,7 +92,7 @@ df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
 
-print('report: v' + report_version)
+print('report: ' + report_version)
 print('scenarios: '+ ', '.join(map(str, scenarios)))
 print('model: ' + model)
 print('number of samples: ' + str(n_samples))
@@ -385,8 +385,8 @@ def draw_fcn(param_dict,samples_dict):
     model.parameters['prev_home'] = samples_dict['prev_home'][idx]      
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf'][idx]*np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]#*np.random.uniform(low=1.3,high=1.5) No new variant in RESTORE 8.1
     param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
 
     # Vaccination
@@ -444,7 +444,7 @@ with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/nation
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 # Add the time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 20})
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'scenario': 0, 'relaxdate': '2021-05-08', 'l_relax': 21})
 # VOCs
 params.update({'t_sig': '2021-07-01'})
 # Vaccination
@@ -519,8 +519,7 @@ for idx,scenario in enumerate(scenarios):
             axes[jdx].legend(legend_text, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
     fig.suptitle('Scenario '+scenario+': '+descriptions_scenarios[int(scenario)]+'\n', x=0.92, y=0.99, ha='right')
     
+    fig.savefig('../../results/predictions/national/restore_'+report_version+'/scenario_'+scenario+'.pdf', dpi=300, bbox_inches='tight')
+    fig.savefig('../../results/predictions/national/restore_'+report_version+'/scenario_'+scenario+'.png', dpi=300, bbox_inches='tight')
 
-    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.pdf', dpi=300, bbox_inches='tight')
-    fig.savefig('../../results/predictions/national/restore_v8.0/scenario_'+scenario+'.png', dpi=300, bbox_inches='tight')
-
-df_sim.to_csv('../../results/predictions/national/restore_v8.0/RESTORE8_UGent_simulations.csv')
+df_sim.to_csv('../../results/predictions/national/restore_'+report_version+'/RESTORE'+report_version+'_UGent_simulations.csv')

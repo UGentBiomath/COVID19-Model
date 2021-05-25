@@ -135,14 +135,14 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf'][idx]*np.random.uniform(low=1.3,high=1.5)
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]*np.random.uniform(low=1.3,high=1.5)
     param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
 
 
     # Vaccination
     # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
+    param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
     param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1),
