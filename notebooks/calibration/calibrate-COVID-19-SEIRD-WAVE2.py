@@ -299,7 +299,7 @@ if not args.enddate:
 else:
     end_calibration = str(args.enddate)
 # PSO settings
-processes = mp.cpu_count()
+processes = int(mp.cpu_count()/2)
 multiplier = 3
 maxiter = 30
 popsize = multiplier*processes
@@ -331,7 +331,7 @@ bounds=((0.008,0.04),(3,14),(3,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.20,0.9
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.101, 0.649, 1.47])
+theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.105, 0.649, 1.47])
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
@@ -365,7 +365,7 @@ pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home'
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.10,1), (0.10,1), (0.10,1), (0.10,1),(1.3,1.8)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
+pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 5e-2, 5e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 3)
 # Set up the sampler backend if needed
 if backend:
