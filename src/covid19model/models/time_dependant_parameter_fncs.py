@@ -299,7 +299,9 @@ class make_vaccination_function():
             # With residue 'refusal' remaining in each age group
             idx = 0
             while daily_dose > 0:
-                if VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
+                if idx == 9:
+                    daily_dose = 0 #End vaccination campaign at age 20
+                elif VE[vacc_order[idx]]*(1-refusal[vacc_order[idx]]) > daily_dose:
                     N_vacc[vacc_order[idx]] = daily_dose
                     daily_dose = 0
                 else:

@@ -142,7 +142,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=60000,high=80000)
+    param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
     param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1),
