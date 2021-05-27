@@ -284,7 +284,7 @@ if __name__ == '__main__':
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         print(f'Number of processes: {processes}')
-        multiplier = 1 # 10
+        multiplier = 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
@@ -397,7 +397,7 @@ if __name__ == '__main__':
 
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
+                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
 
 
         # ---------------
@@ -576,7 +576,7 @@ if __name__ == '__main__':
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
-        print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
+        print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
 
 
         # ----------------
@@ -585,7 +585,7 @@ if __name__ == '__main__':
 
         # Print autocorrelation and traceplot every print_n'th iteration
         sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
+                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
 
 
         # ---------------
