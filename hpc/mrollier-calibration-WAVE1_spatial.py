@@ -284,13 +284,13 @@ if __name__ == '__main__':
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         print(f'Number of processes: {processes}')
-        multiplier = 4 # 10
+        multiplier = 1 # 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
         # MCMC settings
         max_n = maxn_MCMC
-        print_n = 100
+        print_n = 10
 
         # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
         poisson_offset = 1
@@ -324,10 +324,11 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-        bounds=((10.0,80.0),(0.020,0.060), (0.020,0.060), (0.020,0.060))
+        bounds=((10.0,80.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
         # run optimisation
         theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
+#         theta = np.array([48, 0.01896, 0.02153, 0.02599])
         # Assign estimate.
         warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -351,6 +352,13 @@ if __name__ == '__main__':
         plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
         plt.close()
+        
+        # Print runtime in hours
+        intermediate_time = datetime.datetime.now()
+        runtime = (intermediate_time - initial_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
 
 
         # ------------------
@@ -363,7 +371,7 @@ if __name__ == '__main__':
         # Perturbate PSO estimate
         pars = ['beta_R', 'beta_U', 'beta_M']
         pert = [0.02, 0.02, 0.02]
-        ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args)
+        ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
 
         # Set up the sampler backend if needed
         if backend:
@@ -380,13 +388,8 @@ if __name__ == '__main__':
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
-        print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
+        print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
         
-        # Print runtime in hours
-        intermediate_time = datetime.datetime.now()
-        runtime = (intermediate_time - initial_time).microseconds / 1e6 / 3600
-        print(f'\nTotal runtime: {runtime} hours.')
-
 
         # ----------------
         # Run MCMC sampler
@@ -433,8 +436,10 @@ if __name__ == '__main__':
 
         # Print runtime in hours
         final_time = datetime.datetime.now()
-        runtime = (final_time - initial_time).microseconds / 1e6 / 3600
-        print(f'\nTotal runtime: {runtime} hours.')
+        runtime = (final_time - intermediate_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
         
         # Work is done
         sys.exit()
@@ -465,13 +470,13 @@ if __name__ == '__main__':
 
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier = 4 # 10
+        multiplier = 1 # 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
         # MCMC settings
         max_n = maxn_MCMC # 500000
-        print_n = 100
+        print_n = 10
 
         # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
         poisson_offset = 1
@@ -533,6 +538,13 @@ if __name__ == '__main__':
         plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
         plt.close()
+        
+        # Print runtime in hours
+        intermediate_time = datetime.datetime.now()
+        runtime = (intermediate_time - initial_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
 
 
         # ------------------
@@ -546,7 +558,7 @@ if __name__ == '__main__':
         # Perturbate PSO estimate
         pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
         pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
-        ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args)
+        ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
 
         # Set up the sampler backend if needed
         if backend:
@@ -565,11 +577,6 @@ if __name__ == '__main__':
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for a {ndim} parameters, in {nwalkers} chains.\n')
-        
-        # Print runtime in hours
-        intermediate_time = datetime.datetime.now()
-        runtime = (intermediate_time - initial_time).microseconds / 1e6 / 3600
-        print(f'\nTotal runtime: {runtime} hours.')
 
 
         # ----------------
@@ -611,11 +618,13 @@ if __name__ == '__main__':
         with open(json_file, 'w') as fp:
             json.dump(samples_dict, fp)
 
+        # Print runtime in hours
+        final_time = datetime.datetime.now()
+        runtime = (final_time - intermediate_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - initial_time).microseconds / 1e6 / 3600
-        print(f'\nTotal runtime: {runtime} hours.')
