@@ -1,5 +1,6 @@
 import gc
 import os
+import sys
 import emcee
 import numpy as np
 import matplotlib.pyplot as plt
@@ -90,6 +91,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
 
             if not progress:
                 print(f"Saving samples for iteration {sampler.iteration} of maximally {max_n} iterations.")
+                sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
             if job == 'FULL':
@@ -164,11 +166,13 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         cond_number = np.linalg.cond(pos)
         if ((cond_number == np.inf) and verbose and (retry_counter<20)):
             print("Condition number too high, recalculating perturbations. Perhaps one or more of the bounds is zero?")
+            sys.stdout.flush()
             retry_counter += 1
         elif retry_counter >= 20:
             raise Exception("Attempted 20 times to perturb parameter values but the condition number remains too large.")
     if verbose:
         print('Total number of markov chains: ' + str(nwalkers)+'\n')
+        sys.stdout.flush()
     return ndim, nwalkers, pos
 
 
