@@ -284,6 +284,7 @@ if __name__ == '__main__':
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         print(f'Number of processes: {processes}')
+        sys.stdout.flush()
         multiplier = 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
@@ -306,6 +307,7 @@ if __name__ == '__main__':
         print('Using data from '+start_calibration+' until '+end_calibration+'\n')
         print('1) Particle swarm optimization\n')
         print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+        sys.stdout.flush()
 
 
         # --------------
@@ -342,6 +344,7 @@ if __name__ == '__main__':
         print(f'------------')
         print(f'warmup: {warmup}')
         print(f'infectivities {pars[1:]}: {theta[1:]}.')
+        sys.stdout.flush()
 
         # Visualize fit and save in order to check the validity of the first step
         ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
@@ -351,6 +354,7 @@ if __name__ == '__main__':
         pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
         plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
+        sys.stdout.flush()
         plt.close()
         
         # Print runtime in hours
@@ -359,6 +363,7 @@ if __name__ == '__main__':
         totalMinute, second = divmod(runtime.seconds, 60)
         hour, minute = divmod(totalMinute, 60)
         print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
 
 
         # ------------------
@@ -389,6 +394,7 @@ if __name__ == '__main__':
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+        sys.stdout.flush()
         
 
         # ----------------
@@ -409,10 +415,13 @@ if __name__ == '__main__':
             autocorr = sampler.get_autocorr_time()
             thin = max(1,int(0.5 * np.min(autocorr)))
             print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
+            sys.stdout.flush()
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+            sys.stdout.flush()
 
         print('\n3) Sending samples to dictionary')
+        sys.stdout.flush()
 
         flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
         samples_dict = {}
@@ -433,6 +442,7 @@ if __name__ == '__main__':
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+        sys.stdout.flush()
 
         # Print runtime in hours
         final_time = datetime.datetime.now()
@@ -440,6 +450,7 @@ if __name__ == '__main__':
         totalMinute, second = divmod(runtime.seconds, 60)
         hour, minute = divmod(totalMinute, 60)
         print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
         
         # Work is done
         sys.exit()
@@ -492,6 +503,7 @@ if __name__ == '__main__':
         print('Using data from '+start_calibration+' until '+end_calibration+'\n')
         print('1) Particle swarm optimization\n')
         print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+        sys.stdout.flush()
 
 
         # --------------
@@ -528,6 +540,7 @@ if __name__ == '__main__':
         print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
         print(f'compliance l: {theta[3]}')
         print(f'effectivities prev_home, prev_schools, prev_work, prev_rest: {theta[4:]}')
+        sys.stdout.flush()
 
         # Visualize fit and save in order to check the validity of the first step
         ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
@@ -537,6 +550,7 @@ if __name__ == '__main__':
         pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
         plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
+        sys.stdout.flush()
         plt.close()
         
         # Print runtime in hours
@@ -545,6 +559,7 @@ if __name__ == '__main__':
         totalMinute, second = divmod(runtime.seconds, 60)
         hour, minute = divmod(totalMinute, 60)
         print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
 
 
         # ------------------
@@ -577,6 +592,7 @@ if __name__ == '__main__':
 
         print('\n2) Markov-Chain Monte-Carlo sampling\n')
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+        sys.stdout.flush()
 
 
         # ----------------
@@ -597,10 +613,13 @@ if __name__ == '__main__':
             autocorr = sampler.get_autocorr_time()
             thin = max(1,int(0.5 * np.min(autocorr)))
             print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
+            sys.stdout.flush()
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+            sys.stdout.flush()
 
         print('\n3) Sending samples to dictionary')
+        sys.stdout.flush()
 
         flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
         samples_dict = {}
@@ -624,7 +643,9 @@ if __name__ == '__main__':
         totalMinute, second = divmod(runtime.seconds, 60)
         hour, minute = divmod(totalMinute, 60)
         print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
 
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+        sys.stdout.flush()
