@@ -36,6 +36,8 @@ from covid19model.visualization.optimization import autocorrelation_plot, tracep
 # Handle script arguments
 # -----------------------
 
+progress=False
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-j", "--job", help="Full or partial calibration")
@@ -153,9 +155,9 @@ else:
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE1'
 # PSO settings
-processes = 12 # mp.cpu_count()
-multiplier = 2
-maxiter = 5
+processes = mp.cpu_count()
+multiplier = 1
+maxiter = 100
 popsize = multiplier*processes
 # MCMC settings
 max_n = 100
@@ -227,7 +229,7 @@ if job == 'R0':
     # Run MCMC sampler
     # ----------------
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
    
     # ---------------
     # Process results
@@ -282,9 +284,9 @@ if not args.enddate:
 else:
     end_calibration = str(args.enddate)
 # PSO settings
-processes = 12 # mp.cpu_count()
-multiplier = 5
-maxiter = 3
+processes = mp.cpu_count()
+multiplier = 1
+maxiter = 100
 popsize = multiplier*processes
 # MCMC settings
 max_n = 100
@@ -319,10 +321,10 @@ pars = ['beta', 'da','l', 'prev_work', 'prev_rest', 'prev_home', 'zeta']
 bounds=((0.02,0.04),(4,8),(6,12),(0.10,0.50),(0.10,0.50),(0.50,0.99), (1e-4,5e-2))
 
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
+theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,
+                   start_date=start_calibration, warmup=warmup, processes=processes)
 # Until 2020-07-07
-theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
+# theta = np.array([3.07591271e-02, 6.82739107e+00, 9.03812664e+00, 1.00000000e-01, 1.00000000e-01, 6.71590820e-01, 3.26743844e-03]) #-93665.92484247981
 
 model.parameters = assign_PSO(model.parameters, pars, theta)
 out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
@@ -367,7 +369,7 @@ objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start
 # Run MCMC sampler
 # ----------------
 
-sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
 
 # ---------------
 # Process results
