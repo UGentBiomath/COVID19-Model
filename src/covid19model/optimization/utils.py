@@ -84,7 +84,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # WRITE SAMPLES TO DICTIONARY #
             ###############################
 
-            # Write samples to dictionary every 200 steps
+            # Write samples to dictionary every print_n steps
             if sampler.iteration % print_n:
                 continue
 
