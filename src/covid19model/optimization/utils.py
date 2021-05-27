@@ -36,6 +36,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ##################
             # UPDATE FIGURES #
             ##################
+            
+            # Hardcode threshold values defining convergence
+            thres_multi = 50.0
+            thres_frac = 0.03
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
@@ -46,10 +50,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k")
+            ax.plot(n, n / thres_multi, "--k")
             ax.plot(n, y, linewidth=2,color='red')
             ax.set_xlim(0, n.max())
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            ymax = np.nanmax(np.append(y, n.max()/thres_multi))
+            ymin = np.nanmin(np.append(y, 0))
+            ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             if job == 'FULL':
@@ -75,8 +81,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             #####################
 
             # Check convergence using mean tau
-            converged = np.all(np.mean(tau) * 50 < sampler.iteration)
-            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
+            converged = np.all(np.mean(tau) * thres_multi < sampler.iteration)
+            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < thres_frac)
             if converged:
                 break
             old_tau = tau
