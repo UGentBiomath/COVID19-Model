@@ -2,6 +2,10 @@
 
 ### Raw data sets
 
+#### RESTORE
+
+A folder containing all raw simulations used for the RESTORE reports, freely available at https://covid-en-wetenschap.github.io/restore.html
+
 #### deaths
 
 + `DEMO_DEATH_OPEN.xlsx` contains total number of daily deaths per age class per arrondissement between 2009 and now. Current latest date: 21 February 2021. Data for 2020 and 2021 are not entirely complete yet. Downloaded from Statbel (https://statbel.fgov.be/nl/open-data/aantal-sterfgevallen-dag-geslacht-arrondissement-leeftijd)
