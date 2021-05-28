@@ -2,6 +2,10 @@
 
 ### Raw data sets
 
+#### RESTORE
+
+A folder containing all raw simulations used for the RESTORE reports, the reports are freely available at https://covid-en-wetenschap.github.io/restore.html
+
 #### deaths
 
 + `DEMO_DEATH_OPEN.xlsx` contains total number of daily deaths per age class per arrondissement between 2009 and now. Current latest date: 21 February 2021. Data for 2020 and 2021 are not entirely complete yet. Downloaded from Statbel (https://statbel.fgov.be/nl/open-data/aantal-sterfgevallen-dag-geslacht-arrondissement-leeftijd)
@@ -113,6 +117,10 @@ split between general population and elderly homes. Data from https://m.standaar
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
+
+#### RESTORE
+
+`all_RESTORE_simulations.csv` contains all RESTORE predictions in a uniform format. The resulting .csv has a five-dimensional header: 1) author, 2) report version, 3) scenario, 4) hospital incidences or load, 5) statistic: mean, median, LL, UL. To load the .csv file correctly using pandas: `RESTORE_df = pd.read_csv(path_to_file+'all_RESTORE_simulations.csv', header=[0,1,2,3,4])`. Indexing is performed in the following way: `RESTORE_df['UGent','v7.0','S1','incidences','mean']` returns the daily hospitalizations (incidences) in scenario S1 of report v7.0 by UGent. The dataset was created by converting the raw RESTORE predictions using the script `~/notebooks/preprocessing/format-RESTORE-predictions.py`.
 
 #### Interaction matrices
 

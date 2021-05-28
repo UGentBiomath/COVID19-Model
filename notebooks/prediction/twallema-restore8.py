@@ -386,7 +386,7 @@ def draw_fcn(param_dict,samples_dict):
     model.parameters['prev_work'] = samples_dict['prev_work'][idx]       
     model.parameters['prev_rest'] = samples_dict['prev_rest'][idx]
     param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]#*np.random.uniform(low=1.3,high=1.5) No new variant in RESTORE 8.1
+    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]#*np.random.uniform(low=1.3,high=1.5) #No new variant in RESTORE 8.1
     param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
 
     # Vaccination
