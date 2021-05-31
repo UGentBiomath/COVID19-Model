@@ -132,15 +132,13 @@ VUB1.pop('Date')
 # Load VUB2 model
 VUB2 = pd.read_excel(raw_dir+folder+'VUB_HOSPpredictions0112.xlsx', skiprows=0)
 VUB2.Date = pd.to_datetime(VUB2.Date)
-VUB2.pop("Unnamed: 7")
-VUB2.pop("Unnamed: 8")
-VUB2.pop("Unnamed: 9")
-VUB2.pop("Unnamed: 10")
+#VUB2.pop("Unnamed: 7")
+#VUB2.pop("Unnamed: 8")
+#VUB2.pop("Unnamed: 9")
+#VUB2.pop("Unnamed: 10")
 VUB2.columns = ['Date','Observations','Fit', 'S1_load_median','S1_load_mean', 'S1_load_LL', 'S1_load_UL']
 VUB2.index = VUB2['Date']
 VUB2.pop('Date')
-# Choose VUB2 model
-VUB = VUB1
 
 # -----------
 # Assign data
@@ -148,7 +146,7 @@ VUB = VUB1
 
 authors = ['UGent','SIMID','UNamur','VUB']
 authors_df = [UGent, SIMID, UNamur, VUB]
-report_v = 'v5'
+report_v = 'v5.0'
 scenarios = ['1','2','3','4']
 statistics = ['mean', 'median', 'LL', 'UL']
 
@@ -229,7 +227,7 @@ ULBXmas3.pop('Date')
 
 authors = ['UGent','SIMID','UNamur','VUB']
 authors_df = [UGent, SIMID, UNamur, VUB]
-report_v = 'v6'
+report_v = 'v6.0'
 scenarios = ['1a','2a','2b1','2c1','3']
 scenarios_mapped = ['1','2a','2b','2c','3']
 statistics = ['mean', 'median', 'LL', 'UL']
@@ -281,11 +279,11 @@ UNamur.pop('Date')
 # Load VUB model
 VUB = pd.read_excel(raw_dir+folder+'VUB_HOSPpredictions150121_Rapport6-1.xlsx', skiprows=0)
 VUB.Date = pd.to_datetime(VUB.Date)
-VUB.pop("Unnamed: 7")
-VUB.pop("Unnamed: 8")
-VUB.pop("Unnamed: 9")
-VUB.pop("Unnamed: 10")
-VUB.pop("Unnamed: 11")
+#VUB.pop("Unnamed: 7")
+#VUB.pop("Unnamed: 8")
+#VUB.pop("Unnamed: 9")
+#VUB.pop("Unnamed: 10")
+#VUB.pop("Unnamed: 11")
 VUB.columns = ['Date','Observations','Fit', 'S1_load_median','S1_load_mean', 'S1_load_LL', 'S1_load_UL'] 
 VUB.index = VUB['Date']
 VUB.pop('Date')
@@ -333,6 +331,22 @@ UGent.pop('Date')
 UNamur = pd.read_csv(raw_dir+folder+'Unamur_Model_allscenarios_70.csv', parse_dates=['Date'], skipinitialspace=True)
 UNamur.index = UNamur['Date']
 UNamur.pop('Date')
+# Load VUB model
+VUB = pd.read_excel(raw_dir+folder+'VUB_prediction_March9th.xlsx',skiprows=1)
+VUB.Date = pd.to_datetime(VUB.Date, format='%d/%m/%y')
+VUB.index = VUB['Date']
+VUB.pop('Date')
+VUB.pop("Unnamed: 6")
+VUB.pop("Unnamed: 7")
+VUB.pop("Unnamed: 8")
+VUB.pop("Unnamed: 9")
+VUB.pop("Unnamed: 10")
+VUB.pop("Unnamed: 11")
+VUB.pop("Unnamed: 12")
+VUB.pop("Unnamed: 13")
+VUB = VUB.rename(columns={VUB.columns[2]:'S1b_load_mean'})
+VUB = VUB.rename(columns={VUB.columns[3]:'S1b_load_LL'})
+VUB = VUB.rename(columns={VUB.columns[4]:'S1b_load_UL'})
 
 # -----------
 # Assign data
@@ -340,7 +354,7 @@ UNamur.pop('Date')
 
 authors = ['UGent','SIMID','UNamur']
 authors_df = [UGent, SIMID, UNamur]
-report_v = 'v7'
+report_v = 'v7.0'
 scenarios = ['1a','1b','1c','2a','2b','2c','3a','3b','3c','4a','4b','4c']
 scenarios_mapped = scenarios
 statistics = ['mean', 'median', 'LL', 'UL']
@@ -350,6 +364,10 @@ for idx, author in enumerate(authors):
         for statistic in statistics:
             df_RESTORE[author,report_v,"S"+scenarios_mapped[jdx],"incidences", statistic] = authors_df[idx]['S'+scenario+'_incidences_'+statistic]
             df_RESTORE[author,report_v,"S"+scenarios_mapped[jdx],"load", statistic] = authors_df[idx]['S'+scenario+'_load_'+statistic]
+
+for statistic in statistics:
+    if not statistic == 'median':
+        df_RESTORE['VUB','v7.0','S1b','load',statistic] = VUB['S1b_load_'+statistic]
 
 #################
 ## RESTORE 8.0 ##
@@ -385,6 +403,14 @@ UGent.pop('Date')
 UNamur = pd.read_csv(raw_dir+folder+'Unamur_Model_80.csv', parse_dates=['Date'], skipinitialspace=True)
 UNamur.index = UNamur['Date']
 UNamur.pop('Date')
+# Load VUB model
+VUB = pd.read_excel(raw_dir+folder+'restore8_VUB.xlsx',skiprows=1)
+VUB.Date = pd.to_datetime(VUB.Date, format='%d/%m/%y')
+VUB.index = VUB['Date']
+VUB.pop('Date')
+VUB = VUB.rename(columns={VUB.columns[6]:'current_contact_load_mean'})
+VUB = VUB.rename(columns={VUB.columns[7]:'current_contact_load_LL'})
+VUB = VUB.rename(columns={VUB.columns[8]:'current_contact_load_UL'})
 
 # -----------
 # Assign data
@@ -392,7 +418,7 @@ UNamur.pop('Date')
 
 authors = ['UGent','SIMID','UNamur']
 authors_df = [UGent, SIMID, UNamur]
-report_v = 'v8'
+report_v = 'v8.0'
 scenarios = ['1','2','3','4']
 scenarios_mapped = scenarios
 statistics = ['mean', 'median', 'LL', 'UL']
@@ -407,6 +433,10 @@ for idx, author in enumerate(authors):
             else:
                 df_RESTORE[author,report_v,"S"+scenarios_mapped[jdx],"incidences", statistic] = authors_df[idx]['S'+scenario+'_incidences_'+statistic]
                 df_RESTORE[author,report_v,"S"+scenarios_mapped[jdx],"load", statistic] = authors_df[idx]['S'+scenario+'_load_'+statistic] 
+
+for statistic in statistics:
+    if not statistic == 'median':
+        df_RESTORE['VUB','v7.0','current_contact_behaviour','load',statistic] = VUB['current_contact_load_'+statistic]
 
 ##################
 ## Save results ##
