@@ -4,6 +4,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable # for plot aesthetics
 import matplotlib.colors as colors
 from .utils import colorscale_okabe_ito
 from .utils import _apply_tick_locator
+import datetime
+import numpy as np
+import pandas as pd
 
 def population_status(data, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the population as function of time
@@ -49,26 +52,28 @@ def population_status(data, filename=None, *, ax=None, **kwargs):
 
     # check if ax object is provided by user
     if ax is None:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(9,5))
 
     # create plot using xarray interface
-    data2plot = data[["S", "E", "I_total", "R"]].to_array(dim="states")
+    data2plot = data[["S", "E", "I_total", "R", "D"]].to_array(dim="states")
     lines = data2plot.plot.line(x='time', hue="states", ax=ax, **kwargs)
     ax.set_xlabel('days')
     ax.set_ylabel('number of patients')
 
     # use custom defined colors
-    colors = ["black", "orange", "red", "green"]
+    colors = ["black", "orange", "red", "green", "blue", "yellow"]
     for color, line in zip(colors, lines):
         line.set_color(colorscale_okabe_ito[color])
 
     # add custom legend
     ax.legend(('susceptible', 'exposed',
-               'total infected', 'immune'),
-              loc="upper left", bbox_to_anchor=(1,1))
+               'infected+sick+hospital', 'recovered','dead'),
+              loc="upper center", bbox_to_anchor=(0.5,1.15), ncol=3)
 
     # limit the number of ticks on the axis
     ax = _apply_tick_locator(ax)
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(0)
 
     if filename:
         plt.savefig(filename, dpi=600, bbox_inches='tight')
@@ -169,7 +174,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         Geopandas dataframe from Belgian shapefiles whose entries correspond to the values in the model output's 'place' dimension. NISCode values are strings.
     ts_geo : string
         The SEIR compartment time series that is plotted into the color map on the chosen day. Either S, E (default), I, A, M, ER, C, C_icurec, ICU, R, D, H_in, H_out, or H_tot.
-    day : int
+    day : Timestamp
         The simulated day that is to be plotted in the color map. Iterate over this value to create an animation. Default is start date.
     lin : Boolean
         Plots a linear representation of the values in the map if True. Otherwise the values are shown with a symlog representation (default).
@@ -211,7 +216,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         raise Exception(f"The NIS values in the model output and the geopandas dataframe do not correspond (function parameters 'data' and 'geo')")
         
     # Check whether the model output has recognisable compartments
-    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H'}
+    full_comp_set = {'S', 'E', 'I', 'A', 'M', 'ER', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'C_total', 'H', 'V', 'VE', 'alpha', 'V_new'}
     data_comp_set = set(data.data_vars)
     if not data_comp_set.issubset(full_comp_set):
         diff = data_comp_set.difference(full_comp_set)
@@ -222,11 +227,16 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
         print(f"Compartments whose time series are included in the data: {data_comp_set}")
     
     # Check if the day is not out of reach
-    maxday = data.time.values[-1]
-    if (day < 0) or (day > maxday) or (type(day) != int):
-        raise Exception(f"Choose an integer value day between (and including) 0 and {maxday}")
+    all_days = data.time.values
+    first_day = all_days[0]
+    last_day = all_days[-1]
+#     if not isinstance(day, type(first_day)):
+#         raise Exception(f"Day types do not match. Show_map function has taken type(day) = {type(day)}, but days in simulation are of type {type(first_day)}.")
+    if (day < first_day) or (day > last_day):
+        raise Exception(f"Requested day {day.date()} out of reach. Choose a day between {first_day.date()} and {last_day.date()}")
     if verbose:
-        print(f"Working on day {day} of {maxday}")
+        print(f"Working on day {day.date()}. Working toward {last_day}")
+        
     
     # Check if the chosen nis value (if any) is legitimate
     if nis:
@@ -261,9 +271,9 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
     #############################################
     
     # Define time list from data
-    tlist = data['time'].values
+    tlist = list(range(len(data['time'])))
     
-    # Check whether there is more than one draw
+    # Check whether there is more than one draw (stochastic model)
     draws = False
     if 'draws' in data.dims:
         draws = True
@@ -341,11 +351,12 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
             #ax_graph_dict[ts].yaxis.set_label_coords(ylabel_pos[0], ylabel_pos[1])
             ax_graph_dict[ts].set_yscale(yscale_graph)
             ax_graph_dict[ts].grid(False)
-            ax_graph_dict[ts].set_xlim([0,tlist[-1]])
+            ax_graph_dict[ts].set_xlim([0,len(tlist)])
             ax_graph_dict[ts].set_ylim([vmin_graph,1.25*vmax_graph[ts]])
             if pos != (len(ts_graph)-1):
                 ax_graph_dict[ts].set_xticks([])
             pos += 1
+#         ax_graph_dict[ts].set_xticks([])
         ax_graph_dict[ts].set_xlabel('Days since initial exposure',size=text_size)
     
     # Set percentage edges to plot
@@ -375,7 +386,7 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
 
     # Add (meta)data to graphs
     legend_size = 12
-    figtext_pos = (.18, .12)
+    figtext_pos = (.23, .12)
     if ts_graph:
         for ts in ts_graph:
             # show distinct regions in graphs
@@ -414,21 +425,28 @@ def show_map(data, geo, ts_geo='E', day=0, lin=False, rel=False, cmap='Oranges',
                     ax_graph_dict[ts].plot(tlist, ts_median, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                     graph = ax_graph_dict[ts].fill_between(tlist, ts_lower, ts_upper, color=color_dict_total[ts], alpha=0.3, label=label2)
                 else:
-                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').quantile(0.5, dim='draws').values
+                    ts_single = data[ts].sum(dim='place').sum(dim='Nc').values
                     label1='national'
-                    graph = ax_graph_dict[ts].plot(tlist, ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
+                    graph = ax_graph_dict[ts].plot(range(len(tlist)), ts_single, color=color_dict_total[ts], alpha=1, linewidth=2, label=label1)
                 graphs.append(graph)
             if (nis and (len(nis) == 1)) or not nis:
                 ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size})
-            ax_graph_dict[ts].axvline(day, color='r', linewidth=2, linestyle='--')
+            day_idx = next(idx for idx, d in enumerate(all_days) if d >= day)
+            ax_graph_dict[ts].axvline(day_idx, color='r', linewidth=2, linestyle='--')
         # Show legend in two columns if it becomes too big
         if nis and (len(nis) > 3):
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=2)
         else:
             ax_graph_dict[ts].legend(loc=2, prop={'size':legend_size}, ncol=1)
-        plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=18)
+        if isinstance(day, int):
+            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=18)
+        else:
+            plt.figtext(figtext_pos[0], figtext_pos[1], f"People in compartment {ts_geo} on {day.date()}", backgroundcolor='whitesmoke', fontsize=18)
     else:
-        plt.figtext(.12, .2, f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=22)
+        if isinstance(day, int):
+            plt.figtext(.12, .2, f"People in compartment {ts_geo} at day {day}", backgroundcolor='whitesmoke', fontsize=22)
+        else:
+            plt.figtext(.12, .2, f"People in compartment {ts_geo} on {day.date()}", backgroundcolor='whitesmoke', fontsize=22)
 
     # Save figure
     if figname:
@@ -718,4 +736,180 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
     # Return
     return graphs
             
+
+def school_vacations_dict():
+    """
+    Returns dictionary with datetime objects as keys and lengths of vacations as values
+    """
+    # Define school vacations
+    vacation_dict=dict({})
+    sdate_krokus = datetime.datetime(2020, 2, 24, 0, 0)
+    len_krokus = 7
+    vacation_dict[sdate_krokus]=len_krokus
+    
+    sdate_paas = datetime.datetime(2020, 4, 6, 0, 0)
+    len_paas = 14
+    vacation_dict[sdate_paas]=len_paas
+    
+    sdate_arbeid = datetime.datetime(2020, 5, 1, 0, 0)
+    len_arbeid = 1
+    vacation_dict[sdate_arbeid]=len_arbeid
+    
+    sdate_hemelvaart = datetime.datetime(2020, 5, 21, 0, 0)
+    len_hemelvaart = 2
+    vacation_dict[sdate_hemelvaart]=len_hemelvaart
+    
+    sdate_pinkster = datetime.datetime(2020, 6, 1, 0, 0)
+    len_pinkster = 1
+    vacation_dict[sdate_pinkster]=len_pinkster
+    
+    sdate_zomer = datetime.datetime(2020, 7, 1, 0, 0)
+    len_zomer = 62
+    vacation_dict[sdate_zomer]=len_zomer
+    
+    sdate_herfst = datetime.datetime(2020, 11, 2, 0, 0)
+    len_herfst = 7
+    vacation_dict[sdate_herfst]=len_herfst
+    
+    sdate_wapen = datetime.datetime(2020, 11, 11, 0, 0)
+    len_wapen = 1
+    vacation_dict[sdate_wapen]=len_wapen
+    
+    sdate_kerst = datetime.datetime(2020, 12, 21, 0, 0)
+    len_kerst = 14
+    vacation_dict[sdate_kerst]=len_kerst
+    
+    sdate_krokus21 = datetime.datetime(2021, 2, 15, 0, 0)
+    len_krokus21 = 7
+    vacation_dict[sdate_krokus21]=len_krokus21
+    
+    sdate_paas21 = datetime.datetime(2021, 4, 5, 0, 0)
+    len_paas21 = 14
+    vacation_dict[sdate_paas21]=len_paas21
+    
+    return vacation_dict
+    
+def color_timeframes(sdate, edate, ax=None, frametype='all'):
+    """
+    Function to color the background in mobility plot according to the timeframe (business day, weekend, school vacation day)
+    
+    Input
+    -----
+    sdate: datetime object
+        Start date of coloring
+    edate: datetime object
+        End date of coloring
+    ax: matplotlib.axes._subplots.AxesSubplot
+        Axis to add the coloring to the axes in argument.
+    frametype: str
+        Choose which frames to color. 'all', 'business', 'weekend' or 'vacation'. Not yet implemented
+    """
+    # Determine total number of days
+    days_count = (edate-sdate).days+1
+    
+    # Get specified or current axis
+    ax = ax or plt.gca()
+    
+   # Choose colours
+    week_color = 'blanchedalmond'
+    weekend_color = 'wheat'
+    vacation_color = 'khaki'
+    alpha=1
+    
+    # Draw everything in week_colour in currently open plt environment
+    ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha)
+    
+    # Overdraw weekends
+    for d in range(days_count):
+        d_datetime = sdate + datetime.timedelta(days=d)
+        # if Saturday
+        if d_datetime.isoweekday() == 6:
+            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=2), facecolor=weekend_color, alpha=alpha)
+    
+    # Overdraw vacation
+    vacation_dict = school_vacations_dict()
+    for d in range(days_count):
+        d_datetime = sdate + datetime.timedelta(days=d)
+        # if vacation
+        if d_datetime in vacation_dict:
+            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha)
+    
+    return
+    
+def check_dtype(datum):
+    """
+    Check the type of the date.
+    
+    Input
+    -----
+    datum: datetime object
+    
+    Returns
+    -------
+    datum_type: str
+        'weekend', 'business' or 'vacation'
+    """
+    # Load vacation information
+    vacation_dict = school_vacations_dict()
+    
+    datum_type=None
+    if datum.isoweekday() in [6,7]:
+        datum_type = 'weekend'
+    else:
+        datum_type = 'business'
+    # overwrite if sdate is a vacation day
+    for d in vacation_dict:
+        if (datum >= d) and (datum < d + datetime.timedelta(days=vacation_dict[d])):
+            datum_type = 'vacation'
+    return datum_type
+
+def draw_baseline(sdate, edate, baselines, ax=None):
+    """
+    Draw dotted line representing the baseline mobility calculated from pre-lockdown scenario
+    
+    Input
+    -----
+    sdate: datetime object
+        Start date of baseline drawing
+    edate: datetime object
+        End date of baseline drawing
+    baselines: tuple
+        Tuple with (business, weekend, vacation) baseline values, in that order
+    """
+    # Determine total number of days
+    days_count = (edate-sdate).days+1
+    
+    # Get specified or current axis
+    ax = ax or plt.gca()
+    
+    # Choose properties
+    color='k'
+    linestyle='dashed'
+    linewidth=1
+    alpha=.5
+    
+    # Copy baselines into dict
+    baselines_dict = dict({'business' : baselines[0], 'weekend' : baselines[1], 'vacation' : baselines[2]})
+    
+    # Check type of sdate
+    sdate_type = check_dtype(sdate)
             
+    # Draw lines
+    previous_type = sdate_type
+    previous_d = 0
+    for d in range(days_count):
+        d_datetime = sdate + datetime.timedelta(days=d)
+        new_type = check_dtype(d_datetime)
+        if new_type != previous_type:
+            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
+            ax.plot((previous_d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            ax.plot((d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[new_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            
+            previous_type = new_type
+            previous_d = d
+        elif (d == days_count-1):
+            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
+            ax.plot((previous_d_datetime, d_datetime + datetime.timedelta(days=1)), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            
+
+    return
