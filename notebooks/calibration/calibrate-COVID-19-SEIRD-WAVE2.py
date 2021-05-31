@@ -295,12 +295,12 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-05-20'
+    end_calibration = '2021-05-27'
 else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = int(mp.cpu_count()/2)
-multiplier = 3
+multiplier = 2
 maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
@@ -318,8 +318,9 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration]]
-states = ["H_in"]
+data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sciensano['H_in']['2020-04-14':]]
+states = ["H_in","H_in"]
+weights = [1, 1]
 
 # -----------
 # Perform PSO
@@ -327,9 +328,9 @@ states = ["H_in"]
 
 # optimisation settings
 pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf1']
-bounds=((0.008,0.04),(3,14),(3,14),(0.40,0.99),(0.10,0.60),(0.10,0.60),(0.20,0.99),(1,1.6))
+bounds=((0.013,0.014),(2,14),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.40,0.99),(1,1.6))
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, bounds, maxiter=maxiter, popsize=popsize,
+#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
 theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.105, 0.649, 1.47])
 # Assign estimate
@@ -363,9 +364,9 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf1']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.10,1), (0.10,1), (0.10,1), (0.10,1),(1.3,1.8)]
+log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.05,1), (0.05,1), (0.05,1), (0.05,1),(1.3,1.8)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 5e-2, 5e-2]
+pert = [2e-2, 2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 3)
 # Set up the sampler backend if needed
 if backend:
@@ -377,7 +378,7 @@ labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
+objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
 
 
 # ----------------
