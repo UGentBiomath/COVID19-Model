@@ -114,11 +114,11 @@ def lost_QALY_hospital_care (reduction,granular=False):
      
     if granular == False:
         
-        total_cost=hospital_data['total_spent'].sum()*1000000 # Total amount spent in regular health care per year
-        avg_cost_per_qaly=hospital_data['cost_per_qaly'].mean() #Average cost per QALY gained
-        total_gained_QALYs=total_cost/avg_cost_per_qaly #Total number of QALYs gained per year (EUR/EUR/QALY = QALY )    
-        
-        lost_QALYs= reduction*total_gained_QALYs # Lost qalys per year
+        #total_cost=hospital_data['total_spent'].sum()*1000000 # Total amount spent in regular health care per year
+        #avg_cost_per_qaly=hospital_data['cost_per_qaly'].mean() # Average cost per QALY gained
+        #total_gained_QALYs=total_cost/avg_cost_per_qaly # Total number of QALYs gained per year (EUR/EUR/QALY = QALY )    
+        lost_QALYs = reduction*(hospital_data['total_spent']*1e6/hospital_data['cost_per_qaly']).sum()
+        #lost_QALYs= reduction*total_gained_QALYs # Lost qalys per year
     else:
         
         data_per_disease=pd.DataFrame(columns=['disease_group','gained_qalys','lost_qalys'])
@@ -202,6 +202,9 @@ def QALY2xarray(out,lost_QALY_pp):
     out: xarray dataset
         Simulation output with new data variable 'QALYs lost'.
     
-    """  
-    return out.assign(variables={'QALYs_lost': out['D']*np.expand_dims(lost_QALY_pp,axis=1),
-                                'QALYs_gained': out['R_hosp']*np.expand_dims(lost_QALY_pp,axis=1)})
+    """
+    m_no_treatment = 0.40 # average ventilation percentage: https://www.thelancet.com/journals/eclinm/article/PIIS2589-5370(21)00045-6/fulltext
+    # alternative: 90% of ICU patients is intubated
+    return out.assign(variables={'QALY_death': out['D']*np.expand_dims(lost_QALY_pp,axis=1),
+                                'QALY_treatment': (1-m_no_treatment)*out['R_hosp']*np.expand_dims(lost_QALY_pp,axis=1),
+                                'QALY_treatment_cumsum': np.cumsum((1-m_no_treatment)*out['R_hosp'])*np.expand_dims(lost_QALY_pp,axis=1)})
