@@ -476,7 +476,6 @@ for idx,scenario in enumerate(scenarios):
     print('\n\t# scenario '+scenario)
     model.parameters.update({'scenario': int(scenario)})
     fig,axes = plt.subplots(ncols=1,nrows=len(relaxdates),figsize=(10,len(relaxdates)*4),sharex=True)
-
     for jdx,relaxdate in enumerate(relaxdates):
         model.parameters.update({'relaxdate': relaxdate})
         print('\t## relaxdate '+relaxdate)
