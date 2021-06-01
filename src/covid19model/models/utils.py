@@ -391,12 +391,12 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
 
 def initial_state(dist='bxl', agg='arr', number=1, age=-1):
     """
-    Function determining the initial state of a model compartment. Note: currently only works with 9 age classes.
+    Function determining the initial state of a model compartment. Note: currently only works with 9 age classes and only for the spatially explicit model
     
     Input
     -----
     dist: str or int
-        Spatial distribution of the initial state. Choose between 'bxl' (Brussels-only, default), 'hom' (homogeneous), or 'data' (data-inspired), or choose a NIS code (5-digit int) corresponding to the aggregation level.
+        Spatial distribution of the initial state. Choose between 'bxl' (Brussels-only, default), 'hom' (homogeneous), 'data' (data-inspired), or 'frac' (fraction of hospitalisations at March 20th 2020), or choose a NIS code (5-digit int) corresponding to the aggregation level.
     agg: str
         Level of spatial aggregation. Choose between 'mun' (581 municipalities), 'arr' (43 arrondissements, default), or 'prov' (10+1 provinces)
     number: int
@@ -411,8 +411,8 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
     """
     
     # Raise exceptions if input is wrong
-    if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data']):
-        raise Exception(f"Input dist={dist} is not recognised. Choose between 'bxl', 'hom' or 'data', or pick a NIS code (integer).")
+    if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data', 'frac']):
+        raise Exception(f"Input dist={dist} is not recognised. Choose between 'bxl', 'hom', 'data' or 'frac', or pick a NIS code (integer).")
     if agg not in ['mun', 'arr', 'prov']:
         raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     if not ((number > 0) and float(number).is_integer()):
@@ -475,7 +475,7 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
             
     # Case for homogeneous initial conditions: equal country-wide distribution
     # Note: the cases are spread almost equally (local population is only a secondary attention point)
-    else:
+    elif dist=='hom':
         pops_tot = pops.sum(axis=1)
         init_all_ages = np.array([number//G for i in range(G)])
         pops_tot_sorted = np.sort(pops_tot)
@@ -484,10 +484,24 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
             init_all_ages[jj] += 1 # add remaining initial states to region with highest population first
         for i in range(G):
             init[i] += _initial_age_dist(init_all_ages[i], age, pops[i])
+          
+    # Case for initial conditions based on fraction of hospitalisations on 20 March
+    # If age < 0, the number of people is distributed over the age classes fractionally
+    elif dist=='frac':
+        from covid19model.data.sciensano import get_sciensano_COVID19_data_spatial
+        # Note that this gives non-natural numbers as output
+        max_date = '2020-03-20' # Hard-coded and based on Arenas's convention
+        values = 'hospitalised_IN' # Hard-coded and 
+        df = get_sciensano_COVID19_data_spatial(agg=agg, values=values, moving_avg=True)
+        max_value = df.loc[max_date].sum()
+        df_frac = (df.loc[max_date] / max_value * number)
+        for nis in df_frac.index:
+            gg = np.where(read_coordinates_nis(spatial=agg)==nis)[0][0]
+            init[gg] = _initial_age_dist(df_frac.loc[nis], age, pops[gg], fractional=True)
             
     return init
 
-def _initial_age_dist(number, age, pop):
+def _initial_age_dist(number, age, pop, fractional=False):
     """
     Help function for initial_state, for the distribution of the initial state over the 9 age classes.
     
@@ -499,6 +513,8 @@ def _initial_age_dist(number, age, pop):
         Integer ranging from -1 to 8. If -1, random ages are chosen (following demography). If 0-8 is chosen, the number corresponds to the age decade (e.g. 1 = ages 10-19)
     pop: np.array
         Contains population in the various age classes
+    fractional: Boolean
+        If True, the number is distributed over the age classes fractionally (such that we are no longer dealing with a whole number of people)
         
     Returns
     -------
@@ -512,7 +528,7 @@ def _initial_age_dist(number, age, pop):
     if age > -1:
         init_per_age[int(age)] = number
     
-    else:
+    elif not fractional:
         indices = list(range(0,9))
         probs = pop/pop.sum(axis=0)
         index_choices = np.random.choice(indices, p=probs, size=number)
@@ -520,6 +536,11 @@ def _initial_age_dist(number, age, pop):
         index_dict = dict(zip(unique, counts))
         for key in index_dict:
             init_per_age[key] = index_dict[key]
+            
+    elif fractional:
+        indices = list(range(0,9))
+        probs = pop/pop.sum(axis=0)
+        init_per_age = number * probs
     
     return init_per_age
 
