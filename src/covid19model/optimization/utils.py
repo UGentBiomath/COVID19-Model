@@ -1,5 +1,6 @@
 import gc
 import os
+import sys
 import emcee
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,10 +11,20 @@ from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
 # Path to figures and samples --> used by run_MCMC
-fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/national/')
-samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/')
+fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/')
+samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
+    # Determine save path
+    if agg:
+        if agg not in ['mun', 'arr', 'prov']:
+            raise Exception(f"Aggregation type {agg} not recognised. Choose between 'mun', 'arr' or 'prov'.")
+        fig_path_agg = f'{fig_path}/{agg}/'
+        samples_path_agg = f'{samples_path}/{agg}/'
+    else:
+        fig_path_agg = f'{fig_path}/national/'
+        samples_path_agg = f'{samples_path}/national/'
+    
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -27,7 +38,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs)
-        for sample in sampler.sample(pos, iterations=max_n, progress=True, store=True):
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
@@ -35,6 +46,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ##################
             # UPDATE FIGURES #
             ##################
+            
+            # Hardcode threshold values defining convergence
+            thres_multi = 50.0
+            thres_frac = 0.03
 
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
@@ -45,25 +60,27 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
             fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / 50.0, "--k")
+            ax.plot(n, n / thres_multi, "--k")
             ax.plot(n, y, linewidth=2,color='red')
             ax.set_xlim(0, n.max())
-            ax.set_ylim(0, y.max() + 0.1 * (y.max() - y.min()))
+            ymax = np.nanmax(np.append(y, n.max()/thres_multi))
+            ymin = np.nanmin(np.append(y, 0))
+            ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
             if job == 'FULL':
-                fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             elif job == 'R0':
-                fig.savefig(fig_path+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
 
             # Update traceplot
             if job == 'FULL':
                 traceplot(sampler.get_chain(),labels,
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
+                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
             elif job == 'R0':
                 traceplot(sampler.get_chain(),labels,
-                            filename=fig_path+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
+                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
                             plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
 
             plt.close('all')
@@ -74,8 +91,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             #####################
 
             # Check convergence using mean tau
-            converged = np.all(np.mean(tau) * 50 < sampler.iteration)
-            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < 0.03)
+            converged = np.all(np.mean(tau) * thres_multi < sampler.iteration)
+            converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < thres_frac)
             if converged:
                 break
             old_tau = tau
@@ -84,10 +101,14 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # WRITE SAMPLES TO DICTIONARY #
             ###############################
 
-            # Write samples to dictionary every 200 steps
+            # Write samples to dictionary every print_n steps
             if sampler.iteration % print_n:
                 continue
 
+            if not progress:
+                print(f"Saving samples as .npy file for iteration {sampler.iteration}/{max_n}.")
+                sys.stdout.flush()
+                
             flat_samples = sampler.get_chain(flat=True)
             if job == 'FULL':
                 with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
@@ -161,11 +182,13 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         cond_number = np.linalg.cond(pos)
         if ((cond_number == np.inf) and verbose and (retry_counter<20)):
             print("Condition number too high, recalculating perturbations. Perhaps one or more of the bounds is zero?")
+            sys.stdout.flush()
             retry_counter += 1
         elif retry_counter >= 20:
             raise Exception("Attempted 20 times to perturb parameter values but the condition number remains too large.")
     if verbose:
         print('Total number of markov chains: ' + str(nwalkers)+'\n')
+        sys.stdout.flush()
     return ndim, nwalkers, pos
 
 
