@@ -228,10 +228,10 @@ params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, VOC=False)
 # Add the time-dependant parameter function arguments
 params.update({'l' : 5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_home' : 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
-               'prev_schools': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+               'prev_schools': 0, # fixed for wave 1
                'prev_work': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_rest': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
-               'tau' : 0.1 # tau has little to no influence. Fix it at low value.in delayed_ramp_func
+               'tau' : 0.1 # tau has little to no influence. Fix it at low value in delayed_ramp_func
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
@@ -523,8 +523,8 @@ if __name__ == '__main__':
         # -----------
 
         # set optimisation settings
-        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
-        bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
+        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_work', 'prev_rest', 'prev_home']
+        bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
         # run optimisation
         theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
@@ -540,7 +540,7 @@ if __name__ == '__main__':
         print(f'warmup (fixed): {warmup}')
         print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
         print(f'compliance l: {theta[3]}')
-        print(f'effectivities prev_home, prev_schools, prev_work, prev_rest: {theta[4:]}')
+        print(f'effectivities prev_work, prev_rest, prev_home: {theta[4:]}')
         sys.stdout.flush()
 
         # Visualize fit and save in order to check the validity of the first step
@@ -569,11 +569,11 @@ if __name__ == '__main__':
 
         # Define priors
         log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, ]
+                         prior_uniform, prior_uniform, prior_uniform, ]
         log_prior_fcn_args = bounds
         # Perturbate PSO estimate
-        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_home', 'prev_schools', 'prev_work', 'prev_rest']
-        pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
+        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_work', 'prev_rest', 'prev_home']
+        pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2]
         ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
 
         # Set up the sampler backend if needed
@@ -583,8 +583,8 @@ if __name__ == '__main__':
             backend.reset(nwalkers, ndim)
 
         # Labels for traceplots
-        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', '$\Omega_{home}$', \
-                  '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$']
+        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', \
+                  '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$']
         # Arguments of chosen objective function
         objective_fcn = objective_fcns.log_probability
         objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
@@ -631,6 +631,7 @@ if __name__ == '__main__':
         print('\n3) Sending samples to dictionary')
         sys.stdout.flush()
 
+        # Take all samples (discard=0, thin=1)
         flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
         samples_dict = {}
         for count,name in enumerate(pars):
