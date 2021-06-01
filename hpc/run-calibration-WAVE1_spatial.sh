@@ -1,13 +1,13 @@
 #!/bin/bash
-#PBS -N calibration-COVID19-SEIRD-WAVE1_spatial ## job name
-#PBS -l nodes=1:ppn=36 ## single-node job, on 36 cores
+#PBS -N calibration-COVID19-SEIRD-WAVE1_spatial_run4p2 ## job name
+#PBS -l nodes=1:ppn=9 ## single-node job, on 36 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 job="R0"
 warmup=0
 enddate=""
-maxiter=100
-number=100
+maxiter=1000
+number=10000
 
 agg="arr"
 init="data"
