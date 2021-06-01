@@ -36,6 +36,9 @@ chmod +x mrollier-calibration-WAVE1_spatial.py
 # Activate conda environment
 source activate COVID_MODEL
 
+# Add additional code to stop quadratic multiprocessing (tip from Balazs)
+export OMP_NUM_THREADS=1
+
 # Execute script. Note the python option -u to flush the prints to the stdout
 python -u mrollier-calibration-WAVE1_spatial.py -j ${job} -m ${maxiter} -n ${number} -a ${agg} -i ${init} -p ${indexpatients} -s ${signature}
 
