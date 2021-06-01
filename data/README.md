@@ -2,6 +2,10 @@
 
 ### Raw data sets
 
+#### RESTORE
+
+A folder containing all raw simulations used for the RESTORE reports, the reports are freely available at https://covid-en-wetenschap.github.io/restore.html
+
 #### deaths
 
 + `DEMO_DEATH_OPEN.xlsx` contains total number of daily deaths per age class per arrondissement between 2009 and now. Current latest date: 21 February 2021. Data for 2020 and 2021 are not entirely complete yet. Downloaded from Statbel (https://statbel.fgov.be/nl/open-data/aantal-sterfgevallen-dag-geslacht-arrondissement-leeftijd)
@@ -15,6 +19,8 @@
 + `table_ratio_inv_go.csv` contains, for every sector in the WIOD 55 classification, the number of days production can continue when no inputs are delivered (= stock). Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
 + `WIOD_shockdata.csv` contains estimated household and other demand shocks during an economic crisis. Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
 + `IHS_Markit_results_compact.csv` Criticality scores of IHS Markit analysts. The exact formulation of the question was as follows: “For each industry in WIOD 55, please rate whether each of its inputs are essential. We will present you with an industry X and ask you to rate each input Y. The key question is: Can production continue in industry X if input Y is not available for two months?” UK data, WIOD 55 classification. Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
++ `WoW Growths.xlsx` Contains on the datasheet `SECTORAL_WOW_GROWTHS` the week-over-week growth rate of B2B demand (or consumption) per NACE 21 sector (sectors A-U) from 2008 to 2021. Obtained by prof. Koen Schoors from an (to us) anonymuous bank.
++ `playing with shifts.xlsx` Contains the growth rate of B2B demand (or consumption) in number of weeks relative to the start of the second 2020 quarter. Here, -24 weeks means 24 weeks before the start of 2020Q2. This datasheet is a smoothed variant of the data in `WoW Growths.xlsx` using several filters. The data were made by Feliciaan De Palmenaer(feliciaan.depalmenaer@ugent.be or feliciaan.de.palmenaer@vub.be). Raw data obtained by prof. Koen Schoors from an (to us) anonymuous bank.
 
 #### GIS
 
@@ -113,6 +119,10 @@ split between general population and elderly homes. Data from https://m.standaar
 ### Interim data sets conversion scripts
 
 Conversion scripts are managed inside the `covid19model` package (`src/covid19model/data` folder).
+
+#### RESTORE
+
+`all_RESTORE_simulations.csv` contains all RESTORE predictions in a uniform format. The resulting .csv has a five-dimensional header: 1) author, 2) report version, 3) scenario, 4) hospital incidences or load, 5) statistic: mean, median, LL, UL. To load the .csv file correctly using pandas: `RESTORE_df = pd.read_csv(path_to_file+'all_RESTORE_simulations.csv', header=[0,1,2,3,4])`. Indexing is performed in the following way: `RESTORE_df['UGent','v7.0','S1','incidences','mean']` returns the daily hospitalizations (incidences) in scenario S1 of report v7.0 by UGent. The dataset was created by converting the raw RESTORE predictions using the script `~/notebooks/preprocessing/format-RESTORE-predictions.py`.
 
 #### Interaction matrices
 
