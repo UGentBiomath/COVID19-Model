@@ -7,7 +7,7 @@ job="R0"
 warmup=0
 enddate=""
 maxiter=1000
-number=10000
+number=1000
 
 agg="arr"
 init="data"
@@ -28,7 +28,7 @@ echo ""
 echo "Initiating job with signature ${signature}."
 
 # Change to package folder
-cd $VSC_SCRATCH/Documents/COVID19-Model/hpc/
+cd $VSC_HOME/Documents/COVID19-Model/hpc/
 
 # Make script executable
 chmod +x mrollier-calibration-WAVE1_spatial.py
@@ -40,7 +40,7 @@ source activate COVID_MODEL
 export OMP_NUM_THREADS=1
 
 # Execute script. Note the python option -u to flush the prints to the stdout
-python -u mrollier-calibration-WAVE1_spatial.py -j ${job} -m ${maxiter} -n ${number} -a ${agg} -i ${init} -p ${indexpatients} -s ${signature}
+python mrollier-calibration-WAVE1_spatial.py -j ${job} -m ${maxiter} -n ${number} -a ${agg} -i ${init} -p ${indexpatients} -s ${signature}
 
 # Deactivate environment
 conda deactivate
