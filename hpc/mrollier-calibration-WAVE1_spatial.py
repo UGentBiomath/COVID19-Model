@@ -331,7 +331,7 @@ if __name__ == '__main__':
         # run optimisation
         theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
-#         theta = np.array([48, 0.01896, 0.02153, 0.02599])
+    #         theta = np.array([48, 0.01896, 0.02153, 0.02599])
         # Assign estimate.
         warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -356,7 +356,7 @@ if __name__ == '__main__':
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
         sys.stdout.flush()
         plt.close()
-        
+
         # Print runtime in hours
         intermediate_time = datetime.datetime.now()
         runtime = (intermediate_time - initial_time)
@@ -396,7 +396,7 @@ if __name__ == '__main__':
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
         sys.stdout.flush()
-        
+
 
         # ----------------
         # Run MCMC sampler
@@ -420,7 +420,7 @@ if __name__ == '__main__':
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
             sys.stdout.flush()
-            
+
         # Print runtime in hours
         final_time = datetime.datetime.now()
         runtime = (final_time - intermediate_time)
@@ -452,7 +452,7 @@ if __name__ == '__main__':
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
         sys.stdout.flush()
-        
+
         # Work is done
         sys.exit()
 
@@ -474,7 +474,7 @@ if __name__ == '__main__':
         start_calibration = '2020-03-05'
         # Last datapoint used to calibrate infectivity, compliance and effectivity 
         if not args.enddate:
-            end_calibration = '2020-07-08'
+            end_calibration = '2020-06-01' # Changed this from 2020-08-07
         else:
             end_calibration = str(args.enddate)
         # Spatial unit: depends on aggregation
@@ -553,7 +553,7 @@ if __name__ == '__main__':
         print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
         sys.stdout.flush()
         plt.close()
-        
+
         # Print runtime in hours
         intermediate_time = datetime.datetime.now()
         runtime = (intermediate_time - initial_time)
@@ -619,7 +619,7 @@ if __name__ == '__main__':
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
             sys.stdout.flush()
-            
+
         # Print runtime in hours
         final_time = datetime.datetime.now()
         runtime = (final_time - intermediate_time)
