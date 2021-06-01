@@ -305,7 +305,8 @@ if __name__ == '__main__':
         print('PERFORMING CALIBRATION OF WARMUP and BETAs')
         print('------------------------------------------\n')
         print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-        print('1) Particle swarm optimization\n')
+        print('1) Particle swarm optimization')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
         print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
         sys.stdout.flush()
 
@@ -339,8 +340,7 @@ if __name__ == '__main__':
         out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
         # Print statement to stdout once
-        print(f'\n------------')
-        print(f'PSO RESULTS:')
+        print(f'\nPSO RESULTS:')
         print(f'------------')
         print(f'warmup: {warmup}')
         print(f'infectivities {pars[1:]}: {theta[1:]}.')
@@ -392,7 +392,8 @@ if __name__ == '__main__':
         objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
-        print('\n2) Markov-Chain Monte-Carlo sampling\n')
+        print('\n2) Markov-Chain Monte-Carlo sampling')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
         sys.stdout.flush()
         
@@ -419,6 +420,14 @@ if __name__ == '__main__':
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
             sys.stdout.flush()
+            
+        # Print runtime in hours
+        final_time = datetime.datetime.now()
+        runtime = (final_time - intermediate_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
 
         print('\n3) Sending samples to dictionary')
         sys.stdout.flush()
@@ -442,14 +451,6 @@ if __name__ == '__main__':
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
         print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-        sys.stdout.flush()
-
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - intermediate_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
         sys.stdout.flush()
         
         # Work is done
@@ -481,7 +482,7 @@ if __name__ == '__main__':
 
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier = 1 # 10
+        multiplier = 4 # 10
         maxiter = maxiter_PSO
         popsize = multiplier*processes
 
@@ -501,7 +502,8 @@ if __name__ == '__main__':
         print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 4 EFFECTIVITIES')
         print('------------------------------------------------------------------\n')
         print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-        print('1) Particle swarm optimization\n')
+        print('1) Particle swarm optimization')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
         print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
         sys.stdout.flush()
 
@@ -533,8 +535,7 @@ if __name__ == '__main__':
         out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
         # Print statement to stdout once
-        print(f'\n------------')
-        print(f'PSO RESULTS:')
+        print(f'\nPSO RESULTS:')
         print(f'------------')
         print(f'warmup (fixed): {warmup}')
         print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
@@ -544,7 +545,7 @@ if __name__ == '__main__':
 
         # Visualize fit and save in order to check the validity of the first step
         ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-        title=f'Full calibration (infectivities, compliance, effectivity).'
+        title=f'Full calibration (infectivities, compliance, effectivity). Warmup = {warmup}.'
         ax.set_title(title)
         ax.set_ylabel('New national hosp./day')
         pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
@@ -590,7 +591,8 @@ if __name__ == '__main__':
         objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                                 'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
-        print('\n2) Markov-Chain Monte-Carlo sampling\n')
+        print('\n2) Markov-Chain Monte-Carlo sampling')
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
         sys.stdout.flush()
 
@@ -617,6 +619,14 @@ if __name__ == '__main__':
         except:
             print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
             sys.stdout.flush()
+            
+        # Print runtime in hours
+        final_time = datetime.datetime.now()
+        runtime = (final_time - intermediate_time)
+        totalMinute, second = divmod(runtime.seconds, 60)
+        hour, minute = divmod(totalMinute, 60)
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+        sys.stdout.flush()
 
         print('\n3) Sending samples to dictionary')
         sys.stdout.flush()
@@ -636,14 +646,6 @@ if __name__ == '__main__':
         json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
         with open(json_file, 'w') as fp:
             json.dump(samples_dict, fp)
-
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - intermediate_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
 
         print('DONE!')
         print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
