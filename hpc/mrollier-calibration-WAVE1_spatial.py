@@ -76,7 +76,7 @@ parser.add_argument("-s", "--signature", help="Name in output files (identifier)
 
 # spatial
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
-parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between bxl, data (default) or hom.")
+parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between bxl, data (default), hom or frac.")
 parser.add_argument("-p", "--indexpatients", help="Total number of index patients at start of simulation.")
 
 args = parser.parse_args()
@@ -139,8 +139,8 @@ else:
 # Init
 if args.init:
     init = str(args.init)
-    if init not in ['bxl', 'data', 'hom']:
-        raise Exception(f"Initial condition --init {init} is not valid. Choose between 'bxl', 'data', or 'hom'.")
+    if init not in ['bxl', 'data', 'hom', 'frac']:
+        raise Exception(f"Initial condition --init {init} is not valid. Choose between 'bxl', 'data', 'hom' or 'frac'.")
 else:
     init = 'data'
 
@@ -243,7 +243,7 @@ params.update({'default_mobility' : None})
 # --------------------
 
 # Initial states, depending on args parser init. Age is hard-coded.
-age=40
+age=-1 # -1 means take random ages. Default = 40
 initE = initial_state(dist=init, agg=agg, age=age, number=init_number) # 40-somethings dropped geographically according to 'init'
 initial_states = {'S': initN, 'E': initE}
 
