@@ -576,7 +576,7 @@ elif job == 'FULL':
     pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
     
-    nwalkers = 7*36/4
+    nwalkers = int(7*36/4)
     print(f"NB: Number of walkers hardcoded to {nwalkers}.")
     sys.stdout.flush()
 
