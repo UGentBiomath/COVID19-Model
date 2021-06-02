@@ -214,7 +214,7 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, make_mobility_update_function
 
 # Define contact matrix functions based on 4 prevention parameters (effectivity parameters)
-policies_wave1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1 # with delayed-ramp function
+policies_WAVE1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1 # with delayed-ramp function
 
 # Mobility update function from class __call__ and function wrapper to get the right signature
 mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
