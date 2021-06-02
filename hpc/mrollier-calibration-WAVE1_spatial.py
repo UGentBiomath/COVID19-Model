@@ -483,7 +483,7 @@ elif job == 'FULL':
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-    multiplier = 4 # 10
+    multiplier = 10 # 4
     maxiter = maxiter_PSO
     popsize = multiplier*processes
 
