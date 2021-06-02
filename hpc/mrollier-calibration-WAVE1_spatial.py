@@ -291,7 +291,7 @@ if job == 'R0':
 
     # MCMC settings
     max_n = maxn_MCMC
-    print_n = 10
+    print_n = 100
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
@@ -392,12 +392,13 @@ if job == 'R0':
     objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                             'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
+    
     print('\n2) Markov-Chain Monte-Carlo sampling')
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-
+    
     # ----------------
     # Run MCMC sampler
     # ----------------
@@ -488,7 +489,7 @@ elif job == 'FULL':
 
     # MCMC settings
     max_n = maxn_MCMC # 500000
-    print_n = 10
+    print_n = 100
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
