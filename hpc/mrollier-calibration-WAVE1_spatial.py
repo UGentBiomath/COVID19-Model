@@ -499,7 +499,7 @@ elif job == 'FULL':
     # -------------------------
 
     print('\n------------------------------------------------------------------')
-    print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 4 EFFECTIVITIES')
+    print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 3 EFFECTIVITIES')
     print('------------------------------------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration+'\n')
     print('1) Particle swarm optimization')
