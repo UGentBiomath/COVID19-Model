@@ -165,7 +165,8 @@ run_date = str(datetime.date.today())
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
 G, N = initN.shape
 # Sciensano spatially stratified data
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=True)
+moving_avg=False
+df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=moving_avg)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Load and format mobility dataframe
