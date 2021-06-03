@@ -1,5 +1,5 @@
 """
-This script contains a four-prevention parameter, one-parameter delayed compliance ramp calibration to hospitalisation data from the first COVID-19 wave in Belgium.
+This script contains a three-prevention parameter, one-parameter delayed compliance ramp calibration to hospitalisation data from the first COVID-19 wave in Belgium.
 Deterministic, geographically and age-stratified BIOMATH COVID-19 SEIQRD
 Its intended use is the calibration for the descriptive manuscript: "..." and its national-level counterpart "A deterministic, age-stratified, extended SEIRD model for investigating the effect of non-pharmaceutical interventions on SARS-CoV-2 spread in Belgium".
 
