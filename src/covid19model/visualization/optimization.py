@@ -228,7 +228,7 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
 
     return ax
 
-def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, NIS=None, savename=None, **kwargs):
+def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, show_all=False, ax=None, NIS=None, savename=None, **kwargs):
     """
     Plot the data as well as the calibration results with added binomial uncertainty.
 
@@ -246,6 +246,8 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
         Format YYYY-MM-DD
     conf_int : float
         Confidence interval. 0.05 by default
+    show_all : boolean
+        If True, plot all simulation draws over each other.
     ax : matplotlib ax to plot on
     NIS : int
         NIS code to plot if spatial. None by default (plot national aggregation)
@@ -262,20 +264,24 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
     spatial=False
     if 'place' in out.keys():
         spatial=True
+        # Plot nationally aggregated result
         if not NIS:
             all_ts = out[state].sum(dim='Nc').sum(dim='place').values
+        # Plot one particular region
         else:
             all_ts = out[state].sel(place=NIS).sum(dim='Nc').values
     else:
+        # There is no 'place' dimension
         all_ts = out[state].sum(dim='Nc').values
 
-    # Compute mean and median
-    ts_median = np.median(all_ts,axis=1)
+    # Compute mean and median over all draws
+    # Note that the resulting values DO NOT correspond to a single simulation!
+    ts_median = np.median(all_ts,axis=0)
     # Compute quantiles
     LL = conf_int/2
     UL = 1-conf_int/2
-    ts_LL = np.quantile(all_ts, q = LL, axis = 0)
-    ts_UL = np.quantile(all_ts, q = UL, axis = 0)
+    ts_LL = np.quantile(all_ts, q=LL, axis=0)
+    ts_UL = np.quantile(all_ts, q=UL, axis=0)
     ts_mean =np.mean(all_ts, axis=0)
 
     # Plot
