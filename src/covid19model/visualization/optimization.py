@@ -295,6 +295,12 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
         # Draw for which the value is the median in these max_values
         median_draw = np.argsort(max_values)[len(max_values)//2]
         ts_median = all_ts[median_draw]
+        # Create series of average values. Note that this does not correspond to a single simulation!
+        ts_mean = np.mean(all_ts, axis=0)
+        # Series of variances
+        ts_var = np.var(all_ts, axis=0)
+        # Series of resulting errors (sampling + Poisson)
+        ts_err = np.sqrt(ts_var + ts_mean)
 
     # Plot
     if not ax:
@@ -308,11 +314,12 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
     # ... or plot all values with alpha
     elif show_all:
         number_of_draws = len(out.draws)
-        median_poisson_min = np.clip(np.array(all_ts[median_draw]) - np.sqrt(np.array(all_ts[median_draw])), 0, None)
-        median_poisson_max = np.array(all_ts[median_draw]) + np.sqrt(np.array(all_ts[median_draw]))
-        ax.fill_between(pd.to_datetime(out['time'].values), median_poisson_min, median_poisson_max, alpha=0.10, color='red')
+        err_min = np.clip(np.array(ts_mean) - ts_err, 0, None)
+        err_max = np.array(all_ts[median_draw]) + ts_err
+        ax.fill_between(pd.to_datetime(out['time'].values), err_min, err_max, alpha=0.10, color='red')
         for draw in range(number_of_draws):
             ax.plot(out['time'], all_ts[draw], alpha=2/number_of_draws, color='blue')
+        # and overplot the 'median' single simulation
         ax.plot(out['time'], ts_median, '--', color='red', linewidth=1.5)
 
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
