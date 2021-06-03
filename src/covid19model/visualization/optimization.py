@@ -228,7 +228,7 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
 
     return ax
 
-def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, show_all=False, ax=None, NIS=None, savename=None, **kwargs):
+def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_calibration=None, end_calibration=None, conf_int=0.05, show_all=False, ax=None, NIS=None, savename=None, **kwargs):
     """
     Plot the data as well as the calibration results with added binomial uncertainty.
 
@@ -260,6 +260,9 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
     ------
     ax : matplotlib ax object
     """
+    if (start_calibration and not end_calibration) or (not start_calibration and end_calibration):
+        raise Exception("Provide either both start_calibration and end_calibration date, or neither.")
+    
     # Find requested range from simulation output
     spatial=False
     if 'place' in out.keys():
@@ -324,27 +327,51 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
 
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     if not spatial:
-        ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        if not start_calibration:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        else:
+            ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[state][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[state][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[state][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax = _apply_tick_locator(ax)
         ax.set_xlim(start_date,end_date)
         ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
         if savename:
             fig.savefig(savename, dpi=400, bbox_inches='tight')
-        return ax
+        if not show_all:
+            return ax
+        else:
+            return ax, median_draw
     else:
         if not NIS:
-            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            if not start_calibration:
+                ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            else:
+                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano.sum(axis=1)[start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano.sum(axis=1)[start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano.sum(axis=1)[end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax = _apply_tick_locator(ax)
             ax.set_xlim(start_date,end_date)
             ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
             if savename:
                 fig.savefig(savename, dpi=400, bbox_inches='tight')
-            return ax
+            if not show_all:
+                return ax
+            else:
+                return ax, median_draw
         else:
-            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            if not start_calibration:
+                ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            else:
+                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[NIS][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[NIS][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[NIS][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax = _apply_tick_locator(ax)
             ax.set_xlim(start_date,end_date)
             ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
             if savename:
                 fig.savefig(savename, dpi=400, bbox_inches='tight')
-            return ax
+            if not show_all:
+                return ax
+            else:
+                return ax, median_draw
