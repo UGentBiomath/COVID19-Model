@@ -276,21 +276,43 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
 
     # Compute mean and median over all draws
     # Note that the resulting values DO NOT correspond to a single simulation!
-    ts_median = np.median(all_ts,axis=0)
-    # Compute quantiles
-    LL = conf_int/2
-    UL = 1-conf_int/2
-    ts_LL = np.quantile(all_ts, q=LL, axis=0)
-    ts_UL = np.quantile(all_ts, q=UL, axis=0)
-    ts_mean =np.mean(all_ts, axis=0)
+    if not show_all:
+        ts_median = np.median(all_ts,axis=0)
+        # Compute quantiles
+        LL = conf_int/2
+        UL = 1-conf_int/2
+        ts_LL = np.quantile(all_ts, q=LL, axis=0)
+        ts_UL = np.quantile(all_ts, q=UL, axis=0)
+        ts_mean = np.mean(all_ts, axis=0)
+    
+    # Plot all lines and highlight simulation whose maximum value is the median value at the point where the overall highest simulation is
+    # Now the resulting values DO correspond to a single simulation
+    # Coordinates (draw, day) of highest simulated value
+    elif show_all:
+        top_draw, top_day = np.unravel_index(np.argmax(all_ts), all_ts.shape)
+        # All simulated values at the time where the overall maximum is
+        max_values = all_ts[:,day]
+        # Draw for which the value is the median in these max_values
+        median_draw = np.argsort(max_values)[len(max_values)//2]
+        ts_median = ts_all[median_draw]
 
     # Plot
     if not ax:
         fig,ax = plt.subplots(figsize=(10,5))
 
     # Simulation
-    ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
-    ax.plot(out['time'],ts_mean,'--', color='blue')
+    # plot mean and CI
+    if not show_all:
+        ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
+        ax.plot(out['time'],ts_mean,'--', color='blue')
+    # ... or plot all values with alpha
+    elif show_all:
+        number_of_draws = len(out.draws)
+        for draw in range(number_of_draws):
+            if draw==median_draw:
+                ax.plot(out['time'], ts_median, '--', color='blue')
+            else:
+                ax.plot(out['time'], ts_all[draw], alpha=5/number_of_draws, color='blue')
 
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     if not spatial:
