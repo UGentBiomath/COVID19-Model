@@ -493,6 +493,8 @@ class make_contact_matrix_function():
             model parameter dictionary
         l : float
             Compliance parameter for ramp_fun
+        l_relax : float
+            Additional days added after relaxdate
         tau : float
             Compliance parameter for ramp_fun
         prev_{location} : float
@@ -520,6 +522,7 @@ class make_contact_matrix_function():
         t4 = pd.Timestamp('2020-09-01') # end of summer holidays
 
         # Define key dates of second wave
+        # Note that for days in the future, policies are estimated rather than observed
         t5 = pd.Timestamp('2020-10-19') # lockdown (1)
         t6 = pd.Timestamp('2020-11-02') # lockdown (2)
         t7 = pd.Timestamp('2020-11-16') # schools re-open
