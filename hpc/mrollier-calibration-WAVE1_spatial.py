@@ -551,7 +551,7 @@ elif job == 'FULL':
     ax.set_ylabel('New national hosp./day')
     pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
     plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-    print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
+    print(f'\nSaved figure /pso/{pso_figname}.png with results of pre-lockdown calibration for job==R0.\n')
     sys.stdout.flush()
     plt.close()
 
