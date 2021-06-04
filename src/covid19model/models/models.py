@@ -23,7 +23,6 @@ register_matplotlib_converters()
 
 from .utils import stratify_beta # read_coordinates_nis, dens_dep
 from ..optimization import pso
-from .QALY import create_life_table
 
 # set color schemes
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
