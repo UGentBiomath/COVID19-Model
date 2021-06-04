@@ -137,8 +137,6 @@ model = models.COVID19_SEIRD(initial_states, params,
 # Calibration settings
 # --------------------
 
-# Start of data collection
-start_data = '2020-03-15'
 # Start data of recalibration ramp
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate warmup and beta
@@ -265,8 +263,6 @@ if job == 'R0':
 # Calibration settings
 # --------------------
 
-# Start of data collection
-start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
