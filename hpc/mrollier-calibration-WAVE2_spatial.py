@@ -77,6 +77,7 @@ parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
 parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
+# enddate is handled after job==? statement
 
 # spatial
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
