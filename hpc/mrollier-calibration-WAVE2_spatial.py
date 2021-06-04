@@ -1,5 +1,5 @@
 """
-This script contains a four-prevention parameter, one-parameter delayed compliance ramp calibration to hospitalisation data from the first COVID-19 wave in Belgium.
+This script contains a three-prevention parameter, one-parameter delayed compliance ramp calibration to hospitalisation data from the second COVID-19 wave in Belgium.
 Deterministic, geographically and age-stratified BIOMATH COVID-19 SEIQRD
 Its intended use is the calibration for the descriptive manuscript: "..." and its national-level counterpart "A deterministic, age-stratified, extended SEIRD model for investigating the effect of non-pharmaceutical interventions on SARS-CoV-2 spread in Belgium".
 
@@ -20,7 +20,7 @@ The best-fit value can be mobilised to predict the future under various scenario
 Example
 -------
 
->> python mrollier-calibration-WAVE1_spatial.py -j R0 -m 10 -n 10 -s test_run
+>> python mrollier-calibration-WAVE2_spatial.py -j R0 -m 10 -n 10 -s test_run
 """
 
 __author__      = "Michiel Rollier, Tijs Alleman"
@@ -60,6 +60,10 @@ initial_time = datetime.datetime.now()
 # Choose to show progress bar. This cannot be shown on HPC
 progress = False
 
+# User-defined initial states json file
+initial_states_loc = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/arr'
+initial_states_json = 'arr_WAVE1_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02_states_2020-09-01.json'
+
 # -----------------------
 # Handle script arguments
 # -----------------------
@@ -76,7 +80,7 @@ parser.add_argument("-s", "--signature", help="Name in output files (identifier)
 
 # spatial
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
-parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between bxl, data (default), hom or frac.")
+# parser.add_argument("-i", "--init", help="Initial state of the simulation. Choose between bxl, data (default), hom or frac.")
 parser.add_argument("-p", "--indexpatients", help="Total number of index patients at start of simulation.")
 
 args = parser.parse_args()
@@ -144,14 +148,6 @@ if args.init:
 else:
     init = 'data'
 
-# Indexpatients
-if args.indexpatients:
-    try:
-        init_number = int(args.indexpatients)
-    except:
-        raise Exception("The number of index patients must be an integer.")
-else:
-    init_number = 3
 
 # Date at which script is started
 run_date = str(datetime.date.today())
@@ -170,7 +166,8 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hos
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Load and format mobility dataframe
-proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
+proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)\
+
 
 # Serological data
 # Currently not used
@@ -213,8 +210,10 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # Load both classes
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, make_mobility_update_function
 
+### ATTENTION ###
+
 # Define contact matrix functions based on 4 prevention parameters (effectivity parameters)
-policies_WAVE1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1 # with delayed-ramp function
+policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation # with delayed-ramp function
 
 # Mobility update function from class __call__ and function wrapper to get the right signature
 mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
@@ -224,14 +223,18 @@ mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data
 # Load model parameters
 # ---------------------
 
+### ATTENTION ###
+
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, VOC=False)
 # Add the time-dependant parameter function arguments
-params.update({'l' : 5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
-               'prev_home' : 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+params.update({'l' : 21, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_schools': 0, # fixed for wave 1
                'prev_work': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_rest': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+               'prev_home' : 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+               'relaxdate' : '2021-07-01', # new parameter, only relevant for 2021
+               'l_relax' : 31 # new parameter, only relevant for 2021
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
@@ -242,14 +245,15 @@ params.update({'default_mobility' : None})
 # Model initialisation
 # --------------------
 
-# Initial states, depending on args parser init. Age is hard-coded.
-age=-1 # -1 means take random ages. Default = 40
-initE = initial_state(dist=init, agg=agg, age=age, number=init_number) # 40-somethings dropped geographically according to 'init'
-initial_states = {'S': initN, 'E': initE}
+# Model initial condition on September 1st
+# This contains a dict with all states, and values for these states per age
+# This needs to be modified in such a way that we have the output per region as well
+with open(f'{initial_states_loc}/{initial_states_json}', 'r') as fp:
+    initial_states = json.load(fp) 
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_parameters = \
-                                           {'Nc' : policies_WAVE1, 'place' : mobility_wrapper_function}, spatial=agg)
+                                           {'Nc' : policies_WAVE2_full_relaxation, 'place' : mobility_wrapper_function}, spatial=agg)
 
 
 # The code was applicable to both jobs until this point.
@@ -269,21 +273,18 @@ if job == 'R0':
     # Calibration set-up
     # ------------------
 
-    # Start of data collection
-    start_data = '2020-03-05'
     # Start data of recalibration ramp
-    start_calibration = '2020-03-05'
+    start_calibration = '2020-09-30'
     # Last datapoint used to calibrate warmup and beta
     if not args.enddate:
-        end_calibration = '2020-03-21'
+        end_calibration = '2020-10-24'
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depends on aggregation
-    spatial_unit = f'{agg}_WAVE1-{job}_{signature}'
+    spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-    print(f'Number of processes: {processes}')
     sys.stdout.flush()
     multiplier = 10
     maxiter = maxiter_PSO
@@ -327,11 +328,12 @@ if job == 'R0':
 
     # set optimisation settings
     pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-    bounds=((10.0,80.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
+    bounds=((5.0,30.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
     # run optimisation
     theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                         poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
-#         theta = np.array([48, 0.01896, 0.02153, 0.02599])
+    # Fill in line below if you want to skip PSO
+    # theta = np.array([48, 0.01896, 0.02153, 0.02599])
     # Assign estimate.
     warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
@@ -353,7 +355,7 @@ if job == 'R0':
     ax.set_ylabel('New national hosp./day')
     pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
     plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-    print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
+    print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
     sys.stdout.flush()
     plt.close()
 
@@ -469,17 +471,15 @@ elif job == 'FULL':
     # Calibration set-up
     # ------------------
 
-    # Start of data collection
-    start_data = '2020-03-05'
     # Start of calibration
-    start_calibration = '2020-03-05'
+    start_calibration = '2020-09-01'
     # Last datapoint used to calibrate infectivity, compliance and effectivity 
     if not args.enddate:
-        end_calibration = '2020-06-01' # Changed this from 2020-08-07
+        end_calibration = '2020-12-31' # Keep it in 2020
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depends on aggregation
-    spatial_unit = f'{agg}_WAVE1-{job}_{signature}'
+    spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
@@ -499,8 +499,9 @@ elif job == 'FULL':
     # Print statement to stdout
     # -------------------------
 
+    # Note how we use 4 effectivities now, because the schools are not closed
     print('\n------------------------------------------------------------------')
-    print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 3 EFFECTIVITIES')
+    print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 4 EFFECTIVITIES')
     print('------------------------------------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration+'\n')
     print('1) Particle swarm optimization')
@@ -524,8 +525,8 @@ elif job == 'FULL':
     # -----------
 
     # set optimisation settings
-    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_work', 'prev_rest', 'prev_home']
-    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
+    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
     # run optimisation
     theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                         poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
@@ -541,7 +542,7 @@ elif job == 'FULL':
     print(f'warmup (fixed): {warmup}')
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
     print(f'compliance l: {theta[3]}')
-    print(f'effectivities prev_work, prev_rest, prev_home: {theta[4:]}')
+    print(f'effectivities prev_schools, prev_work, prev_rest, prev_home: {theta[4:]}')
     sys.stdout.flush()
 
     # Visualize fit and save in order to check the validity of the first step
@@ -551,7 +552,7 @@ elif job == 'FULL':
     ax.set_ylabel('New national hosp./day')
     pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
     plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-    print(f'\nSaved figure /pso/{pso_figname}.png with resuls of pre-lockdown calibration for job==R0.\n')
+    print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
     sys.stdout.flush()
     plt.close()
 
@@ -570,14 +571,14 @@ elif job == 'FULL':
 
     # Define priors
     log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                     prior_uniform, prior_uniform, prior_uniform, ]
+                     prior_uniform, prior_uniform, prior_uniform, prior_uniform, ]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate
-    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_work', 'prev_rest', 'prev_home']
-    pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2]
+    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+    pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
     
-    nwalkers = int(7*36/4)
+    nwalkers = int(8*36/4)
     print(f"NB: Number of walkers hardcoded to {nwalkers}.")
     sys.stdout.flush()
 
@@ -589,7 +590,7 @@ elif job == 'FULL':
 
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', \
-              '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$']
+              '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
