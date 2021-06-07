@@ -17,6 +17,8 @@ o A cornerplot showing the distribution of all model parameter values
 
 The best-fit value can be mobilised to predict the future under various scenarios.
 
+IMPORTANT: There are no policy changes between between September 1st and October 19th.
+
 Example
 -------
 
@@ -58,11 +60,12 @@ from covid19model.models.utils import initial_state
 initial_time = datetime.datetime.now()
 
 # Choose to show progress bar. This cannot be shown on HPC
-progress = True
+progress = False
 
 # User-defined initial states json file
+initial_states_date = '2020-08-27'
 initial_states_loc = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/arr'
-initial_states_json = 'arr_WAVE1_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02_states_2020-09-01.json'
+initial_states_json = f'arr_WAVE1_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02_states_{initial_states_date}.json'
 
 # -----------------------
 # Handle script arguments
@@ -221,7 +224,7 @@ mobility_wrapper_function = make_mobility_update_function(proximus_mobility_data
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, VOC=False)
 # Add the time-dependant parameter function arguments
-params.update({'l' : 21, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+params.update({'l' : 8, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_schools': 0, # fixed for wave 1
                'prev_work': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_rest': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
@@ -258,396 +261,398 @@ model = models.COVID19_SEIRD_spatial(initial_states, params, time_dependent_para
 ###############
 
 # Only necessary for local run in Windows environment
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    if job == 'R0':
+if job == 'R0':
 
-        # ------------------
-        # Calibration set-up
-        # ------------------
+    # ------------------
+    # Calibration set-up
+    # ------------------
 
-        # Start data of recalibration ramp
-        start_calibration = '2020-09-30'
-        # Last datapoint used to calibrate warmup and beta
-        if not args.enddate:
-            end_calibration = '2020-10-24'
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depends on aggregation
-        spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
+    # Start data of recalibration ramp
+    start_calibration = '2020-09-01'
+    # Last datapoint used to calibrate warmup and beta
+    if not args.enddate:
+        end_calibration = '2020-10-19' # date of lockdown
+    else:
+        end_calibration = str(args.enddate)
+    # Spatial unit: depends on aggregation
+    spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
 
-        # PSO settings
-        processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    # PSO settings
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    sys.stdout.flush()
+    multiplier = 10
+    maxiter = maxiter_PSO
+    popsize = multiplier*processes
+
+    # MCMC settings
+    max_n = maxn_MCMC
+    print_n = 100
+
+    # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
+    poisson_offset = 1
+
+
+    # -------------------------
+    # Print statement to stdout
+    # -------------------------
+
+    print('\n------------------------------------------')
+    print('PERFORMING CALIBRATION OF WARMUP and BETAs')
+    print('------------------------------------------\n')
+    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
+    print('1) Particle swarm optimization')
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    sys.stdout.flush()
+
+
+    # --------------
+    # define dataset
+    # --------------
+
+    # Only use hospitalisation data
+    data=[df_sciensano[start_calibration:end_calibration]]
+    states = ["H_in"]
+    weights = [1]
+
+
+    # -----------
+    # Perform PSO
+    # -----------
+
+    # set optimisation settings
+    # NOTE: the initial states are from August 27th, so the warmup time should be the number of days
+    # between August 27th and September 1st, i.e. 5.
+    pars = ['warmup','beta_R', 'beta_U', 'beta_M']
+    bounds=((0.0,10.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
+    # run optimisation
+    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
+    # Fill in line below if you want to skip PSO
+    # theta = np.array([48, 0.01896, 0.02153, 0.02599])
+    # Assign estimate.
+    warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
+    model.parameters = pars_PSO
+
+    # Perform simulation with best-fit results
+    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+
+    # Print statement to stdout once
+    print(f'\nPSO RESULTS:')
+    print(f'------------')
+    print(f'warmup: {warmup}')
+    print(f'infectivities {pars[1:]}: {theta[1:]}.')
+    sys.stdout.flush()
+
+    # Visualize fit and save in order to check the validity of the first step
+    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+    title=f'warmup: {round(warmup)}; {pars[1:]}: {[round(th,3) for th in theta[1:]]}.'
+    ax.set_title(title)
+    ax.set_ylabel('New national hosp./day')
+    pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
+    plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
+    print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
+    sys.stdout.flush()
+    plt.close()
+
+    # Print runtime in hours
+    intermediate_time = datetime.datetime.now()
+    runtime = (intermediate_time - initial_time)
+    totalMinute, second = divmod(runtime.seconds, 60)
+    hour, minute = divmod(totalMinute, 60)
+    print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    sys.stdout.flush()
+
+
+    # ------------------
+    # Setup MCMC sampler
+    # ------------------
+
+    # Define priors
+    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn_args = bounds[1:]
+    # Perturbate PSO estimate
+    pars = ['beta_R', 'beta_U', 'beta_M']
+    pert = [0.02, 0.02, 0.02]
+    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+
+    # Set up the sampler backend if needed
+    if backend:
+        filename = f'{spatial_unit}_backend_{run_date}'
+        backend = emcee.backends.HDFBackend(results_folder+filename)
+        backend.reset(nwalkers, ndim)
+
+    # Labels for traceplots
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
+    # Arguments of chosen objective function
+    objective_fcn = objective_fcns.log_probability
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+
+
+    print('\n2) Markov-Chain Monte-Carlo sampling')
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+    sys.stdout.flush()
+
+
+    # ----------------
+    # Run MCMC sampler
+    # ----------------
+
+    # Print autocorrelation and traceplot every print_n'th iteration
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
+                       objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
+
+
+    # ---------------
+    # Process results
+    # ---------------
+
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
         sys.stdout.flush()
-        multiplier = 10
-        maxiter = maxiter_PSO
-        popsize = multiplier*processes
-
-        # MCMC settings
-        max_n = maxn_MCMC
-        print_n = 100
-
-        # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
-        poisson_offset = 1
-
-
-        # -------------------------
-        # Print statement to stdout
-        # -------------------------
-
-        print('\n------------------------------------------')
-        print('PERFORMING CALIBRATION OF WARMUP and BETAs')
-        print('------------------------------------------\n')
-        print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-        print('1) Particle swarm optimization')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-        sys.stdout.flush()
-
-
-        # --------------
-        # define dataset
-        # --------------
-
-        # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration]]
-        states = ["H_in"]
-        weights = [1]
-
-
-        # -----------
-        # Perform PSO
-        # -----------
-
-        # set optimisation settings
-        pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-        bounds=((5.0,30.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
-        # run optimisation
-        theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                            poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
-        # Fill in line below if you want to skip PSO
-        # theta = np.array([48, 0.01896, 0.02153, 0.02599])
-        # Assign estimate.
-        warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
-        model.parameters = pars_PSO
-
-        # Perform simulation with best-fit results
-        out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-
-        # Print statement to stdout once
-        print(f'\nPSO RESULTS:')
-        print(f'------------')
-        print(f'warmup: {warmup}')
-        print(f'infectivities {pars[1:]}: {theta[1:]}.')
-        sys.stdout.flush()
-
-        # Visualize fit and save in order to check the validity of the first step
-        ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-        title=f'warmup: {round(warmup)}; {pars[1:]}: {[round(th,3) for th in theta[1:]]}.'
-        ax.set_title(title)
-        ax.set_ylabel('New national hosp./day')
-        pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
-        plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-        print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
-        sys.stdout.flush()
-        plt.close()
-
-        # Print runtime in hours
-        intermediate_time = datetime.datetime.now()
-        runtime = (intermediate_time - initial_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
-
-
-        # ------------------
-        # Setup MCMC sampler
-        # ------------------
-
-        # Define priors
-        log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform]
-        log_prior_fcn_args = bounds[1:]
-        # Perturbate PSO estimate
-        pars = ['beta_R', 'beta_U', 'beta_M']
-        pert = [0.02, 0.02, 0.02]
-        ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
-
-        # Set up the sampler backend if needed
-        if backend:
-            filename = f'{spatial_unit}_backend_{run_date}'
-            backend = emcee.backends.HDFBackend(results_folder+filename)
-            backend.reset(nwalkers, ndim)
-
-        # Labels for traceplots
-        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
-        # Arguments of chosen objective function
-        objective_fcn = objective_fcns.log_probability
-        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-        objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                                'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
-
-
-        print('\n2) Markov-Chain Monte-Carlo sampling')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
-        sys.stdout.flush()
-
-
-        # ----------------
-        # Run MCMC sampler
-        # ----------------
-
-        # Print autocorrelation and traceplot every print_n'th iteration
-        sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
-
-
-        # ---------------
-        # Process results
-        # ---------------
-
-        thin = 1
-        try:
-            autocorr = sampler.get_autocorr_time()
-            thin = max(1,int(0.5 * np.min(autocorr)))
-            print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
-            sys.stdout.flush()
-        except:
-            print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-            sys.stdout.flush()
-
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - intermediate_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
         sys.stdout.flush()
 
-        print('\n3) Sending samples to dictionary')
+    # Print runtime in hours
+    final_time = datetime.datetime.now()
+    runtime = (final_time - intermediate_time)
+    totalMinute, second = divmod(runtime.seconds, 60)
+    hour, minute = divmod(totalMinute, 60)
+    print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    sys.stdout.flush()
+
+    print('\n3) Sending samples to dictionary')
+    sys.stdout.flush()
+
+    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(pars):
+        samples_dict[name] = flat_samples[:,count].tolist()
+
+    samples_dict.update({
+        'warmup' : warmup,
+        'start_date_R0' : start_calibration,
+        'end_date_R0' : end_calibration,
+        'n_chains_R0': int(nwalkers)
+    })
+
+    json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
+    with open(json_file, 'w') as fp:
+        json.dump(samples_dict, fp)
+
+    print('DONE!')
+    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
+    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+    sys.stdout.flush()
+
+    # Work is done
+    sys.exit()
+
+#######################################################################################################################################
+
+###############
+## JOB: FULL ##
+###############
+
+elif job == 'FULL':
+
+    # ------------------
+    # Calibration set-up
+    # ------------------
+
+    # Start of calibration
+    start_calibration = '2020-09-01'
+    # Last datapoint used to calibrate infectivity, compliance and effectivity 
+    if not args.enddate:
+        end_calibration = '2020-12-31' # Keep it in 2020
+    else:
+        end_calibration = str(args.enddate)
+    # Spatial unit: depends on aggregation
+    spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
+
+    # PSO settings
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    multiplier = 10 # 4
+    maxiter = maxiter_PSO
+    popsize = multiplier*processes
+
+    # MCMC settings
+    max_n = maxn_MCMC # 500000
+    print_n = 100
+
+    # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
+    poisson_offset = 1
+
+
+    # -------------------------
+    # Print statement to stdout
+    # -------------------------
+
+    # Note how we use 4 effectivities now, because the schools are not closed
+    print('\n------------------------------------------------------------------')
+    print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 4 EFFECTIVITIES')
+    print('------------------------------------------------------------------\n')
+    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
+    print('1) Particle swarm optimization')
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    sys.stdout.flush()
+
+
+    # --------------
+    # define dataset
+    # --------------
+
+    # Only use hospitalisation data
+    data=[df_sciensano[start_calibration:end_calibration]]
+    states = ["H_in"]
+    weights = [1]
+
+
+    # -----------
+    # Perform PSO
+    # -----------
+
+    # set optimisation settings
+    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+    bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
+    # run optimisation
+    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    # Assign estimate.
+    pars_PSO = assign_PSO(model.parameters, pars, theta)
+    model.parameters = pars_PSO
+    # Perform simulation with best-fit results
+    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+
+    # Print statement to stdout once
+    print(f'\nPSO RESULTS:')
+    print(f'------------')
+    print(f'warmup (fixed): {warmup}')
+    print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
+    print(f'compliance l: {theta[3]}')
+    print(f'effectivities prev_schools, prev_work, prev_rest, prev_home: {theta[4:]}')
+    sys.stdout.flush()
+
+    # Visualize fit and save in order to check the validity of the first step
+    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+    title=f'Full calibration (infectivities, compliance, effectivity). Warmup = {warmup}.'
+    ax.set_title(title)
+    ax.set_ylabel('New national hosp./day')
+    pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
+    plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
+    print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
+    sys.stdout.flush()
+    plt.close()
+
+    # Print runtime in hours
+    intermediate_time = datetime.datetime.now()
+    runtime = (intermediate_time - initial_time)
+    totalMinute, second = divmod(runtime.seconds, 60)
+    hour, minute = divmod(totalMinute, 60)
+    print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    sys.stdout.flush()
+
+
+    # ------------------
+    # Setup MCMC sampler
+    # ------------------
+
+    # Define priors
+    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
+                     prior_uniform, prior_uniform, prior_uniform, prior_uniform, ]
+    log_prior_fcn_args = bounds
+    # Perturbate PSO estimate
+    pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
+    pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+
+    nwalkers = int(8*36/4)
+    print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")
+    sys.stdout.flush()
+
+    # Set up the sampler backend if needed
+    if backend:
+        filename = f'{spatial_unit}_backend_{run_date}'
+        backend = emcee.backends.HDFBackend(results_folder+filename)
+        backend.reset(nwalkers, ndim)
+
+    # Labels for traceplots
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', \
+              '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$']
+    # Arguments of chosen objective function
+    objective_fcn = objective_fcns.log_probability
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+
+    print('\n2) Markov-Chain Monte-Carlo sampling')
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+    sys.stdout.flush()
+
+
+    # ----------------
+    # Run MCMC sampler
+    # ----------------
+
+    # Print autocorrelation and traceplot every print_n'th iteration
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
+                       objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
+
+
+    # ---------------
+    # Process results
+    # ---------------
+
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
+        sys.stdout.flush()
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
         sys.stdout.flush()
 
-        flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-        samples_dict = {}
-        for count,name in enumerate(pars):
-            samples_dict[name] = flat_samples[:,count].tolist()
+    # Print runtime in hours
+    final_time = datetime.datetime.now()
+    runtime = (final_time - intermediate_time)
+    totalMinute, second = divmod(runtime.seconds, 60)
+    hour, minute = divmod(totalMinute, 60)
+    print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    sys.stdout.flush()
 
-        samples_dict.update({
-            'warmup' : warmup,
-            'start_date_R0' : start_calibration,
-            'end_date_R0' : end_calibration,
-            'n_chains_R0': int(nwalkers)
-        })
+    print('\n3) Sending samples to dictionary')
+    sys.stdout.flush()
 
-        json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
-        with open(json_file, 'w') as fp:
-            json.dump(samples_dict, fp)
+    # Take all samples (discard=0, thin=1)
+    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(pars):
+        samples_dict[name] = flat_samples[:,count].tolist()
 
-        print('DONE!')
-        print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
-        print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-        sys.stdout.flush()
+    samples_dict.update({
+        'warmup' : warmup,
+        'start_date_FULL' : start_calibration,
+        'end_date_FULL': end_calibration,
+        'n_chains_FULL' : nwalkers
+    })
 
-        # Work is done
-        sys.exit()
+    json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
+    with open(json_file, 'w') as fp:
+        json.dump(samples_dict, fp)
 
-    #######################################################################################################################################
-
-    ###############
-    ## JOB: FULL ##
-    ###############
-
-    elif job == 'FULL':
-
-        # ------------------
-        # Calibration set-up
-        # ------------------
-
-        # Start of calibration
-        start_calibration = '2020-09-01'
-        # Last datapoint used to calibrate infectivity, compliance and effectivity 
-        if not args.enddate:
-            end_calibration = '2020-12-31' # Keep it in 2020
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depends on aggregation
-        spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
-
-        # PSO settings
-        processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier = 10 # 4
-        maxiter = maxiter_PSO
-        popsize = multiplier*processes
-
-        # MCMC settings
-        max_n = maxn_MCMC # 500000
-        print_n = 100
-
-        # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
-        poisson_offset = 1
-
-
-        # -------------------------
-        # Print statement to stdout
-        # -------------------------
-
-        # Note how we use 4 effectivities now, because the schools are not closed
-        print('\n------------------------------------------------------------------')
-        print('PERFORMING CALIBRATION OF BETAs, COMPLIANCE l, and 4 EFFECTIVITIES')
-        print('------------------------------------------------------------------\n')
-        print('Using data from '+start_calibration+' until '+end_calibration+'\n')
-        print('1) Particle swarm optimization')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-        sys.stdout.flush()
-
-
-        # --------------
-        # define dataset
-        # --------------
-
-        # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration]]
-        states = ["H_in"]
-        weights = [1]
-
-
-        # -----------
-        # Perform PSO
-        # -----------
-
-        # set optimisation settings
-        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-        bounds=((0.010,0.060), (0.010,0.060), (0.010,0.060), (0.01, 20.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0), (0.001, 1.0))
-        # run optimisation
-        theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                            poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-        # Assign estimate.
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
-        model.parameters = pars_PSO
-        # Perform simulation with best-fit results
-        out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-
-        # Print statement to stdout once
-        print(f'\nPSO RESULTS:')
-        print(f'------------')
-        print(f'warmup (fixed): {warmup}')
-        print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
-        print(f'compliance l: {theta[3]}')
-        print(f'effectivities prev_schools, prev_work, prev_rest, prev_home: {theta[4:]}')
-        sys.stdout.flush()
-
-        # Visualize fit and save in order to check the validity of the first step
-        ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-        title=f'Full calibration (infectivities, compliance, effectivity). Warmup = {warmup}.'
-        ax.set_title(title)
-        ax.set_ylabel('New national hosp./day')
-        pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
-        plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-        print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
-        sys.stdout.flush()
-        plt.close()
-
-        # Print runtime in hours
-        intermediate_time = datetime.datetime.now()
-        runtime = (intermediate_time - initial_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
-
-
-        # ------------------
-        # Setup MCMC sampler
-        # ------------------
-
-        # Define priors
-        log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, ]
-        log_prior_fcn_args = bounds
-        # Perturbate PSO estimate
-        pars = ['beta_R', 'beta_U', 'beta_M', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home']
-        pert = [0.02, 0.02, 0.02, 0.05, 0.2, 0.2, 0.2, 0.2]
-        ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
-
-        nwalkers = int(8*36/4)
-        print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")
-        sys.stdout.flush()
-
-        # Set up the sampler backend if needed
-        if backend:
-            filename = f'{spatial_unit}_backend_{run_date}'
-            backend = emcee.backends.HDFBackend(results_folder+filename)
-            backend.reset(nwalkers, ndim)
-
-        # Labels for traceplots
-        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$l$', \
-                  '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$']
-        # Arguments of chosen objective function
-        objective_fcn = objective_fcns.log_probability
-        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-        objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                                'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
-
-        print('\n2) Markov-Chain Monte-Carlo sampling')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
-        sys.stdout.flush()
-
-
-        # ----------------
-        # Run MCMC sampler
-        # ----------------
-
-        # Print autocorrelation and traceplot every print_n'th iteration
-        sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                           objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
-
-
-        # ---------------
-        # Process results
-        # ---------------
-
-        thin = 1
-        try:
-            autocorr = sampler.get_autocorr_time()
-            thin = max(1,int(0.5 * np.min(autocorr)))
-            print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
-            sys.stdout.flush()
-        except:
-            print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-            sys.stdout.flush()
-
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - intermediate_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
-
-        print('\n3) Sending samples to dictionary')
-        sys.stdout.flush()
-
-        # Take all samples (discard=0, thin=1)
-        flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-        samples_dict = {}
-        for count,name in enumerate(pars):
-            samples_dict[name] = flat_samples[:,count].tolist()
-
-        samples_dict.update({
-            'warmup' : warmup,
-            'start_date_FULL' : start_calibration,
-            'end_date_FULL': end_calibration,
-            'n_chains_FULL' : nwalkers
-        })
-
-        json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
-        with open(json_file, 'w') as fp:
-            json.dump(samples_dict, fp)
-
-        print('DONE!')
-        print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
-        print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-        sys.stdout.flush()
+    print('DONE!')
+    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
+    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+    sys.stdout.flush()
