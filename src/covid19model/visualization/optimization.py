@@ -330,9 +330,11 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
         if not start_calibration:
             ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         else:
-            ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[state][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            if start_date != start_calibration:
+                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[state][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[state][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[state][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            if end_calibration != end_date:
+                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[state][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax = _apply_tick_locator(ax)
         ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
         ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
@@ -347,9 +349,11 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
             if not start_calibration:
                 ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             else:
-                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano.sum(axis=1)[start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                if start_date != start_calibration:
+                    ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano.sum(axis=1)[start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano.sum(axis=1)[start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano.sum(axis=1)[end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                if end_calibration != end_date:
+                    ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano.sum(axis=1)[end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax = _apply_tick_locator(ax)
             ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
             ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
@@ -363,9 +367,11 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
             if not start_calibration:
                 ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             else:
-                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[NIS][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                if start_date != start_calibration:
+                    ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[NIS][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[NIS][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[NIS][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                if end_calibration != end_date:
+                    ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[NIS][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax = _apply_tick_locator(ax)
             ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
             ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
