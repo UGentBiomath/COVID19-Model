@@ -100,26 +100,27 @@ def compute_QALE(S_x, QoL_df, q_CM=0):
         Quality-adjusted ife expectancy at age x
     """
 
-    # Pre-allocate
-    dQALE = np.zeros(len(S_x))
+    # Pre-allocate results
     QALE_x = np.zeros(len(S_x))
-    # Set quality-of-life utility to first age group
-    j=0
-    QoL_x=QoL_df['QoL_score'][0]
-    age_limit=QoL_df['group_limit'][0] 
-    # Loop over ages
-    for age in range(len(S_x)-1):
-        # Check if we're in a new age bin
-        if age > age_limit:
-            j += 1
+    # Loop over x
+    for x in range(len(S_x)):
+        # Pre-allocate dQALY
+        dQALE = np.zeros([len(S_x)-x-1])
+        # Set age-dependant utility weights to lowest possible
+        j=0
+        QoL_x=QoL_df['QoL_score'][0]
+        age_limit=QoL_df['group_limit'][0] 
+        # Loop over i
+        for i in range(x,len(S_x)-1):
+            # Find the right age bin
+            while i > age_limit:
+                j += 1
+                age_limit = QoL_df['group_limit'][j]
             QoL_x = QoL_df['QoL_score'][j]
-            age_limit = QoL_df['group_limit'][j]
-        # Then compute the quality-adjusted life years lived between age x and x+1
-        dQALE[age] = (QoL_x-q_CM)*0.5*(S_x[age] + S_x[age+1])
-    # Loop again over all ages
-    for age in range(len(S_x)):
-        QALE_x[age] = np.sum(dQALE[age:])
-
+            # Then compute the quality-adjusted life years lived between age x and x+1
+            dQALE[i-x] = (QoL_x-q_CM)*0.5*(S_x[i] + S_x[i+1])
+        # Sum dQALY to obtain QALY_x
+        QALE_x[x] = np.sum(dQALE)
     return QALE_x
 
 def compute_QALY(S_x, QoL_df, q_CM=0, r=0.03):
@@ -137,7 +138,7 @@ def compute_QALY(S_x, QoL_df, q_CM=0, r=0.03):
         Must contain two columns: "group_limit" and "QoL_score"
 
     q_CM : float [0-1]
-        Additional quality-of-life utility loss due to a comorbidity
+        Additional quality-of-life utility loss due to a comorbidity (default: 0 - no comorbidity)
 
     r : float
         Discount rate (default 3%)
@@ -149,28 +150,44 @@ def compute_QALY(S_x, QoL_df, q_CM=0, r=0.03):
         Quality-adjusted life years remaining at age x
     """
 
-    # Pre-allocate
-    dQALY = np.zeros(len(S_x))
+    # Pre-allocate results
     QALY_x = np.zeros(len(S_x))
-    # Set quality-of-life utility to first age group
-    j=0
-    QoL_x=QoL_df['QoL_score'][0]
-    age_limit=QoL_df['group_limit'][0] 
-    # Loop over ages
-    for age in range(len(S_x)-1):
-        # Check if we're in a new age bin
-        if age > age_limit:
-            j += 1
+    # Loop over x
+    for x in range(len(S_x)):
+        # Pre-allocate dQALY
+        dQALY = np.zeros([len(S_x)-x-1])
+        # Set age-dependant utility weights to lowest possible
+        j=0
+        QoL_x=QoL_df['QoL_score'][0]
+        age_limit=QoL_df['group_limit'][0] 
+        # Loop over i
+        for i in range(x,len(S_x)-1):
+            # Find the right age bin
+            while i > age_limit:
+                j += 1
+                age_limit = QoL_df['group_limit'][j]
             QoL_x = QoL_df['QoL_score'][j]
-            age_limit = QoL_df['group_limit'][j]
-        # Then compute the quality-adjusted life years lived between age x and x+1
-        dQALY[age] = (QoL_x-q_CM)*0.5*(S_x[age] + S_x[age+1])*(1+r)**(0-age)
-    # Loop again over all ages
-    for age in range(len(S_x)):
-        QALY_x[age] = np.sum(dQALY[age:])
+            # Then compute the quality-adjusted life years lived between age x and x+1
+            dQALY[i-x] = (QoL_x-q_CM)*0.5*(S_x[i] + S_x[i+1])*(1+r)**(x-i)
+        # Sum dQALY to obtain QALY_x
+        QALY_x[x] = np.sum(dQALY)
     return QALY_x
 
 def compute_QALY_binned(QALY_x):
+    """ A function to return the number of QALYs lost when a person of age x within a given age-bin of the COVID-19 SEIQRD model dies
+
+    Parameters
+    ----------
+    QALY_x : list or np.array
+        Quality-adjusted life years remaining at age x
+    
+    Returns
+    -------
+    QALY_binned: np.array
+        Quality-adjusted life years lost upon death for every age bin of the COVID-19 SEIQRD model
+    """
+
+
     # Define bins: default 10 year decades of COVID-19 SEIRD
     bins = ['0-9','10-19','20-29','30-39','40-59','50-59','60-69','70-79','80+']
     bins_UL = [9,19,29,39,49,59,69,89,110]
@@ -180,89 +197,9 @@ def compute_QALY_binned(QALY_x):
     for i in range(len(bins)):
         QALY_binned[i] = np.mean(QALY_x[low_limit:bins_UL[i]+1])
         low_limit=bins_UL[i]
-
     return QALY_binned
 
-
-def create_life_table(input_table,input_QoL,SMR,qCM,r):
-    
-    """
-    Life tables are used to calculate the number of QALYs lost if a person dies at a given age.
-    That information can then be used to calculate the total number of QALYs lost.
-    It is not necessary that deaths are caused by a specific reason
-
-    Parameters
-    ----------
-    input_table: pd.DataFrame
-        Base life table information. x, q(x)
-
-    input_QoL: pd.DataFrame
-        Quality weights for age groups
-
-    SMR: float
-        Standarized Mortality ratio
-
-    qCM: float
-        Adjustment paramter to account for additional impact on quality of life
-    
-    r: float
-        Discount rate
-
-    Returns
-    -------
-    life_table: Dataframe with calculation results. 
-                             
-    """
-    
-    life_table=input_table
-    QoL=input_QoL
-    # Instantaneous death rate: Probability of death at age x
-    life_table.loc[0,'d_x']=-np.log(1-life_table.loc[0,'q_x'])
-    for i in range(1,len(life_table['q_x'])):
-        life_table.loc[i,'d_x']=-0.5*(np.log(1-life_table.loc[i-1,'q_x'])+np.log(1-life_table.loc[i,'q_x'])) 
-    # life_table['d_x']=-np.log(1-life_table['q_x']) 
-    
-    # Number of people who survive to age x per 100000 hab.
-    #This is 100000 at x=0 by definition
-    life_table.loc[0,'l_x']=100000
-    for i in range(1,len(life_table['q_x'])):
-        life_table.loc[i,'l_x']=life_table.loc[i-1,'l_x']*np.exp(-life_table.loc[i-1,'d_x']*SMR)
-        #Years lived between x and (x+1) per 100000 hab. 
-        life_table.loc[i-1,'L_x']=(life_table.loc[i-1,'l_x']+life_table.loc[i,'l_x'])/2
-        
-           
-    QoL_x=QoL.loc[0,'QoL_score']# Quality of life index for each age group
-    age_limit=QoL.loc[0,'group_limit'] # Limit of the age group
-    j=0 #Alternative index for QoL indices search
-    for i in range(len(life_table['l_x'])):
-        
-        #Life expectancy at age x
-        life_table.loc[i,'LE_x']=np.sum(life_table.loc[i:len(life_table['L_x'])-1,'L_x'])/life_table.loc[i,'l_x']
-        #Check which QoL index to use
-        if i >age_limit:
-            j+=1
-            QoL_x=QoL.loc[j,'QoL_score']
-            age_limit=QoL.loc[j,'group_limit']
-            
-        #Quality adjusted years lived between x and (x+1) per 100000 hab    
-        life_table.loc[i,'QAL_x']=life_table.loc[i,'L_x']*QoL_x*qCM
-        
-    for i in range(len(life_table['l_x'])):
-        #Quality adjusted life expectancy
-        life_table.loc[i,'QALE_x']=np.sum(life_table.loc[i:len(life_table['L_x'])-1,'QAL_x'])/life_table.loc[i,'l_x']
-       
-        dQAL_x=np.zeros(len((life_table['l_x'])))
-        for u in range(len(life_table['l_x'])-1):
-            #Discounted lived years
-            dQAL_x[u]=life_table.loc[u,'QAL_x']/(1+r)**(u-i) 
-        #QALYs 
-        life_table.loc[i,'QALY_x']=np.sum(dQAL_x[i:])/life_table.loc[i,'l_x']
-        life_table=life_table.copy()
-
-    return life_table
-
-#%%
-def lost_QALY_hospital_care (reduction,granular=False):
+def lost_QALYs_hospital_care (reduction,granular=False):
     
     """
     This function calculates the expected number of QALYs lost due to a given
@@ -284,7 +221,7 @@ def lost_QALY_hospital_care (reduction,granular=False):
     Returns
     -------
     lost_QALYs float or pd.DataFrame
-        Total number of QALYs lost per year (!) caused by a given reduction in hospital care. 
+        Total number of QALYs lost per day caused by a given reduction in hospital care. 
         if granular = True, results are given per disease group
     
     """
@@ -295,13 +232,8 @@ def lost_QALY_hospital_care (reduction,granular=False):
         
     # Average calculations
      
-    if granular == False:
-        
-        #total_cost=hospital_data['total_spent'].sum()*1000000 # Total amount spent in regular health care per year
-        #avg_cost_per_qaly=hospital_data['cost_per_qaly'].mean() # Average cost per QALY gained
-        #total_gained_QALYs=total_cost/avg_cost_per_qaly # Total number of QALYs gained per year (EUR/EUR/QALY = QALY )    
-        lost_QALYs = reduction*(hospital_data['total_spent']*1e6/hospital_data['cost_per_qaly']).sum()
-        #lost_QALYs= reduction*total_gained_QALYs # Lost qalys per year
+    if granular == False:  
+        lost_QALYs = reduction*(hospital_data['total_spent']*1e6/hospital_data['cost_per_qaly']).sum()/365
     else:
         
         data_per_disease=pd.DataFrame(columns=['disease_group','gained_qalys','lost_qalys'])
@@ -309,63 +241,44 @@ def lost_QALY_hospital_care (reduction,granular=False):
         #Number of QALYs gained per year per disease group
         data_per_disease['gained_qalys']=hospital_data['total_spent']*1000000/hospital_data['cost_per_qaly']
         # Number of QALYs lost per year per disease group
-        data_per_disease['lost_qalys']=reduction*data_per_disease['gained_qalys']
-        
+        data_per_disease['lost_qalys']=reduction*data_per_disease['gained_qalys']/365
         lost_QALYs=data_per_disease.copy().drop(columns=['gained_qalys'])
-    
     return lost_QALYs
 
-#%%
+def append_acute_QALY_losses(out,QoL_df,lost_QALY_pp):
 
-def get_QALY_parameters (input_table,input_QoL,SMR,qCM,r):
+    # https://link.springer.com/content/pdf/10.1007/s40271-021-00509-z.pdf
+    
+    ##################
+    ## Mild disease ##
+    ##################
 
-    """
-    This functions calculates age-stratified QALYs lost associated with the death of a person.
-    The output is used as a parameter of main model calculations
-    
-    Parameters
-    ----------
-    input_table: pd.DataFrame
-        Base life table information. x, q(x)
+    # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4690729/ --> Table A2 --> utility weight = 0.659
+    # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.43=0.57
+    out['QALYs_mild'] = out['M']*np.expand_dims(np.expand_dims((QoL_df['QoL_score']-0.659)/365,axis=1),axis=0)
 
-    input_QoL: pd.DataFrame
-        Quality weights for age groups
+    #####################
+    ## Hospitalization ##
+    #####################
 
-    SMR: float
-        Standarized Mortality ratio
+    # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4690729/ --> Table A2 --> utility weight = 0.514
+    # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.50 = 0.50
+    out['QALYs_cohort'] = out['C']*np.expand_dims(np.expand_dims((QoL_df['QoL_score']-0.50)/365,axis=1),axis=0) + out['C_icurec']*np.expand_dims(np.expand_dims((QoL_df['QoL_score']-0.50)/365,axis=1),axis=0)
+    
+    # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.60 = 0.40
+    out['QALYs_ICU'] = out['ICU']*np.expand_dims(np.expand_dims((QoL_df['QoL_score']-0.40)/365,axis=1),axis=0)
 
-    qCM: float
-        Adjustment paramter to account for additional impact on quality of life
-    
-    r: float
-        Discount rate
+    ###########
+    ## Death ##
+    ###########
+    m_no_treatment = 0.40
+    out['QALYs_death'] = out['D']*np.expand_dims(np.expand_dims(lost_QALY_pp,axis=1),axis=0)
+    out['QALYs_treatment'] = (1-m_no_treatment)*out['R_hosp']*np.expand_dims(np.expand_dims(lost_QALY_pp,axis=1),axis=0)
+    return out
 
-    Returns
-    -------
-    life_table: pd.DataFrame
-        QALYs lost when a person of a certain age (within the age bins of the model) dies.
-    
-    """  
-    
-    #Generate compleate life table from input data
-    life_table=create_life_table(input_table,input_QoL,SMR,qCM,r)
-
-    #Deaths per age group dataframe initialization
-    deaths_input=pd.DataFrame({'age_group':['0-9','10-19','20-29','30-39','40-59','50-59','60-69','70-79','80+'],
-                          'group_limit':[9,19,29,39,49,59,69,89,110],
-                          'deaths':[np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan,np.nan]})                  
-    
-    #Calculate age-stratified lost QALYs per person
-    low_limit=0
-    
-    for i in range(len(deaths_input['group_limit'])):
-        avg_dQALY=np.mean(life_table.loc[low_limit:deaths_input.loc[i,'group_limit'],'QALY_x'])
-        deaths_input.loc[i,'lost_QALY_pp']=avg_dQALY
-        low_limit=deaths_input.loc[i,'group_limit']+1
-        
-    lost_QALY_pp=np.array(deaths_input['lost_QALY_pp']) 
-    
-    return lost_QALY_pp
+def append_QALYs_gained_hospital_treatment(out,lost_QALY_pp):
+    out['QALYs_treatment'] = (1-m_no_treatment)*out['R_hosp']*np.expand_dims(np.expand_dims(lost_QALY_pp,axis=1),axis=0)
+    return out
 
 def QALY2xarray(out,lost_QALY_pp):
     """
