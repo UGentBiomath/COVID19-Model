@@ -88,7 +88,7 @@ print('### RESTORE SIMULATION SUMMARY ###')
 print('##################################\n')
 
 # Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=True)
+df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False, plot=False)
 
