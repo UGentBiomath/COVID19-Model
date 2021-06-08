@@ -419,16 +419,15 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 
-                        'dICU_D', 'dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU'],[]]
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
-                  s, a, h, c, m_C, m_ICU, 
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
         Biomath extended SEIRD model for COVID-19
@@ -467,6 +466,10 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         c = np.expand_dims(c, axis=1)
         m_C = np.expand_dims(m_C, axis=1)
         m_ICU = np.expand_dims(m_ICU, axis=1)
+        dc_R = np.expand_dims(dc_R, axis=1)
+        dc_D = np.expand_dims(dc_D, axis=1)
+        dICU_R = np.expand_dims(dICU_R, axis=1)
+        dICU_D = np.expand_dims(dICU_D, axis=1)
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -511,7 +514,13 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
         dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
         dS[:,2] = dS[:,2] + N_vacc[:,1]
-        # Waning of vaccine immunity
+        # Waning of vaccine immunity: first dose
+        waning_S = (1/d_vacc)*S[:,1]
+        waning_R = (1/d_vacc)*R[:,1]
+        dS[:,0] = dS[:,0] + waning_S + waning_R
+        dS[:,1] = dS[:,1] - waning_S
+        dR[:,1] = dR[:,1] - waning_R
+        # Waning of vaccine immunity: second dose
         waning_S = (1/d_vacc)*S[:,2]
         waning_R = (1/d_vacc)*R[:,2]
         dS[:,0] = dS[:,0] + waning_S + waning_R
@@ -520,7 +529,6 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # Waning of natural immunity
         dS[:,0] = dS[:,0] + zeta*R[:,0] 
         dR[:,0] = dR[:,0] - zeta*R[:,0] 
-
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
