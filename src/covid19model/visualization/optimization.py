@@ -339,7 +339,7 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
         ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
         ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
         if savename:
-            fig.savefig(savename, dpi=400, bbox_inches='tight')
+            plt.savefig(savename, dpi=400, bbox_inches='tight')
         if not show_all:
             return ax
         else:
@@ -358,7 +358,7 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
             ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
             ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
             if savename:
-                fig.savefig(savename, dpi=400, bbox_inches='tight')
+                plt.savefig(savename, dpi=400, bbox_inches='tight')
             if not show_all:
                 return ax
             else:
@@ -376,7 +376,7 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_c
             ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
             ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
             if savename:
-                fig.savefig(savename, dpi=400, bbox_inches='tight')
+                plt.savefig(savename, dpi=400, bbox_inches='tight')
             if not show_all:
                 return ax
             else:
