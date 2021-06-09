@@ -229,7 +229,7 @@ params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, VOC=False)
 # Add the time-dependant parameter function arguments
 params.update({'l' : 5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_home' : 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
-               'prev_schools': 0, # fixed for wave 1
+               'prev_schools': 1.0, # fixed for wave 1, but no effect at all until Sept 1st (school != 0)
                'prev_work': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_rest': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
               })
