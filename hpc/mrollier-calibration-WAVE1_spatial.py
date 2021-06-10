@@ -416,10 +416,10 @@ if job == 'R0':
     try:
         autocorr = sampler.get_autocorr_time()
         thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
         sys.stdout.flush()
     except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
         sys.stdout.flush()
 
     # Print runtime in hours
@@ -475,7 +475,7 @@ elif job == 'FULL':
     start_calibration = '2020-03-05'
     # Last datapoint used to calibrate infectivity, compliance and effectivity 
     if not args.enddate:
-        end_calibration = '2020-06-01' # Changed this from 2020-08-07
+        end_calibration = '2020-07-01' # Changed this from 2020-08-07
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depends on aggregation
@@ -619,10 +619,10 @@ elif job == 'FULL':
     try:
         autocorr = sampler.get_autocorr_time()
         thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nSuggested thinning for post-processing: {thin}.')
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
         sys.stdout.flush()
     except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
         sys.stdout.flush()
 
     # Print runtime in hours
