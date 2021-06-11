@@ -86,7 +86,7 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=30
+    n=50
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
