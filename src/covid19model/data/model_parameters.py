@@ -293,11 +293,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['Nc'] = Nc_dict['total']
 
         # Assign AZMM and UZG estimates to correct variables
-        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0], engine='openpyxl')
-        pars_dict['h'] = np.array([0.015, 0.015, 0.03, 0.03, 0.03, 0.075, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
-        pars_dict['c'] = np.array(fractions['c'].values[:-1])
-        pars_dict['m_C'] = np.array(fractions['m0_{C}'].values[:-1])
-        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}'].values[:-1])
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
+        pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
+        pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
+        pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
+        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
 
         residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
         pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
