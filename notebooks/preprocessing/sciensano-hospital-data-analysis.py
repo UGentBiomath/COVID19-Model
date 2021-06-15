@@ -425,7 +425,7 @@ for i in range(len(df['d_transfer'])):
 
 # Summary statistics
 residence_times['dICUrec','mean'] = df.groupby(by='age_class').apply(lambda x: x[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))].dICUrec.mean())
-residence_times['d_transfer','median'] = df.groupby(by='age_class').apply(lambda x: x[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))].dICUrec.median())
+residence_times['dICUrec','median'] = df.groupby(by='age_class').apply(lambda x: x[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))].dICUrec.median())
 for quantile in quantiles:
     residence_times['dICUrec','Q'+str(quantile)] = df.groupby(by='age_class').apply(lambda x: x[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))].dICUrec.quantile(q=quantile/100)) 
 # Gamma fit
