@@ -56,11 +56,15 @@ def fit_weibull(v):
     loc_lst=[]
     scale_lst=[]
     for age_group in v.index.get_level_values(0).unique().values:
-        v[age_group][v[age_group]==0] = 0.01
-        v = v.dropna()
-        shape, loc, scale = weibull_min.fit(v[age_group].values,floc=0)
-        #shape, loc, scale = gamma.fit(v[age_group].values,floc=0)
-        sample_size_lst.append(len(v[age_group].values))
+        if isinstance(v[age_group],list):
+            values = [x for x in v[age_group] if (math.isnan(x) == False)]
+            shape, loc, scale = weibull_min.fit(values,floc=0)
+            sample_size_lst.append(len(v[age_group]))
+        else:
+            v[age_group][v[age_group]==0] = 0.01
+            v = v.dropna()
+            shape, loc, scale = weibull_min.fit(v[age_group].values,floc=0)
+            sample_size_lst.append(len(v[age_group].values))
         shape_lst.append(shape)
         loc_lst.append(loc)
         scale_lst.append(scale)
@@ -496,24 +500,6 @@ samples_total['dC_D'] = [df.groupby(by='age_class').apply(lambda x: ((x['dt_disc
 samples['dC_D'].loc[residence_times.index.get_level_values(0).unique().values[0]] = [1]
 samples['dC_D'].loc[residence_times.index.get_level_values(0).unique().values[1]] = [1]
 
-#------
-# dICU
-# -----
-
-# Summary statistics
-residence_times['dICU','mean']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']).mean())
-residence_times['dICU','median']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']).median())
-for quantile in quantiles:
-    residence_times['dICU','Q'+str(quantile)]=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']).quantile(q=quantile/100))
-# Gamma fit
-v = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']))
-residence_times['dICU','sample_size'], residence_times['dICU','shape'],residence_times['dICU','loc'],residence_times['dICU','scale'] = fit_weibull(v)
-if plot_fit:
-    plot_weibull_fit(v,'dICU',90)
-# Append samples
-samples['dICU'] = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui'])).groupby(by='age_class').agg(lambda x: list(x))
-samples_total['dICU'] = [df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui'])).agg(lambda x: list(x))]
-
 # -------
 # dICU_R 
 # -------
@@ -556,6 +542,36 @@ if plot_fit:
 samples['dICU_D'] = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))])).groupby(by='age_class').agg(lambda x: list(x))
 samples_total['dICU_D'] = [df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))])).agg(lambda x: list(x))]
 samples['dICU_D'].loc[residence_times.index.get_level_values(0).unique().values[0]] = [1]
+
+#------
+# dICU
+# -----
+
+# Add dICU_R and dICU_D together to compute parameters of dICU
+samples['dICU'] = samples['dICU_R'] + samples['dICU_D']
+# Summary statistics
+residence_times['dICU','mean'] = np.nan
+residence_times['dICU','median'] = np.nan
+for quantile in quantiles:
+    residence_times['dICU','Q'+str(quantile)] = np.nan
+for idx,age_group in enumerate(samples['dICU'].index.get_level_values(0).unique().values):
+    residence_times['dICU','mean'].loc[age_group] = np.nanmean(samples['dICU'][age_group])
+    residence_times['dICU','median'].loc[age_group] = np.nanmedian(samples['dICU'][age_group])
+    for quantile in quantiles:
+        residence_times['dICU','Q'+str(quantile)].loc[age_group] = np.nanquantile(samples['dICU'][age_group],q=quantile/100)
+# Gamma fit
+v = samples['dICU']#df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']))
+residence_times['dICU','sample_size'], residence_times['dICU','shape'],residence_times['dICU','loc'],residence_times['dICU','scale'] = fit_weibull(v)
+if plot_fit:
+    plot_weibull_fit(v,'dICU',90)
+# Append samples
+samples_total['dICU'] = ''
+samples_total['dICU'] = samples_total['dICU'].apply(list)
+total_list=[]
+for idx,age_group in enumerate(samples['dICU'].index.get_level_values(0).unique().values):
+    total_list.extend(samples['dICU'][age_group])
+samples_total['dICU']['total'] = total_list
+
 samples = pd.concat([samples, samples_total])
 
 #################################
@@ -612,23 +628,6 @@ v[v==0] = 0.01
 averages['dC_D','sample_size'] = len(v)
 averages['dC_D','shape'],averages['dC_D','loc'],averages['dC_D','scale'] = gamma.fit(v, floc=0)
 
-# ----
-# dICU
-# ----
-
-# Summary statistics
-averages['dICU','mean'] = ((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1) - df['d_transfer'][df['ICU_transfer']=='Oui']).mean()
-averages['dICU','median'] = ((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui']).median()
-for quantile in quantiles:
-    averages['dICU','Q'+str(quantile)] = ((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui']).quantile(q=quantile/100)
-# Gamma fit
-v = ((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui'])
-v[(v==0)] = 0.01
-v = [x for x in v if (math.isnan(x) == False)]
-v = [x for x in v if (x > 0)]
-averages['dICU','sample_size'] = len(v)
-averages['dICU','shape'],averages['dICU','loc'],averages['dICU','scale'] = gamma.fit(v, floc=0)
-
 # ------
 # dICU,R
 # ------
@@ -665,6 +664,23 @@ v = [x for x in v if (math.isnan(x) == False)]
 v = [x for x in v if (x > 0)]
 averages['dICU_D','sample_size'] = len(v)
 averages['dICU_D','shape'],averages['dICU_D','loc'],averages['dICU_D','scale'] = gamma.fit(v, floc=0)
+
+# ----
+# dICU
+# ----
+
+# Summary statistics
+averages['dICU','mean'] = np.nanmean(samples_total['dICU'][0])
+averages['dICU','median'] = np.nanmedian(samples_total['dICU'][0])#((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui']).median()
+for quantile in quantiles:
+    averages['dICU','Q'+str(quantile)] = np.nanquantile(samples_total['dICU'][0],q=quantile/100)#((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui']).quantile(q=quantile/100)
+# Gamma fit
+v = samples_total['dICU'][0]#((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)- df['d_transfer'][df['ICU_transfer']=='Oui'])
+v[(v==0)] = 0.01
+v = [x for x in v if (math.isnan(x) == False)]
+v = [x for x in v if (x > 0)]
+averages['dICU','sample_size'] = len(v)
+averages['dICU','shape'],averages['dICU','loc'],averages['dICU','scale'] = gamma.fit(v, floc=0)
 
 # --------
 # dICU,rec
@@ -780,12 +796,12 @@ plt.close()
 data = [dC,dC_R,dC_D,dICU,dICU_R,dICU_D]
 colors = [colorscale_okabe_ito['black'],colorscale_okabe_ito['green'],colorscale_okabe_ito['red'],colorscale_okabe_ito['black'],colorscale_okabe_ito['green'],colorscale_okabe_ito['red']]
 alphas = [0.4,1,1,0.4,1,1]
-labels = ['Cohort (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[0]), np.median(data[0]), np.mean(data[0])),
-        'Cohort recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[1]), np.median(data[1]), np.mean(data[1])),
-        'Cohort deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[2]), np.median(data[2]), np.mean(data[2])),
-        'IC (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[3]), np.median(data[3]), np.mean(data[3])),
-        'IC recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[4]), np.median(data[4]), np.mean(data[4])),
-        'IC deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(data[5]), np.median(data[5]), np.mean(data[5]))
+labels = ['Cohort \n median = {:.1f} \n mean = {:.1f}'.format( np.median(data[0]), np.mean(data[0])),
+        'Cohort recovered \n median = {:.1f} \n mean = {:.1f}'.format(np.median(data[1]), np.mean(data[1])),
+        'Cohort deceased \n median = {:.1f} \n mean = {:.1f}'.format(np.median(data[2]), np.mean(data[2])),
+        'ICU \n median = {:.1f} \n mean = {:.1f}'.format(np.median(data[3]), np.mean(data[3])),
+        'ICU recovered \n median = {:.1f} \n mean = {:.1f}'.format(np.median(data[4]), np.mean(data[4])),
+        'ICU deceased \n median = {:.1f} \n mean = {:.1f}'.format(np.median(data[5]), np.mean(data[5]))
         ]
 
 # Violin plot
