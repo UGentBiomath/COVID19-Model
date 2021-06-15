@@ -475,7 +475,7 @@ elif job == 'FULL':
     start_calibration = '2020-03-05'
     # Last datapoint used to calibrate infectivity, compliance and effectivity 
     if not args.enddate:
-        end_calibration = '2020-07-01' # Changed this from 2020-08-07
+        end_calibration = '2020-08-07' # Changed this from 2020-08-07
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depends on aggregation
