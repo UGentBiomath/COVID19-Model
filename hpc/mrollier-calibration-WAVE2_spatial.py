@@ -362,7 +362,11 @@ if job == 'R0':
     runtime = (intermediate_time - initial_time)
     totalMinute, second = divmod(runtime.seconds, 60)
     hour, minute = divmod(totalMinute, 60)
-    print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    day = runtime.days
+    if day == 0:
+        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    else:
+        print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
 
@@ -427,7 +431,11 @@ if job == 'R0':
     runtime = (final_time - intermediate_time)
     totalMinute, second = divmod(runtime.seconds, 60)
     hour, minute = divmod(totalMinute, 60)
-    print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    day = runtime.days
+    if day == 0:
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    else:
+        print(f"Run time MCMC: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
     print('\n3) Sending samples to dictionary')
@@ -559,7 +567,11 @@ elif job == 'FULL':
     runtime = (intermediate_time - initial_time)
     totalMinute, second = divmod(runtime.seconds, 60)
     hour, minute = divmod(totalMinute, 60)
-    print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    day = runtime.days
+    if day == 0:
+        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    else:
+        print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
 
@@ -629,7 +641,11 @@ elif job == 'FULL':
     runtime = (final_time - intermediate_time)
     totalMinute, second = divmod(runtime.seconds, 60)
     hour, minute = divmod(totalMinute, 60)
-    print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    day = runtime.days
+    if day == 0:
+        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
+    else:
+        print(f"Run time MCMC: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
     print('\n3) Sending samples to dictionary')
