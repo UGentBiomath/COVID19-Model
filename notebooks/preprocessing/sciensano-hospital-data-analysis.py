@@ -429,7 +429,7 @@ v = df.groupby(by='age_class').apply(lambda x: x[((x.ICU_transfer=='Oui')&(x.sta
 residence_times['dICUrec','sample_size'], residence_times['dICUrec','shape'], residence_times['dICUrec','loc'], residence_times['dICUrec', 'scale'] = fit_weibull(v)
 if plot_fit:
     plot_weibull_fit(v,'dICUrec',cutoff)
-print(residence_times['dICUrec','mean'])
+
 # ---
 # dC
 # ---
@@ -519,20 +519,19 @@ samples_total['dICU'] = [df.groupby(by='age_class').apply(lambda x: (((x['dt_dis
 # -------
 
 # Summary statistics
-residence_times['dICU_R','mean']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).mean())
-residence_times['dICU_R','median']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).median())
+residence_times['dICU_R','mean']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).mean())
+residence_times['dICU_R','median']=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).median())
 for quantile in quantiles:
-    residence_times['dICU_R','Q'+str(quantile)]=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).quantile(q=quantile/100))
+    residence_times['dICU_R','Q'+str(quantile)]=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).quantile(q=quantile/100))
 # Gamma fit
-v = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))
+v = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))
 residence_times['dICU_R','sample_size'], residence_times['dICU_R','shape'],residence_times['dICU_R','loc'],residence_times['dICU_R','scale'] = fit_weibull(v)
 if plot_fit:
     plot_weibull_fit(v,'dICU_R',90)
 # Append samples
-samples['dICU_R'] =df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))])).groupby(by='age_class').agg(lambda x: list(x))
-samples_total['dICU_R'] = [df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))])/datetime.timedelta(days=1))).agg(lambda x: list(x))]
-print(residence_times['dICU_R','mean'])
-exit()
+samples['dICU_R'] =df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))])).groupby(by='age_class').agg(lambda x: list(x))
+samples_total['dICU_R'] = [df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))])/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))] - x.dICUrec[((x.ICU_transfer=='Oui')&(x.status_discharge=='R'))]).agg(lambda x: list(x))]
+
 # -------
 # dICU_D
 # -------
@@ -635,12 +634,15 @@ averages['dICU','shape'],averages['dICU','loc'],averages['dICU','scale'] = gamma
 # ------
 
 # Summary statistics
-averages['dICU_R','mean'] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]).mean()
-averages['dICU_R','median'] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]).median()
+averages['dICU_R','mean'] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))] - df['dICUrec'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]
+).mean()
+averages['dICU_R','median'] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))] - df['dICUrec'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]
+).median()
 for quantile in quantiles:
-    averages['dICU_R','Q'+str(quantile)] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]).quantile(q=quantile/100)
+    averages['dICU_R','Q'+str(quantile)] = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1) - df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))] - df['dICUrec'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))]
+).quantile(q=quantile/100)
 # Gamma fit
-v = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)- df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))])
+v = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)- df['d_transfer'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))] - df['dICUrec'][((df['ICU_transfer']=='Oui')&(df['status_discharge']=='R'))])
 v[v==0] = 0.01
 v = [x for x in v if (math.isnan(x) == False)]
 v = [x for x in v if (x > 0)]
@@ -691,7 +693,7 @@ averages['d_transfer','sample_size'] = len(values)
 # ----------
 # d_hospital
 # ----------
-
+df['dt_onset'] = pd.to_datetime(df['dt_onset'])
 # Summary statistics
 averages['d_hospital','mean'] = (df['dt_admission'] - df['dt_onset']).mean()/datetime.timedelta(days=1)
 averages['d_hospital','median']  = (df['dt_admission'] - df['dt_onset']).median()/datetime.timedelta(days=1)
@@ -705,13 +707,27 @@ averages['d_hospital','shape'],averages['d_hospital','loc'],averages['d_hospital
 
 residence_times = pd.concat([residence_times, averages])
 
+# --------------------
+# Build data variables
+# --------------------
+
+dC = samples_total['dC'][0] #np.array(((df['dt_discharge'][df.ICU_transfer=='Non'] - df['dt_admission'][df.ICU_transfer=='Non'])/datetime.timedelta(days=1)).values)
+dC_R = samples_total['dC_R'][0] #np.array(((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)).values)
+dC_D = samples_total['dC_D'][0] #np.array(((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))])/datetime.timedelta(days=1)).values)
+dICU = samples_total['dICU'][0] #np.array(((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)).values)
+dICU = np.array([x for x in dICU if (math.isnan(x) == False)])
+dICU_R = samples_total['dICU_R'][0] #np.array(((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)).values)
+dICU_R = np.array([x for x in dICU_R if (math.isnan(x) == False)])
+dICU_D = samples_total['dICU_D'][0] #np.array(((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))])/datetime.timedelta(days=1)).values)
+dICU_D = np.array([x for x in dICU_D if (math.isnan(x) == False)])
+
 # -----------------------------------------------
 # Perform Mann-Whitney U-tests on residence times
 # -----------------------------------------------
 
 # Difference in hospital residence time Cohort vs. ICU
-x = ((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)) # ICU
-y = ((df['dt_discharge'][df.ICU_transfer=='Non'] - df['dt_admission'][df.ICU_transfer=='Non'])/datetime.timedelta(days=1)) # Cohort
+x = dICU 
+y = dC
 stat, p_tt = ttest_ind(x, y)
 stat, p_mwu = mannwhitneyu(x, y)
 fig, ax = plt.subplots(figsize=(8,6))
@@ -719,15 +735,15 @@ bp = ax.boxplot([x, y], positions=[1,2])
 plt.setp(bp['medians'], color='k')
 ax.set_ylabel('length of stay (days)')
 ax.set_ylim(0,200)
-ax.set_xticklabels(['ICU patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'Cohort only patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+ax.set_xticklabels(['ICU patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
+                    'Cohort only patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in hospital residence Cohort vs ICU, \ntwo-sided t-test: p={:.2e} \nMann-Withney U-test: p={:.2e}'.format(p_tt,p_mwu))
 plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_ICU_Cohort.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # Difference in ICU residence time in case of recovery and death
-x = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1))
-y = ((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))])/datetime.timedelta(days=1))
+x = dICU_R
+y = dICU_D
 stat, p_tt = ttest_ind(x, y)
 stat, p_mwu = mannwhitneyu(x, y)
 fig, ax = plt.subplots(figsize=(8,6))
@@ -735,15 +751,15 @@ bp = ax.boxplot([x, y], positions=[1,2])
 plt.setp(bp['medians'], color='k')
 ax.set_ylabel('length of stay (days)')
 ax.set_ylim(0,200)
-ax.set_xticklabels(['ICU recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'ICU deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+ax.set_xticklabels(['ICU recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
+                    'ICU deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in ICU residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
 plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_ICU_R_D.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # Difference in Cohort residence time in case of recovery and death
-x = ((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))])/datetime.timedelta(days=1))
-y = ((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))])/datetime.timedelta(days=1))
+x = dC_R
+y = dC_D
 stat, p_tt = ttest_ind(x, y)
 stat, p_mwu = mannwhitneyu(x, y)
 fig, ax = plt.subplots(figsize=(8,6))
@@ -751,8 +767,8 @@ bp = ax.boxplot([x, y], positions=[1,2])
 plt.setp(bp['medians'], color='k')
 ax.set_ylabel('length of stay (days)')
 ax.set_ylim(0,200)
-ax.set_xticklabels(['Cohort only recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), x.median(), x.mean()),
-                    'Cohort only deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), y.median(), y.mean())])
+ax.set_xticklabels(['Cohort only recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
+                    'Cohort only deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in Cohort residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
 plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_Cohort_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
@@ -761,13 +777,6 @@ plt.close()
 # Make a violin plot of the residence time distributions
 # ------------------------------------------------------
 
-# dC, dC_r, dC_d, ICU, ICU_R, ICU_D
-dC = np.array(((df['dt_discharge'][df.ICU_transfer=='Non'] - df['dt_admission'][df.ICU_transfer=='Non'])/datetime.timedelta(days=1)).values)
-dC_R = np.array(((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)).values)
-dC_D = np.array(((df['dt_discharge'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Non')&(df.status_discharge=='D'))])/datetime.timedelta(days=1)).values)
-dICU = np.array(((df['dt_discharge'][df.ICU_transfer=='Oui'] - df['dt_admission'][df.ICU_transfer=='Oui'])/datetime.timedelta(days=1)).values)
-dICU_R = np.array(((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='R'))])/datetime.timedelta(days=1)).values)
-dICU_D = np.array(((df['dt_discharge'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))] - df['dt_admission'][((df.ICU_transfer=='Oui')&(df.status_discharge=='D'))])/datetime.timedelta(days=1)).values)
 data = [dC,dC_R,dC_D,dICU,dICU_R,dICU_D]
 colors = [colorscale_okabe_ito['black'],colorscale_okabe_ito['green'],colorscale_okabe_ito['red'],colorscale_okabe_ito['black'],colorscale_okabe_ito['green'],colorscale_okabe_ito['red']]
 alphas = [0.4,1,1,0.4,1,1]
@@ -812,7 +821,7 @@ ax.set_yticklabels(labels,fontsize=10)
 plt.tight_layout()
 plt.savefig('../../results/analysis/hospital/SCIENSANO_violin_residence_times.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
-
+exit()
 # ----------------------------------------------------------------
 # Write age-stratified parameters to data/interim/model_parameters
 # ----------------------------------------------------------------
