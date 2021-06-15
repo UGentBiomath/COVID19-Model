@@ -468,8 +468,8 @@ residence_times['dC_R','sample_size'], residence_times['dC_R','shape'],residence
 if plot_fit:
     plot_weibull_fit(v,'dC_R',90)
 # Append samples
-samples['dC_R'] = df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][x.ICU_transfer=='Non'] - x['dt_admission'][x.ICU_transfer=='Non'])/datetime.timedelta(days=1))).groupby(by='age_class').agg(lambda x: list(x))
-samples_total['dC_R'] = [df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][x.ICU_transfer=='Non'] - x['dt_admission'][x.ICU_transfer=='Non'])/datetime.timedelta(days=1))).agg(lambda x: list(x))]
+samples['dC_R'] = df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][((x.ICU_transfer=='Non')&(x.status_discharge=='R'))] - x['dt_admission'][((x.ICU_transfer=='Non')&(x.status_discharge=='R'))])/datetime.timedelta(days=1))).groupby(by='age_class').agg(lambda x: list(x))
+samples_total['dC_R'] = [df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][((x.ICU_transfer=='Non')&(x.status_discharge=='R'))] - x['dt_admission'][((x.ICU_transfer=='Non')&(x.status_discharge=='R'))])/datetime.timedelta(days=1))).agg(lambda x: list(x))]
 
 # -----
 # dC_D
@@ -837,7 +837,7 @@ ax.set_yticklabels(labels,fontsize=10)
 plt.tight_layout()
 plt.savefig('../../results/analysis/hospital/SCIENSANO_violin_residence_times.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
-exit()
+
 # ----------------------------------------------------------------
 # Write age-stratified parameters to data/interim/model_parameters
 # ----------------------------------------------------------------
