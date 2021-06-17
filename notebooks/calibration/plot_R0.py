@@ -60,6 +60,8 @@ start_sim = '2020-03-10'
 end_sim = '2020-09-03'
 # Confidence level used to visualise model fit
 conf_int = 0.05
+LL = conf_int/2
+UL = 1-conf_int/2
 # Path where figures and results should be stored
 fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/WAVE1/'
 # Path where MCMC samples should be saved
@@ -84,6 +86,12 @@ end_calibration_WAVE2 = samples_dict_WAVE2['end_calibration']
 
 # Time-integrated contact matrices
 initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
+Nc_leisure = Nc_all['leisure']
+Nc_others = Nc_all['others']
+Nc_schools = Nc_all['schools']
+Nc_work = Nc_all['work']
+Nc_home = Nc_all['home']
+Nc_transport = Nc_all['transport']
 levels = initN.size
 # Sciensano public data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
@@ -109,7 +117,64 @@ policies_WAVE2 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_
 # Function to add poisson draws and sampling function
 # ---------------------------------------------------
 
-from covid19model.models.utils import output_to_visuals, draw_fcn_WAVE1, draw_fcn_WAVE2
+from covid19model.models.utils import output_to_visuals, draw_fcn_WAVE1
+
+def draw_fcn_WAVE2(param_dict,samples_dict):
+    """
+    A function to draw samples from the posterior distributions of the model parameters calibrated to WAVE 1
+    Tailored for use with the national COVID-19 SEIQRD
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 1
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    # Calibration of WAVE 1
+    # ---------------------
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['da'] = samples_dict['da'][idx]
+    param_dict['l'] = samples_dict['l'][idx] 
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(9):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=30
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
+    return param_dict
 
 # --------------------------
 # Initialize the model WAVE1
@@ -117,12 +182,16 @@ from covid19model.models.utils import output_to_visuals, draw_fcn_WAVE1, draw_fc
 
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters()
+print(params['a'])
+entries_to_remove = ('alpha', 'K_hosp', 'K_inf1', 'K_inf2')
+for k in entries_to_remove:
+    params.pop(k, None)
 # Add the time-dependant parameter function arguments
 params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 # Define initial states
 initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
-model = models.COVID19_SEIRD(initial_states, params,
+model_WAVE1 = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': policies_WAVE1})
 
 # --------------------------
@@ -131,10 +200,15 @@ model = models.COVID19_SEIRD(initial_states, params,
 
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
-    initial_states = json.load(fp)    
+    initial_states = json.load(fp)
+# Remove vaccination states
+entries_to_remove = ('S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v')
+for k in entries_to_remove:
+    initial_states.pop(k, None)
+params.update({'relaxdate': '2021-09-01', 'l_relax': 31})
 # Initialize model
 model_WAVE2 = models.COVID19_SEIRD(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE1})
+                        time_dependent_parameters={'Nc': policies_WAVE2})
 
 # -------------------
 # Simulate the models
@@ -146,7 +220,7 @@ simtime_WAVE1, df_2plot_WAVE1 = output_to_visuals(out_WAVE1,  ['H_in', 'H_tot', 
 out_WAVE2 = model_WAVE2.sim('2021-02-01',start_date=start_calibration_WAVE2,warmup=0,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict_WAVE2)
 simtime_WAVE2, df_2plot_WAVE2 = output_to_visuals(out_WAVE2,  ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
 
-simtime = [simtime_WAVE1,simtime_WAVE2]
+simtimes = [simtime_WAVE1,simtime_WAVE2]
 model_results = [df_2plot_WAVE1, df_2plot_WAVE2]
 
 # -----------------------------
@@ -160,13 +234,12 @@ def compute_R0(initN, Nc, samples_dict, model_parameters):
     R0_norm = np.zeros([N,sample_size])
     for i in range(N):
         for j in range(sample_size):
-            R0[i,j] = (model_parameters['a'][i] * samples_dict['da'][j] + samples_dict['omega'][j]) * samples_dict['beta'][j] *Nc[i,j]
+            R0[i,j] = (model_parameters['a'][i] * samples_dict['da'][j] + model_parameters['omega']) * samples_dict['beta'][j] *Nc[i,j]
         R0_norm[i,:] = R0[i,:]*(initN[i]/sum(initN))
         
     R0_age = np.mean(R0,axis=1)
     R0_mean = np.sum(R0_norm,axis=0)
     return R0, R0_mean
-
 
 # -----------------------
 # Pre-allocate dataframes
@@ -620,6 +693,62 @@ for idx,ax in enumerate(axes):
 
     ax = _apply_tick_locator(ax)
     ax2 = _apply_tick_locator(ax2)
+
+plt.tight_layout()
+plt.show()
+plt.close()
+
+# -------------------------------------------------------
+# Plot relative and reproduction number on one figure (1)
+# -------------------------------------------------------
+
+dfs = [df_rel, df_Re]
+
+fig,axes=plt.subplots(nrows=2,ncols=2, figsize=(18,8.27))
+
+for idx,ax_row in enumerate(axes):
+    for jdx, ax in enumerate(ax_row):
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"rest_mean"],  color='blue', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"work_mean"], color='red', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"home_mean"], color='green', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"schools_mean"], color='orange', linewidth=1.5)
+        ax.plot(dfs[jdx].index, dfs[jdx][waves[idx],"total_mean"], color='black', linewidth=1.5)
+
+        if jdx == 0:
+            ax.set_ylabel('Relative contacts (-)')
+            ax.set_xlim(xlims[idx])
+            ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
+            ax.set_yticks([0,0.25,0.50,0.75])
+            ax.set_ylim([0,0.85])   
+
+        if jdx == 1:
+            ax.axhline(y=1.0, color='black', linestyle='--',linewidth=1.5)
+            ax.set_ylabel('$R_{e}$ (-)')
+            if idx == 0:
+                ax.legend(['leisure','work','home','schools', 'total'], bbox_to_anchor=(1.20, 1), loc='upper left')
+            ax.set_xlim(xlims[idx])
+            ax.axvspan(no_lockdown[idx][0], no_lockdown[idx][1], alpha=0.2, color='black')
+            ax.set_yticks([0,1,2])
+            ax.set_ylim([0,2.5])
+
+
+        ax.xaxis.grid(False)
+        ax.yaxis.grid(False)
+
+        ax2 = ax.twinx()
+        vector_mean = model_results[idx]['H_in','mean']
+        vector_LL = model_results[idx]['H_in','LL']
+        vector_UL = model_results[idx]['H_in','UL']
+        ax2.scatter(df_sciensano.index,df_sciensano['H_in'],color='black',alpha=0.6,linestyle='None',facecolors='none', s=30, linewidth=1)
+        ax2.plot(simtimes[idx],vector_mean,'--', color='black', linewidth=1.5)
+        ax2.fill_between(simtimes[idx],vector_LL, vector_UL,alpha=0.20, color = 'black')
+        ax2.xaxis.grid(False)
+        ax2.yaxis.grid(False)
+        ax2.set_xlim(xlims[idx])
+        ax2.set_ylabel('New hospitalisations (-)')
+
+        ax = _apply_tick_locator(ax)
+        ax2 = _apply_tick_locator(ax2)
 
 plt.tight_layout()
 plt.show()
