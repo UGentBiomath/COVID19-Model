@@ -27,7 +27,7 @@ from datetime import timedelta
 # Helper functions and settings
 # -----------------------------
 
-plot_fit=False
+plot_fit=True
 
 colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
                         "green" : "#009E73", "yellow" : "#F0E442",
@@ -141,8 +141,18 @@ df.drop(df[((df['dt_discharge'] - df['dt_admission'])/datetime.timedelta(days=1)
 n_filtering_times = df.shape[0]
 print(str(n_filtering_dates-n_filtering_times) + ' entries were removed because the residence time or onset time were negative.')
 
-# Print a summary of the filtering
-print(str(n_orig-n_filtering_times)+' entries were removed during filtering. '+str(n_filtering_times)+' entries remained.')
+# Drop retirement home patients from dataset
+exclude_homes = True
+if exclude_homes:
+    df.drop(df[df.Expo_retirement_home == 'Oui'].index, inplace=True)
+    n_filtering_homes = df.shape[0]
+    print(str(n_filtering_times-n_filtering_homes) + ' additional entries were removed because the patient came from a retirement home.')
+    # Print a summary of the filtering
+    print(str(n_orig-n_filtering_homes)+' entries were removed during filtering. '+str(n_filtering_homes)+' entries remained.')
+else:
+    # Print a summary of the filtering
+    print(str(n_orig-n_filtering_times)+' entries were removed during filtering. '+str(n_filtering_times)+' entries remained.')
+
 
 ###################################################
 ## Compute fractions: c, m0, m0_{ICU} and m0_{C} ##
