@@ -86,19 +86,20 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=30
+    n=20
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
             draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
-
     return param_dict
 
 def draw_fcn_WAVE2(param_dict,samples_dict):
@@ -167,12 +168,13 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=100
+    n=20
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
