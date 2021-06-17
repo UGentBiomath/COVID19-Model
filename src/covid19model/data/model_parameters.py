@@ -294,7 +294,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
 
         # Assign AZMM and UZG estimates to correct variables
         fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
-        pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
+        pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
         pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
         pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
         pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
