@@ -25,7 +25,7 @@ def compute_death_rate(q_x):
         mu_x[age] = -0.5*(np.log(1-q_x[age])+np.log(1-q_x[age-1]))
     return mu_x
 
-def compute_survival_function(mu_x, s=1):
+def compute_survival_function(mu_x, SMR=1):
     """ A function to compute the force of mortality (instantaneous death rate at age x)
 
     Parameters
@@ -33,7 +33,7 @@ def compute_survival_function(mu_x, s=1):
     mu_x : list or np.array
         Instantaneous death rage at age x 
 
-    s : float
+    SMR : float
         "Standardized mortality ratio" is the ratio of observed deaths in a study group to expected deaths in the general population.
         Generally s>=1, where an increase in s corresponds to a shorter expected life span, for instance due to comorbidity.
 
@@ -48,7 +48,7 @@ def compute_survival_function(mu_x, s=1):
     S_x[0] = 1
     # Loop
     for age in range(1,len(mu_x)):
-        S_x[age] = S_x[age-1]*np.exp(-s*mu_x[age])
+        S_x[age] = S_x[age-1]*np.exp(-SMR*mu_x[age])
     return S_x
 
 def compute_life_expectancy(S_x):
