@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+    
 def compute_death_rate(q_x):
     """ A function to compute the force of mortality (instantaneous death rate at age x)
 
@@ -124,7 +124,7 @@ def compute_QALE_x(mu_x, SMR_df, QoL_df, population='Belgium', SMR_method='conve
         # Set age-dependant utility weights to lowest possible
         j=0
         age_limit=QoL_df['group_limit'][j]
-        QoL_x=QoL_df['Van Wilder', population][j]
+        QoL_x=QoL_df[population][j]
         # Calculate the SMR at age x
         if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
             k=0
@@ -139,7 +139,7 @@ def compute_QALE_x(mu_x, SMR_df, QoL_df, population='Belgium', SMR_method='conve
                 j += 1
                 age_limit = QoL_df['group_limit'][j]
             # Choose the right QoL score
-            QoL_x = QoL_df['Van Wilder', population][j]
+            QoL_x = QoL_df[population][j]
             # Choose the right SMR
             if SMR_method == 'convergent':
                 # SMR gradually converges to one by end of life
@@ -206,7 +206,7 @@ def compute_QALY_x(mu_x, SMR_df, QoL_df, population='Belgium', r=0.03, SMR_metho
         # Set age-dependant utility weights to lowest possible
         j=0
         age_limit=QoL_df['group_limit'][j]
-        QoL_x=QoL_df['Van Wilder', population][j]
+        QoL_x=QoL_df[population][j]
         # Calculate the SMR at age x
         if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
             k=0
@@ -221,7 +221,7 @@ def compute_QALY_x(mu_x, SMR_df, QoL_df, population='Belgium', r=0.03, SMR_metho
                 j += 1
                 age_limit = QoL_df['group_limit'][j]
             # Choose the right QoL score
-            QoL_x = QoL_df['Van Wilder', population][j]
+            QoL_x = QoL_df[population][j]
             # Choose the right SMR
             if SMR_method == 'convergent':
                 # SMR gradually converges to one by end of life
@@ -262,6 +262,39 @@ def compute_QALY_binned(QALY_x):
         QALY_binned[i] = np.mean(QALY_x[low_limit:model_bins_UL[i]+1])
         low_limit=model_bins_UL[i]
     return QALY_binned
+
+def build_SMR(comorbidity_distribution, population_SMR):
+    # Extract names of populations
+    populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
+    # Construct column name vector
+    columns = ['group_limit','Belgium']
+    columns.extend(populations)
+    # Initialize dataframe
+    df = pd.DataFrame(index=population_SMR.index, columns=columns)
+    # Fill dataframe
+    for idx,key in enumerate(df.index):
+        for jdx,pop in enumerate(populations):
+            df.loc[key][pop] = sum(population_SMR.loc[key]*comorbidity_distribution.loc[key][pop])
+        df.loc[key]['Belgium'] = 1
+    # Append group limit
+    df['group_limit'] = [9, 19, 29, 39, 49, 59, 69, 79, 110]
+    return df
+
+def build_QoL(comorbidity_distribution, comorbidity_QoL):
+    # Extract names of populations
+    populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
+    # Construct column name vector
+    columns = ['group_limit','Belgium']
+    columns.extend(populations)
+    # Initialize dataframe
+    df = pd.DataFrame(index=comorbidity_QoL.index, columns=columns)
+    # Fill dataframe
+    for idx,key in enumerate(df.index):
+        for jdx,pop in enumerate(populations):
+            df.loc[key][pop] = sum(comorbidity_distribution.loc[key][pop]*comorbidity_QoL.loc[key])
+    df['Belgium'] = [0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72]
+    df['group_limit'] = [9, 19, 29, 39, 49, 59, 69, 79, 110]
+    return df
 
 def lost_QALYs_hospital_care (reduction,granular=False):
     
