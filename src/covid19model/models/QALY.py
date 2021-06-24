@@ -238,10 +238,12 @@ def compute_QALY_x(mu_x, SMR_df, QoL_df, population='Belgium', r=0.03, SMR_metho
     return QALY_x
 
 def compute_QALY_binned(QALY_x):
-    """ A function to bin the vector QALY_x
+    """ A function to bin the vector QALY_x according to the age groups in the COVID-19 SEIQRD
 
     Parameters
     ----------
+    QALY_x : np.array
+        Quality-adjusted life years remaining at age x
 
     Returns
     -------
@@ -264,6 +266,27 @@ def compute_QALY_binned(QALY_x):
     return QALY_binned
 
 def build_SMR(comorbidity_distribution, population_SMR):
+    """ A function to compute the Standardized Mortality Ratios (SMRs) in a studied population, based on the comorbidity distribution of the studied population and the comorbidity distribution of the Belgian population
+
+    Parameters
+    ----------
+    comorbidity_distribution : pd.Dataframe
+        A dataframe containing the studied population fraction with x comorbidities.
+        This dataframe is the input of the comorbidity-QALY model. The studied population are usually recovered or deceased COVID-19 patients in hospitals.
+        The dataframe must have te age group as its index and make use of a pandas multicolumn, where the first level denotes the population (usually R or D, but the code is written to use n populations). 
+        The second level denotes the number of comorbidities, which must be equal to 0, 1, 2 or 3+.
+
+    population_SMR : pd.Dataframe
+        A dataframe containing the age-stratified SMRs for individuals with 0, 1, 2 or 3+ comorbidities in the general Belgian population.
+        Computed using the comorbidity distributions for the general Belgian population obtained from Lisa Van Wilder, and the relative risk of dying by Charslon et. al (computation performed in MS Excel).
+
+    Returns
+    -------
+    SMR_df: pd.DataFrame
+        The weighted Standardized Mortality Ratios (SMRs) in the studied population. 
+        An SMR > 1 indicates the studied population is less healthy than the general Belgian population.
+    """
+
     # Extract names of populations
     populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
     # Construct column name vector
@@ -281,6 +304,25 @@ def build_SMR(comorbidity_distribution, population_SMR):
     return df
 
 def build_QoL(comorbidity_distribution, comorbidity_QoL):
+    """ A function to compute the QoL scores in a studied population, based on the comorbidity distribution of the studied population and the QoL scores for 0, 1, 2, 3+ comorbidities for the Belgian population
+
+    Parameters
+    ----------
+    comorbidity_distribution : pd.Dataframe
+        A dataframe containing the studied population fraction with x comorbidities.
+        This dataframe is the input of the comorbidity-QALY model. The studied population are usually recovered or deceased COVID-19 patients in hospitals.
+        The dataframe must have te age group as its index and make use of a pandas multicolumn, where the first level denotes the population (usually R or D, but the code is written to use n populations). 
+        The second level denotes the number of comorbidities, which must be equal to 0, 1, 2 or 3+.
+
+    comorbidity_QoL : pd.Dataframe
+        A dataframe containing the age-stratified QoL scores for individuals with 0, 1, 2 or 3+ comorbidities in the general Belgian population.
+        Obtained from Lisa Van Wilder.
+
+    Returns
+    -------
+    QoL_df: pd.DataFrame
+        The comorbidity-weighted QoL scores of the studied population. 
+    """
     # Extract names of populations
     populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
     # Construct column name vector
