@@ -424,9 +424,9 @@ class QALY_model():
         ###########
         ## Death ##
         ###########
-        m_no_treatment = 0.40
+        m_no_treatment = 0.50
         out['QALYs_death'] = out['D']*np.expand_dims(np.expand_dims(binned_QALY_df['D'],axis=1),axis=0)
-        out['QALYs_treatment'] = (1-m_no_treatment)*out['R_hosp']*np.expand_dims(np.expand_dims(binned_QALY_df['R'],axis=1),axis=0)
+        out['QALYs_treatment'] = m_no_treatment*out['R_hosp']*np.expand_dims(np.expand_dims(binned_QALY_df['R'],axis=1),axis=0)
         return out
 
 def lost_QALYs_hospital_care (reduction,granular=False):
