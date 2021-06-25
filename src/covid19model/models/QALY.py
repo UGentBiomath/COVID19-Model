@@ -475,31 +475,3 @@ def lost_QALYs_hospital_care (reduction,granular=False):
         data_per_disease['lost_qalys']=reduction*data_per_disease['gained_qalys']/365
         lost_QALYs=data_per_disease.copy().drop(columns=['gained_qalys'])
     return lost_QALYs
-
-def append_QALYs_gained_hospital_treatment(out,lost_QALY_pp):
-    out['QALYs_treatment'] = (1-m_no_treatment)*out['R_hosp']*np.expand_dims(np.expand_dims(lost_QALY_pp,axis=1),axis=0)
-    return out
-
-def QALY2xarray(out,QALY_binned):
-    """
-    This function computes age-stratified QALYs lost due to COVID-19.
-    To this end, the simulation output is multiplied with the number of QALYs lost per person.
-    
-    Parameters
-    ----------
-    out: xarray dataset
-        Simulation output. A state with the number of deaths must be present as 'D'.
-
-    lost_QALY_pp: pd.DataFrame
-        QALYs lost when a person of a certain age (within the age bins of the model) dies.
-
-    Returns
-    -------
-    out: xarray dataset
-        Simulation output with new data variable 'QALYs lost'.
-    
-    """
-    m_no_treatment = 0.40 # average ventilation percentage: https://www.thelancet.com/journals/eclinm/article/PIIS2589-5370(21)00045-6/fulltext
-    # alternative: 90% of ICU patients is intubated
-    return out.assign(variables={'QALY_death': out['D']*np.expand_dims(QALY_binned,axis=1),
-                                'QALY_treatment': (1-m_no_treatment)*out['R_hosp']*np.expand_dims(QALY_binned,axis=1)})
