@@ -56,7 +56,7 @@ args = parser.parse_args()
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2021-09-01'
+end_sim = '2021-02-07'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Path where figures and results should be stored
@@ -155,14 +155,14 @@ model = models.COVID19_SEIRD_vacc(initial_states, params,
 print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
+simtime, df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
 # -----------
 # Visualizing
 # -----------
 
 print('2) Hammer/Dance/Tipping Point figure')
-
-simtime, df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
 
 fig,ax = plt.subplots(figsize=(15,4))
 ax.plot(df_2plot['H_in','mean'],'--', color='blue')
@@ -185,86 +185,60 @@ if args.save:
 
 print('3) Visualizing fit')
 
-# Plot
-fig,(ax1,ax2) = plt.subplots(nrows=2,ncols=1,figsize=(12,8),sharex=True)
-# Incidence
+# Plot hospitalizations
+fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
 ax1.plot(df_2plot['H_in','mean'],'--', color='blue')
 ax1.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
-ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):], color='red', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.axvspan(end_calibration, '2021-12-31', facecolor='0.2', alpha=0.15)
-ax1.text(x=end_calibration,y=840,s='EXTRAPOLATION', fontsize=16)
+ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax1 = _apply_tick_locator(ax1)
-ax1.set_xlim('2020-09-01',end_sim)
-ax1.set_ylabel('$H_{in}$ (-)')
-# Plot fraction of immunes
-ax2.plot(simtime,df_2plot['R','mean']/sum(initN)*100,'--', color='blue')
-yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
-ax2.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', ecolor='gray', elinewidth=3, capsize=0)
-yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
-ax2.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', ecolor='gray', elinewidth=3, capsize=0)
+ax1.set_xlim(start_sim,end_sim)
+ax1.set_ylabel('Daily hospitalizations (-)', fontsize=12)
+ax1.get_yaxis().set_label_coords(-0.1,0.5)
+# Plot hospital total
+ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue')
+ax2.fill_between(simtime, df_2plot['H_tot', 'LL'], df_2plot['H_tot', 'UL'], alpha=0.20, color = 'blue')
+ax2.scatter(df_sciensano[start_calibration:end_sim].index,df_sciensano['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax2 = _apply_tick_locator(ax2)
-ax2.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax2.fill_between(simtime,df_2plot['R','LL']/sum(initN)*100, df_2plot['R','UL']/sum(initN)*100,alpha=0.20, color = 'blue')
-ax2.set_xlim(start_sim,end_sim)
-ax2.set_ylim(0,25)
-ax2.set_ylabel('Seroprelevance (%)')
+ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
+ax2.get_yaxis().set_label_coords(-0.1,0.5)
+# Deaths
+ax3.plot(simtime, df_2plot['D', 'mean'],'--', color='blue')
+ax3.scatter(deaths_hospital[start_calibration:end_sim].index,deaths_hospital[start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax3.fill_between(simtime, df_2plot['D', 'LL'], df_2plot['D', 'UL'], alpha=0.20, color = 'blue')
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
+ax3 = _apply_tick_locator(ax3)
+ax3.set_xlim('2020-03-01',end_sim)
+ax3.set_ylabel('Deaths in hospitals (-)', fontsize=12)
+ax3.get_yaxis().set_label_coords(-0.1,0.5)
+# Plot fraction of immunes
+ax4.plot(simtime,df_2plot['R','mean']/sum(initN)*100,'--', color='blue')
+yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
+ax4.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
+yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
+ax4.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
+ax4 = _apply_tick_locator(ax4)
+ax4.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+ax4.fill_between(simtime,df_2plot['R','LL']/sum(initN)*100, df_2plot['R','UL']/sum(initN)*100,alpha=0.20, color = 'blue')
+ax4.set_xlim(start_sim,end_sim)
+ax4.set_ylim(0,25)
+ax4.set_ylabel('Seroprelevance (%)', fontsize=12)
+ax4.get_yaxis().set_label_coords(-0.1,0.5)
+
 plt.tight_layout()
 plt.show()
 if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 
-print('3) Visualizing fit on hospitals')
-
-fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
-
-simtime = pd.to_datetime(out['time'].values)
-
-ax1.plot(simtime, df_2plot['H_in', 'mean'],'--', color='blue', linewidth=1)
-ax1.fill_between(simtime, df_2plot['H_in', 'LL'], df_2plot['H_in', 'UL'], alpha=0.20, color = 'blue')
-ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-
-ax1 = _apply_tick_locator(ax1)
-ax1.set_ylabel('$H_{in}$ (-)')
-
-ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue', linewidth=1)
-ax2.fill_between(simtime, df_2plot['H_tot', 'LL'], df_2plot['H_tot', 'UL'], alpha=0.20, color = 'blue')
-ax2.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_tot'][start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax2.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_tot'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-
-ax2 = _apply_tick_locator(ax2)
-ax2.set_ylabel('$H_{tot}$ (-)')
-
-ax3.plot(simtime, df_2plot['ICU', 'mean'],'--', color='blue', linewidth=1)
-ax3.fill_between(simtime, df_2plot['ICU', 'LL'], df_2plot['ICU', 'UL'], alpha=0.20, color = 'blue')
-ax3.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['ICU_tot'][start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax3.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['ICU_tot'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-
-ax3 = _apply_tick_locator(ax3)
-ax3.set_ylabel('$ICU_{tot}$ (-)')
-
-ax4.plot(simtime, df_2plot['D', 'mean'],'--', color='blue', linewidth=1)
-ax4.fill_between(simtime, df_2plot['D', 'LL'], df_2plot['D', 'UL'], alpha=0.20, color = 'blue')
-deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
-ax4.scatter(deaths_hospital[start_calibration:end_calibration].index,deaths_hospital[start_calibration:end_calibration], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax4.scatter(deaths_hospital[end_calibration:end_sim].index,deaths_hospital[end_calibration:end_sim], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-
-ax4 = _apply_tick_locator(ax4)
-ax4.set_xlim('2020-09-01',end_sim)
-ax4.set_ylabel('$D_{tot}$ (-)')
-plt.show()
-if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.pdf', dpi=300, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_HOSPITALS.png', dpi=300, bbox_inches='tight')
-
-
 print('4) Visualizing fit on deaths')
 
-dates = ['2020-10-01','2021-01-01','2021-03-01']
+dates = ['2021-02-01']
 
-fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(12,4*len(dates)),sharex=True)
+fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(14,4*len(dates)),sharex=True)
+if len(dates) == 1:
+    axes = [axes,]
+
 for idx,date in enumerate(dates):
     data_sciensano = []
     for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
@@ -279,7 +253,9 @@ for idx,date in enumerate(dates):
                        yerr=yerr,
                        color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
     axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
-    axes[idx].set_title('Cumulative hospital deaths on '+date)
+    axes[idx].set_xticklabels(['[0,10(','[10,20(','[20,30(','[30,40(','[40,50(','[50,60(','[60,70(','[70,80(','[80,120('])
+    axes[idx].set_ylabel('Cumulative hospital deaths')
+    #axes[idx].set_title(date)
     axes[idx].grid(False)
 plt.show()
 if args.save:
