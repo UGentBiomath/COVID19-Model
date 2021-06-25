@@ -65,7 +65,7 @@ def compliance_func(t, states, param, l, effectivity):
 # --------------------
 
 # Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(VOC=False)
+params = model_parameters.get_COVID19_SEIRD_parameters(VOC=False, vaccination=False)
 # Add the time-dependant parameter function arguments
 params.update({'l': 15, 'effectivity' : 0.5})
 # Define initial states
