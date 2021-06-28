@@ -34,25 +34,29 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     ------------
     initN : np.array
         number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
-    Nc_home :  np.array (9x9)
-        number of daily contacts at home of individuals in age group X with individuals in age group Y
-    Nc_work :  np.array (9x9)
-        number of daily contacts in the workplace of individuals in age group X with individuals in age group Y
-    Nc_schools :  np.array (9x9)
-        number of daily contacts in schools of individuals in age group X with individuals in age group Y
-    Nc_transport :  np.array (9x9)
-        number of daily contacts on public transport of individuals in age group X with individuals in age group Y
-    Nc_leisure :  np.array (9x9)
-        number of daily contacts during leisure activities of individuals in age group X with individuals in age group Y
-    Nc_others :  np.array (9x9)
-        number of daily contacts in other places of individuals in age group X with individuals in age group Y
-    Nc_total :  np.array (9x9)
-        total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
+    Nc_dict : dictionary
+        dictionary containing the desired interaction matrices
+        the dictionary has the following keys: ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total'] and contains the following interaction matrices:
+
+        Nc_home :  np.array (9x9)
+            number of daily contacts at home of individuals in age group X with individuals in age group Y
+        Nc_work :  np.array (9x9)
+            number of daily contacts in the workplace of individuals in age group X with individuals in age group Y
+        Nc_schools :  np.array (9x9)
+            number of daily contacts in schools of individuals in age group X with individuals in age group Y
+        Nc_transport :  np.array (9x9)
+            number of daily contacts on public transport of individuals in age group X with individuals in age group Y
+        Nc_leisure :  np.array (9x9)
+            number of daily contacts during leisure activities of individuals in age group X with individuals in age group Y
+        Nc_others :  np.array (9x9)
+            number of daily contacts in other places of individuals in age group X with individuals in age group Y
+        Nc_total :  np.array (9x9)
+            total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
 
     CoMiX:
     ----------
     initN : np.array
-        number of Belgian individuals, regardless of sex, in ten year age bins
+        number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
     Nc : np.array (9x9)
         total number of daily contacts of individuals in age group X with individuals in age group Y
     dates : str
@@ -61,16 +65,19 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     Notes
     ----------
     The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
-    During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled.
-    The demographic data was retreived from https://statbel.fgov.be/en/themes/population/structure-population
+    During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled. Contacts with friends are moved from the home to the leisure interaction matrix.
+    The demographic data were retreived from https://statbel.fgov.be/en/themes/population/structure-population
 
     Example use
     -----------
-    initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total = get_interaction_matrices()
+    initN, Nc_dict = get_interaction_matrices()
     initN, Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
-    # Extract demographic data
+    ##############################
+    ## Extract demographic data ##
+    ##############################
+
     abs_dir = os.path.dirname(__file__)
     if spatial:
         if spatial not in ['mun', 'arr', 'prov', 'test']:
@@ -86,25 +93,31 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
         initN = initN_df.values[:,:-1].sum(axis=0)    
     
+    ##########################################
+    ## Extract the Willem or Comix matrices ##
+    ##########################################
+
     if dataset == 'willem_2012':
         # Define data path
         matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
 
         # Input check on user-defined intensity
-        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx")).sheet_names:
+        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx"), engine='openpyxl').sheet_names:
             raise ValueError(
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
         # Extract interaction matrices
-        Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-        Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+        Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_dict = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 
-        return initN, Nc_home, Nc_work, Nc_schools, Nc_transport, Nc_leisure, Nc_others, Nc_total
+        return initN, Nc_dict
+
 
     elif dataset == 'comix':
         # Define data path
@@ -132,16 +145,67 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
         raise ValueError(
             "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
 
-    # Extract interaction matrices
-    Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity).values
-    Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity).values
+def get_integrated_willem2012_interaction_matrices(spatial=None):
+    """
+    Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the duration of the contact.
+    The relative share of contacts changes as follows by integrating with the duration of the contact (absolute number vs. time integrated):
+        home: 12% --> 22%
+        work: 35% --> 30%
+        schools: 11% --> 13%
+        leisure: 20% --> 18%
+        transport: 4% --> 2%
+        others: 19% --> 15%
 
-def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='all'):
+	Returns
+	-------
+    Nc_dict: dict
+        Dictionary containing the integrated interaction matrices per place.
+        Dictionary keys: ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total']
+    initN : np.array
+        number of Belgian individuals, regardless of sex, in ten year age bins. If spatial is not None, this value is also geographically stratified
+    """
+
+    ##############################
+    ## Extract demographic data ##
+    ##############################
+
+    abs_dir = os.path.dirname(__file__)
+    if spatial:
+        if spatial not in ['mun', 'arr', 'prov', 'test']:
+            raise ValueError(
+                        "spatial stratification '{0}' is not legitimate. Possible spatial "
+                        "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
+                    )
+        initN_data = "../../../data/interim/demographic/initN_" + spatial + ".csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1]
+    if not spatial:
+        initN_data = "../../../data/interim/demographic/initN_arr.csv"
+        initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
+        initN = initN_df.values[:,:-1].sum(axis=0)  
+
+    ################################################
+    ## Extract and integrate Willem 2012 matrices ##
+    ################################################
+
+    intensities = ['all', 'less_5_min', 'less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours']
+    # Define places
+    places = ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total']
+    # Get matrices at defined intensities
+    matrices_raw = {}
+    for idx, intensity in enumerate(intensities):
+        initN, Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, spatial=spatial)
+        matrices_raw.update({intensities[idx]: Nc_dict})
+
+    # Integrate matrices at defined intensities
+    Nc_dict = {}
+    for idx, place in enumerate(places):
+        integration = matrices_raw['less_5_min'][place]*2.5/60 + (matrices_raw['less_15_min'][place] - matrices_raw['less_5_min'][place])*10/60 + (matrices_raw['more_15_min'][place] - matrices_raw['more_one_hour'][place])*37.5/60 + (matrices_raw['more_one_hour'][place] - matrices_raw['more_four_hours'][place])*150/60 + matrices_raw['more_four_hours'][place]*240/60
+        Nc_dict.update({place: integration})
+
+    return initN, Nc_dict
+
+def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=False, VOC=True, intensity='all'):
     """
     Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
 
@@ -188,6 +252,8 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f (spatial only)
+        injection_day : number of days after start of simulation when new strain is injected
+        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         -------------------------
@@ -197,7 +263,10 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        pi : mobility parameter per age class. Only loads when spatial is not None
+        p : mobility parameter per region. Only loads when spatial is not None
+        v : daily vaccination rate (percentage of population to be vaccinated)
+        e : vaccine effectivity
+        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially stratified parameters
         -------------------------------
@@ -220,35 +289,46 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     if age_stratified == True:
 
         # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
-        Nc_total = get_interaction_matrices(intensity=intensity)[-1]
-        pars_dict['Nc'] = Nc_total
+        initN, Nc_dict = get_interaction_matrices(intensity=intensity)
+        pars_dict['Nc'] = Nc_dict['total']
 
         # Assign AZMM and UZG estimates to correct variables
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
+        pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
+        pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
+        pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
+        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
+
+        residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
+        pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
+        pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1]) 
+        pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
+        pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1])
+
         df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
-        pars_dict['c'] = np.array(df['c'].values[:-1])
-        pars_dict['m_C'] = np.array(df['m0_{C}'].values[:-1])
-        pars_dict['m_ICU'] = np.array(df['m0_{ICU}'].values[:-1])
+        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
-        pars_dict['dc_R'] = np.array(df['dC_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
-        pars_dict['dc_D'] = np.array(df['dC_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
-        pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1]) # Better is .values[:-1], but there is no sufficient data
-        pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1]) # Better is .values[:-1], but there is no sufficient data
-        pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1]) # Better is .values[:-1], but there is no sufficient data
+        # Wu et al.
+        df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"), engine='openpyxl')
+        pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
 
-        # verity_etal
-        df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
-        pars_dict['h'] =  np.array(df.loc[:,'symptomatic_hospitalized'].astype(float).tolist())/100
+        # Davies et al.
+        pars_dict['s'] =  np.ones(9)
 
-        # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
-        pars_dict['a'] =  np.array(df_asymp.loc[:,'fraction asymptomatic'].astype(float).tolist())
-        pars_dict['s'] =  np.array(df_asymp.loc[:,'relative susceptibility'].astype(float).tolist())
+        # vaccination
+        if vaccination == True:
+            pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
+            pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
+            pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
+            pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
+            pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
+            pars_dict['d_vacc'] = 36*30 # Default: 12 month coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
 
         # Assign AZMM and UZG estimates to correct variables
-        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
+        df = pd.read_csv(os.path.join(par_interim_path,"sciensano_hospital_parameters.csv"), sep=',',header='infer')
         pars_dict['c'] = np.array([df['c'].values[-1]])
         pars_dict['m_C'] = np.array([df['m0_{C}'].values[-1]])
         pars_dict['m_ICU'] = np.array([df['m0_{ICU}'].values[-1]])
@@ -257,16 +337,18 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         pars_dict['dc_D'] = np.array(df['dC_D'].values[-1])
         pars_dict['dICU_R'] = np.array(df['dICU_R'].values[-1])
         pars_dict['dICU_D'] = np.array(df['dICU_D'].values[-1])
+        df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
         pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
 
         # verity_etal
         df = pd.read_csv(os.path.join(par_raw_path,"verity_etal.csv"), sep=',',header='infer')
         pars_dict['h'] =  np.array([0.0812]) # age-weiged average
 
+        # Wu et al.
+        pars_dict['a'] =  np.array([0.57]) # age-weighed average
+
         # davies_etal
-        df_asymp = pd.read_csv(os.path.join(par_raw_path,"davies_etal.csv"), sep=',',header='infer')
-        pars_dict['a'] =  np.array([0.579]) # age-weighed average
-        pars_dict['s'] =  np.array([0.719]) # age-weighed average. Ideally this is equal to one, I would think
+        pars_dict['s'] =  np.array([1]) # No differences in susceptibility
 
 #         non_strat = pd.read_csv(os.path.join(par_raw_path,"non_stratified.csv"), sep=',',header='infer')
 #         pars_dict.update({key: np.array(value) for key, value in non_strat.to_dict(orient='list').items()})
@@ -280,6 +362,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
                     )
 
         # Read recurrent mobility matrix per region
+        # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
         mobility_df=pd.read_csv(os.path.join(abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
@@ -299,11 +382,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
         area=area_df.values[:,0]
         pars_dict['area'] = area * 1e-6 # in square kilometer
 
-        # Load mobility parameter, which is age-stratified and 1 by default (no measures)
-        pi = np.ones(pars_dict['Nc'].shape[0])
-        pars_dict['pi'] = pi
+        # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
+        p = np.ones(pars_dict['place'].shape[0])
+        pars_dict['p'] = p
 
         # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
+        # NB Currently not used
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
         
@@ -317,6 +401,19 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, intensity='a
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
-    pars_dict['beta'] = 0.03492
+    if not spatial:
+        pars_dict['beta'] = 0.03492
+    else:
+        pars_dict['beta_R'] = 0.03492 # rural
+        pars_dict['beta_U'] = 0.03492 # urban
+        pars_dict['beta_M'] = 0.03492 # metropolitan
+        
+    # Co-infection model: infectivity gain
+    if VOC:
+        pars_dict['alpha'] = [1, 0, 0] # Must be a list so we can check if "sum(alpha) == 1" 
+        pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
+        pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain
+        pars_dict['K_hosp'] = [1, 1.4, 1.4]
 
     return pars_dict
+

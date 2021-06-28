@@ -1,4 +1,3 @@
-
 import numpy as np
 import pytest
 
@@ -213,7 +212,7 @@ def test_model_interaction_matrix_function():
     model_without = SIRstratified(initial_states, parameters)
     output_without = model_without.sim(time)
 
-    def compliance_func(t, param):
+    def compliance_func(t, states, param):
         if t < 10:
             return param
         else:
@@ -226,7 +225,7 @@ def test_model_interaction_matrix_function():
     assert (output['R'] <= output_without['R']).all()
 
     # using a compliance function with an additional parameter
-    def compliance_func(t, param, prevention):
+    def compliance_func(t, states, param, prevention):
         if t < 10:
             return param
         else:
@@ -237,18 +236,3 @@ def test_model_interaction_matrix_function():
                            time_dependent_parameters={'nc': compliance_func})
     output2 = model2.sim(time)
     assert (output2['R'] <= output['R']).all()
-
-	# using a compliance function with an absolute change in parameter value
-    def compliance_func(t, nc_old, nc_new, l):
-        if t <= 10:
-            return nc_old
-        elif 10 < t < 10 + l:
-            return nc_old + (nc_new-nc_old)/l*(t-10)
-        else:
-            return nc_new
-
-    parameters = {"gamma": 0.2, "beta": np.array([0.8, 0.9]), "nc": nc, "nc_old": nc, "nc_new" : 0.2*nc, "l" : 5}
-    model2 = SIRstratified(initial_states, parameters,
-                           time_dependent_parameters={'nc': compliance_func})
-    output2 = model2.sim(time)
-    assert (output2['R'] <= output_without['R']).all()

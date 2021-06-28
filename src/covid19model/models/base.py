@@ -26,7 +26,7 @@ class BaseModel:
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
     time_dependent_parameters : dictionary, optional
         Optionally specify a function for time-dependent parameters. The
-        signature of the function should be ``fun(t, param, ...)`` taking
+        signature of the function should be ``fun(t, states, param, ...)`` taking
         the time, the initial parameter value, and potentially additional
         keyword argument, and should return the new parameter value for
         time `t`.
@@ -84,18 +84,20 @@ class BaseModel:
             raise ValueError(
                 "The first parameter of the parameter function should be 't'"
             )
-        if keywords[1] != "param":
+        if keywords[1] != "states":
             raise ValueError(
-                "The second parameter of the parameter function should be named 'param'"
+                "The second parameter of the parameter function should be 'states'"
             )
-        return keywords[2:]            
+        if keywords[2] != "param":
+            raise ValueError(
+                "The second parameter of the parameter function should be 'param'"
+            )
+        else:
+            return keywords[3:]
 
     def _validate_time_dependent_parameters(self):
         # Validate arguments of compliance definition
-
         extra_params = []
-
-        #all_param_names = self.parameter_names + self.parameters_stratified_names
 
         all_param_names = self.parameter_names.copy()
 
@@ -112,6 +114,7 @@ class BaseModel:
                     "existing model parameter".format(param))
             kwds = self._validate_parameter_function(func)
             extra_params.append(kwds)
+
         self._function_parameters = extra_params
 
     def _validate(self):
@@ -282,6 +285,26 @@ class BaseModel:
         #        f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
         #    )
 
+        # Call integrate function with initial values to check if the function returns all states
+        fun = self._create_fun(None)
+        y0 = list(itertools.chain(*self.initial_states.values()))
+        while np.array(y0).ndim > 1:
+            y0 = list(itertools.chain(*y0))
+        check = True
+        try:
+            result = fun(pd.Timestamp('2020-09-01'), np.array(y0), self.parameters)
+        except:
+            try:
+                result = fun(1, np.array(y0), self.parameters)
+            except:
+                check = False
+        if check:
+            if len(result) != len(y0):
+                raise ValueError(
+                    "The return value of the integrate function does not have the correct length."
+                )
+                
+
     @staticmethod
     def integrate():
         """to overwrite in subclasses"""
@@ -293,6 +316,14 @@ class BaseModel:
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
+            # for the moment assume sequence of parameters, vars,... is correct
+            size_lst=[len(self.state_names)]
+            for size in self.stratification_size:
+                size_lst.append(size)
+            y_reshaped = y.reshape(tuple(size_lst))
+
+            state_params = dict(zip(self.state_names, y_reshaped))
+
             # update time-dependent parameter values
             params = pars.copy()
 
@@ -301,11 +332,15 @@ class BaseModel:
                     date = self.int_to_date(actual_start_date, t)
                 else:
                     date = t
-                for i, (param, func) in enumerate(self.time_dependent_parameters.items()):
+                for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
                     func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = func(date, pars[param], **func_params)
+                    params[param] = param_func(date, state_params, pars[param], **func_params)
 
-                model_pars = list(params.values())[:-self._n_function_params]
+            if self._n_function_params > 0:
+	            model_pars = list(params.values())[:-self._n_function_params]
+            else:
+	            model_pars = list(params.values())
+
 
             if not self.state_2d:
                 # for the moment assume sequence of parameters, vars,... is correct
@@ -325,6 +360,7 @@ class BaseModel:
 
         return func
 
+
     def _sim_single(self, time, actual_start_date=None):
         """"""
         fun = self._create_fun(actual_start_date)
@@ -337,10 +373,9 @@ class BaseModel:
                 self.initial_states[state] = self.initial_states[state].flatten()
 
         # Initial conditions must be one long list of values
-        if self.spatial:
-            y0 = list(itertools.chain(*list(itertools.chain(*self.initial_states.values()))))
-        else:
-            y0 = list(itertools.chain(*self.initial_states.values()))
+        y0 = list(itertools.chain(*self.initial_states.values()))
+        while np.array(y0).ndim > 1:
+            y0 = list(itertools.chain(*y0))
 
         if self.discrete == False:
             output = solve_ivp(fun, time,
@@ -456,14 +491,16 @@ class BaseModel:
         if verbose==True:
             print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
         if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples,to_sample)
+            self.parameters = draw_fcn(self.parameters,samples)
         out = self._sim_single(time, actual_start_date)
         # Repeat N - 1 times and concatenate
         for n in range(N-1):
             if verbose==True:
                 print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
+
             if draw_fcn:
-                self.parameters = draw_fcn(self.parameters,samples,to_sample)
+
+                self.parameters = draw_fcn(self.parameters,samples)
             out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
 
         # Reset parameter dictionary

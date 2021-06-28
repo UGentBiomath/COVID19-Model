@@ -2,6 +2,7 @@ from functools import partial
 import numpy as np
 import multiprocessing as mp
 from covid19model.optimization import objective_fcns
+import sys
 
 def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
@@ -50,15 +51,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         Additional arguments passed to objective and constraint functions
         (Default: empty tuple)
     kwargs : dict
-        Additional keyword arguments passed to objective and constraint 
-        functions (Default: empty dict)
-    swarmsize : int
-        The number of particles in the swarm (Default: 100)
-    omega : scalar
-        Particle velocity scaling factor (Default: 0.5)
-    phip : scalar
-        Scaling factor to search away from the particle's best known position
-        (Default: 0.5)
+        Additional keyword arguments passed to objective and constraint weights[idx]*
     phig : scalar
         Scaling factor to search away from the swarm's best known position
         (Default: 0.5)
@@ -95,6 +88,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         The objective values at each position in p
 
     """
+    
+#     print('CHECKPOINT: start of optim function')
+    
     lb, ub = [], []
     for variable_bounds in bounds:
         lb.append(variable_bounds[0])
@@ -109,7 +105,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     vhigh = np.abs(ub - lb)
     vlow = -vhigh
 
-    # Initialize objective function
+    # Initialize objective function.
+    # The only remaining argument for obj(thetas) is thetas, a vector containing estimated parameter values
+    # these values thetas will be based on the PSO dynamics and the boundary conditions in lb and ub.
     obj = partial(_obj_wrapper, func, args, kwargs)
 
     # Check for constraint function(s) #########################################
@@ -117,22 +115,32 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         if not len(ieqcons):
             if debug:
                 print('No constraints given.')
+                sys.stdout.flush()
             cons = _cons_none_wrapper
         else:
             if debug:
                 print('Converting ieqcons to a single constraint function')
+                sys.stdout.flush()
             cons = partial(_cons_ieqcons_wrapper, ieqcons, args, kwargs)
     else:
         if debug:
             print('Single constraint function given in f_ieqcons')
+            sys.stdout.flush()
         cons = partial(_cons_f_ieqcons_wrapper, f_ieqcons, args, kwargs)
 
     is_feasible = partial(_is_feasible_wrapper, cons)
 
+#     print('CHECKPOINT: right before first mention of multiprocessing in optim function')
+    
     # Initialize the multiprocessing module if necessary
     if processes > 1:
         import multiprocessing
+#         print('CHECKPOINT: multiprocessing is imported')
         mp_pool = multiprocessing.Pool(processes)
+        
+#     print('CHECKPOINT: right after first mention of multiprocessing in optim function')
+#     print(f'CHECKPOINT: processes = {processes}.')
+    
     # Initialize the particle swarm ############################################
     S = swarmsize
     D = len(lb)  # the number of dimensions each particle has
@@ -152,8 +160,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     # if needed, transform the parameter vector
     if transform_pars is not None:
         x = np.apply_along_axis(transform_pars, 1, x)
-
-
+        
     # Calculate objective and constraints for each particle
     if processes > 1:
         fx = np.array(mp_pool.map(obj, x))
@@ -183,6 +190,9 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     # Iterate until termination criterion met ##################################
     it = 1
+    
+#     print('CHECKPOINT: start of while loop in optim function')
+    
     while it <= maxiter:
         rp = np.random.uniform(size=(S, D))
         rg = np.random.uniform(size=(S, D))
@@ -200,32 +210,42 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
 
         # Update objectives and constraints
+        
+#         print('CHECKPOINT: right before multiprocessing pool init in optim function')
+        
         if processes > 1:
+#             print(f'CHECKPOINT: processes == {processes} in optim function')
             fx = np.array(mp_pool.map(obj, x))
             fs = np.array(mp_pool.map(is_feasible, x))
         else:
+#             print(f'CHECKPOINT: processes == {processes} in optim function')
             for i in range(S):
                 fx[i] = obj(x[i, :])
                 fs[i] = is_feasible(x[i, :])
+                
+#         print('CHECKPOINT: right after multiprocessing pool init in optim function')
 
         # Store particle's best position (if constraints are satisfied)
         i_update = np.logical_and((fx < fp), fs)
         p[i_update, :] = x[i_update, :].copy()
         fp[i_update] = fx[i_update]
 
+#         print('CHECKPOINT: end of first update in optim function')
+        
         # Compare swarm's best position with global best position
         i_min = np.argmin(fp)
         if fp[i_min] < fg:
             if debug:
                 print('New best for swarm at iteration {:}: {:} {:}'\
                     .format(it, p[i_min, :], fp[i_min]))
-
+                sys.stdout.flush()
             p_min = p[i_min, :].copy()
             stepsize = np.sqrt(np.sum((g - p_min)**2))
 
             if np.abs(fg - fp[i_min]) <= minfunc:
                 print('Stopping search: Swarm best objective change less than {:}'\
                     .format(minfunc))
+                sys.stdout.flush()
                 if particle_output:
                     return p_min, fp[i_min], p, fp
                 else:
@@ -233,6 +253,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
             elif stepsize <= minstep:
                 print('Stopping search: Swarm best position change less than {:}'\
                     .format(minstep))
+                sys.stdout.flush()
                 if particle_output:
                     return p_min, fp[i_min], p, fp
                 else:
@@ -243,18 +264,24 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
         if debug:
             print('Best after iteration {:}: {:} {:}'.format(it, g, fg))
+            sys.stdout.flush()
         it += 1
 
     print('Stopping search: maximum iterations reached --> {:}'.format(maxiter))
+    sys.stdout.flush()
+    
+    if processes > 1:
+        mp_pool.close()
 
     if not is_feasible(g):
         print("However, the optimization couldn't find a feasible design. Sorry")
+        sys.stdout.flush()
     if particle_output:
         return g, fg, p, fp
     else:
         return g, fg
 
-def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_date=None,warmup=0,disp=True,maxiter=30,popsize=10, processes=mp.cpu_count()-1, omega=0.8, phip=0.8, phig=0.8):
+def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
     """
     A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
 
@@ -263,10 +290,7 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     model: model object
         correctly initialised model to be fitted to the dataset
     data: array
-        list containing dataseries        
-    parNames: array
-        list containing the names of the parameters to be fitted
-    states: array
+        list containing dataseries. If agg != None, list contains DataFrame with time series pweights[idx]*
         list containg the names of the model states to be fitted to data
     bounds: tuple
         contains one tuples with the lower and upper bounds of each parameter theta
@@ -277,6 +301,9 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     popsize: float or int
         population size of particle swarm
         increasing this variable lowers the chance of finding local minima but slows down calculations
+    agg : str or None
+        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
+        None (default) if non-spatial model is used
 
     Returns
     -----------
@@ -292,15 +319,23 @@ def fit_pso(model,data,parNames,states,bounds,draw_fcn=None,samples=None,start_d
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
+#     print('CHECKPOINT: start of fit_pso function')
+    
+    # Exceptions
     if processes > mp.cpu_count():
         raise ValueError(
             f"Desired number of logical processors ({processes}) unavailable. Maximum number: {mp.cpu_count()}"
         )
+    if agg and (agg not in ['prov', 'arr', 'mun']):
+        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     
     # -------------------------------------------
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames,draw_fcn,samples, start_date, warmup), swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'weights': weights, 'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+
     theta_hat = p_hat
 
     return theta_hat
+

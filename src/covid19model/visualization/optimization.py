@@ -1,12 +1,69 @@
 import datetime
 import random
+import math
+import corner
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
+import emcee
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
+
+def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
+
+    samples = sampler.get_chain(discard=discard,thin=thin,flat=False)
+    flatsamples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+
+    # Traceplots of samples
+    traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+    plt.savefig(fig_path+'traceplots/'+str(spatial_unit)+'_TRACE_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    # Autocorrelation plots of chains
+    autocorrelation_plot(samples)
+    plt.savefig(fig_path+'autocorrelation/'+str(spatial_unit)+'_AUTOCORR_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    # Cornerplots of samples
+    fig = corner.corner(flatsamples,labels=labels)
+    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER_'+figname+'_'+str(datetime.date.today())+'.pdf',
+                dpi=400, bbox_inches='tight')
+
+    return
+
+def autocorrelation_plot(samples):
+    """Make a visualization of autocorrelation of each chain
+
+    Parameters
+    ----------
+    samples: np.array
+        A 3-D numpy array containing the sampled parameters.
+        The x-dimension must be the number of samples, the y-dimension the number of parallel chains and the z-dimension the number of sampled parameters.
+
+    Returns
+    -------
+    ax
+    """
+    # Compute autocorrelation/chain
+    ndim = samples.shape[2]
+    step_autocorr = math.ceil(samples.shape[0]/100)
+    tau_vect = []
+    index = 0
+    for i in range(step_autocorr, samples.shape[0], step_autocorr):
+        tau_vect.append(emcee.autocorr.integrated_time(samples[:i], tol = 0))
+        index += 1
+    n = step_autocorr * np.arange(1, index + 1)
+    # Make figure
+    fig,ax=plt.subplots(figsize=(10,4))
+    ax.plot(n, n / step_autocorr, "--k")
+    ax.plot(n, tau_vect)
+    ax.set_xlim(0, n.max())
+    ax.set_xlabel("number of steps")
+    ax.set_ylabel(r"$\hat{\tau}$");
+
+    return ax
 
 def traceplot(samples,labels,plt_kwargs={},filename=None):
     """Make a visualization of sampled parameters
@@ -35,9 +92,13 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
         )
     # initialise figure
     fig, axes = plt.subplots(len(labels))
+    # Error when only one parameter is calibrated: axes not suscribable
+    if ndim == 1:
+        axes = [axes]
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
+
     for i in range(ndim):
         ax = axes[i]
         ax.plot(samples[:, :, i], **plt_kwargs)
@@ -47,7 +108,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 
     if filename:
         plt.savefig(filename, dpi=600, bbox_inches='tight',
-                    orientation='portrait', papertype='a4')
+                    orientation='portrait')
 
     return ax
 
@@ -166,3 +227,88 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
     ax = _apply_tick_locator(ax)
 
     return ax
+
+def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, NIS=None, savename=None, **kwargs):
+    """
+    Plot the data as well as the calibration results with added binomial uncertainty.
+
+    Input
+    -----
+    out : covid19model simulation output
+        Output of the simulation, either spatially explicit or not
+    df_sciensano : pandas DataFrame
+        If spatial model: states as columns. If spatial: NIS codes as columns.
+    state : str
+        Choose the output state (e.g. 'H_in')
+    start_date : first date to plot
+        Format YYYY-MM-DD
+    end_date : last dat to plot
+        Format YYYY-MM-DD
+    conf_int : float
+        Confidence interval. 0.05 by default
+    ax : matplotlib ax to plot on
+    NIS : int
+        NIS code to plot if spatial. None by default (plot national aggregation)
+    savename : str
+        Complete path and name under which to save the resulting fit figure
+    kwargs : dict
+        Dictionary with keyword arguments for the matplotlib make-up.
+
+    Output
+    ------
+    ax : matplotlib ax object
+    """
+    # Find requested range from simulation output
+    spatial=False
+    if 'place' in out.keys():
+        spatial=True
+        if not NIS:
+            all_ts = out[state].sum(dim='Nc').sum(dim='place').values
+        else:
+            all_ts = out[state].sel(place=NIS).sum(dim='Nc').values
+    else:
+        all_ts = out[state].sum(dim='Nc').values
+
+    # Compute mean and median
+    ts_median = np.median(all_ts,axis=1)
+    # Compute quantiles
+    LL = conf_int/2
+    UL = 1-conf_int/2
+    ts_LL = np.quantile(all_ts, q = LL, axis = 0)
+    ts_UL = np.quantile(all_ts, q = UL, axis = 0)
+    ts_mean =np.mean(all_ts, axis=0)
+
+    # Plot
+    if not ax:
+        fig,ax = plt.subplots(figsize=(10,5))
+
+    # Simulation
+    ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
+    ax.plot(out['time'],ts_mean,'--', color='blue')
+
+    # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
+    if not spatial:
+        ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax = _apply_tick_locator(ax)
+        ax.set_xlim(start_date,end_date)
+        ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
+        if savename:
+            fig.savefig(savename, dpi=400, bbox_inches='tight')
+        return ax
+    else:
+        if not NIS:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax = _apply_tick_locator(ax)
+            ax.set_xlim(start_date,end_date)
+            ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
+            if savename:
+                fig.savefig(savename, dpi=400, bbox_inches='tight')
+            return ax
+        else:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax = _apply_tick_locator(ax)
+            ax.set_xlim(start_date,end_date)
+            ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
+            if savename:
+                fig.savefig(savename, dpi=400, bbox_inches='tight')
+            return ax
