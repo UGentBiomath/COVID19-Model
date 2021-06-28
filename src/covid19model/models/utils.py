@@ -144,19 +144,20 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     # Vaccination
     # -----------
     param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
+    param_dict['delay'] = np.mean(np.random.triangular(1, 20, 20, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1)])
     param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
                                   np.random.uniform(low=0.90,high=0.99),
                                   np.random.uniform(low=0.90,high=0.99)])                          
-    param_dict['e_h'] = np.array([np.random.uniform(low=0.8,high=1.0),
-                                  np.random.uniform(low=0.8,high=1.0),
-                                  np.random.uniform(low=0.8,high=1.0)])
-    param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
+    param_dict['e_h'] = np.array([np.random.uniform(low=0.95,high=1.0),
+                                  np.random.uniform(low=0.95,high=1.0),
+                                  np.random.uniform(low=0.95,high=1.0)])
+    param_dict['refusal'] = [np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.15, 0.20, 0.40), # 30-
+                                np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.20, 0.30), # 30-60
+                                np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15)] # 60+
+
 
     # Hospitalization
     # ---------------
