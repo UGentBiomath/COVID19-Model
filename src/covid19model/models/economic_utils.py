@@ -224,7 +224,6 @@ def inventory_updating(S_old,Z_t,x_t,A):
     for i in range(S_old.shape[0]):
         for j in range(S_old.shape[0]):
             S_new[i,j] = S_old[i,j] + Z_t[i,j] - A[i,j]*x_t[j]
-    #S_new = np.minimum(S_new,0)
     S_new[np.where(S_new < 0)] = 0
     return S_new
 

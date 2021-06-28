@@ -851,7 +851,7 @@ def compute_income_expectations(t, states, param, t_start_lockdown, t_end_lockdo
         zeta = 1
     else:
         zeta_L = 1 - 0.5*(sum(l_0)-l_start_lockdown)/sum(l_0)
-        if ((t >= t_start_lockdown) & (t <= t_end_lockdown)):
+        if ((t >= t_start_lockdown) & (t < t_end_lockdown)):
             zeta = zeta_L
         else:
             # first order system
