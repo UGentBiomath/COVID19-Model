@@ -896,6 +896,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
 
 
 from .economic_utils import *
+from ..data.economic_parameters import read_economic_labels
+
 class Economic_Model(BaseModel):
 
     # ...state variables and parameters
