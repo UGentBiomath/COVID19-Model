@@ -316,15 +316,28 @@ class BaseModel:
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
-            # for the moment assume sequence of parameters, vars,... is correct
-            size_lst=[len(self.state_names)]
-            for size in self.stratification_size:
-                size_lst.append(size)
-            y_reshaped = y.reshape(tuple(size_lst))
+            # -------------------------------------------------------------
+            # Flatten y and construct dictionary of states and their values
+            # -------------------------------------------------------------
 
-            state_params = dict(zip(self.state_names, y_reshaped))
+            if not self.state_2d:
+                # for the moment assume sequence of parameters, vars,... is correct
+                size_lst=[len(self.state_names)]
+                for size in self.stratification_size:
+                    size_lst.append(size)
+                y_reshaped = y.reshape(tuple(size_lst))
+                state_params = dict(zip(self.state_names, y_reshaped))
+            else:
+                # incoming y -> different reshape for 1D vs 2D variables  (2)
+                y_1d, y_2d = np.split(y, [self.split_point])
+                y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
+                y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
+                state_params = state_params = dict(zip(self.state_names, [y_1d,y_2d]))
 
+            # --------------------------------------
             # update time-dependent parameter values
+            # --------------------------------------
+
             params = pars.copy()
 
             if self.time_dependent_parameters:
@@ -336,24 +349,23 @@ class BaseModel:
                     func_params = {key: params[key] for key in self._function_parameters[i]}
                     params[param] = param_func(date, state_params, pars[param], **func_params)
 
+            # ----------------------------------
+            # construct list of model parameters
+            # ----------------------------------
+
             if self._n_function_params > 0:
 	            model_pars = list(params.values())[:-self._n_function_params]
             else:
 	            model_pars = list(params.values())
 
+            # -------------------
+            # perform integration
+            # -------------------
+
             if not self.state_2d:
-                # for the moment assume sequence of parameters, vars,... is correct
-                size_lst=[len(self.state_names)]
-                for size in self.stratification_size:
-                    size_lst.append(size)
-                y_reshaped = y.reshape(tuple(size_lst))
                 dstates = self.integrate(t, *y_reshaped, *model_pars)
                 return np.array(dstates).flatten()
             else:
-                # incoming y -> different reshape for 1D vs 2D variables  (2)
-                y_1d, y_2d = np.split(y, [self.split_point])
-                y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
-                y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
                 dstates = self.integrate(t, *y_1d, y_2d, *model_pars)
                 return np.concatenate([np.array(state).flatten() for state in dstates])
 
