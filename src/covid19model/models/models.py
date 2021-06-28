@@ -883,10 +883,6 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dalpha = alpha*K/(1-alpha+alpha*K) - alpha
         # If A and I are both zero, a division error occurs
         dalpha[np.isnan(dalpha)] = 0
-        
-
-
-
         # On injection_day, inject injection_ratio new strain to alpha (but only if alpha is still zero)
         if (t >= injection_day) & (alpha.sum().sum()==0):
             dalpha += injection_ratio
