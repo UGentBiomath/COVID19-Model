@@ -50,7 +50,7 @@ def calc_input_restriction(S_t,A,C):
             x_t[i]=np.inf
     return x_t
 
-def other_demand_shock(t,param,t_start_lockdown,t_end_lockdown,t_end_pandemic,f_s):
+def other_demand_shock(t,states,param,t_start_lockdown,t_end_lockdown,t_end_pandemic,f_s):
     """
     A time-dependent function to return the exogeneous demand shock.
 
@@ -81,7 +81,7 @@ def other_demand_shock(t,param,t_start_lockdown,t_end_lockdown,t_end_pandemic,f_
     else:
         return param
 
-def household_demand_shock(t,param,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,on_site):
+def household_demand_shock(t,states,param,t_start_lockdown,t_end_lockdown,t_end_pandemic,c_s,on_site):
     """
     A time-dependent function to return the household demand shock.
 
@@ -343,7 +343,7 @@ def hiring_firing(l_old, l_0, x_0, x_t_input, x_t_labor, d_t, gamma_F, gamma_H, 
     l_new[np.greater(l_new,(1-epsilon_S)*l_0)] =  ((1-epsilon_S)*l_0)[np.greater(l_new,(1-epsilon_S)*l_0)]
     return l_new[:,0]
 
-def labor_supply_shock(t,param,t_start_lockdown,t_end_lockdown,l_s):
+def labor_supply_shock(t,states,param,t_start_lockdown,t_end_lockdown,l_s):
     """
     A function returning the labor reduction due to lockdown measures.
 
@@ -393,7 +393,7 @@ def leontief(x_t_labor, x_t_input, d_t):
     """
     return np.amin([x_t_labor, x_t_input, d_t],axis = 0)
 
-def government_furloughing(t, param, t_start_compensation, t_end_compensation, b_s):
+def government_furloughing(t, states, param, t_start_compensation, t_end_compensation, b_s):
     """
     A function to simulate reimbursement of a fraction b of the income loss by policymakers (f.i. as social benefits, or "tijdelijke werkloosheid")
 
@@ -422,7 +422,7 @@ def government_furloughing(t, param, t_start_compensation, t_end_compensation, b
     else:
         return param
 
-def compute_income_expectations(t,param,t_start_lockdown,t_end_lockdown,l_0,l_start_lockdown,rho,L):
+def compute_income_expectations(t,states,param,t_start_lockdown,t_end_lockdown,l_0,l_start_lockdown,rho,L):
     """
     A function to return the expected retained income in the long term of households.
 
