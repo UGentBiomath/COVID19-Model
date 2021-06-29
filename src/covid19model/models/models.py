@@ -972,7 +972,7 @@ class Economic_Model(BaseModel):
         # --------------------------------------------------------------
         # 12. Convert order matrix to total order per sector (2D --> 1D)
         O_new = np.sum(O_new,axis=1)
-        return (x_new, c_new, c_desired_new, f_new, d_new, l_new, O_new, S_new)
+        return (x_new-x, c_new-c, c_desired_new-c_desired, f_new-f, d_new-d, l_new-l, O_new-O, S_new-S)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
