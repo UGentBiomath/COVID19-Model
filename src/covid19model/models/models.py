@@ -459,6 +459,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dc_D = np.expand_dims(dc_D, axis=1)
         dICU_R = np.expand_dims(dICU_R, axis=1)
         dICU_D = np.expand_dims(dICU_D, axis=1)
+        dICUrec = np.expand_dims(dICUrec, axis=1)
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -475,9 +476,9 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - (1-e_h)*M*h/dhospital
 
         dC = (1-e_h)*M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R-dICUrec) - m_ICU*ICU/(dICU_D)
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
 
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R-dICUrec) - C_icurec*(1/dICUrec)
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
         dH_in = (1-e_h)*M*(h/dhospital) - H_in
