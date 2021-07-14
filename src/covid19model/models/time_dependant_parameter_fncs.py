@@ -395,18 +395,22 @@ class make_vaccination_function():
             idx = 0
             while daily_first_dose > 0:
                 if idx == stop_idx: # To end vaccination campaign at a certain age
-                    daily_first_dose = 0
-                elif VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]] > daily_first_dose:
+                    daily_first_dose = -1
+                elif (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]) <= 0:
+                    N_vacc[vacc_order[idx],0] = 0 
+                    idx=idx+1
+                elif (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]) > daily_first_dose:
                     N_vacc[vacc_order[idx],0] = daily_first_dose
                     daily_first_dose = 0
+                    idx=idx+1
                 else:
                     N_vacc[vacc_order[idx],0] = VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]
                     daily_first_dose = daily_first_dose - (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]])
-                    idx = idx + 1
+                    idx=idx+1
             # 1 to 2 doses
             # ...
             N_vacc[:,1] = VE[:,1]/(delay_doses+delay_immunity_float)
- 
+
             return N_vacc
 
 ############################
@@ -794,7 +798,7 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
                                 work=0.7, school=0)                                
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
                                 work=1, school=1)    
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):

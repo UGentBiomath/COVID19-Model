@@ -443,6 +443,8 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
             )
 
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        if h[-1] > 1:
+            h[-1] = 1
         e_i = np.matmul(alpha, e_i)
         e_s = np.matmul(alpha, e_s)
         e_h = np.matmul(alpha, e_h)
@@ -468,7 +470,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         dS  = - IP*S*(1-e_s)
         dE  = IP*S*(1-e_s) - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
@@ -519,7 +521,6 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # Waning of natural immunity
         dS[:,0] = dS[:,0] + zeta*R[:,0] 
         dR[:,0] = dR[:,0] - zeta*R[:,0] 
-
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
