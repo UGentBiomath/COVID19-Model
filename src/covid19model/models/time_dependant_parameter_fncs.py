@@ -339,8 +339,8 @@ class make_vaccination_function():
             return N_vacc
 
     # Stratified vaccination strategy
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal_first = [0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],
-                                            refusal_second = [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]):
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0],
+                                            refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
         """
         time-dependent function for the Belgian vaccination strategy
         First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
@@ -376,10 +376,8 @@ class make_vaccination_function():
         # Convert delay to a timedelta
         delay = pd.Timedelta(str(int(delay))+'D')
         # Compute the number of vaccine eligible individuals: received 0 doses
-        VE_0 = states['S'][:,0] + states['R'][:,0]
-        # Compute the number of vaccine eligible individuals: received 1 dose
-        VE_1 = states['S'][:,1] + states['R'][:,1]
-        
+        VE = states['S'][:,0:2] + states['R'][:,0:2]
+
         if t <= self.df_sciensano_start + delay:
             return np.zeros([9,3])
         elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
@@ -391,27 +389,27 @@ class make_vaccination_function():
             # 0 to 1 dose
             idx = 0
             while daily_dose > 0:
-                if idx == 9: # To end vaccination campaign at a certain age
+                if idx == 8: # To end vaccination campaign at a certain age
                     daily_dose = 0
-                elif VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]] > daily_dose:
+                elif VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]] > daily_dose:
                     N_vacc[vacc_order[idx],0] = daily_dose
                     daily_dose = 0
                 else:
-                    N_vacc[vacc_order[idx],0] = VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]]
-                    daily_dose = daily_dose - (VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]])
+                    N_vacc[vacc_order[idx],0] = VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]
+                    daily_dose = daily_dose - (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]])
                     idx = idx + 1
             # 1 to 2 doses
             daily_dose = daily_dose_original
             idx = 0
             while daily_dose > 0:
-                if idx == 9: # To end vaccination campaign at a certain age
+                if idx == 8: # To end vaccination campaign at a certain age
                     daily_dose = 0
-                elif VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]] > daily_dose:
+                elif VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]] > daily_dose:
                     N_vacc[vacc_order[idx],1] = daily_dose
                     daily_dose = 0
                 else:
-                    N_vacc[vacc_order[idx],1] = VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]]
-                    daily_dose = daily_dose - (VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]])
+                    N_vacc[vacc_order[idx],1] = VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]]
+                    daily_dose = daily_dose - (VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]])
                     idx = idx + 1
             return N_vacc
 
@@ -785,7 +783,7 @@ class make_contact_matrix_function():
                                 school=0)                                  
         else:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+                                work=1,school=1)    
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
         """
