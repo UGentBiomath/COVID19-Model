@@ -432,7 +432,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R,axis=1),axis=1)
+        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1)
 
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -468,7 +468,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        
         dS  = - IP*S*(1-e_s)
         dE  = IP*S*(1-e_s) - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 

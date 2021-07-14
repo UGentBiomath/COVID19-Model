@@ -339,7 +339,7 @@ class make_vaccination_function():
             return N_vacc
 
     # Stratified vaccination strategy
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0],
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 5*7, stop_idx=9,
                                             refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
         """
         time-dependent function for the Belgian vaccination strategy
@@ -358,7 +358,7 @@ class make_vaccination_function():
         daily_dose : int
             Number of doses administered per day. Default is 30000 doses/day.
         delay : int
-            Time delay between first dose vaccination and start of immunity. Default is 21 days.
+            Time delay between first dose vaccination and start of immunity. Default is 14 days.
         vacc_order : array
             Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
         refusal: array
@@ -370,47 +370,43 @@ class make_vaccination_function():
             Number of individuals to be vaccinated at simulation time "t"
             
         """
-        daily_dose_original = daily_dose
         # Convert time to suitable format
         t = pd.Timestamp(t.date())
-        # Convert delay to a timedelta
-        delay = pd.Timedelta(str(int(delay))+'D')
+        # Convert delay_immunity to a timedelta
+        delay_immunity_float = delay_immunity
+        delay_immunity = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
 
-        if t <= self.df_sciensano_start + delay:
+        if t <= self.df_sciensano_start + delay_immunity:
             return np.zeros([9,3])
-        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
-            return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay),axis=1)),axis=1)          
+        elif self.df_sciensano_start + delay_immunity < t <= self.df_sciensano_end + delay_immunity:
+            return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)          
         else:
             N_vacc = np.zeros([9,3])
-            # Vaccines distributed according to vector 'order'
+
+            # LOGIC:
+            # 1) The user presets a number of daily first doses (f.e. 50.000)
+            # 2) Individuals are transferred from 0 --> 1 at the rate of the daily first doses according to vacc_order prioritization strategy
+            # 3) Individuals are transferred from 1 --> 2 at a computed given rate (5 weeks + delay)
+
+            # Vaccines distributed according to vector 'order' to transfer individuals from dose 0 --> 1
             # With residue 'refusal' remaining in each age group
-            # 0 to 1 dose
             idx = 0
-            while daily_dose > 0:
-                if idx == 8: # To end vaccination campaign at a certain age
-                    daily_dose = 0
-                elif VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]] > daily_dose:
-                    N_vacc[vacc_order[idx],0] = daily_dose
-                    daily_dose = 0
+            while daily_first_dose > 0:
+                if idx == stop_idx: # To end vaccination campaign at a certain age
+                    daily_first_dose = 0
+                elif VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]] > daily_first_dose:
+                    N_vacc[vacc_order[idx],0] = daily_first_dose
+                    daily_first_dose = 0
                 else:
                     N_vacc[vacc_order[idx],0] = VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]
-                    daily_dose = daily_dose - (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]])
+                    daily_first_dose = daily_first_dose - (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]])
                     idx = idx + 1
             # 1 to 2 doses
-            daily_dose = daily_dose_original
-            idx = 0
-            while daily_dose > 0:
-                if idx == 8: # To end vaccination campaign at a certain age
-                    daily_dose = 0
-                elif VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]] > daily_dose:
-                    N_vacc[vacc_order[idx],1] = daily_dose
-                    daily_dose = 0
-                else:
-                    N_vacc[vacc_order[idx],1] = VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]]
-                    daily_dose = daily_dose - (VE[:,1][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,1][vacc_order[idx]])
-                    idx = idx + 1
+            # ...
+            N_vacc[:,1] = VE[:,1]/(delay_doses+delay_immunity_float)
+ 
             return N_vacc
 
 ############################
@@ -739,6 +735,10 @@ class make_contact_matrix_function():
         t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t15 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t16 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t17 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t18 = pd.Timestamp('2021-11-07') # Start of autumn break
+        t19 = pd.Timestamp('2021-12-26') # Start of Christmass break
+        t20 = pd.Timestamp('2022-01-06') # End of Christmass break
 
         # Second wave
         if t4 < t <= t5:
@@ -779,11 +779,23 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)   
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                school=0)                                  
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+                                school=0)
+        elif t16 < t <= t17:
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+                                work=1, school=1)
+        elif t17 < t <= t18:
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+                                work=0.9, school=0)
+        elif t18 < t <= t19:
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+                                work=1, school=1)
+        elif t19 < t <= t20:
+            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+                                work=0.7, school=0)                                
         else:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1,school=1)    
+                                work=1, school=1)    
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
         """
