@@ -3895,7 +3895,7 @@ DATE,REGION,AGEGROUP,SEX,DEATHS
 2021-01-12,Flanders,65-74,F,3
 2021-01-12,Flanders,75-84,M,2
 2021-01-12,Flanders,75-84,F,4
-2021-01-12,Flanders,85+,M,9
+2021-01-12,Flanders,85+,M,8
 2021-01-12,Flanders,85+,F,11
 2021-01-12,Brussels,65-74,F,1
 2021-01-12,Brussels,75-84,M,1
@@ -6004,6 +6004,10 @@ DATE,REGION,AGEGROUP,SEX,DEATHS
 2021-06-06,Brussels,85+,F,1
 2021-06-06,Wallonia,45-64,F,1
 2021-06-07,Flanders,65-74,M,1
+<<<<<<< HEAD
+=======
+2021-06-07,Flanders,75-84,F,1
+>>>>>>> master
 2021-06-07,Brussels,65-74,M,1
 2021-06-07,Wallonia,75-84,M,1
 2021-06-07,Wallonia,85+,F,1
@@ -6054,10 +6058,47 @@ DATE,REGION,AGEGROUP,SEX,DEATHS
 2021-06-15,Brussels,65-74,M,2
 2021-06-15,Brussels,75-84,F,1
 2021-06-15,Wallonia,65-74,M,1
+<<<<<<< HEAD
+=======
+2021-06-15,Wallonia,65-74,F,1
+>>>>>>> master
 2021-06-15,Wallonia,75-84,F,1
 2021-06-16,Flanders,65-74,M,2
 2021-06-16,Flanders,85+,M,1
 2021-06-16,Brussels,65-74,M,1
 2021-06-16,Brussels,75-84,M,1
 2021-06-16,Brussels,75-84,F,1
+<<<<<<< HEAD
 2021-06-17,Brussels,85+,F,1
+=======
+2021-06-17,Flanders,85+,F,1
+2021-06-17,Brussels,85+,F,1
+2021-06-17,Wallonia,45-64,F,2
+2021-06-17,Wallonia,65-74,M,2
+2021-06-17,Wallonia,75-84,F,1
+2021-06-18,Flanders,75-84,M,2
+2021-06-18,Flanders,85+,F,1
+2021-06-18,Brussels,45-64,M,1
+2021-06-18,Brussels,65-74,F,1
+2021-06-18,Brussels,75-84,F,2
+2021-06-18,Brussels,85+,M,1
+2021-06-18,Wallonia,75-84,M,1
+2021-06-19,Flanders,85+,F,1
+2021-06-19,Brussels,75-84,M,1
+2021-06-19,Wallonia,45-64,M,2
+2021-06-19,Wallonia,75-84,F,1
+2021-06-20,Flanders,65-74,M,1
+2021-06-20,Flanders,75-84,F,1
+2021-06-20,Wallonia,45-64,F,1
+2021-06-21,Flanders,65-74,M,1
+2021-06-21,Flanders,75-84,M,1
+2021-06-21,Wallonia,45-64,M,1
+2021-06-21,Wallonia,65-74,M,1
+2021-06-21,Wallonia,65-74,F,1
+2021-06-22,Brussels,45-64,F,1
+2021-06-22,Wallonia,65-74,M,1
+2021-06-22,Wallonia,75-84,F,1
+2021-06-23,Flanders,45-64,M,1
+2021-06-23,Flanders,65-74,F,1
+2021-06-23,Flanders,75-84,F,1
+>>>>>>> master

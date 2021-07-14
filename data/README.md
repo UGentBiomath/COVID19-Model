@@ -106,6 +106,7 @@ split between general population and elderly homes. Data from https://m.standaar
 + `QoL_scores_Belgium_2018.csv` contains quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale. The data was interpoletad to fit the main model's age bins and was placed in the data/interim under the name: 'QoL_scores_Belgium_2018_v1.cs'. Data obtained from: https://hisia.wiv-isp.be/SitePages/Home.aspx .
 + `costs_hospital_belgium.csv` contains the reported total costs of medical treatment per disease category in Belgium for 2018. The data was corrected for inflation, combined with cost per QALY information and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'.  Data obtained from: https://tct.fgov.be/webetct/etct-web/html/fr/index.jsp .
 + `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
++ `De_Wilder_QoL_scores.xlsx` contains two datasheets: 1) QoL_scores, 2) prevalence_comorbidities. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases in the Belgian population. The prevalence_comorbidities sheet contains a calculation of the chronical disease distribution of the Belgian population. Data obtained from Lisa Van Wilder.
 
 #### VOCs
 
@@ -166,8 +167,9 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 #### QALY model
 
 + `Life_table_Belgium_2019.csv` contains the probability of dying at a given age for the Belgian population as of 2019.  
-+ `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
++ `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality-of-life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
 + `hospital_data_qaly.xlsx` contains the total reported costs of hospital healthcare in Belgium per disease group as well as the estimated cost per QALY gained for the same groups.
++ `De_Wilder_QoL_scores.xlsx` contains three datasheets: 1) QoL_scores, 2) prevalence_comorbidities and 3) SMR. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases, extrapolated from `data/raw/QALYs/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The prevalence_comorbidities sheet contains the chronical disease distribution of the Belgian population, extrapolated from the distribution in `data/raw/QALYs/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The column `rel_risk_Charlson` comes from the following study by Charlson et. al, 1994 (https://pubmed.ncbi.nlm.nih.gov/7722560/). The column `weighted_sum` contains the weighted sums of the average comorbidity profile with the `rel_risk_Charlson`. The `SMR` sheet contains an estimate of the "Standardized Mortality Ratio" per age group and is obtained by scaling the `rel_risk_Charlson` column with the `weighted_sum` column in the `prevalence_comorbidities` sheet.
 
 #### Sciensano
 
