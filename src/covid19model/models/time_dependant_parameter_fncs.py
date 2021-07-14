@@ -191,15 +191,15 @@ class make_VOC_function():
             return (self.df_VOC_501Y['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_501Y['baselinesurv_total_sequenced'][-1]
 
     # Default VOC function includes British and Indian variants
-    def __call__(self, t, states, param, t_sig):
+    def __call__(self, t, states, param, k, t_sig):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
         # Introduction Indian variant
-        t1 = pd.Timestamp('2021-05-15')
+        t1 = pd.Timestamp('2021-04-15')
         # Sigmoid point of logistic growth curve
         t_sig = pd.Timestamp(t_sig)
         # Steepness of curve
-        k = 0.3
+        #k = 0.3
         # Construct alpha
         if t <= t1:
             # Data Tom Wenseleers on British variant
@@ -261,7 +261,7 @@ class make_vaccination_function():
         N_vacc[5] = (5/10)*self.df_sciensano['V2_45_54'][t] + (5/10)*self.df_sciensano['V2_55_64'][t] # 50-60
         N_vacc[6] = (5/10)*self.df_sciensano['V2_55_64'][t] + (5/10)*self.df_sciensano['V2_65_74'][t] # 60-70
         N_vacc[7] = (5/10)*self.df_sciensano['V2_65_74'][t] + (5/10)*self.df_sciensano['V2_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df_sciensano['V2_75_84'][t] + (5/10)*self.df_sciensano['V2_85+'][t]# 80+
+        N_vacc[8] = (5/10)*self.df_sciensano['V2_75_84'][t] + self.df_sciensano['V2_85+'][t]# 80+
         return N_vacc
     
     @lru_cache()
@@ -275,87 +275,9 @@ class make_vaccination_function():
         N_vacc[5] = (5/10)*self.df_sciensano['VJ&J_45_54'][t] + (5/10)*self.df_sciensano['VJ&J_55_64'][t] # 50-60
         N_vacc[6] = (5/10)*self.df_sciensano['VJ&J_55_64'][t] + (5/10)*self.df_sciensano['VJ&J_65_74'][t] # 60-70
         N_vacc[7] = (5/10)*self.df_sciensano['VJ&J_65_74'][t] + (5/10)*self.df_sciensano['VJ&J_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df_sciensano['VJ&J_75_84'][t] + (5/10)*self.df_sciensano['VJ&J_85+'][t]# 80+
+        N_vacc[8] = (5/10)*self.df_sciensano['VJ&J_75_84'][t] + self.df_sciensano['VJ&J_85+'][t]# 80+
         return N_vacc
     
-
-    # Default vaccination strategy
-    def stratified_vaccination_strategy(self, t, states, param, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal_first = [0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],
-                                            refusal_second = [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]):
-        """
-        time-dependent function for the Belgian vaccination strategy
-        First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
-        administered in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
-        # TODO: end of vaccination campaign returns an error
-
-        Parameters
-        ----------
-        t : int
-            Simulation time
-        states: dict
-            Dictionary containing values of model states
-        param : dict
-            Model parameter dictionary
-        daily_dose : int
-            Number of doses administered per day. Default is 30000 doses/day.
-        delay : int
-            Time delay between first dose vaccination and start of immunity. Default is 21 days.
-        vacc_order : array
-            Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-        refusal: array
-            Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
-
-        Return
-        ------
-        N_vacc : array
-            Number of individuals to be vaccinated at simulation time "t"
-            
-        """
-        daily_dose_original = daily_dose
-        # Convert time to suitable format
-        t = pd.Timestamp(t.date())
-        # Convert delay to a timedelta
-        delay = pd.Timedelta(str(int(delay))+'D')
-        # Compute the number of vaccine eligible individuals: received 0 doses
-        VE_0 = states['S'][:,0] + states['R'][:,0]
-        # Compute the number of vaccine eligible individuals: received 1 dose
-        VE_1 = states['S'][:,1] + states['R'][:,1]
-        
-        if t <= self.df_sciensano_start + delay:
-            return np.zeros([9,3])
-        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
-            return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay),axis=1)),axis=1)
-        else:
-            N_vacc = np.zeros([9,3])
-            # Vaccines distributed according to vector 'order'
-            # With residue 'refusal' remaining in each age group
-            # 0 to 1 dose
-            idx = 0
-            while daily_dose > 0:
-                if idx == 9: # To end vaccination campaign at a certain age
-                    daily_dose = 0
-                elif VE_0[vacc_order[idx]]*(1-refusal_first[vacc_order[idx]]) > daily_dose:
-                    N_vacc[vacc_order[idx],0] = daily_dose
-                    daily_dose = 0
-                else:
-                    N_vacc[vacc_order[idx],0] = VE_0[vacc_order[idx]]*(1-refusal_first[vacc_order[idx]])
-                    daily_dose = daily_dose - VE_0[vacc_order[idx]]*(1-refusal_first[vacc_order[idx]])
-                    idx = idx + 1
-            # 1 to 2 doses
-            daily_dose = daily_dose_original
-            idx = 0
-            while daily_dose > 0:
-                if idx == 9: # To end vaccination campaign at a certain age
-                    daily_dose = 0
-                elif VE_1[vacc_order[idx]]*(1-refusal_second[vacc_order[idx]]) > daily_dose:
-                    N_vacc[vacc_order[idx],1] = daily_dose
-                    daily_dose = 0
-                else:
-                    N_vacc[vacc_order[idx],1] = VE_1[vacc_order[idx]]*(1-refusal_second[vacc_order[idx]])
-                    daily_dose = daily_dose - VE_1[vacc_order[idx]]*(1-refusal_second[vacc_order[idx]])
-                    idx = idx + 1
-            return N_vacc
-
     # Default vaccination strategy
     def __call__(self, t, states, param, initN, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
         """
@@ -413,6 +335,83 @@ class make_vaccination_function():
                 else:
                     N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
                     daily_dose = daily_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+                    idx = idx + 1
+            return N_vacc
+
+    # Stratified vaccination strategy
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_dose=60000, delay = 21, vacc_order = [8,7,6,5,4,3,2,1,0], refusal_first = [0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],
+                                            refusal_second = [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]):
+        """
+        time-dependent function for the Belgian vaccination strategy
+        First, all available data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_dose" doses per day,
+        administered in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
+        # TODO: end of vaccination campaign returns an error
+
+        Parameters
+        ----------
+        t : int
+            Simulation time
+        states: dict
+            Dictionary containing values of model states
+        param : dict
+            Model parameter dictionary
+        daily_dose : int
+            Number of doses administered per day. Default is 30000 doses/day.
+        delay : int
+            Time delay between first dose vaccination and start of immunity. Default is 21 days.
+        vacc_order : array
+            Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
+        refusal: array
+            Vector containing the fraction of individuals refusing a vaccine per age group. Default is 30% in every age group. Must be equal in length to the number of age bins in the model.
+
+        Return
+        ------
+        N_vacc : array
+            Number of individuals to be vaccinated at simulation time "t"
+            
+        """
+        daily_dose_original = daily_dose
+        # Convert time to suitable format
+        t = pd.Timestamp(t.date())
+        # Convert delay to a timedelta
+        delay = pd.Timedelta(str(int(delay))+'D')
+        # Compute the number of vaccine eligible individuals: received 0 doses
+        VE_0 = states['S'][:,0] + states['R'][:,0]
+        # Compute the number of vaccine eligible individuals: received 1 dose
+        VE_1 = states['S'][:,1] + states['R'][:,1]
+        
+        if t <= self.df_sciensano_start + delay:
+            return np.zeros([9,3])
+        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
+            return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay),axis=1)),axis=1)          
+        else:
+            N_vacc = np.zeros([9,3])
+            # Vaccines distributed according to vector 'order'
+            # With residue 'refusal' remaining in each age group
+            # 0 to 1 dose
+            idx = 0
+            while daily_dose > 0:
+                if idx == 9: # To end vaccination campaign at a certain age
+                    daily_dose = 0
+                elif VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]] > daily_dose:
+                    N_vacc[vacc_order[idx],0] = daily_dose
+                    daily_dose = 0
+                else:
+                    N_vacc[vacc_order[idx],0] = VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]]
+                    daily_dose = daily_dose - (VE_0[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_first[vacc_order[idx]])
+                    idx = idx + 1
+            # 1 to 2 doses
+            daily_dose = daily_dose_original
+            idx = 0
+            while daily_dose > 0:
+                if idx == 9: # To end vaccination campaign at a certain age
+                    daily_dose = 0
+                elif VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]] > daily_dose:
+                    N_vacc[vacc_order[idx],1] = daily_dose
+                    daily_dose = 0
+                else:
+                    N_vacc[vacc_order[idx],1] = VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]]
+                    daily_dose = daily_dose - (VE_1[vacc_order[idx]] - initN[vacc_order[idx]]*refusal_second[vacc_order[idx]])
                     idx = idx + 1
             return N_vacc
 
