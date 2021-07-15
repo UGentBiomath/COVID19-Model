@@ -507,17 +507,17 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
         dS[:,2] = dS[:,2] + N_vacc[:,1]
         # Waning of vaccine immunity: first dose
-        waning_S = (1/d_vacc)*S[:,1]
-        waning_R = (1/d_vacc)*R[:,1]
-        dS[:,0] = dS[:,0] + waning_S + waning_R
-        dS[:,1] = dS[:,1] - waning_S
-        dR[:,1] = dR[:,1] - waning_R
+        #waning_S = (1/d_vacc)*S[:,1]
+        #waning_R = (1/d_vacc)*R[:,1]
+        #dS[:,0] = dS[:,0] + waning_S + waning_R
+        #dS[:,1] = dS[:,1] - waning_S
+        #dR[:,1] = dR[:,1] - waning_R
         # Waning of vaccine immunity: second dose
-        waning_S = (1/d_vacc)*S[:,2]
-        waning_R = (1/d_vacc)*R[:,2]
-        dS[:,0] = dS[:,0] + waning_S + waning_R
-        dS[:,2] = dS[:,2] - waning_S
-        dR[:,2] = dR[:,2] - waning_R
+        #waning_S = (1/d_vacc)*S[:,2]
+        #waning_R = (1/d_vacc)*R[:,2]
+        #dS[:,0] = dS[:,0] + waning_S + waning_R
+        #dS[:,2] = dS[:,2] - waning_S
+        #dR[:,2] = dR[:,2] - waning_R
         # Waning of natural immunity
         dS[:,0] = dS[:,0] + zeta*R[:,0] 
         dR[:,0] = dR[:,0] - zeta*R[:,0] 
