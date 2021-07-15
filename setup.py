@@ -19,7 +19,8 @@ setup(
 	    'openpyxl',
         'zarr',
         'emcee',
-        'xarray'
+        'xarray',
+        'SAlib'
     ],
     extras_require={
         "develop":  ["pytest",
