@@ -293,11 +293,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['Nc'] = Nc_dict['total']
 
         # Assign AZMM and UZG estimates to correct variables
-        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0], engine='openpyxl')
-        pars_dict['h'] = np.array([0.015, 0.015, 0.03, 0.03, 0.03, 0.075, 0.15, 0.30, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
-        pars_dict['c'] = np.array(fractions['c'].values[:-1])
-        pars_dict['m_C'] = np.array(fractions['m0_{C}'].values[:-1])
-        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}'].values[:-1])
+        fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
+        pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80]) #np.array(fractions['admission_propensity'].values[:-1])
+        pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
+        pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
+        pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
 
         residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
         pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
@@ -322,7 +322,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
             pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
             pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
             pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-            pars_dict['d_vacc'] = 18*30 # Default: 12 month coverage of vaccine
+            pars_dict['d_vacc'] = 36*30 # Default: 12 month coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)

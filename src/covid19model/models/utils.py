@@ -86,19 +86,20 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=30
+    n=20
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
             draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
-
     return param_dict
 
 def draw_fcn_WAVE2(param_dict,samples_dict):
@@ -143,19 +144,20 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     # Vaccination
     # -----------
     param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 31, 31, size=30))    
+    param_dict['delay'] = np.mean(np.random.triangular(1, 20, 20, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1),
                                   np.random.uniform(low=0.8,high=1)])
     param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
                                   np.random.uniform(low=0.90,high=0.99),
                                   np.random.uniform(low=0.90,high=0.99)])                          
-    param_dict['e_h'] = np.array([np.random.uniform(low=0.8,high=1.0),
-                                  np.random.uniform(low=0.8,high=1.0),
-                                  np.random.uniform(low=0.8,high=1.0)])
-    param_dict['refusal'] = [np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40),np.random.triangular(0.15, 0.20, 0.40)] # 30-
+    param_dict['e_h'] = np.array([np.random.uniform(low=0.95,high=1.0),
+                                  np.random.uniform(low=0.95,high=1.0),
+                                  np.random.uniform(low=0.95,high=1.0)])
+    param_dict['refusal'] = [np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.15, 0.20, 0.40), # 30-
+                                np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.20, 0.30), # 30-60
+                                np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15)] # 60+
+
 
     # Hospitalization
     # ---------------
@@ -167,12 +169,13 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=100
+    n=20
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D']
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
