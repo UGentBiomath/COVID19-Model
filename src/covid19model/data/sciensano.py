@@ -236,6 +236,15 @@ def get_sciensano_COVID19_data(update=True):
     df["V2_65_74"] = df_vacc[((df_vacc['DOSE'] == 'B')&(df_vacc['AGEGROUP'] == '65-74'))].resample('D', on='DATE')['COUNT'].sum()
     df["V2_75_84"] = df_vacc[((df_vacc['DOSE'] == 'B')&(df_vacc['AGEGROUP'] == '75-84'))].resample('D', on='DATE')['COUNT'].sum()
     df["V2_85+"] = df_vacc[((df_vacc['DOSE'] == 'B')&(df_vacc['AGEGROUP'] == '85+'))].resample('D', on='DATE')['COUNT'].sum()
+    # One-shot vaccines
+    df["VJ&J_tot"] = df_vacc[df_vacc['DOSE'] == 'C'].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_18_34"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '18-34'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_35_44"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '35-44'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_45_54"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '45-54'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_55_64"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '55-64'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_65_74"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '65-74'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_75_84"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '75-84'))].resample('D', on='DATE')['COUNT'].sum()
+    df["VJ&J_85+"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '85+'))].resample('D', on='DATE')['COUNT'].sum()
 
     return df.fillna(0)
 
