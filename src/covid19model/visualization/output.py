@@ -789,7 +789,7 @@ def school_vacations_dict():
     
     return vacation_dict
     
-def color_timeframes(sdate, edate, ax=None, frametype='all'):
+def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend_color='wheat', vacation_color='khaki', frametype='all'):
     """
     Function to color the background in mobility plot according to the timeframe (business day, weekend, school vacation day)
     
@@ -804,6 +804,13 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     frametype: str
         Choose which frames to color. 'all', 'business', 'weekend' or 'vacation'. Not yet implemented
     """
+    if week_color==None:
+        week_color='blanchedalmond'
+    if weekend_color==None:
+        weekend_color='wheat'
+    if vacation_color==None:
+        vacation_color='khaki'
+    
     # Convert everything to pd.Timestamp
     sdate = pd.Timestamp(sdate)
     edate = pd.Timestamp(edate)
@@ -814,10 +821,7 @@ def color_timeframes(sdate, edate, ax=None, frametype='all'):
     # Get specified or current axis
     ax = ax or plt.gca()
     
-   # Choose colours
-    week_color = 'blanchedalmond'
-    weekend_color = 'wheat'
-    vacation_color = 'khaki'
+   # Choose alpha
     alpha=1
     
     # Draw everything in week_colour in currently open plt environment
