@@ -239,6 +239,23 @@ def assign_PSO(param_dict, pars, theta):
                 param_dict[par] = theta[idx]
         return warmup, param_dict
 
+def plot_PSO_stratified(output, theta, pars, data, states, start_calibration, end_calibration):
+    # Visualize fit
+    if len(states) == 1:
+        idx = 0
+        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
+        ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+        ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.set_xlim([start_calibration,end_calibration])
+    else:
+        fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
+        for idx,ax in enumerate(axes):
+            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax.set_xlim([start_calibration,end_calibration])
+    ax = _apply_tick_locator(ax)
+    return ax
+
 def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
