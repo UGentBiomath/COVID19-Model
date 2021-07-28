@@ -754,6 +754,10 @@ class make_contact_matrix_function():
         t18 = pd.Timestamp('2021-11-07') # Start of autumn break
         t19 = pd.Timestamp('2021-12-26') # Start of Christmass break
         t20 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t21 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t22 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t23 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t24 = pd.Timestamp('2022-04-17') # End of Easter Break
 
         # Second wave
         if t4 < t <= t5:
@@ -794,23 +798,37 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)   
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
+            states['E'][:-1,0] = states['E'][:-1,0] + 3
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 school=0)
         elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
-                                work=1, school=1)
+            states['E'][:-1,0] = states['E'][:-1,0] + 3
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
-                                work=0.9, school=0)
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1.1, work=0.9, transport=1, others=1, school=0)
         elif t18 < t <= t19:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
-                                work=1, school=1)
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
-                                work=0.7, school=0)                                
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
+        elif t20 < t <= t21:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t21 < t <= t22:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                leisure=1.1, work=0.9, transport=1, others=1, school=0)  
+        elif t22 < t <= t23:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)           
+        elif t23 < t <= t24:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0)                                                                                                   
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 1, 
-                                work=1, school=1)    
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+                                work=1, leisure=1, transport=1, others=1, school=1)    
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
         """
@@ -866,4 +884,3 @@ def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev
     elif t2 < t <= t3:
         return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest, 
                               school=0)
-
