@@ -231,7 +231,7 @@ params.update({'l' : 5, # will be varied over in the full PSO/MCMC. Unimportant 
                'prev_home' : 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
                'prev_schools': 1.0, # fixed for wave 1, but no effect at all until Sept 1st (school != 0)
                'prev_work': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
-               'prev_rest': 0.5, # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
+               'prev_rest': 0.5 # will be varied over in the full PSO/MCMC. Unimportant for pre-lockdown simulation
               })
 # Add parameters for the daily update of proximus mobility
 # mobility defaults to average mobility of 2020 if no data is available
