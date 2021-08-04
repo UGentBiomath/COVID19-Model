@@ -162,7 +162,7 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hos
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Load and format mobility dataframe
-proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)\
+proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
 
 
 # Serological data
