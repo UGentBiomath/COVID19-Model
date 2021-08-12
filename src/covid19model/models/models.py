@@ -21,7 +21,7 @@ import multiprocessing
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
-from .utils import stratify_beta # read_coordinates_nis, dens_dep
+from .utils import stratify_beta, double_heaviside # read_coordinates_nis, dens_dep
 from ..optimization import pso
 
 # set color schemes
@@ -990,7 +990,7 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+        T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin and patch using 2D array
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1055,8 +1055,13 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
         # We need sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
         dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
         
-        dS  = -dS_inf + zeta*R
-        dE  = dS_inf - E/sigma
+        # We need to add the exposure injection term per patch and per age
+        T_norm = T / T.sum(axis=1)[:, np.newaxis] # fraction per age for every patch
+        N_per_age = T_norm * Ng[:,np.newaxis] # Distribute the exposure injection per age
+        exp_inj = N_per_age * double_heaviside(t,t0g)[:,np.newaxis] # if t in [t0g[g],t0g[g]+1], exp_inj[g,:] is nonzero
+        
+        dS  = -dS_inf + zeta*R - exp_inj
+        dE  = dS_inf - E/sigma + exp_inj
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
