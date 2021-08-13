@@ -966,8 +966,8 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta','da', 'dm','dhospital', 
-                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi', 'delta_t']
-    parameters_stratified_names = [['area', 'sg', 'p', 'Ng', 't0g'], ['s','a','h', 'c', 'm_C','m_ICU']]
+                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
+    parameters_stratified_names = [['area', 'sg', 'p', 'Ng', 't0g', 'delta_t'], ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -977,8 +977,8 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, delta_t, # SEIRD parameters
-                  area, sg, p, Ng, t0g,  # spatially stratified parameters. Might delete sg later.
+                        dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
+                  area, sg, p, Ng, t0g, delta_t, # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
@@ -1059,7 +1059,7 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
         # We need to add the exposure injection term per patch and per age
         T_norm = T / T.sum(axis=1)[:, np.newaxis] # fraction per age for every patch
         N_per_age = T_norm * Ng[:,np.newaxis] # Distribute the exposure injection per age
-        exp_inj = N_per_age * double_heaviside(t,t0g, delta_t=delta_t*np.ones(G)[:,np.newaxis] # if t in [t0g[g],t0g[g]+1], exp_inj[g,:] is nonzero
+        exp_inj = N_per_age * double_heaviside(t,t0g, delta_t=delta_t)[:,np.newaxis] # if t in [t0g[g],t0g[g]+1], exp_inj[g,:] is nonzero
         
         dS  = -dS_inf + zeta*R - exp_inj
         dE  = dS_inf - E/sigma + exp_inj
