@@ -1059,7 +1059,7 @@ class COVID19_SEIRD_spatial_fiddling(BaseModel):
         # We need to add the exposure injection term per patch and per age
         T_norm = T / T.sum(axis=1)[:, np.newaxis] # fraction per age for every patch
         N_per_age = T_norm * Ng[:,np.newaxis] # Distribute the exposure injection per age
-        exp_inj = N_per_age * double_heaviside(t,t0g, delta_t=delta_t)[:,np.newaxis] # if t in [t0g[g],t0g[g]+1], exp_inj[g,:] is nonzero
+        exp_inj = N_per_age * double_heaviside(t,t0g, delta_t=delta_t*np.ones(G)[:,np.newaxis] # if t in [t0g[g],t0g[g]+1], exp_inj[g,:] is nonzero
         
         dS  = -dS_inf + zeta*R - exp_inj
         dE  = dS_inf - E/sigma + exp_inj
