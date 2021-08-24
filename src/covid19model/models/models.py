@@ -441,10 +441,8 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
-
+        K_hosp = np.ones(3)
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
-        if h[-1] > 1:
-            h[-1] = 1
         e_i = np.matmul(alpha, e_i)
         e_s = np.matmul(alpha, e_s)
         e_h = np.matmul(alpha, e_h)
@@ -463,31 +461,6 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
 
-        # Compute infection pressure (IP) of all variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), alpha*K_inf) ,axis=1) , axis=1)
-
-        # Compute the  rates of change in every population compartment
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        dS  = - IP*S*(1-e_s)
-        dE  = IP*S*(1-e_s) - E/sigma 
-        dI = (1/sigma)*E - (1/omega)*I 
-        dA = (a/omega)*I - A/da      
-        dM = ((1-a)/omega)*I - M*((1-h)/dm) - (1-e_h)*M*h/dhospital
-
-        dC = (1-e_h)*M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
-        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
-        dH_in = (1-e_h)*M*(h/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = (1-e_h)*M*(h/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
-
-
         # Compute the vaccination transitionings and waning of immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -495,17 +468,46 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         VE = S[:,0] + R[:,0]
         f_S = S[:,0]/VE
         f_R = R[:,0]/VE
-        dS[:,0] = dS[:,0] - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
-        dR[:,0] = dR[:,0] - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
-        dS[:,1] = dS[:,1] + N_vacc[:,0] # 0 --> 1 dose
-        dS[:,2] = dS[:,2] + N_vacc[:,2] # 0 --> 2 doses
+        S[:,0] = S[:,0] - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
+        R[:,0] = R[:,0] - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
+        S[:,1] = S[:,1] + N_vacc[:,0] # 0 --> 1 dose
+        S[:,2] = S[:,2] + N_vacc[:,2] # 0 --> 2 doses
         # 1 dose --> 2 doses
         VE = S[:,1] + R[:,1]
+        VE = np.where(VE==0, 1, VE) 
         f_S = S[:,1]/VE
         f_R = R[:,1]/VE
-        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
-        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
-        dS[:,2] = dS[:,2] + N_vacc[:,1]
+        S[:,1] = S[:,1] - N_vacc[:,1]*f_S
+        R[:,1] = R[:,1] - N_vacc[:,1]*f_R
+        S[:,2] = S[:,2] + N_vacc[:,1]
+
+        # Compute infection pressure (IP) of all variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), alpha*K_inf) ,axis=1) , axis=1)
+
+        # Compute the  rates of change in every population compartment
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        h_acc = (1-e_h)*h
+
+        dS  = - IP*S*(1-e_s)
+        dE  = IP*S*(1-e_s) - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I 
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
+        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dR  = A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h_acc/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+
+        # Waning of natural immunity #TODO vectorize zeta so this happens automatically
+        dS[:,0] = dS[:,0] + zeta*R[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R[:,0] 
         # Waning of vaccine immunity: first dose
         #waning_S = (1/d_vacc)*S[:,1]
         #waning_R = (1/d_vacc)*R[:,1]
@@ -518,9 +520,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         #dS[:,0] = dS[:,0] + waning_S + waning_R
         #dS[:,2] = dS[:,2] - waning_S
         #dR[:,2] = dR[:,2] - waning_R
-        # Waning of natural immunity
-        dS[:,0] = dS[:,0] + zeta*R[:,0] 
-        dR[:,0] = dR[:,0] - zeta*R[:,0] 
+
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
