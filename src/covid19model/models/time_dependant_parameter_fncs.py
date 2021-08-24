@@ -702,7 +702,7 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
-    def policies_WAVE2_no_relaxation(self, t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
+    def policies_WAVE2_no_relaxation(self, t, states, param, l , prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
         '''
         Function that returns the time-dependant social contact matrix Nc for the second 2020 COVID-19 wave. Includes a full relaxation of measures on relaxdate.
         
@@ -764,70 +764,70 @@ class make_contact_matrix_function():
             return self.__call__(t, school=1)
         elif t5  < t <= t5 + l_days:
             policy_old = self.__call__(t, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest, 
+            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown, 
                                         school=1)
             return self.ramp_fun(policy_old, policy_new, t, t5, l)
         elif t5 + l_days < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=1)
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=1) 
         elif t8 < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=1)
         elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)    
         elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=1)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                     school=0)                           
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)   
         elif t15 < t <= t16:
-            states['E'][:-1,0] = states['E'][:-1,0] + 3
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            #states['E'][:-1,0] = states['E'][:-1,0] + 3
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 school=0)
         elif t16 < t <= t17:
-            states['E'][:-1,0] = states['E'][:-1,0] + 3
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            #states['E'][:-1,0] = states['E'][:-1,0] + 3
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)
         elif t18 < t <= t19:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0) 
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)  
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)           
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)                                                                                                   
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)    
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
