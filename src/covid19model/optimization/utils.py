@@ -111,12 +111,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 
             flat_samples = sampler.get_chain(flat=True)
             if job == 'FULL':
-                with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
+                with open(samples_path_agg+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
                     np.save(f,flat_samples)
                     f.close()
                     gc.collect()
             elif job == 'R0':
-                with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
+                with open(samples_path_agg+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
                     np.save(f,flat_samples)
                     f.close()
                     gc.collect()
