@@ -228,7 +228,7 @@ def plot_fit(y_model,data,start_date,warmup,states,end_date=None,with_ints=True,
 
     return ax
 
-def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_int=0.05, ax=None, NIS=None, savename=None, **kwargs):
+def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, start_calibration=None, end_calibration=None, conf_int=0.05, show_all=False, ax=None, NIS=None, savename=None, scatter_size=60, **kwargs):
     """
     Plot the data as well as the calibration results with added binomial uncertainty.
 
@@ -246,11 +246,15 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
         Format YYYY-MM-DD
     conf_int : float
         Confidence interval. 0.05 by default
+    show_all : boolean
+        If True, plot all simulation draws over each other.
     ax : matplotlib ax to plot on
     NIS : int
         NIS code to plot if spatial. None by default (plot national aggregation)
     savename : str
         Complete path and name under which to save the resulting fit figure
+    scatter_size : int
+        Size of Sciensano raw data scatter points
     kwargs : dict
         Dictionary with keyword arguments for the matplotlib make-up.
 
@@ -258,57 +262,124 @@ def plot_calibration_fit(out, df_sciensano, state, start_date, end_date, conf_in
     ------
     ax : matplotlib ax object
     """
+    if (start_calibration and not end_calibration) or (not start_calibration and end_calibration):
+        raise Exception("Provide either both start_calibration and end_calibration date, or neither.")
+    
     # Find requested range from simulation output
     spatial=False
     if 'place' in out.keys():
         spatial=True
+        # Plot nationally aggregated result
         if not NIS:
             all_ts = out[state].sum(dim='Nc').sum(dim='place').values
+        # Plot one particular region
         else:
             all_ts = out[state].sel(place=NIS).sum(dim='Nc').values
     else:
+        # There is no 'place' dimension
         all_ts = out[state].sum(dim='Nc').values
 
-    # Compute mean and median
-    ts_median = np.median(all_ts,axis=1)
-    # Compute quantiles
-    LL = conf_int/2
-    UL = 1-conf_int/2
-    ts_LL = np.quantile(all_ts, q = LL, axis = 0)
-    ts_UL = np.quantile(all_ts, q = UL, axis = 0)
-    ts_mean =np.mean(all_ts, axis=0)
+    # Compute mean and median over all draws
+    # Note that the resulting values DO NOT correspond to a single simulation!
+    if not show_all:
+        ts_median = np.median(all_ts,axis=0)
+        # Compute quantiles
+        LL = conf_int/2
+        UL = 1-conf_int/2
+        ts_LL = np.quantile(all_ts, q=LL, axis=0)
+        ts_UL = np.quantile(all_ts, q=UL, axis=0)
+        ts_mean = np.mean(all_ts, axis=0)
+    
+    # Plot all lines and highlight simulation whose maximum value is the median value at the point where the overall highest simulation is
+    # Now the resulting values DO correspond to a single simulation
+    # Coordinates (draw, day) of highest simulated value
+    elif show_all:
+        top_draw, top_day = np.unravel_index(np.argmax(all_ts), all_ts.shape)
+        # All simulated values at the time where the overall maximum is
+        max_values = all_ts[:,top_day]
+        # Draw for which the value is the median in these max_values
+        median_draw = np.argsort(max_values)[len(max_values)//2]
+        ts_median = all_ts[median_draw]
+        # Create series of average values. Note that this does not correspond to a single simulation!
+        ts_mean = np.mean(all_ts, axis=0)
+        # Series of variances
+        ts_var = np.var(all_ts, axis=0)
+        # Series of resulting errors (sampling + Poisson)
+        ts_err = np.sqrt(ts_var + ts_mean)
 
     # Plot
     if not ax:
         fig,ax = plt.subplots(figsize=(10,5))
 
     # Simulation
-    ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
-    ax.plot(out['time'],ts_mean,'--', color='blue')
+    # plot mean and CI
+    if not show_all:
+        ax.fill_between(pd.to_datetime(out['time'].values),ts_LL, ts_UL,alpha=0.20, color = 'blue')
+        ax.plot(out['time'],ts_mean,'--', color='blue')
+    # ... or plot all values with alpha
+    elif show_all:
+        number_of_draws = len(out.draws)
+        err_min = np.clip(np.array(ts_mean) - ts_err, 0, None)
+        err_max = np.array(all_ts[median_draw]) + ts_err
+        ax.fill_between(pd.to_datetime(out['time'].values), err_min, err_max, alpha=0.10, color='red')
+        for draw in range(number_of_draws):
+            ax.plot(out['time'], all_ts[draw], alpha=2/number_of_draws, color='blue')
+        # and overplot the 'median' single simulation
+        ax.plot(out['time'], ts_median, '--', color='red', linewidth=1.5)
 
     # Plot result for sum over all places. Black dots for data used for calibration, red dots if not used for calibration.
     if not spatial:
-        ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        if not start_calibration:
+            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[state][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+        else:
+            if start_date != start_calibration:
+                ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[state][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+            ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[state][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+            if end_calibration != end_date:
+                ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[state][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
         ax = _apply_tick_locator(ax)
-        ax.set_xlim(start_date,end_date)
+        ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
         ax.set_ylabel('$H_{in}$ (-)') # Hard-coded
         if savename:
-            fig.savefig(savename, dpi=400, bbox_inches='tight')
-        return ax
-    else:
-        if not NIS:
-            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax = _apply_tick_locator(ax)
-            ax.set_xlim(start_date,end_date)
-            ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
-            if savename:
-                fig.savefig(savename, dpi=400, bbox_inches='tight')
+            plt.savefig(savename, dpi=400, bbox_inches='tight')
+        if not show_all:
             return ax
         else:
-            ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            return ax, median_draw
+    else:
+        if not NIS:
+            if not start_calibration:
+                ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano.sum(axis=1)[start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+            else:
+                if start_date != start_calibration:
+                    ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano.sum(axis=1)[start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+                ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano.sum(axis=1)[start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+                if end_calibration != end_date:
+                    ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano.sum(axis=1)[end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
             ax = _apply_tick_locator(ax)
-            ax.set_xlim(start_date,end_date)
+            ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
+            ax.set_ylabel('$H_{in}$ (national)') # Hard-coded
+            if savename:
+                plt.savefig(savename, dpi=400, bbox_inches='tight')
+            if not show_all:
+                return ax
+            else:
+                return ax, median_draw
+        else:
+            if not start_calibration:
+                ax.scatter(df_sciensano[start_date:end_date].index, df_sciensano[NIS][start_date:end_date], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+            else:
+                if start_date != start_calibration:
+                    ax.scatter(df_sciensano[start_date:start_calibration].index, df_sciensano[NIS][start_date:start_calibration], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+                ax.scatter(df_sciensano[start_calibration:end_calibration].index, df_sciensano[NIS][start_calibration:end_calibration], color='black', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+                if end_calibration != end_date:
+                    ax.scatter(df_sciensano[end_calibration:end_date].index, df_sciensano[NIS][end_calibration:end_date], color='red', alpha=0.6, linestyle='None', facecolors='none', s=scatter_size, linewidth=2)
+            ax = _apply_tick_locator(ax)
+            ax.set_xlim(pd.Timestamp(start_date)-pd.to_timedelta(1, unit='days'),pd.Timestamp(end_date)+pd.to_timedelta(1,'days'))
             ax.set_ylabel('$H_{in}$ (NIS ' + str(NIS) + ')') # Hard-coded
             if savename:
-                fig.savefig(savename, dpi=400, bbox_inches='tight')
-            return ax
+                plt.savefig(savename, dpi=400, bbox_inches='tight')
+            if not show_all:
+                return ax
+            else:
+                return ax, median_draw
