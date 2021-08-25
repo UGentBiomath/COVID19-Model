@@ -603,8 +603,6 @@ class COVID19_SEIRD_spatial(BaseModel):
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
         N_vacc : daily number of people vaccinated in each age group (doubly stratified)
-        e : vaccine effectivity
-        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially-stratified parameters
         -------------------------------
@@ -615,16 +613,16 @@ class COVID19_SEIRD_spatial(BaseModel):
 
         Other parameters
         ----------------
-        Nc : contact matrix between all age groups in stratification
+        Nc : N-by-N contact matrix between all age groups in stratification
 
     """
 
     # ...state variables and parameters
 
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta','da', 'dm','dhospital', 
-                        'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
-    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc', 'e', 'leakiness']]
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'sigma', 'omega', 'zeta','da', 'dm','dc_R', 'dc_D', 'dICU_R',
+                       'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc', 'xi']
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -632,11 +630,10 @@ class COVID19_SEIRD_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
-                        dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
+                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc, xi, # SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
-                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
@@ -651,7 +648,8 @@ class COVID19_SEIRD_spatial(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+        T = S + E + I + A + M + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
         
         # Vaccine-eligible people per age and per region. Note that the vaccine 
         # eligibility does not depend on where people actually are - only on where
