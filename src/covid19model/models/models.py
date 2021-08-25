@@ -673,7 +673,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         # on the fraction of every VOC and its increased hospitalisation probability
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
         
-        # 
+        # This doesn't do anything because sum(alpha)=1
         e_i = np.sum(alpha*e_i)
         e_s = np.sum(alpha*e_s)
         e_h = np.sum(alpha*e_h)
