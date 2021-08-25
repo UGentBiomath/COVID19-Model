@@ -5,7 +5,7 @@ import pandas as pd
 def get_501Y_data():
     # Load and format B1.1.7 VOC data 
     rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/sequencing_501YV1_501YV2_501YV3.csv')
-    df_VOC_501Y = pd.read_csv(rel_dir, parse_dates=True).set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
+    df_VOC_501Y = pd.read_csv(rel_dir, parse_dates=True, encoding='cp1252').set_index('collection_date', drop=True).drop(columns=['sampling_week','year', 'week'])
     # Converting the index as date
     df_VOC_501Y.index = pd.to_datetime(df_VOC_501Y.index)
     # Extrapolate missing dates to obtain a continuous index
