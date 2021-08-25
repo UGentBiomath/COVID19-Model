@@ -191,15 +191,13 @@ class make_VOC_function():
             return (self.df_VOC_501Y['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_501Y['baselinesurv_total_sequenced'][-1]
 
     # Default VOC function includes British and Indian variants
-    def __call__(self, t, states, param, t_sig):
+    def __call__(self, t, states, param, k, t_sig):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
         # Introduction Indian variant
         t1 = pd.Timestamp('2021-05-15')
         # Sigmoid point of logistic growth curve
         t_sig = pd.Timestamp(t_sig)
-        # Steepness of curve
-        k = 0.3
         # Construct alpha
         if t <= t1:
             # Data Tom Wenseleers on British variant
