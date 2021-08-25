@@ -534,6 +534,32 @@ class COVID19_SEIRD_spatial(BaseModel):
         contains the initial values of all non-zero model states
         e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
         initialising zeros is thus not required
+        
+        S : susceptible
+        E : exposed
+        I : infected
+        A : asymptomatic
+        M : mild
+        C : cohort
+        C_icurec : cohort after recovery from ICU
+        ICU : intensive care
+        R : recovered
+        D : deceased
+
+        S_v : susceptible and vaccinated
+        E_v : exposed and vaccinated
+        I_v : infected and vaccinated
+        A_v : asymptomatic and vaccinated
+        M_v : mild and vaccinated
+        C_v : cohort and vaccinated
+        C_icurec_v : cohort after recovery from ICU and vaccinated
+        ICU_v : intensive care and vaccinated
+        R_v : recovered and vaccinated
+
+        H_in : new hospitalizations
+        H_out : new hospital discharges
+        H_tot : total patients in Belgian hospitals
+        
     parameters : dictionary
         containing the values of all parameters (both stratified and not)
         these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
@@ -561,8 +587,12 @@ class COVID19_SEIRD_spatial(BaseModel):
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
+        e_i : vaccine effectiveness in reducing infectiousness (--> if vaccinated person becomes infectious, how infectious is he?)
+        e_s : vaccine effectiveness in reducing susceptibility to SARS-CoV-2 infection
+        e_h : vaccine effectivenes in reducing hospital admission propensity
+        e_a : all-or-nothing vaccine effectiveness
+        d_vacc : duration of vaccine protection
+
 
         Age-stratified parameters
         -------------------------
@@ -613,12 +643,43 @@ class COVID19_SEIRD_spatial(BaseModel):
         BIOMATH extended SEIRD model for COVID-19
         """
 
+        # array of infinity gains of resp. 'OG', British, and Indian variants
+        K_inf = np.array([1, K_inf1, K_inf2])
+        
 #         print('CHECKPOINT: start integration function')
         
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         T = S + E + I + A + M + C + C_icurec + ICU + R # calculate total population per age bin using 2D array
+        
+        # Vaccine-eligible people per age and per region. Note that the vaccine 
+        # eligibility does not depend on where people actually are - only on where
+        # they are registered (so no VE_eff is required)
+        VE = S + R
+        
+        # Compute weighted average hospitalization propensity
+        # and vaccination parameters in accordance with variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # sum of all (three) fractions of variants must be unity
+        # alpha is not stratified (nor by age, nor by region)
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+        # NOTE: This requires the sizes of alpha, K_hosp, K_inf, e_i, e_s, e_h, e_a to be consistent 
+        # However, because this requires a for loop, we omit a test
+        
+        # Redefine probability of hospitalisation from mild infection based
+        # on the fraction of every VOC and its increased hospitalisation probability
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        
+        # 
+        e_i = np.sum(alpha*e_i)
+        e_s = np.sum(alpha*e_s)
+        e_h = np.sum(alpha*e_h)
+        e_a = np.sum(alpha*e_a)
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
