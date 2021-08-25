@@ -543,7 +543,11 @@ class COVID19_SEIRD_spatial(BaseModel):
         beta_R : probability of infection when encountering an infected person in rural environment
         beta_U : probability of infection when encountering an infected person in urban environment
         beta_M : probability of infection when encountering an infected person in metropolitan environment
-        K : infectivity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        alpha : fraction of alternative COVID-19 variant
+        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf2 : infectivity gain of Indian COVID-19 variant
+        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -568,8 +572,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        pi : mobility parameter (1 by default = no measures)
-        N_vacc : daily number of people vaccinated in each age group
+        N_vacc : daily number of people vaccinated in each age group (doubly stratified)
         e : vaccine effectivity
         leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
@@ -578,7 +581,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
         sg : average size of a household per patch. Not used as of yet.
-
+        p : mobility parameter (1 by default = no measures)
 
         Other parameters
         ----------------
@@ -591,7 +594,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta','da', 'dm','dhospital', 
                         'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'xi']
-    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc', 'e', 'leakiness']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -600,7 +603,7 @@ class COVID19_SEIRD_spatial(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
+                  beta_R, beta_U, beta_M, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dhospital, dc_R, dc_D, 
                         dICU_R, dICU_D, dICUrec, xi, # SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
