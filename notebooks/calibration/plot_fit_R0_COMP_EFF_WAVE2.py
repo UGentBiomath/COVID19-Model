@@ -182,7 +182,7 @@ params.update({'t_sig': '2021-06-21', 'k': 0.06})
 # Vaccination
 params.update(
     {'initN': initN, 'vacc_order': np.array(range(9))[::-1], 'daily_first_dose': 55000,
-     'refusal': 0.2*np.ones([9,2]), 'delay_immunity': 14, 'delay_doses': 3*7, 'stop_idx': 8}
+     'refusal': 0.2*np.ones([9,2]), 'delay_immunity': 14, 'delay_doses': 3*7, 'stop_idx': 0}
 )
 # Initialize model
 if args.vaccination_model == 'stratified':
