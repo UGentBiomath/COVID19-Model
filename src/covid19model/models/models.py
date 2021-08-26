@@ -656,7 +656,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         # Vaccine-eligible people per age and per region. Note that the vaccine 
         # eligibility does not depend on where people actually are - only on where
-        # they are registered (so no VE_eff is required)
+        # they are registered
         VE = S + R
         
         # Compute weighted average hospitalization propensity
@@ -677,10 +677,10 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
         
         # Take weighted average of vaccine efficiencies for all VOCs
-        e_i = np.sum(alpha*e_i)
-        e_s = np.sum(alpha*e_s)
-        e_h = np.sum(alpha*e_h)
-        e_a = np.sum(alpha*e_a)
+        e_i_eff = np.sum(alpha*e_i)
+        e_s_eff = np.sum(alpha*e_s)
+        e_h_eff = np.sum(alpha*e_h)
+        e_a_eff = np.sum(alpha*e_a)
 
         # Define all the parameters needed to determine the rates of change
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -732,7 +732,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         # Note how part of the vaccinated people still contribute to infection pressure
-        multip = np.matmul( (I_eff + A_eff + (1-e_i)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
+        multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
         
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
         multip *= np.outer(f, s*zi)
@@ -753,9 +753,9 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dS_inf_v = (Susc * multip[np.newazis,:,:]).sum(axis=1)
         
         ### ODEs for all non-vaccinated people
-        # Vaccinated susceptibles exit the S class with efficiency e_a
+        # Vaccinated susceptibles exit the S class with efficiency e_a_eff
         # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
-        dS  = -dS_inf + zeta*R - e_a*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
+        dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -765,6 +765,21 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
+        
+        # Subjects from S or R class that are vaccinated enter the dS_v class
+        # (1) why only S and R, (2) why do subjects from R become dS_v?
+        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc/VE*S + e_a_eff*N_vacc/VE*R - (1/d_vacc)*S_v
+        dE_v  = (1-e_s_eff)*IP*S_v - E_v/sigma 
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
+        dA_v = (a/omega)*I_v - A_v/da      
+        dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h_eff)*h)/dm) - M_v*(1-e_h_eff)*h/dhospital
+        dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
+        dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
+        dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
+        dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        
+        
+        
         dH_in = M*(h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
