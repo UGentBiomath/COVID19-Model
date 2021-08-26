@@ -233,8 +233,6 @@ class make_vaccination_function():
     """
     def __init__(self, df_sciensano):
         self.df_sciensano = df_sciensano
-        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-        self.df_sciensano_end = df_sciensano.index[-1]
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
@@ -341,10 +339,13 @@ class make_vaccination_function():
         delay = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
-        
-        if t <= self.df_sciensano_start + delay:
+        # Compute the start and enddate of the dataframe
+        df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        df_sciensano_end = df_sciensano.index[-1]
+        # Time loop
+        if t <= df_sciensano_start + delay:
             return np.zeros(9)
-        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
+        elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
             return self.get_sciensano_first_dose(t-delay)
         else:
             N_vacc = np.zeros(9)
@@ -408,10 +409,13 @@ class make_vaccination_function():
         delay_immunity = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
-
-        if t <= self.df_sciensano_start + delay_immunity:
+        # Compute the start and enddate of the dataframe
+        df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        df_sciensano_end = df_sciensano.index[-1]
+        # Time loop
+        if t <= df_sciensano_start + delay_immunity:
             return np.zeros([9,3])
-        elif self.df_sciensano_start + delay_immunity < t <= self.df_sciensano_end + delay_immunity:
+        elif df_sciensano_start + delay_immunity < t <= df_sciensano_end + delay_immunity:
             return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)          
         else:
             N_vacc = np.zeros([9,3])
