@@ -221,10 +221,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
     param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
     param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf2'][idx] #np.mean(samples_dict['K_inf1'])*np.random.uniform(low=1.40, high=1.60)
-    #K_hosp = np.random.uniform(low=1.3,high=1.5)
-    #param_dict['K_hosp'] = np.array([1, K_hosp, K_hosp])
-
+    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
 
     # Vaccination
     # -----------
