@@ -5,6 +5,8 @@ Arguments:
 ----------
 -f:
     Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
+-v:
+    Vaccination model, either 'stratified' or 'non-stratified' 
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -14,7 +16,7 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+python plot_fit_R0_COMP_EFF_WAVE2.py -f -v stratified BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
 
 """
 
@@ -45,6 +47,7 @@ from covid19model.visualization.output import _apply_tick_locator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--filename", help="Samples dictionary name")
+parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratified vaccination model", default='non-stratified', type=str)
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
@@ -56,7 +59,7 @@ args = parser.parse_args()
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2021-02-07'
+end_sim = '2022-03-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Path where figures and results should be stored
@@ -96,6 +99,21 @@ start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
+# --------------
+# Initial states
+# --------------
+
+# Model initial condition on September 1st
+with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+    initial_states = json.load(fp)
+if args.vaccination_model == 'stratified':
+    # Correct size of initial states
+    entries_to_remove = ('S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v')
+    for k in entries_to_remove:
+        initial_states.pop(k, None)
+    for key, value in initial_states.items():
+        initial_states[key] = np.concatenate((np.expand_dims(initial_states[key],axis=1),np.ones([9,2])),axis=1) 
+
 # ---------------------------
 # Time-dependant VOC function
 # ---------------------------
@@ -103,12 +121,22 @@ end_calibration = samples_dict['end_calibration']
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
 VOC_function = make_VOC_function(df_VOC_501Y)
 
-# -----------------------------------
-# Time-dependant vaccination function
-# -----------------------------------
+# ---------------------------------------------------------
+# Time-dependant vaccination function and sampling function
+# ---------------------------------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
-vacc_strategy = make_vaccination_function(df_sciensano)
+if args.vaccination_model == 'non-stratified':
+    vacc_strategy = make_vaccination_function(df_sciensano)
+    from covid19model.models.utils import draw_fcn_WAVE2
+elif args.vaccination_model == 'stratified':
+    vacc_strategy = make_vaccination_function(df_sciensano).stratified_vaccination_strategy
+    from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
+else:
+    raise ValueError(
+                    "'{0}' is not a valid vaccination model "
+                    "please choose either 'stratified' or 'non-stratified'".format(args.vaccination_model)
+                    )
 
 # --------------------------------------
 # Time-dependant social contact function
@@ -117,36 +145,52 @@ vacc_strategy = make_vaccination_function(df_sciensano)
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation
+policies_WAVE2 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_no_relaxation
     
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function
 # ---------------------------------------------------
 
-from covid19model.models.utils import output_to_visuals,draw_fcn_WAVE2
+from covid19model.models.utils import output_to_visuals
 
 # --------------------
 # Initialize the model
 # --------------------
 
-# Model initial condition on September 1st
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
-    initial_states = json.load(fp)    
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
-# Add the time-dependant parameter function arguments
-# Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-06-01', 'l_relax': 31})
+if args.vaccination_model == 'stratified':
+    params['dICUrec'] = [9.9, 3.4, 8.4, 6.6, 8.2, 10.1, 11.5, 15.2, 13.3]
+    # Add "size dummy" for vaccination stratification
+    params.update({'doses': np.zeros([3,3])})
+    # Correct size of other parameters
+    params.update({'e_s': np.array([[0, 0.5, 0.8],[0, 0.5, 0.8],[0, 0.3, 0.75]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.78,0.92],[0,0.78,0.92],[0,0.75,0.94]])})
+    params.pop('e_a')
+    params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
+    params.update({'d_vacc': 31*36})
+    params.update({'N_vacc': np.zeros([9,3])})
+    # Social policies
+    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation':0.5, 'prev_home': 0.5})
+else:
+    # Social policies
+    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+
+# Add the remaining time-dependant parameter function arguments
 # VOC
-params.update({'t_sig': '2021-07-01'})
+params.update({'t_sig': '2021-06-21', 'k': 0.06})
 # Vaccination
 params.update(
-    {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 20}
+    {'initN': initN, 'vacc_order': np.array(range(9))[::-1], 'daily_first_dose': 55000,
+     'refusal': 0.2*np.ones([9,2]), 'delay_immunity': 14, 'delay_doses': 3*7, 'stop_idx': 0}
 )
 # Initialize model
-model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+if args.vaccination_model == 'stratified':
+    model = models.COVID19_SEIRD_stratified_vacc(initial_states, params,
+                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+else:
+    model = models.COVID19_SEIRD_vacc(initial_states, params,
+                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 # -------------------
 # Perform simulations
@@ -212,14 +256,14 @@ ax3.set_xlim('2020-03-01',end_sim)
 ax3.set_ylabel('Deaths in hospitals (-)', fontsize=12)
 ax3.get_yaxis().set_label_coords(-0.1,0.5)
 # Plot fraction of immunes
-ax4.plot(simtime,df_2plot['R','mean']/sum(initN)*100,'--', color='blue')
+ax4.plot(df_2plot['R','mean'][start_calibration:'2021-03-01']/sum(initN)*100,'--', color='blue')
 yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
 ax4.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
 yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
 ax4.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
 ax4 = _apply_tick_locator(ax4)
 ax4.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax4.fill_between(simtime,df_2plot['R','LL']/sum(initN)*100, df_2plot['R','UL']/sum(initN)*100,alpha=0.20, color = 'blue')
+ax4.fill_between(df_2plot['R','LL']/sum(initN)*100, df_2plot['R','UL']/sum(initN)*100,alpha=0.20, color = 'blue')
 ax4.set_xlim(start_sim,end_sim)
 ax4.set_ylim(0,25)
 ax4.set_ylabel('Seroprelevance (%)', fontsize=12)
