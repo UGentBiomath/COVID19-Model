@@ -237,6 +237,23 @@ class make_vaccination_function():
         self.df_sciensano_end = df_sciensano.index[-1]
 
     @lru_cache()
+    def get_sciensano_spatial_first_dose(self,t):
+        incidence = np.array(self.df_sciensano['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df_sciensano.index.get_level_values(1).unique().values)) )
+        try:
+            N_vacc = np.zeros([9,len(self.df_sciensano.index.get_level_values(1).unique().values)])
+            N_vacc[1,:] = incidence[0,:] + (2/6)*incidence[1,:]
+            N_vacc[2,:] = (4/6)*incidence[1,:] + (5/10)*incidence[2,:]
+            N_vacc[3,:] = (5/10)*incidence[2,:] + (5/10)*incidence[3,:]
+            N_vacc[4,:] = (5/10)*incidence[3,:] + (5/10)*incidence[4,:]
+            N_vacc[5,:] = (5/10)*incidence[4,:] + (5/10)*incidence[5,:]
+            N_vacc[6,:] = (5/10)*incidence[5,:] + (5/10)*incidence[6,:]
+            N_vacc[7,:] = (5/10)*incidence[6,:] + (5/10)*incidence[7,:]
+            N_vacc[8,:] = (5/10)*incidence[7,:] + incidence[8,:]
+            return N_vacc
+        except:
+            return np.zeros([9,len(self.df_sciensano.index.get_level_values(1).unique().values)])
+
+    @lru_cache()
     def get_sciensano_first_dose(self,t):
         # Extrapolate Sciensano n0. first dose vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
