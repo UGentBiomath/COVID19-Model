@@ -318,7 +318,7 @@ else:
 # PSO settings
 processes = int(mp.cpu_count()/2)
 multiplier = 3
-maxiter = 300
+maxiter = 30
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -345,12 +345,12 @@ weights = [1]
 
 # optimisation settings
 pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2']
-bounds=((0.010,0.030),(2,14),(2,12),(0.02,0.98),(0.02,0.98),(0.02,0.98),(0.50,0.98),(0.50,0.98),(1.3,1.6),(2.05,2.35))
+bounds=((0.010,0.030),(2,14),(2,12),(0.02,0.98),(0.02,0.98),(0.02,0.98),(0.02,0.98),(0.02,0.98),(1.4,1.7),(2,2.35))
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
+theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes)
 #theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.105, 0.50, 0.70, 1.52, 2.20])
-theta = np.array([0.01489179, 6.52556664, 3.32749332, 0.75299559, 0.05099117, 0.2546443, 0.72560745, 0.63643327, 1.53328335, 2.32212406]) #-253281.68302163907
+#theta = np.array([0.01489179, 6.52556664, 3.32749332, 0.75299559, 0.05099117, 0.2546443, 0.72560745, 0.63643327, 1.53328335, 2.32212406]) #-253281.68302163907
 
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
