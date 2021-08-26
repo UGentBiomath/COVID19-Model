@@ -750,9 +750,13 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need to sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
         dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-        dS_inf_v = (Susc * multip[np.newazis,:,:]).sum(axis=1)
+        dS_inf_v = (Susc_v * multip[np.newaxis,:,:]).sum(axis=1)
         
         ### ODEs for all non-vaccinated people
+        
+        # Compute the  rates of change in every population compartment (non-vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
         # Vaccinated susceptibles exit the S class with efficiency e_a_eff
         # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
         dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
@@ -765,11 +769,14 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
+
+        # Compute the  rates of change in every population compartment (vaccinated)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        # Subjects from S or R class that are vaccinated enter the dS_v class
-        # (1) why only S and R, (2) why do subjects from R become dS_v?
+        # Subjects from S or R class that are vaccinated enter the S_v class
+        # Some subjects in S_v class become susceptible again (end of immunity)
         dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc/VE*S + e_a_eff*N_vacc/VE*R - (1/d_vacc)*S_v
-        dE_v  = (1-e_s_eff)*IP*S_v - E_v/sigma 
+        dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
         dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h_eff)*h)/dm) - M_v*(1-e_h_eff)*h/dhospital
@@ -777,14 +784,20 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
         dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
+        # Compute the hospital rates of changes
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
+        dH_in = M*(h/dhospital) + M_v*((1-e_h)*h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
+            + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
+            + M_v*((1-e_h)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
+        dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) - R_C
+        dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec)- R_ICU
         
-        dH_in = M*(h/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-        
-        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
     
 # class COVID19_SEIRD_spatial_vacc(BaseModel):
 #     """
