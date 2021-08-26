@@ -96,16 +96,17 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # -------------
     # calculate MLE
     # -------------
-    
     if not agg: # keep existing code for non-spatial case (aggregation level = None)
         MLE = 0
         for idx,state in enumerate(states):
-            ymodel = out[state].sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+            for dimension in out.dims:
+                if dimension != 'time':
+                    out[state] = out[state].sum(dim=dimension)
+            ymodel = out[state].sel(time=data[idx].index.values, method='nearest').values
             if dist == 'gaussian':            
                 MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
             elif dist == 'poisson':
                 MLE = MLE + weights[idx]*ll_poisson(ymodel, data[idx].values, offset=poisson_offset)
-
     else: # add code for spatial case
         # Create list of all NIS codes
         NIS_list = list(data[0].columns)
@@ -132,7 +133,6 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                     ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
                     MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
                     MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
-    
     return -MLE # must be positive for pso, which attempts to minimises MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
