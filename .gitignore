@@ -159,3 +159,7 @@ data/interim/mobility/
 
 
 data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-13_WAVE2_GOOGLE.json
+data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-FULL_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02.json
+data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-FULL_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-10.json
+data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-R0_job-R0_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-10.json
+data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE2-FULL_job-FULL_1000xPSO_20000xMCMC_arr_2021-06-08.json
