@@ -855,3 +855,35 @@ def open_sim(name, group, verbose=True):
             print("WARNING: No 'description' attribute in opened model output. Has it been saved properly, using the save_sim() function?")
             
     return out
+
+def double_heaviside(t, t0, delta_t=None):
+    """
+    Function used to inject one additional exposed subjects per day at time t0 for delta_t days
+    
+    Parameters
+    ----------
+    t : float
+        Time to be evaluated. Returns 1 only if t is within [t0, t0+delta_t] and 0 otherwise.
+    t0 : array of floats
+        Times at which new exposed individuals are injected in units of days since a particular start day. This is a G-dimensional array (one time per region)
+    delta_t: array of floats
+        Length of injection window in units of days. This is a G-dimensional array (one duration per region). Defaults to one day.
+        
+    Returns
+    -------
+    dh : array of floats
+        G-dimensional array with values 0 or 1.
+    
+    """
+    if delta_t is None:
+        delta_t = np.ones(len(t0))
+    if len(t0) != len(delta_t):
+        raise Exception("Dimension of t0 and delta_t must be identical.")
+    dh=[]
+    for h in range(len(t0)):
+        dh_h = np.heaviside(t-t0[h],1) * np.heaviside(t0[h]+delta_t[h]-t,1)
+        dh.append(dh_h)
+    return np.array(dh)
+
+
+
