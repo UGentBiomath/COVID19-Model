@@ -318,11 +318,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         # vaccination
         if vaccination == True:
             pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
-            pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
-            pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
-            pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
-            pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-            pars_dict['d_vacc'] = 36*30 # Default: 12 month coverage of vaccine
+            pars_dict['e_s'] = np.array([0.95, 0.95, 0.95]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis, per VOC
+            pars_dict['e_h'] = np.array([0.90, 0.90, 0.90]) # Default: 90% protection against severe COVID-19, per VOC
+            pars_dict['e_a'] = np.array([1.00, 1.00, 1.00]) # Default: vaccination works in 100% of people, per VOC
+            pars_dict['e_i'] = np.array([0.90, 0.90, 0.90]) # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual, per VOC
+            pars_dict['d_vacc'] = 36*30 # Default: 36 month coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
