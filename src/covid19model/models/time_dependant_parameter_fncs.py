@@ -799,13 +799,13 @@ class make_contact_matrix_function():
                                     school=0)                           
         elif t14 < t <= t15:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
-                                school=0)   
+                                school=1)
         elif t15 < t <= t16:
-            #states['E'][:-1,0] = states['E'][:-1,0] + 3
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                school=0)
+            l = (t16 - t15)/pd.Timedelta(days=1)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t15, l)
         elif t16 < t <= t17:
-            #states['E'][:-1,0] = states['E'][:-1,0] + 3
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t17 < t <= t18:
