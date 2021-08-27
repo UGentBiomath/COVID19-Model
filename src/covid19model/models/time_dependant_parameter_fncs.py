@@ -340,8 +340,8 @@ class make_vaccination_function():
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
         # Compute the start and enddate of the dataframe
-        df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = df_sciensano.index[-1]
+        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
+        df_sciensano_end = self.df_sciensano.index[-1]
         # Time loop
         if t <= df_sciensano_start + delay:
             return np.zeros(9)
@@ -410,8 +410,8 @@ class make_vaccination_function():
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
         # Compute the start and enddate of the dataframe
-        df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = df_sciensano.index[-1]
+        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
+        df_sciensano_end = self.df_sciensano.index[-1]
         # Time loop
         if t <= df_sciensano_start + delay_immunity:
             return np.zeros([9,3])
