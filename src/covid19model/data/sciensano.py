@@ -259,6 +259,205 @@ def get_sciensano_COVID19_data(update=True):
     df["VJ&J_85+"] = df_vacc[((df_vacc['DOSE'] == 'C')&(df_vacc['AGEGROUP'] == '85+'))].resample('D', on='DATE')['COUNT'].sum()
     return df.fillna(0)
 
+def get_public_spatial_vaccination_data(update=False, agg='arr'):
+    """Download and convert public spatial vaccination data of Sciensano
+
+    This function returns the spatial, publically available Sciensano vaccination data (first dose/one dose only)
+    A copy of the downloaded raw dataset is automatically saved in the /data/raw folder.
+    The formatted data on the municipality level (NUTS5) is automatically saved in the /data/interim folder.
+    If update=True, the dataset is downloaded and formatted into the following format: per week, per municipality NIS code and per age group, the number of first doses is given. The dataset is then automatically saved.
+    If update=False, the formatted dataset is loaded and an aggregation is performed to the desired NUTS level.
+
+    Parameters
+    ----------
+    update : boolean (default True)
+        True if you want to update the data,
+        False if you want to read-in the previously saved and formatted data
+
+    Returns
+    -----------
+    df : pandas.DataFrame
+        DataFrame with the vaccination data on a weekly basis. The following columns
+        are returned:
+
+        Indices:
+        - start_week : the startdate of the week the doses were administered
+        - NIS : the NIS codes of the desired aggregation level (municipalities, arrondissements or provinces)
+        - age : the age group in which the vaccines were administered
+        Columns:
+        - CUMULATIVE : cumulative number of administered doses
+        - INCIDENCE : weekly administered number of doses
+
+    Notes
+    -----
+    The data is extracted from Sciensano database: https://epistat.wiv-isp.be/covid/
+    Variables in raw dataset are documented here: https://epistat.sciensano.be/COVID19BE_codebook.pdf
+
+
+    Example use
+    -----------
+    >>> # download data from sciensano website and store new version
+    >>> sciensano_data = get_sciensano_COVID19_data(update=True)
+    >>> df.sum(level=[0]).plot() # Visualize nationally aggregated number of doses
+    >>> df.loc[:,21000,:].sum(level=0).plot() # Visualize the number of administered doses in Brussels (NIS=21000)
+
+    """
+    # Data source
+    url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
+    abs_dir = os.path.dirname(__file__)
+
+    if update==True:
+        # Extract case data from source
+        #df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
+        # save a copy in the raw folder
+        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
+        #df.to_csv(rel_dir, index=False)
+        df = pd.read_csv(rel_dir)
+        ########################################################
+        ## Convert YEAR_WEEK to startdate and enddate of week ##
+        ########################################################
+
+        start=[]
+        end=[]
+        for year_week in df["YEAR_WEEK"].values:
+            year = '20'+year_week[0:2]
+            week = year_week[3:]
+            if week == '53':
+                week = str(int(year_week[3:])-1)
+                
+            startdate = "{}-{}-1".format(year, week)
+            enddate = "{}-{}-6".format(year, week)
+            
+            dt = datetime.datetime.strptime(startdate, "%Y-%W-%w")
+            start.append(dt.strftime("%Y-%m-%d"))
+
+            dt = datetime.datetime.strptime(enddate, "%Y-%W-%w")
+            end.append(dt.strftime("%Y-%m-%d"))
+        df['start_week'] = start
+        df['end_week'] = end
+
+        ######################
+        ## Format dataframe ##
+        ######################
+
+        df = df.drop(df[df.NIS5 == ''].index)
+        df = df.dropna()
+        df['CUMUL'][df['CUMUL'] == '<10'] = '0'
+        df['CUMUL'] = df['CUMUL'].astype(int)
+        df['NIS5'] = ((df['NIS5'].astype(float)).astype(int)).astype(str)
+        df = df.rename(columns={'NIS5':'NUTS5', 'AGEGROUP':'age'})
+        df.set_index('start_week')
+        df.pop('YEAR_WEEK')
+        df.pop('end_week')
+        # Drop the second doses --> for use with one-jab vaccination model
+        df = df.drop(df[df.DOSE == 'B'].index)
+
+        ######################################################
+        ## Add up the first doses and the one-shot vaccines ##
+        ######################################################
+
+        df_A = df.drop(df[df.DOSE == 'C'].index)
+        df_A.pop('DOSE')
+        df_C = df.drop(df[df.DOSE == 'A'].index)
+        df_C.pop('DOSE')
+        
+        multi_df_A = df_A.set_index(['start_week','NUTS5','age'])
+        multi_df_C = df_C.set_index(['start_week','NUTS5','age'])
+        multi_df = multi_df_A + multi_df_C
+
+        #################################
+        ## Fill up the missing entries ##
+        #################################
+        # Make a dataframe containing all the desired levels
+        iterables = [df['start_week'].unique(), multi_df.index.get_level_values(1).unique(), multi_df.index.get_level_values(2).unique()]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age"])
+        columns = ['CUMUL']
+        complete_df = pd.DataFrame(index=index, columns=columns)
+        # Merge the dataframe containing no missing indices with the actual dataframe
+        mergedDf = complete_df.merge(multi_df, left_index=True, right_index=True, how='outer')
+        # Remove obsolete columns
+        mergedDf.pop('CUMUL_x')
+        mergedDf = mergedDf.fillna(0)
+        mergedDf = mergedDf.rename(columns={'CUMUL_y': 'CUMULATIVE'})
+
+        ##############################################
+        ## Convert cumulative numbers to incidences ##
+        ##############################################
+        # Pre-allocate column
+        mergedDf['INCIDENCE'] = 0
+        # Loop over indices (computationally expensive)
+        for idx,start_week in enumerate(mergedDf.index.get_level_values(0).unique()[:-1]):
+            next_week = mergedDf.index.get_level_values(0).unique()[idx+1]
+            for NIS in mergedDf.index.get_level_values(1).unique():
+                incidence = mergedDf['CUMULATIVE'].loc[next_week,NIS,:].values - mergedDf['CUMULATIVE'].loc[start_week,NIS,:].values
+                mergedDf['INCIDENCE'].loc[start_week,NIS,:] = incidence
+        # Rename mergedDf back to df for convenience
+        df = mergedDf
+
+        ##############################
+        ## Save formatted dataframe ##
+        ##############################
+        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format.csv')
+        df.to_csv(rel_dir, index=True)
+
+    else:
+        ##############################
+        ## Load formatted dataframe ##
+        ##############################
+        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format.csv')
+        df = pd.read_csv(rel_dir, index_col=[0,1,2])
+
+    ##########################################
+    ## Perform aggregation to desired level ##
+    ##########################################
+
+    if agg == 'mun':
+        return df
+    elif ((agg == 'arr') | (agg == 'prov')):
+        # Extract arrondissement's NIS codes
+        NIS_arr = read_coordinates_nis(spatial='arr')
+        # Make a new dataframe
+        iterables = [df.index.get_level_values(0).unique(), NIS_arr, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        columns = ['CUMULATIVE','INCIDENCE']
+        arr_df = pd.DataFrame(index=index, columns=columns)
+        arr_df['CUMULATIVE'] = 0
+        arr_df['INCIDENCE'] = 0
+        # Loop over indices (computationally expensive)
+        for idx,start_week in enumerate(df.index.get_level_values(0).unique()):
+            som = np.zeros([df.index.get_level_values(2).unique().shape[0],2])    
+            for NIS in df.index.get_level_values(1).unique():
+                arr_NIS = int(str(NIS)[0:2] + '000')
+                arr_df.loc[start_week, arr_NIS, :] = arr_df.loc[start_week, arr_NIS, :].values + df.loc[start_week, NIS, :].values
+
+        if agg == 'prov':
+            # Extract provincial NIS codes
+            NIS_prov = read_coordinates_nis(spatial='prov')
+            # Make a new dataframe
+            iterables = [df.index.get_level_values(0).unique(), NIS_prov, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
+            index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+            columns = ['CUMULATIVE','INCIDENCE']
+            prov_df = pd.DataFrame(index=index, columns=columns)
+            prov_df['CUMULATIVE'] = 0
+            prov_df['INCIDENCE'] = 0
+            # Loop over indices (computationally expensive)
+            for idx,start_week in enumerate(arr_df.index.get_level_values(0).unique()):
+                som = np.zeros([arr_df.index.get_level_values(2).unique().shape[0],2])    
+                for NIS in arr_df.index.get_level_values(1).unique():
+                    if NIS == 21000:
+                        prov_df.loc[start_week, NIS, :] = arr_df.loc[start_week, NIS, :].values
+                    elif ((NIS == 23000) | (NIS == 24000)):
+                        prov_df.loc[start_week, 20001, :] = prov_df.loc[start_week, 20001, :].values + arr_df.loc[start_week, NIS, :].values
+                    elif NIS == 25000:
+                        prov_df.loc[start_week, 20002, :] = arr_df.loc[start_week, NIS, :].values
+                    else:
+                        prov_NIS = int(str(NIS)[0:1] + '0000')
+                        prov_df.loc[start_week, prov_NIS, :] = prov_df.loc[start_week, prov_NIS, :].values + arr_df.loc[start_week, NIS, :].values
+            return prov_df
+        else:
+            return arr_df
+
+
 def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', moving_avg=True):
     """
     This function returns the spatially explicit private Sciensano data
