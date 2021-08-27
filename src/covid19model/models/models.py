@@ -464,22 +464,25 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # Compute the vaccination transitionings and waning of immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        dS = np.zeros(S.shape)
+        dR = np.zeros(R.shape)
+
         # 0 doses --> 1 dose and 0 doses --> 2 doses
         VE = S[:,0] + R[:,0]
         f_S = S[:,0]/VE
         f_R = R[:,0]/VE
-        S[:,0] = S[:,0] - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
-        R[:,0] = R[:,0] - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
-        S[:,1] = S[:,1] + N_vacc[:,0] # 0 --> 1 dose
-        S[:,2] = S[:,2] + N_vacc[:,2] # 0 --> 2 doses
+        dS[:,0] =  - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
+        dR[:,0] = - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
+        dS[:,1] =  N_vacc[:,0] # 0 --> 1 dose
+        dS[:,2] =  N_vacc[:,2] # 0 --> 2 doses
         # 1 dose --> 2 doses
         VE = S[:,1] + R[:,1]
-        VE = np.where(VE==0, 1, VE) 
+        print(VE)
         f_S = S[:,1]/VE
         f_R = R[:,1]/VE
-        S[:,1] = S[:,1] - N_vacc[:,1]*f_S
-        R[:,1] = R[:,1] - N_vacc[:,1]*f_R
-        S[:,2] = S[:,2] + N_vacc[:,1]
+        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
+        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
+        dS[:,2] = dS[:,2] + N_vacc[:,1]
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -490,8 +493,8 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         h_acc = (1-e_h)*h
 
-        dS  = - IP*S*(1-e_s)
-        dE  = IP*S*(1-e_s) - E/sigma 
+        dS  = dS - IP*(S+dS)*(1-e_s)
+        dE  = IP*(S+dS)*(1-e_s) - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I 
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
@@ -499,7 +502,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
         dH_in = M*(h_acc/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out

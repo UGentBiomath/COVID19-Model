@@ -240,7 +240,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
-    refusal_second = np.random.triangular(0.00, 0.02, 0.05, size=(9,1))
+    refusal_second = np.zeros([9,1]) #np.random.triangular(0.00, 0.02, 0.05, size=(9,1))
     param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
 
     # Hospitalization

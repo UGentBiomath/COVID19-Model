@@ -236,7 +236,7 @@ class make_vaccination_function():
         self.df_sciensano = df_sciensano
         self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
         self.df_sciensano_end = df_sciensano.index[-1]
-        
+
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
         incidence = np.array(self.df_sciensano['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df_sciensano.index.get_level_values(1).unique().values)) )
@@ -364,7 +364,7 @@ class make_vaccination_function():
 
     # Stratified vaccination strategy
     # = Sciensano data + hypothetical scheme after end of data collection
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 5*7, stop_idx=9,
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 4*7, stop_idx=9,
                                             refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
         """
         time-dependent function for the Belgian vaccination strategy
