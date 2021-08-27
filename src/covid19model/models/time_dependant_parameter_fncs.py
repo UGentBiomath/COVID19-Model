@@ -231,9 +231,12 @@ class make_vaccination_function():
         Default vaccination function
 
     """
+
     def __init__(self, df_sciensano):
         self.df_sciensano = df_sciensano
-
+        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        self.df_sciensano_end = df_sciensano.index[-1]
+        
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
         incidence = np.array(self.df_sciensano['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df_sciensano.index.get_level_values(1).unique().values)) )
@@ -339,13 +342,10 @@ class make_vaccination_function():
         delay = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
-        # Compute the start and enddate of the dataframe
-        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = self.df_sciensano.index[-1]
-        # Time loop
-        if t <= df_sciensano_start + delay:
+        
+        if t <= self.df_sciensano_start + delay:
             return np.zeros(9)
-        elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
+        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
             return self.get_sciensano_first_dose(t-delay)
         else:
             N_vacc = np.zeros(9)
@@ -409,17 +409,13 @@ class make_vaccination_function():
         delay_immunity = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
-        # Compute the start and enddate of the dataframe
-        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = self.df_sciensano.index[-1]
-        # Time loop
-        if t <= df_sciensano_start + delay_immunity:
+
+        if t <= self.df_sciensano_start + delay_immunity:
             return np.zeros([9,3])
-        elif df_sciensano_start + delay_immunity < t <= df_sciensano_end + delay_immunity:
+        elif self.df_sciensano_start + delay_immunity < t <= self.df_sciensano_end + delay_immunity:
             return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)          
         else:
             N_vacc = np.zeros([9,3])
-
             # LOGIC:
             # 1) The user presets a number of daily first doses (f.e. 50.000)
             # 2) Individuals are transferred from 0 --> 1 at the rate of the daily first doses according to vacc_order prioritization strategy and the refusal rate (first column of refusal)
@@ -444,9 +440,7 @@ class make_vaccination_function():
             # 1 to 2 doses
             N_vacc[:,1] = (VE[:,1]-initN*(1-refusal[:,0])*refusal[:,1])/(delay_doses+delay_immunity_float)
             N_vacc[:,1] = np.where(N_vacc[:,1] > 0, N_vacc[:,1], 0)
-
             return N_vacc
-
 
 ############################
 ## Google policy function ##
@@ -823,7 +817,7 @@ class make_contact_matrix_function():
                                     school=0)                           
         elif t14 < t <= t15:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
-                                school=1)
+                                school=0)
         elif t15 < t <= t16:
             l = (t16 - t15)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
