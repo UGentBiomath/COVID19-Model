@@ -96,13 +96,17 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # -------------
     # calculate MLE
     # -------------
+
     if not agg: # keep existing code for non-spatial case (aggregation level = None)
         MLE = 0
+        
         for idx,state in enumerate(states):
+            new_xarray = out[state]
             for dimension in out.dims:
                 if dimension != 'time':
-                    out[state] = out[state].sum(dim=dimension)
-            ymodel = out[state].sel(time=data[idx].index.values, method='nearest').values
+                    new_xarray = new_xarray.sum(dim=dimension)
+            ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
+            ymodel = np.where(ymodel<=0, 0.01, ymodel) #TODO: Multidose model can sometimes glitch and return negative hospitalizations (susceptibles become negative) --> manual fix
             if dist == 'gaussian':            
                 MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
             elif dist == 'poisson':
