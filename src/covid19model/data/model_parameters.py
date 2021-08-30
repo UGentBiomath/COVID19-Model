@@ -318,11 +318,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         # vaccination
         if vaccination == True:
             pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
-            pars_dict['e_s'] = 0.95 # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
-            pars_dict['e_h'] = 0.90 # Default: 100% protection against severe COVID-19
-            pars_dict['e_a'] = 1.00 # Default: vaccination works in 100% of people
-            pars_dict['e_i'] = 0.90 # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-            pars_dict['d_vacc'] = 36*30 # Default: 12 month coverage of vaccine
+            pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
+            pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
+            pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
+            pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
+            pars_dict['d_vacc'] = 36*30 # Default: 36 months coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
@@ -413,7 +413,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['alpha'] = [1, 0, 0] # Must be a list so we can check if "sum(alpha) == 1" 
         pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
         pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain
-        pars_dict['K_hosp'] = [1, 1.4, 1.4]
+        pars_dict['K_hosp'] = np.ones(3)
 
     return pars_dict
 
