@@ -161,14 +161,17 @@ class make_mobility_update_function():
 class make_VOC_function():
     """
     Class that returns a time-dependant parameter function for COVID-19 SEIRD model parameter alpha (variant fraction).
-    Current implementation includes the 501Y.Vx mutated strains (British, SA, Brazilian) using data by prof. Tom Wenseleers and a hypothetical implementation of the novel indian variant.
+    Current implementation includes the alpha - delta strains.
+    If the class is initialized without arguments, a logistic model fitted to prelevance data of the alpha-gamma variant is used. The class can also be initialized with the alpha-gamma prelavence data provided by Prof. Tom Wenseleers.
+    A logistic model fitted to prelevance data of the delta variant is always used.
 
     Input
     -----
-    df_VOC_501Y: pd.dataFrame
-        Prelevance dataset by Tom Wenseleers, obtained using:
+    *df_abc: pd.dataFrame (optional)
+        Alpha, Beta, Gamma prelevance dataset by Tom Wenseleers, obtained using:
         `from covid19model.data import VOC`
-        `df_VOC_501Y = VOC.get_501Y_data()`
+        `df_abc = VOC.get_abc_data()`
+        `VOC_function = make_VOC_function(df_abc)`
 
     Output
     ------
@@ -177,37 +180,45 @@ class make_VOC_function():
         Default variant function
 
     """
-    def __init__(self, df_VOC_501Y):
-        self.df_VOC_501Y = df_VOC_501Y
+    def __init__(self, *df_abc):
+        self.df_abc = df_abc
+        if self.df_abc != ():
+            self.df_abc = df_abc[0]
 
     @lru_cache()
-    def VOC_501Y_function(self,t):
-        # Function to return fraction of non-wild type SARS variants
-        if t < self.df_VOC_501Y.index.min():
-            return 0
-        elif self.df_VOC_501Y.index.min() <= t <= self.df_VOC_501Y.index.max():
-            return self.df_VOC_501Y['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
-        elif t > self.df_VOC_501Y.index.max():
-            return (self.df_VOC_501Y['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_501Y['baselinesurv_total_sequenced'][-1]
+    def VOC_abc_data(self,t):
+        return self.df_abc.iloc[self.df_abc.index.get_loc(t, method='nearest')]['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3']
+
+    @lru_cache()
+    def VOC_abc_logistic(self,t):
+        # Parameters obtained by fitting logistic model to weekly prevalence data
+        t_sig = pd.Timestamp('2021-02-14')
+        k = 0.07
+        # Function to return the fraction of the delta-variant
+        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))        
+
+    @lru_cache()
+    def VOC_delta_logistic(self,t):
+        # Parameters obtained by fitting logistic model to weekly prevalence data
+        t_sig = pd.Timestamp('2021-06-25')
+        k = 0.11
+        # Function to return the fraction of the delta-variant
+        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
     # Default VOC function includes British and Indian variants
-    def __call__(self, t, states, param, k, t_sig):
+    def __call__(self, t, states, param):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
         # Introduction Indian variant
-        t1 = pd.Timestamp('2021-04-15')
-        # Sigmoid point of logistic growth curve
-        t_sig = pd.Timestamp(t_sig)
-        # Steepness of curve
-        #k = 0.3
+        t1 = pd.Timestamp('2021-05-01')
         # Construct alpha
         if t <= t1:
-            # Data Tom Wenseleers on British variant
-            return np.array([1-self.VOC_501Y_function(t), self.VOC_501Y_function(t), 0])
+            if self.df_abc != ():
+                return np.array([1-self.VOC_abc_data(t), self.VOC_abc_data(t), 0])
+            else:
+                return np.array([1-self.VOC_abc_logistic(t), self.VOC_abc_logistic(t), 0])
         else:
-            # Hypothetical Indian variant
-            logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
-            return np.array([0, 1-logistic, logistic])
+            return np.array([0, 1-self.VOC_delta_logistic(t), self.VOC_delta_logistic(t)])
 
 ###########################
 ## Vaccination functions ##
