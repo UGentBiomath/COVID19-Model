@@ -89,7 +89,7 @@ df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # VOC data
-df_VOC_501Y = VOC.get_501Y_data()
+df_VOC_abc = VOC.get_abc_data()
 # Model initial condition on September 1st
 with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
@@ -116,7 +116,7 @@ samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/n
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function(df_VOC_501Y)
+VOC_function = make_VOC_function() # no argument = use of logistic function for alpha-gamma variants instead of data
 
 # -----------------------------------
 # Time-dependant vaccination function
@@ -134,6 +134,15 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 policies_WAVE2 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_no_relaxation
     
+# -----------------------------------
+# Time-dependant seasonality function
+# -----------------------------------
+
+def seasonality(t,states,param,amplitude, peak_shift):
+    maxdate = pd.Timedelta(days=peak_shift) + pd.to_datetime('2021-01-01')
+    t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+    return param*(1+amplitude*np.cos( 2*np.pi*(t)))
+
 # --------------------
 # Initialize the model
 # --------------------
@@ -154,16 +163,16 @@ params.update({'N_vacc': np.zeros([9,3])})
 # Add the time-dependant parameter function arguments
 # Social policies
 params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation':0.5, 'prev_home': 0.5})
-# VOC
-params.update({'t_sig': '2021-06-21', 'k': 0.06}) # Infliction point from genomic surveillance data
 # Vaccination
 params.update(
     {'initN': initN, 'vacc_order': np.array(range(9))[::-1], 'daily_first_dose': 55000,
      'refusal': 0.2*np.ones([9,2]), 'delay_immunity': 14, 'delay_doses': 3*7, 'stop_idx': 8}
 )
+# Seasonality
+params.update({'amplitude': 0.1, 'peak_shift': 0})
 # Initialize model
 model = models.COVID19_SEIRD_stratified_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
+                        time_dependent_parameters={'beta': seasonality, 'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
 
 # -----------------------------------
 # Define calibration helper functions
@@ -312,13 +321,13 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-08-22'
+    end_calibration = datetime.datetime.strftime(df_sciensano.index[-1], '%Y-%m-%d')
 else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = int(mp.cpu_count()/2)
-multiplier = 3
-maxiter = 30
+multiplier = 5
+maxiter = 1000
 popsize = multiplier*processes
 # MCMC settings
 max_n = 500000
@@ -335,22 +344,24 @@ print('Using ' + str(processes) + ' cores\n')
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration]]
-states = ["H_in"]
-weights = [1]
+data=[df_sciensano['H_in'][start_calibration:end_calibration],df_sciensano['H_in']['2021-06-15':end_calibration]]
+states = ["H_in", "H_in"]
+weights = [1, 1]
 
 # -----------
 # Perform PSO
 # -----------
 
 # optimisation settings
-pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2']
-bounds=((0.010,0.030),(2,14),(2,12),(0.02,0.98),(0.02,0.98),(0.02,0.98),(0.02,0.98),(0.02,0.98),(1.4,1.7),(2,2.35))
+pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+bounds=((0.005,0.030),(2,14),(2,12),(0.05,0.95),(0.05,0.95),(0.05,0.95),(0.05,0.95),(0.05,0.95),(1.4,1.7),(2.1,2.6),(0,0.25), (-31, 31))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.105, 0.50, 0.70, 1.52, 2.20])
-#theta = np.array([0.01489179, 6.52556664, 3.32749332, 0.75299559, 0.05099117, 0.2546443, 0.72560745, 0.63643327, 1.53328335, 2.32212406]) #-253281.68302163907
+
+theta = np.array([1.21910243e-02, 1.27648358e+01, 7.43853204e+00, 6.46597486e-01,
+                    5.02862404e-02, 5.08402716e-02, 9.50000000e-01, 3.59405878e-01,
+                    1.64860956e+00, 2.28768733e+00, 1.41699867e-01, 1.93592372e+01]) #-260517.1618694332
 
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -382,15 +393,15 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2']
-log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.05,1), (0.05,1), (0.05,1), (0.05,1), (0.05,1),(1.3,1.8),(2.0,2.8)]
+pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform,  prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.01,1), (0.01,1), (0.01,1), (0.01,1), (0.01,1),(1.3,1.65),(2.0,2.8),(0,0.30),(-31,31)]
 # Perturbate PSO Estimate
-pert = [5e-2, 5e-2, 5e-2, 100e-2, 100e-2, 100e-2, 100e-2, 100e-2, 10e-2, 10e-2]
+pert = [5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 10e-2, 10e-2, 10e-2, 10e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
 
-pos[:,3:8] = np.where(pos[:,3:8]<=0, 0, pos[:,3:8]) 
-pos[:,3:8] = np.where(pos[:,3:8]>=1, 1, pos[:,3:8]) 
+#pos[:,3:8] = np.where(pos[:,3:8]<=0, 0, pos[:,3:8]) 
+#pos[:,3:8] = np.where(pos[:,3:8]>=1, 1, pos[:,3:8]) 
 
 # Set up the sampler backend if needed
 if backend:
@@ -398,7 +409,7 @@ if backend:
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 # Labels for traceplots
-labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf,alpha}$', '$K_{inf,delta}$']
+labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf,alpha}$', '$K_{inf,delta}$', '$\phi$', '$\\tau$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
