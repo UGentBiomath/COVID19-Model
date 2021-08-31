@@ -190,16 +190,17 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
     
     if offset == 'auto':
         if min(ymodel) <= 0:
-            offset_new = - min(ymodel) + 1e-3 
-            ymodel = ymodel + offset_new
-            warnings.warn(f"I automatically set the ofset to {offset_new} to prevent the probability function from returning NaN")
+            offset_value = - min(ymodel) + 1e-3 
+            warnings.warn(f"I automatically set the ofset to {offset_value} to prevent the probability function from returning NaN")
+        else:
+            offset_value = 0
     else:
-        ymodel = ymodel + offset
+        offset_value = offset
         
-    ll = - np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+    ll = - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value))
 
     if complete == True:
-        ll -= np.sum(gammaln(ydata+offset))
+        ll -= np.sum(gammaln(ydata+offset_value))
     return ll
 
 def prior_uniform(x, bounds):
