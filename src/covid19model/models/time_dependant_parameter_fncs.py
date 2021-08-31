@@ -242,7 +242,6 @@ class make_vaccination_function():
         Default vaccination function
 
     """
-
     def __init__(self, df_sciensano):
         self.df_sciensano = df_sciensano
         self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()

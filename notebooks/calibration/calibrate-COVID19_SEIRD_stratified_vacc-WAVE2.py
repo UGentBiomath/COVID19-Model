@@ -413,8 +413,7 @@ labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup, 'poisson_offset': 0.1}
-
+objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
 
 # ----------------
 # Run MCMC sampler
