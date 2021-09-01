@@ -135,29 +135,29 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]*np.random.uniform(low=1.3,high=1.5)
-    param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
 
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['K_hosp'] = np.ones(3)
 
     # Vaccination
     # -----------
     param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 20, 20, size=30))    
-    param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
-                                  np.random.uniform(low=0.8,high=1),
-                                  np.random.uniform(low=0.8,high=1)])
-    param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
-                                  np.random.uniform(low=0.90,high=0.99),
-                                  np.random.uniform(low=0.90,high=0.99)])                          
-    param_dict['e_h'] = np.array([np.random.uniform(low=0.95,high=1.0),
-                                  np.random.uniform(low=0.95,high=1.0),
-                                  np.random.uniform(low=0.95,high=1.0)])
+    param_dict['delay'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
+    param_dict['e_i'] = np.array([np.random.uniform(low=0.4,high=0.6),
+                                  np.random.uniform(low=0.4,high=0.6),
+                                  np.random.uniform(low=0.4,high=0.6)])
+    param_dict['e_s'] = np.array([np.random.uniform(low=0.70,high=0.90),
+                                  np.random.uniform(low=0.70,high=0.90),
+                                  np.random.uniform(low=0.65,high=0.85)])                          
+    param_dict['e_h'] = np.array([np.random.triangular(0.78,0.92,0.97),
+                                  np.random.triangular(0.78,0.92,0.97),
+                                  np.random.triangular(0.85,0.94,0.98)])
     param_dict['refusal'] = [np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.15, 0.20, 0.40), # 30-
                                 np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15)] # 60+
-
 
     # Hospitalization
     # ---------------
@@ -222,6 +222,8 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
     param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
     param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
 
     # Vaccination
     # -----------
@@ -240,7 +242,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
-    refusal_second = np.random.triangular(0.01, 0.03, 0.08, size=(9,1))
+    refusal_second = np.zeros([9,1]) #np.random.triangular(0.00, 0.02, 0.05, size=(9,1))
     param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
 
     # Hospitalization

@@ -91,7 +91,7 @@ df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # VOC data
-df_VOC_501Y = VOC.get_501Y_data()
+df_VOC_abc = VOC.get_abc_data()
 # Start of data collection
 start_data = df_sciensano.idxmin()
 # Start of calibration warmup and beta
@@ -119,7 +119,7 @@ if args.vaccination_model == 'stratified':
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function(df_VOC_501Y)
+VOC_function = make_VOC_function()
 
 # ---------------------------------------------------------
 # Time-dependant vaccination function and sampling function
@@ -147,6 +147,16 @@ from covid19model.models.time_dependant_parameter_fncs import make_contact_matri
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 policies_WAVE2 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_no_relaxation
     
+# -----------------------------------
+# Time-dependant seasonality function
+# -----------------------------------
+
+def seasonality(t,states,param,amplitude, peak_shift):
+    maxdate = pd.Timedelta(days=peak_shift) + pd.to_datetime('2021-01-01')
+    t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+    return param*(1+amplitude*np.cos( 2*np.pi*(t)))
+
+
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function
 # ---------------------------------------------------
@@ -172,13 +182,13 @@ if args.vaccination_model == 'stratified':
     params.update({'N_vacc': np.zeros([9,3])})
     # Social policies
     params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation':0.5, 'prev_home': 0.5})
+    # Seasonality
+    params.update({'amplitude': 0.1, 'peak_shift': 0})
 else:
     # Social policies
     params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
 
 # Add the remaining time-dependant parameter function arguments
-# VOC
-params.update({'t_sig': '2021-06-21', 'k': 0.06})
 # Vaccination
 params.update(
     {'initN': initN, 'vacc_order': np.array(range(9))[::-1], 'daily_first_dose': 55000,
@@ -187,7 +197,7 @@ params.update(
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIRD_stratified_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality, 'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 else:
     model = models.COVID19_SEIRD_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})

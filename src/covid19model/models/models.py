@@ -464,22 +464,58 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # Compute the vaccination transitionings and waning of immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        dS = np.zeros(S.shape)
+        dE = np.zeros(E.shape)
+        dI = np.zeros(I.shape)
+        dA = np.zeros(A.shape)
+        dR = np.zeros(R.shape)
+
         # 0 doses --> 1 dose and 0 doses --> 2 doses
-        VE = S[:,0] + R[:,0]
+        VE = S[:,0] + E[:,0] + I[:,0] + A[:,0] + R[:,0]
+        #VE = np.where(VE<=0, 1e-3, VE)
         f_S = S[:,0]/VE
+        f_E = E[:,0]/VE
+        f_I = I[:,0]/VE
+        f_A = A[:,0]/VE
         f_R = R[:,0]/VE
-        S[:,0] = S[:,0] - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
-        R[:,0] = R[:,0] - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
-        S[:,1] = S[:,1] + N_vacc[:,0] # 0 --> 1 dose
-        S[:,2] = S[:,2] + N_vacc[:,2] # 0 --> 2 doses
+        dS[:,0] =  - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
+        dE[:,0] =  - N_vacc[:,0]*f_E -  N_vacc[:,2]*f_E
+        dI[:,0] =  - N_vacc[:,0]*f_I -  N_vacc[:,2]*f_I
+        dA[:,0] =  - N_vacc[:,0]*f_A -  N_vacc[:,2]*f_A
+        dR[:,0] = - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
+
+        dS[:,1] =  N_vacc[:,0]*f_S # 0 --> 1 dose
+        dE[:,1] =  N_vacc[:,0]*f_E # 0 --> 1 dose
+        dI[:,1] =  N_vacc[:,0]*f_I # 0 --> 1 dose
+        dA[:,1] =  N_vacc[:,0]*f_A # 0 --> 1 dose
+        dR[:,1] =  N_vacc[:,0]*f_R # 0 --> 1 dose
+
+        dS[:,2] =  N_vacc[:,2]*f_S # 0 --> 2 doses
+        dE[:,2] =  N_vacc[:,2]*f_E # 0 --> 2 doses
+        dI[:,2] =  N_vacc[:,2]*f_I # 0 --> 2 doses
+        dA[:,2] =  N_vacc[:,2]*f_A # 0 --> 2 doses
+        dR[:,2] =  N_vacc[:,2]*f_R # 0 --> 2 doses
+
         # 1 dose --> 2 doses
-        VE = S[:,1] + R[:,1]
-        VE = np.where(VE==0, 1, VE) 
+        VE = S[:,1] + E[:,1] + I[:,1] + A[:,1] + R[:,1]
+        #VE = np.where(VE<=0, 1e-3, VE)
         f_S = S[:,1]/VE
+        f_E = E[:,1]/VE
+        f_I = I[:,1]/VE
+        f_A = A[:,1]/VE
         f_R = R[:,1]/VE
-        S[:,1] = S[:,1] - N_vacc[:,1]*f_S
-        R[:,1] = R[:,1] - N_vacc[:,1]*f_R
-        S[:,2] = S[:,2] + N_vacc[:,1]
+
+        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
+        dE[:,1] = dE[:,1] - N_vacc[:,1]*f_E
+        dI[:,1] = dI[:,1] - N_vacc[:,1]*f_I
+        dA[:,1] = dA[:,1] - N_vacc[:,1]*f_A
+        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
+
+        dS[:,2] = dS[:,2] + N_vacc[:,1]*f_S
+        dE[:,2] = dE[:,2] + N_vacc[:,1]*f_E
+        dI[:,2] = dI[:,2] + N_vacc[:,1]*f_I
+        dA[:,2] = dA[:,2] + N_vacc[:,1]*f_A
+        dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -490,16 +526,16 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         h_acc = (1-e_h)*h
 
-        dS  = - IP*S*(1-e_s)
-        dE  = IP*S*(1-e_s) - E/sigma 
-        dI = (1/sigma)*E - (1/omega)*I 
-        dA = (a/omega)*I - A/da
+        dS  = dS - IP*(S+dS)*(1-e_s)
+        dE  = dE + IP*(S+dS)*(1-e_s) - E/sigma 
+        dI = dI + (1/sigma)*E - (1/omega)*I 
+        dA = dA + (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
         dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
         dH_in = M*(h_acc/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
