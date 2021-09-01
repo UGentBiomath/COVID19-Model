@@ -395,7 +395,7 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform,  prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.01,1), (0.01,1), (0.01,1), (0.01,1), (0.01,1),(1.3,1.65),(2.0,2.8),(0,0.30),(-31,31)]
+log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.01,1), (0.01,1), (0.01,1), (0.01,1), (0.01,1),(1.3,1.65),(2.0,2.45),(0,0.30),(-31,31)]
 # Perturbate PSO Estimate
 pert = [5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 10e-2, 10e-2, 10e-2, 10e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, 2)
