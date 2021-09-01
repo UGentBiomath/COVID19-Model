@@ -161,14 +161,17 @@ class make_mobility_update_function():
 class make_VOC_function():
     """
     Class that returns a time-dependant parameter function for COVID-19 SEIRD model parameter alpha (variant fraction).
-    Current implementation includes the 501Y.Vx mutated strains (British, SA, Brazilian) using data by prof. Tom Wenseleers and a hypothetical implementation of the novel indian variant.
+    Current implementation includes the alpha - delta strains.
+    If the class is initialized without arguments, a logistic model fitted to prelevance data of the alpha-gamma variant is used. The class can also be initialized with the alpha-gamma prelavence data provided by Prof. Tom Wenseleers.
+    A logistic model fitted to prelevance data of the delta variant is always used.
 
     Input
     -----
-    df_VOC_501Y: pd.dataFrame
-        Prelevance dataset by Tom Wenseleers, obtained using:
+    *df_abc: pd.dataFrame (optional)
+        Alpha, Beta, Gamma prelevance dataset by Tom Wenseleers, obtained using:
         `from covid19model.data import VOC`
-        `df_VOC_501Y = VOC.get_501Y_data()`
+        `df_abc = VOC.get_abc_data()`
+        `VOC_function = make_VOC_function(df_abc)`
 
     Output
     ------
@@ -177,37 +180,45 @@ class make_VOC_function():
         Default variant function
 
     """
-    def __init__(self, df_VOC_501Y):
-        self.df_VOC_501Y = df_VOC_501Y
+    def __init__(self, *df_abc):
+        self.df_abc = df_abc
+        if self.df_abc != ():
+            self.df_abc = df_abc[0]
 
     @lru_cache()
-    def VOC_501Y_function(self,t):
-        # Function to return fraction of non-wild type SARS variants
-        if t < self.df_VOC_501Y.index.min():
-            return 0
-        elif self.df_VOC_501Y.index.min() <= t <= self.df_VOC_501Y.index.max():
-            return self.df_VOC_501Y['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3'][t]
-        elif t > self.df_VOC_501Y.index.max():
-            return (self.df_VOC_501Y['baselinesurv_n_501Y.V1'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V2'][-1]+self.df_VOC_501Y['baselinesurv_n_501Y.V3'][-1])/self.df_VOC_501Y['baselinesurv_total_sequenced'][-1]
+    def VOC_abc_data(self,t):
+        return self.df_abc.iloc[self.df_abc.index.get_loc(t, method='nearest')]['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3']
+
+    @lru_cache()
+    def VOC_abc_logistic(self,t):
+        # Parameters obtained by fitting logistic model to weekly prevalence data
+        t_sig = pd.Timestamp('2021-02-14')
+        k = 0.07
+        # Function to return the fraction of the delta-variant
+        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))        
+
+    @lru_cache()
+    def VOC_delta_logistic(self,t):
+        # Parameters obtained by fitting logistic model to weekly prevalence data
+        t_sig = pd.Timestamp('2021-06-25')
+        k = 0.11
+        # Function to return the fraction of the delta-variant
+        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
     # Default VOC function includes British and Indian variants
-    def __call__(self, t, states, param, k, t_sig):
+    def __call__(self, t, states, param):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
         # Introduction Indian variant
-        t1 = pd.Timestamp('2021-04-15')
-        # Sigmoid point of logistic growth curve
-        t_sig = pd.Timestamp(t_sig)
-        # Steepness of curve
-        #k = 0.3
+        t1 = pd.Timestamp('2021-05-01')
         # Construct alpha
         if t <= t1:
-            # Data Tom Wenseleers on British variant
-            return np.array([1-self.VOC_501Y_function(t), self.VOC_501Y_function(t), 0])
+            if self.df_abc != ():
+                return np.array([1-self.VOC_abc_data(t), self.VOC_abc_data(t), 0])
+            else:
+                return np.array([1-self.VOC_abc_logistic(t), self.VOC_abc_logistic(t), 0])
         else:
-            # Hypothetical Indian variant
-            logistic = 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
-            return np.array([0, 1-logistic, logistic])
+            return np.array([0, 1-self.VOC_delta_logistic(t), self.VOC_delta_logistic(t)])
 
 ###########################
 ## Vaccination functions ##
@@ -233,6 +244,8 @@ class make_vaccination_function():
     """
     def __init__(self, df_sciensano):
         self.df_sciensano = df_sciensano
+        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
+        self.df_sciensano_end = df_sciensano.index[-1]
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
@@ -339,14 +352,11 @@ class make_vaccination_function():
         delay = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
-        # Compute the start and enddate of the dataframe
-        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = self.df_sciensano.index[-1]
-        # Time loop
-        if t <= df_sciensano_start + delay:
+        
+        if t <= self.df_sciensano_start + delay:
             return np.zeros(9)
-        elif df_sciensano_start + delay < t <= df_sciensano_end + delay:
-            return self.get_sciensano_first_dose(t-delay)
+        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
+            return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
         else:
             N_vacc = np.zeros(9)
             idx = 0
@@ -364,7 +374,7 @@ class make_vaccination_function():
 
     # Stratified vaccination strategy
     # = Sciensano data + hypothetical scheme after end of data collection
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 5*7, stop_idx=9,
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 4*7, stop_idx=9,
                                             refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
         """
         time-dependent function for the Belgian vaccination strategy
@@ -409,17 +419,13 @@ class make_vaccination_function():
         delay_immunity = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
-        # Compute the start and enddate of the dataframe
-        df_sciensano_start = self.df_sciensano['V1_tot'].ne(0).idxmax()
-        df_sciensano_end = self.df_sciensano.index[-1]
-        # Time loop
-        if t <= df_sciensano_start + delay_immunity:
+
+        if t <= self.df_sciensano_start + delay_immunity:
             return np.zeros([9,3])
-        elif df_sciensano_start + delay_immunity < t <= df_sciensano_end + delay_immunity:
+        elif self.df_sciensano_start + delay_immunity < t <= self.df_sciensano_end + delay_immunity:
             return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)          
         else:
             N_vacc = np.zeros([9,3])
-
             # LOGIC:
             # 1) The user presets a number of daily first doses (f.e. 50.000)
             # 2) Individuals are transferred from 0 --> 1 at the rate of the daily first doses according to vacc_order prioritization strategy and the refusal rate (first column of refusal)
@@ -444,9 +450,7 @@ class make_vaccination_function():
             # 1 to 2 doses
             N_vacc[:,1] = (VE[:,1]-initN*(1-refusal[:,0])*refusal[:,1])/(delay_doses+delay_immunity_float)
             N_vacc[:,1] = np.where(N_vacc[:,1] > 0, N_vacc[:,1], 0)
-
             return N_vacc
-
 
 ############################
 ## Google policy function ##
@@ -776,15 +780,16 @@ class make_contact_matrix_function():
         t13 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t15 = pd.Timestamp('2021-07-01') # Start of Summer holiday
-        t16 = pd.Timestamp('2021-09-01') # End of Summer holiday
-        t17 = pd.Timestamp('2021-11-01') # Start of autumn break
-        t18 = pd.Timestamp('2021-11-07') # Start of autumn break
-        t19 = pd.Timestamp('2021-12-26') # Start of Christmass break
-        t20 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t21 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t22 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t23 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t24 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t16 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
+        t17 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t18 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t19 = pd.Timestamp('2021-11-07') # Start of autumn break
+        t20 = pd.Timestamp('2021-12-26') # Start of Christmass break
+        t21 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t22 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t23 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t24 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t25 = pd.Timestamp('2022-04-17') # End of Easter Break
 
         # Second wave
         if t4 < t <= t5:
@@ -830,27 +835,29 @@ class make_contact_matrix_function():
             policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t15, l)
         elif t16 < t <= t17:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+        elif t17 < t <= t18:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
-        elif t17 < t <= t18:
+        elif t18 < t <= t19:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)
-        elif t18 < t <= t19:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t19 < t <= t20:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t20 < t <= t21:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
         elif t21 < t <= t22:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                leisure=1.1, work=0.9, transport=1, others=1, school=0)  
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t22 < t <= t23:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)           
+                                leisure=1.1, work=0.9, transport=1, others=1, school=0)  
         elif t23 < t <= t24:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)           
+        elif t24 < t <= t25:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)                                                                                                   
         else:
