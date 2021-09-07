@@ -183,7 +183,7 @@ class make_VOC_function():
     def __init__(self, *df_abc):
         self.df_abc = df_abc
         if self.df_abc != ():
-            self.df_abc = df_abc[0]
+            self.df_abc = df_abc[0] # First entry in list of optional arguments (dataframe)
 
     @lru_cache()
     def VOC_abc_data(self,t):
