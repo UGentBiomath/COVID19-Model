@@ -104,8 +104,8 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
 
 def draw_fcn_WAVE2(param_dict,samples_dict):
     """
-    A function to draw samples from the posterior distributions of the model parameters calibrated to WAVE 2
-    Tailored for use with the national COVID-19 SEIQRD
+    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
+    For use with the model `COVID19_SEIRD` in `~src/models/models.py`
 
     Parameters
     ----------
@@ -135,29 +135,29 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf1'][idx]*np.random.uniform(low=1.3,high=1.5)
-    param_dict['K_hosp'] = np.array([1, np.random.uniform(low=1.3,high=1.5), np.random.uniform(low=1.3,high=1.5)])
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
 
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['K_hosp'] = np.ones(3)
 
     # Vaccination
     # -----------
     param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 20, 20, size=30))    
-    param_dict['e_i'] = np.array([np.random.uniform(low=0.8,high=1),
-                                  np.random.uniform(low=0.8,high=1),
-                                  np.random.uniform(low=0.8,high=1)])
-    param_dict['e_s'] = np.array([np.random.uniform(low=0.90,high=0.99),
-                                  np.random.uniform(low=0.90,high=0.99),
-                                  np.random.uniform(low=0.90,high=0.99)])                          
-    param_dict['e_h'] = np.array([np.random.uniform(low=0.95,high=1.0),
-                                  np.random.uniform(low=0.95,high=1.0),
-                                  np.random.uniform(low=0.95,high=1.0)])
+    param_dict['delay'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
+    param_dict['e_i'] = np.array([np.random.uniform(low=0.4,high=0.6),
+                                  np.random.uniform(low=0.4,high=0.6),
+                                  np.random.uniform(low=0.4,high=0.6)])
+    param_dict['e_s'] = np.array([np.random.uniform(low=0.70,high=0.90),
+                                  np.random.uniform(low=0.70,high=0.90),
+                                  np.random.uniform(low=0.65,high=0.85)])                          
+    param_dict['e_h'] = np.array([np.random.triangular(0.78,0.92,0.97),
+                                  np.random.triangular(0.78,0.92,0.97),
+                                  np.random.triangular(0.85,0.94,0.98)])
     param_dict['refusal'] = [np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.15, 0.20, 0.40), # 30-
                                 np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15)] # 60+
-
 
     # Hospitalization
     # ---------------
@@ -183,6 +183,92 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
 
+    return param_dict
+
+def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
+    """
+    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
+    For use with the model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    # Calibration of WAVE 1
+    # ---------------------
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+
+    # Calibration of WAVE 2
+    # ---------------------
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['da'] = samples_dict['da'][idx]
+    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
+
+    # Vaccination
+    # -----------
+    param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=80000)
+    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=50))   
+    param_dict['e_i'] = np.concatenate((np.zeros([3,1]),
+                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6),
+                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6)),axis=1)
+    param_dict['e_s'] = np.concatenate((np.zeros([3,1]),
+            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.4,high=0.6), np.ones([1,1])*np.random.uniform(low=0.2,high=0.4)),axis=0),
+            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.7,high=0.9), np.ones([1,1])*np.random.uniform(low=0.65,high=0.85)),axis=0)),axis=1)
+    # https://media.tghn.org/articles/Effectiveness_of_COVID-19_vaccines_against_hospital_admission_with_the_Delta_B._G6gnnqJ.pdf
+    param_dict['e_h'] = np.concatenate((np.zeros([3,1]),
+            np.concatenate((np.ones([2,1])*np.random.triangular(0.65,0.78,0.86), np.ones([1,1])*np.random.triangular(0.57,0.75,0.85)),axis=0),
+            np.concatenate((np.ones([2,1])*np.random.triangular(0.78,0.92,0.97), np.ones([1,1])*np.random.triangular(0.85,0.94,0.98)),axis=0)),axis=1)
+    refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
+                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
+                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
+    refusal_second = np.zeros([9,1]) #np.random.triangular(0.00, 0.02, 0.05, size=(9,1))
+    param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(9):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=50
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+        
     return param_dict
 
 def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
@@ -304,7 +390,10 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0
     # Extract simulation timesteps
     simtime = pd.to_datetime(output['time'].values)
     # Extract output of correct state and sum over all ages
-    data = output[state_name].sum(dim="Nc").values
+    for dimension in output.dims:
+        if ((dimension != 'time') & (dimension != 'draws')):
+            output[state_name] = output[state_name].sum(dim=dimension)
+    data = output[state_name].values
     # Initialize vectors
     vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
