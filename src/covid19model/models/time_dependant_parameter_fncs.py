@@ -182,8 +182,10 @@ class make_VOC_function():
     """
     def __init__(self, *df_abc):
         self.df_abc = df_abc
+        self.data_given = False
         if self.df_abc != ():
             self.df_abc = df_abc[0] # First entry in list of optional arguments (dataframe)
+            self.data_given = True
 
     @lru_cache()
     def VOC_abc_data(self,t):
@@ -213,7 +215,7 @@ class make_VOC_function():
         t1 = pd.Timestamp('2021-05-01')
         # Construct alpha
         if t <= t1:
-            if self.df_abc != ():
+            if self.data_given:
                 return np.array([1-self.VOC_abc_data(t), self.VOC_abc_data(t), 0])
             else:
                 return np.array([1-self.VOC_abc_logistic(t), self.VOC_abc_logistic(t), 0])
