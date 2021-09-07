@@ -37,8 +37,9 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
 
     with Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
-                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
-        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True):
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs,
+                        moves=[(emcee.moves.DEMove(), 0.8),(emcee.moves.DESnookerMove(), 0.2)])
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
@@ -238,6 +239,23 @@ def assign_PSO(param_dict, pars, theta):
             else:
                 param_dict[par] = theta[idx]
         return warmup, param_dict
+
+def plot_PSO_stratified(output, theta, pars, data, states, start_calibration, end_calibration):
+    # Visualize fit
+    if len(states) == 1:
+        idx = 0
+        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
+        ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+        ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.set_xlim([start_calibration,end_calibration])
+    else:
+        fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
+        for idx,ax in enumerate(axes):
+            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax.set_xlim([start_calibration,end_calibration])
+    ax = _apply_tick_locator(ax)
+    return ax
 
 def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
     """

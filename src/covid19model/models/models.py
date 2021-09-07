@@ -339,6 +339,227 @@ class COVID19_SEIRD(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU)
 
 
+class COVID19_SEIRD_stratified_vacc(BaseModel):
+    """
+    Biomath extended SEIRD model for COVID-19, Deterministic implementation
+    Can account for re-infection and co-infection with a new COVID-19 variant.
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+
+        S : susceptible
+        E : exposed
+        I : infected
+        A : asymptomatic
+        M : mild
+        C : cohort
+        C_icurec : cohort after recovery from ICU
+        ICU : intensive care
+        R : recovered
+        D : deceased
+        H_in : new hospitalizations
+        H_out : new hospital discharges
+        H_tot : total patients in Belgian hospitals
+
+        parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        alpha : fraction of alternative COVID-19 variant
+        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf2 : infectivity gain of Indian COVID-19 variant
+        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of an initially mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        dc : average length of a hospital stay when not in ICU
+        dICU_R : average length of a hospital stay in ICU in case of recovery
+        dICU_D: average length of a hospital stay in ICU in case of death
+        dhospital : time before a patient reaches the hospital
+
+        Age-stratified parameters
+        --------------------
+        s: relative susceptibility to infection
+        a : probability of a subclinical infection
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in Cohort (non-ICU)
+        m_C : mortality in Cohort
+        m_ICU : mortality in ICU
+
+        Other parameters
+        ----------------
+        Nc : contact matrix between all age groups in stratification
+
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    stratification = ['Nc','doses']
+
+    # ..transitions/equations
+    @staticmethod
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
+                  Nc, doses):
+        """
+        Biomath extended SEIRD model for COVID-19
+
+        *Deterministic implementation*
+        """
+ 
+        K_inf = np.array([1, K_inf1, K_inf2])
+
+        if Nc is None:
+            print(t)
+
+        # calculate total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1)
+
+        # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+        K_hosp = np.ones(3)
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        e_i = np.matmul(alpha, e_i)
+        e_s = np.matmul(alpha, e_s)
+        e_h = np.matmul(alpha, e_h)
+
+        # Expand dims on first stratification axis (age)
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        a = np.expand_dims(a, axis=1)
+        h = np.expand_dims(h, axis=1)
+        c = np.expand_dims(c, axis=1)
+        m_C = np.expand_dims(m_C, axis=1)
+        m_ICU = np.expand_dims(m_ICU, axis=1)
+        dc_R = np.expand_dims(dc_R, axis=1)
+        dc_D = np.expand_dims(dc_D, axis=1)
+        dICU_R = np.expand_dims(dICU_R, axis=1)
+        dICU_D = np.expand_dims(dICU_D, axis=1)
+        dICUrec = np.expand_dims(dICUrec, axis=1)
+
+        # Compute the vaccination transitionings and waning of immunity
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS = np.zeros(S.shape)
+        dE = np.zeros(E.shape)
+        dI = np.zeros(I.shape)
+        dA = np.zeros(A.shape)
+        dR = np.zeros(R.shape)
+
+        # 0 doses --> 1 dose and 0 doses --> 2 doses
+        VE = S[:,0] + E[:,0] + I[:,0] + A[:,0] + R[:,0]
+        #VE = np.where(VE<=0, 1e-3, VE)
+        f_S = S[:,0]/VE
+        f_E = E[:,0]/VE
+        f_I = I[:,0]/VE
+        f_A = A[:,0]/VE
+        f_R = R[:,0]/VE
+        dS[:,0] =  - N_vacc[:,0]*f_S -  N_vacc[:,2]*f_S 
+        dE[:,0] =  - N_vacc[:,0]*f_E -  N_vacc[:,2]*f_E
+        dI[:,0] =  - N_vacc[:,0]*f_I -  N_vacc[:,2]*f_I
+        dA[:,0] =  - N_vacc[:,0]*f_A -  N_vacc[:,2]*f_A
+        dR[:,0] = - N_vacc[:,0]*f_R - N_vacc[:,2]*f_R
+
+        dS[:,1] =  N_vacc[:,0]*f_S # 0 --> 1 dose
+        dE[:,1] =  N_vacc[:,0]*f_E # 0 --> 1 dose
+        dI[:,1] =  N_vacc[:,0]*f_I # 0 --> 1 dose
+        dA[:,1] =  N_vacc[:,0]*f_A # 0 --> 1 dose
+        dR[:,1] =  N_vacc[:,0]*f_R # 0 --> 1 dose
+
+        dS[:,2] =  N_vacc[:,2]*f_S # 0 --> 2 doses
+        dE[:,2] =  N_vacc[:,2]*f_E # 0 --> 2 doses
+        dI[:,2] =  N_vacc[:,2]*f_I # 0 --> 2 doses
+        dA[:,2] =  N_vacc[:,2]*f_A # 0 --> 2 doses
+        dR[:,2] =  N_vacc[:,2]*f_R # 0 --> 2 doses
+
+        # 1 dose --> 2 doses
+        VE = S[:,1] + E[:,1] + I[:,1] + A[:,1] + R[:,1]
+        #VE = np.where(VE<=0, 1e-3, VE)
+        f_S = S[:,1]/VE
+        f_E = E[:,1]/VE
+        f_I = I[:,1]/VE
+        f_A = A[:,1]/VE
+        f_R = R[:,1]/VE
+
+        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
+        dE[:,1] = dE[:,1] - N_vacc[:,1]*f_E
+        dI[:,1] = dI[:,1] - N_vacc[:,1]*f_I
+        dA[:,1] = dA[:,1] - N_vacc[:,1]*f_A
+        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
+
+        dS[:,2] = dS[:,2] + N_vacc[:,1]*f_S
+        dE[:,2] = dE[:,2] + N_vacc[:,1]*f_E
+        dI[:,2] = dI[:,2] + N_vacc[:,1]*f_I
+        dA[:,2] = dA[:,2] + N_vacc[:,1]*f_A
+        dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
+
+        # Compute infection pressure (IP) of all variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), alpha*K_inf) ,axis=1) , axis=1)
+
+        # Compute the  rates of change in every population compartment
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        h_acc = (1-e_h)*h
+
+        dS  = dS - IP*(S+dS)*(1-e_s)
+        dE  = dE + IP*(S+dS)*(1-e_s) - E/sigma 
+        dI = dI + (1/sigma)*E - (1/omega)*I 
+        dA = dA + (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
+        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h_acc/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+
+        # Waning of natural immunity #TODO vectorize zeta so this happens automatically
+        dS[:,0] = dS[:,0] + zeta*R[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R[:,0] 
+        # Waning of vaccine immunity: first dose
+        #waning_S = (1/d_vacc)*S[:,1]
+        #waning_R = (1/d_vacc)*R[:,1]
+        #dS[:,0] = dS[:,0] + waning_S + waning_R
+        #dS[:,1] = dS[:,1] - waning_S
+        #dR[:,1] = dR[:,1] - waning_R
+        # Waning of vaccine immunity: second dose
+        #waning_S = (1/d_vacc)*S[:,2]
+        #waning_R = (1/d_vacc)*R[:,2]
+        #dS[:,0] = dS[:,0] + waning_S + waning_R
+        #dS[:,2] = dS[:,2] - waning_S
+        #dR[:,2] = dR[:,2] - waning_R
+
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+
+
 class COVID19_SEIRD_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation

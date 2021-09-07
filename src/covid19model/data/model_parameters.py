@@ -91,8 +91,8 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', s
     if not spatial:
         initN_data = "../../../data/interim/demographic/initN_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1].sum(axis=0)    
-    
+        initN = initN_df.values[:,:-1].sum(axis=0)
+
     ##########################################
     ## Extract the Willem or Comix matrices ##
     ##########################################
@@ -182,7 +182,7 @@ def get_integrated_willem2012_interaction_matrices(spatial=None):
     if not spatial:
         initN_data = "../../../data/interim/demographic/initN_arr.csv"
         initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-        initN = initN_df.values[:,:-1].sum(axis=0)  
+        initN = initN_df.values[:,:-1].sum(axis=0)
 
     ################################################
     ## Extract and integrate Willem 2012 matrices ##
@@ -301,7 +301,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
 
         residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
         pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
-        pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1]) 
+        pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1])
         pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
         pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1])
 
@@ -318,11 +318,11 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         # vaccination
         if vaccination == True:
             pars_dict['N_vacc'] = np.zeros(9) # Default: no vaccination at simulation start
-            pars_dict['e_s'] = np.array([0.95, 0.95, 0.95]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis, per VOC
-            pars_dict['e_h'] = np.array([0.90, 0.90, 0.90]) # Default: 90% protection against severe COVID-19, per VOC
-            pars_dict['e_a'] = np.array([1.00, 1.00, 1.00]) # Default: vaccination works in 100% of people, per VOC
-            pars_dict['e_i'] = np.array([0.90, 0.90, 0.90]) # Default: vaccinated infectious individual is equally infectious as non-vaccinated individual, per VOC
-            pars_dict['d_vacc'] = 36*30 # Default: 36 month coverage of vaccine
+            pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
+            pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
+            pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
+            pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
+            pars_dict['d_vacc'] = 36*30 # Default: 36 months coverage of vaccine
 
     else:
         pars_dict['Nc'] = np.array([17.65]) # Average interactions assuming weighing by age, by week/weekend and the inclusion of supplemental professional contacts (SPC)
@@ -390,7 +390,7 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         # NB Currently not used
         sg = np.ones(pars_dict['place'].shape[0]) * 2.3
         pars_dict['sg'] = sg
-        
+
         # Define factor controlling the contact dependence on density f (hard-coded)
         xi = 0.01 # km^-2
         pars_dict['xi'] = xi
@@ -407,13 +407,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
         pars_dict['beta_R'] = 0.03492 # rural
         pars_dict['beta_U'] = 0.03492 # urban
         pars_dict['beta_M'] = 0.03492 # metropolitan
-        
+
     # Co-infection model: infectivity gain
     if VOC:
-        pars_dict['alpha'] = [1, 0, 0] # Must be a list so we can check if "sum(alpha) == 1" 
+        pars_dict['alpha'] = [1, 0, 0] # Must be a list so we can check if "sum(alpha) == 1"
         pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
         pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain
-        pars_dict['K_hosp'] = [1, 1.4, 1.4]
+        pars_dict['K_hosp'] = np.ones(3)
 
     return pars_dict
-
