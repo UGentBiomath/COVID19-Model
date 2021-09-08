@@ -266,8 +266,8 @@ class make_vaccination_function():
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
-        incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df.index.get_level_values(1).unique().values)) )
         try:
+            incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df.index.get_level_values(1).unique().values)) )
             N_vacc = np.zeros([9,len(self.df.index.get_level_values(1).unique().values)])
             N_vacc[1,:] = incidence[0,:] + (2/6)*incidence[1,:]
             N_vacc[2,:] = (4/6)*incidence[1,:] + (5/10)*incidence[2,:]
