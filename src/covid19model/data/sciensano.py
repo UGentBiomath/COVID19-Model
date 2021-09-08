@@ -311,11 +311,12 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
 
     if update==True:
         # Extract case data from source
-        #df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
+        df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
-        #df.to_csv(rel_dir, index=False)
-        df = pd.read_csv(rel_dir)
+        df.to_csv(rel_dir, index=False)
+        #df = pd.read_csv(rel_dir)
+        
         ########################################################
         ## Convert YEAR_WEEK to startdate and enddate of week ##
         ########################################################
@@ -371,6 +372,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         #################################
         ## Fill up the missing entries ##
         #################################
+        
         # Make a dataframe containing all the desired levels
         iterables = [df['start_week'].unique(), multi_df.index.get_level_values(1).unique(), multi_df.index.get_level_values(2).unique()]
         index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age"])
@@ -386,6 +388,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ##############################################
         ## Convert cumulative numbers to incidences ##
         ##############################################
+        
         # Pre-allocate column
         mergedDf['INCIDENCE'] = 0
         # Loop over indices (computationally expensive)
@@ -400,23 +403,15 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ##############################
         ## Save formatted dataframe ##
         ##############################
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format.csv')
-        df.to_csv(rel_dir, index=True)
-
-    else:
-        ##############################
-        ## Load formatted dataframe ##
-        ##############################
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format.csv')
-        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['start_week'])
-
-    ##########################################
-    ## Perform aggregation to desired level ##
-    ##########################################
-
-    if agg == 'mun':
-        return df
-    elif ((agg == 'arr') | (agg == 'prov')):
+        
+        ############################
+        # Save *municipality* data #
+        ############################
+        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
+        mun_df = df
+        mun_df.to_csv(rel_dir, index=True)
+        
+        # Save *arrondissement* data
         # Extract arrondissement's NIS codes
         NIS_arr = read_coordinates_nis(spatial='arr')
         # Make a new dataframe
@@ -432,33 +427,59 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
             for NIS in df.index.get_level_values(1).unique():
                 arr_NIS = int(str(NIS)[0:2] + '000')
                 arr_df.loc[start_week, arr_NIS, :] = arr_df.loc[start_week, arr_NIS, :].values + df.loc[start_week, NIS, :].values
+                
+        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_arr.csv')
+        arr_df.to_csv(rel_dir, index=True)
+        
+        ########################
+        # Save *province* data #
+        ########################
+        
+        # Extract provincial NIS codes
+        NIS_prov = read_coordinates_nis(spatial='prov')
+        # Make a new dataframe
+        iterables = [df.index.get_level_values(0).unique(), NIS_prov, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        columns = ['CUMULATIVE','INCIDENCE']
+        prov_df = pd.DataFrame(index=index, columns=columns)
+        prov_df['CUMULATIVE'] = 0
+        prov_df['INCIDENCE'] = 0
+        # Loop over indices (computationally expensive)
+        for idx,start_week in enumerate(arr_df.index.get_level_values(0).unique()):
+            som = np.zeros([arr_df.index.get_level_values(2).unique().shape[0],2])    
+            for NIS in arr_df.index.get_level_values(1).unique():
+                if NIS == 21000:
+                    prov_df.loc[start_week, NIS, :] = arr_df.loc[start_week, NIS, :].values
+                elif ((NIS == 23000) | (NIS == 24000)):
+                    prov_df.loc[start_week, 20001, :] = prov_df.loc[start_week, 20001, :].values + arr_df.loc[start_week, NIS, :].values
+                elif NIS == 25000:
+                    prov_df.loc[start_week, 20002, :] = arr_df.loc[start_week, NIS, :].values
+                else:
+                    prov_NIS = int(str(NIS)[0:1] + '0000')
+                    prov_df.loc[start_week, prov_NIS, :] = prov_df.loc[start_week, prov_NIS, :].values + arr_df.loc[start_week, NIS, :].values
+        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_prov.csv')
+        prov_df.to_csv(rel_dir, index=True)
+        
+        #############################
+        # Return relevant output df #
+        #############################
+        
+        if agg=='mun':
+            df = mun_df
+        elif agg=='arr':
+            df = arr_df
+        elif agg=='prov':
+            df = prov_df
 
-        if agg == 'prov':
-            # Extract provincial NIS codes
-            NIS_prov = read_coordinates_nis(spatial='prov')
-            # Make a new dataframe
-            iterables = [df.index.get_level_values(0).unique(), NIS_prov, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
-            index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
-            columns = ['CUMULATIVE','INCIDENCE']
-            prov_df = pd.DataFrame(index=index, columns=columns)
-            prov_df['CUMULATIVE'] = 0
-            prov_df['INCIDENCE'] = 0
-            # Loop over indices (computationally expensive)
-            for idx,start_week in enumerate(arr_df.index.get_level_values(0).unique()):
-                som = np.zeros([arr_df.index.get_level_values(2).unique().shape[0],2])    
-                for NIS in arr_df.index.get_level_values(1).unique():
-                    if NIS == 21000:
-                        prov_df.loc[start_week, NIS, :] = arr_df.loc[start_week, NIS, :].values
-                    elif ((NIS == 23000) | (NIS == 24000)):
-                        prov_df.loc[start_week, 20001, :] = prov_df.loc[start_week, 20001, :].values + arr_df.loc[start_week, NIS, :].values
-                    elif NIS == 25000:
-                        prov_df.loc[start_week, 20002, :] = arr_df.loc[start_week, NIS, :].values
-                    else:
-                        prov_NIS = int(str(NIS)[0:1] + '0000')
-                        prov_df.loc[start_week, prov_NIS, :] = prov_df.loc[start_week, prov_NIS, :].values + arr_df.loc[start_week, NIS, :].values
-            return prov_df
-        else:
-            return arr_df
+    else:
+        ##############################
+        ## Load formatted dataframe ##
+        ##############################
+        
+        rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
+        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['start_week'])
+
+    return df
 
 
 def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', moving_avg=True):
