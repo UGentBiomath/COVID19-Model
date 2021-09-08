@@ -405,7 +405,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ## Load formatted dataframe ##
         ##############################
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format.csv')
-        df = pd.read_csv(rel_dir, index_col=[0,1,2])
+        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['start_week'])
 
     ##########################################
     ## Perform aggregation to desired level ##
