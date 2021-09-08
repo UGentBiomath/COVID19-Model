@@ -255,17 +255,20 @@ class make_vaccination_function():
         self.df = df
         self.spatial = spatial
         if not spatial:
-            self.df_start = df['V1_tot'].ne(0).idxmax()
-            self.df_end = df.index[-1]
+            try:
+                self.df_start = df['V1_tot'].ne(0).idxmax()
+                self.df_end = df.index[-1]
+            except:
+                raise Exception("Error loading vaccination data. Make sure the spatial argument is correct (True/False).")
         else:
             self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
             self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
-        incidence = np.array(self.df_sciensano['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df_sciensano.index.get_level_values(1).unique().values)) )
+        incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df.index.get_level_values(1).unique().values)) )
         try:
-            N_vacc = np.zeros([9,len(self.df_sciensano.index.get_level_values(1).unique().values)])
+            N_vacc = np.zeros([9,len(self.df.index.get_level_values(1).unique().values)])
             N_vacc[1,:] = incidence[0,:] + (2/6)*incidence[1,:]
             N_vacc[2,:] = (4/6)*incidence[1,:] + (5/10)*incidence[2,:]
             N_vacc[3,:] = (5/10)*incidence[2,:] + (5/10)*incidence[3,:]
@@ -276,51 +279,51 @@ class make_vaccination_function():
             N_vacc[8,:] = (5/10)*incidence[7,:] + incidence[8,:]
             return N_vacc
         except:
-            return np.zeros([9,len(self.df_sciensano.index.get_level_values(1).unique().values)])
+            return np.zeros([9,len(self.df.index.get_level_values(1).unique().values)])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
         # Extrapolate Sciensano n0. first dose vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
-        N_vacc[0] = (10/12)*self.df_sciensano['V1_00_11'][t]
-        N_vacc[1] = (2/12)*self.df_sciensano['V1_00_11'][t] + self.df_sciensano['V1_12_15'][t] + self.df_sciensano['V1_16_17'][t] + (2/6)*self.df_sciensano['V1_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df_sciensano['V1_18_24'][t] + (5/10)*self.df_sciensano['V1_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df_sciensano['V1_25_34'][t] + (5/10)*self.df_sciensano['V1_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df_sciensano['V1_35_44'][t] + (5/10)*self.df_sciensano['V1_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df_sciensano['V1_45_54'][t] + (5/10)*self.df_sciensano['V1_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df_sciensano['V1_55_64'][t] + (5/10)*self.df_sciensano['V1_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df_sciensano['V1_65_74'][t] + (5/10)*self.df_sciensano['V1_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df_sciensano['V1_75_84'][t] + self.df_sciensano['V1_85+'][t]# 80+
+        N_vacc[0] = (10/12)*self.df['V1_00_11'][t]
+        N_vacc[1] = (2/12)*self.df['V1_00_11'][t] + self.df['V1_12_15'][t] + self.df['V1_16_17'][t] + (2/6)*self.df['V1_18_24'][t] # 10-20
+        N_vacc[2] = (4/6)*self.df['V1_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
+        N_vacc[3] = (5/10)*self.df['V1_25_34'][t] + (5/10)*self.df['V1_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*self.df['V1_35_44'][t] + (5/10)*self.df['V1_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*self.df['V1_45_54'][t] + (5/10)*self.df['V1_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*self.df['V1_55_64'][t] + (5/10)*self.df['V1_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*self.df['V1_65_74'][t] + (5/10)*self.df['V1_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*self.df['V1_75_84'][t] + self.df['V1_85+'][t]# 80+
         return N_vacc
 
     @lru_cache()
     def get_sciensano_second_dose(self,t):
         # Extrapolate Sciensano n0. second dose vaccinations to the model's native age bins
         N_vacc = np.zeros(9)
-        N_vacc[0] = (10/12)*self.df_sciensano['V2_00_11'][t]
-        N_vacc[1] = (2/12)*self.df_sciensano['V2_00_11'][t] + self.df_sciensano['V2_12_15'][t] + self.df_sciensano['V2_16_17'][t] + (2/6)*self.df_sciensano['V2_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df_sciensano['V2_18_24'][t] + (5/10)*self.df_sciensano['V1_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df_sciensano['V2_25_34'][t] + (5/10)*self.df_sciensano['V2_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df_sciensano['V2_35_44'][t] + (5/10)*self.df_sciensano['V2_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df_sciensano['V2_45_54'][t] + (5/10)*self.df_sciensano['V2_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df_sciensano['V2_55_64'][t] + (5/10)*self.df_sciensano['V2_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df_sciensano['V2_65_74'][t] + (5/10)*self.df_sciensano['V2_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df_sciensano['V2_75_84'][t] + self.df_sciensano['V2_85+'][t]# 80+
+        N_vacc[0] = (10/12)*self.dfo['V2_00_11'][t]
+        N_vacc[1] = (2/12)*self.df['V2_00_11'][t] + self.df['V2_12_15'][t] + self.df['V2_16_17'][t] + (2/6)*self.df['V2_18_24'][t] # 10-20
+        N_vacc[2] = (4/6)*self.df['V2_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
+        N_vacc[3] = (5/10)*self.df['V2_25_34'][t] + (5/10)*self.df['V2_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*self.df['V2_35_44'][t] + (5/10)*self.df['V2_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*self.df['V2_45_54'][t] + (5/10)*self.df['V2_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*self.df['V2_55_64'][t] + (5/10)*self.df['V2_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*self.df['V2_65_74'][t] + (5/10)*self.df['V2_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*self.df['V2_75_84'][t] + self.df['V2_85+'][t]# 80+
         return N_vacc
 
     @lru_cache()
     def get_sciensano_one_shot_dose(self,t):
         # Extrapolate Sciensano n0. one-shot vaccines to the model's native age bins
         N_vacc = np.zeros(9)
-        N_vacc[0] = (10/12)*self.df_sciensano['VJ&J_00_11'][t]
-        N_vacc[1] = (2/12)*self.df_sciensano['VJ&J_00_11'][t] + self.df_sciensano['VJ&J_12_15'][t] + self.df_sciensano['VJ&J_16_17'][t] + (2/6)*self.df_sciensano['VJ&J_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df_sciensano['VJ&J_18_24'][t] + (5/10)*self.df_sciensano['VJ&J_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df_sciensano['VJ&J_25_34'][t] + (5/10)*self.df_sciensano['VJ&J_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df_sciensano['VJ&J_35_44'][t] + (5/10)*self.df_sciensano['VJ&J_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df_sciensano['VJ&J_45_54'][t] + (5/10)*self.df_sciensano['VJ&J_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df_sciensano['VJ&J_55_64'][t] + (5/10)*self.df_sciensano['VJ&J_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df_sciensano['VJ&J_65_74'][t] + (5/10)*self.df_sciensano['VJ&J_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df_sciensano['VJ&J_75_84'][t] + self.df_sciensano['VJ&J_85+'][t]# 80+
+        N_vacc[0] = (10/12)*self.df['VJ&J_00_11'][t]
+        N_vacc[1] = (2/12)*self.df['VJ&J_00_11'][t] + self.df['VJ&J_12_15'][t] + self.df['VJ&J_16_17'][t] + (2/6)*self.df['VJ&J_18_24'][t] # 10-20
+        N_vacc[2] = (4/6)*self.df['VJ&J_18_24'][t] + (5/10)*self.df['VJ&J_25_34'][t] # 20-30
+        N_vacc[3] = (5/10)*self.df['VJ&J_25_34'][t] + (5/10)*self.df['VJ&J_35_44'][t] # 30-40
+        N_vacc[4] = (5/10)*self.df['VJ&J_35_44'][t] + (5/10)*self.df['VJ&J_45_54'][t] # 40-50
+        N_vacc[5] = (5/10)*self.df['VJ&J_45_54'][t] + (5/10)*self.df['VJ&J_55_64'][t] # 50-60
+        N_vacc[6] = (5/10)*self.df['VJ&J_55_64'][t] + (5/10)*self.df['VJ&J_65_74'][t] # 60-70
+        N_vacc[7] = (5/10)*self.df['VJ&J_65_74'][t] + (5/10)*self.df['VJ&J_75_84'][t] # 70-80
+        N_vacc[8] = (5/10)*self.df['VJ&J_75_84'][t] + self.df['VJ&J_85+'][t]# 80+
         return N_vacc
 
     # Default vaccination strategy = Sciensano data + hypothetical scheme after end of data collection
@@ -367,9 +370,9 @@ class make_vaccination_function():
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
 
-        if t <= self.df_sciensano_start + delay:
+        if t <= self.df + delay:
             return np.zeros(9)
-        elif self.df_sciensano_start + delay < t <= self.df_sciensano_end + delay:
+        elif self.df_start + delay < t <= self.df_end + delay:
             return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
         else:
             N_vacc = np.zeros(9)
@@ -434,9 +437,9 @@ class make_vaccination_function():
         # Compute the number of vaccine eligible individuals: received 0 doses
         VE = states['S'][:,0:2] + states['R'][:,0:2]
 
-        if t <= self.df_sciensano_start + delay_immunity:
+        if t <= self.df_start + delay_immunity:
             return np.zeros([9,3])
-        elif self.df_sciensano_start + delay_immunity < t <= self.df_sciensano_end + delay_immunity:
+        elif self.df_start + delay_immunity < t <= self.df_end + delay_immunity:
             return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)
         else:
             N_vacc = np.zeros([9,3])
