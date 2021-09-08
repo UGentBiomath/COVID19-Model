@@ -228,14 +228,21 @@ class make_VOC_function():
 
 class make_vaccination_function():
     """
-    Class that returns a two-fold time-dependant parameter function for the vaccination strategy by default. First, first dose data by sciensano are used. In the future, a hyptothetical scheme is used.
+    Class that returns a two-fold time-dependent parameter function for the vaccination strategy by default. First, first dose data by sciensano are used. In the future, a hypothetical scheme is used. If spatial data is given, the output consists of vaccination data per NIS code.
 
     Input
     -----
-    df_sciensano : pd.dataFrame
-        Sciensano public dataset, obtained using:
+    df : pd.dataFrame
+        *either* Sciensano public dataset, obtained using:
         `from covid19model.data import sciensano`
-        `df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)`
+        `df = sciensano.get_sciensano_COVID19_data(update=False)`
+        
+        *or* public spatial vaccination data, obtained using:
+        `from covid19model.data import sciensano`
+        `df = sciensano.get_public_spatial_vaccination_data(update=False,agg='arr')`
+        
+    spatial : Boolean
+        True if df is spatially explicit. False by default.
 
     Output
     ------
@@ -244,10 +251,15 @@ class make_vaccination_function():
         Default vaccination function
 
     """
-    def __init__(self, df_sciensano):
-        self.df_sciensano = df_sciensano
-        self.df_sciensano_start = df_sciensano['V1_tot'].ne(0).idxmax()
-        self.df_sciensano_end = df_sciensano.index[-1]
+    def __init__(self, df, spatial=None):
+        self.df = df
+        self.spatial = spatial
+        if not spatial:
+            self.df_start = df['V1_tot'].ne(0).idxmax()
+            self.df_end = df.index[-1]
+        else:
+            self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
+            self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
