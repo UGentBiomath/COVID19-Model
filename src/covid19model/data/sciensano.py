@@ -305,6 +305,9 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
     # Data source
     url = 'https://epistat.sciensano.be/Data/COVID19BE.xlsx'
     abs_dir = os.path.dirname(__file__)
+    
+    # Load necessary functions
+    from ..models.utils import read_coordinates_nis
 
     if update==True:
         # Extract case data from source
