@@ -1,4 +1,92 @@
+import pandas as pd
 import numpy as np
+
+class MPC():
+
+    def __init__(self, model, control_handles): #NOTE: include output + function to match here?
+        self.model = model
+        self.control_handles = control_handles 
+        self.validate_control_handles()
+    
+    def validate_control_handles(self):
+        """ Check if the control_handles variables passed by the user is a list containing only parameters of the model
+        """
+        # Check if the control_handles variable is a list
+        if not isinstance(self.control_handles, list) :
+            raise ValueError(
+                "The control handles are of type '{0}' but must be of "
+                "type '<class 'list'>'".format(type(self.control_handles)))
+        # Check if the control_handles are model parameters
+        for ch in self.control_handles:
+            if ch not in self.model.parameters:
+                raise ValueError(
+                    "The specified control handle '{0}' is not an "
+                    "existing model parameter".format(ch))
+
+    def construct_horizon(self, values, L, parameter_name, t_start=0):
+        """ A function to construct a time-dependent parameter function for a given control handle
+            If the control handle was already a pre-defined model time-dependent parameter function, than the controller is engaged at timestep t_start 
+            The function was built and tested to work with pd.Timestamp/pd.Datetime or with floats as time unit
+
+            Parameters
+            ----------
+            values : list
+                Contains the discrete values of the control handles over the prediction horizon
+            L : integer
+                Length in days of one discrete control interval
+            parameter_name : str
+                Parameter name of the control handle
+            t_start : float or pd.datetime or pd.Timestamp
+                Time at which the TDPF should switch from the pre-defined TDPF to the policy proposed by the MPC controller
+
+            Output
+            ------
+            horizon: function
+                Time-dependent parameter function containing the prediction horizon of the MPC controller
+
+            Example
+            -------
+            >>> values = [3, 8, 5]
+            >>> L = 7
+            >>> function = MPC.construct_horizon(values, L, 'Nc', pd.to_datetime('2020-05-01'))
+            >>> print(function(pd.Timestamp('2020-05-02'),{},5))
+            Return a value of 3
+        """
+
+        # Construct vector with timesteps of policy changes, starting at time 0
+        policy_nodes = []
+        for i in range(len(values)):
+            policy_nodes.append(L*i)
+
+        # Convert policy_nodes to dates if necessary (should allow this code to work both for timestep or dates)
+        try:
+            policy_nodes = [t_start + pd.Timedelta(days=policy_node) for policy_node in policy_nodes]
+        except:
+            policy_nodes = [t_start + policy_node for policy_node in policy_nodes]
+
+        # Based on parameter name, find out if the parameter is a TDPF
+        if parameter_name in self.model.time_dependent_parameters:
+            # Get the TDPF by using the parameter_name
+            for idx, (key,value) in enumerate(self.model.time_dependent_parameters.items()):
+                if key == parameter_name:
+                    TDPF = value
+                    TDPF_parameter_names = self.model._function_parameters[idx]
+                    TDPF_parameter_values = [self.model.parameters[x] for x in TDPF_parameter_names]
+
+            def horizon(t, states, param): # *TDPF_parameter_values --> may have to be moved to the horizon function call
+                if t <= t_start:
+                    return TDPF(t, states, param, *TDPF_parameter_values)
+                else:
+                    return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
+
+            return horizon
+
+        else:
+            def horizon(t, states, param):
+                return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
+
+            return horizon
+
 
     def constructHorizon(self,thetas,parNames,policy_period):
         # from length of theta list and number of parameters, length of horizon can be calculated
