@@ -382,21 +382,39 @@ class make_vaccination_function():
         if t <= self.df_start + delay:
             return np.zeros(9)
         elif self.df_start + delay < t <= self.df_end + delay:
-            return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
+            if not self.spatial:
+                return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
+            else:
+                return self.get_sciensano_spatial_first_dose(t-delay)
         else:
-            N_vacc = np.zeros(9)
-            idx = 0
-            while daily_first_dose > 0:
-                if idx == stop_idx:
-                    daily_first_dose = 0 #End vaccination campaign at age 20
-                elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                    N_vacc[vacc_order[idx]] = daily_first_dose
-                    daily_first_dose = 0
-                else:
-                    N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                    daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                    idx = idx + 1
-            return N_vacc
+            if not self.spatial:
+                N_vacc = np.zeros(9)
+                idx = 0
+                while daily_first_dose > 0:
+                    if idx == stop_idx:
+                        daily_first_dose = 0 #End vaccination campaign at age 20
+                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
+                        N_vacc[vacc_order[idx]] = daily_first_dose
+                        daily_first_dose = 0
+                    else:
+                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
+                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+                        idx = idx + 1
+                return N_vacc
+            else: # spatial case
+                N_vacc = np.zeros([len(self.df.index.get_level_values(1).unique().values),9])
+                idx=0
+                while daily_first_dose > 0:
+                    if idx == stop_idx:
+                        daily_first_dose = 0 # halt loop
+                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
+                        N_vacc[vacc_order[idx]] = daily_first_dose
+                        daily_first_dose = 0 # halt loop
+                    else:
+                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
+                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+                        idx = idx + 1
+                return N_vacc
 
     # Stratified vaccination strategy
     # = Sciensano data + hypothetical scheme after end of data collection
