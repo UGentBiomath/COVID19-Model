@@ -3,21 +3,49 @@ import numpy as np
 
 class MPC():
 
-    def __init__(self, model, control_handles): #NOTE: include output + function to match here?
+    def __init__(self, model, control_handles_dict): #NOTE: include output + function to match here?
         self.model = model
-        self.control_handles = control_handles 
+        self.control_handles_dict = control_handles_dict
         self.validate_control_handles()
-    
+
     def validate_control_handles(self):
-        """ Check if the control_handles variables passed by the user is a list containing only parameters of the model
+        """ Check if the control_handles_dict passed by the user has the right format
         """
-        # Check if the control_handles variable is a list
-        if not isinstance(self.control_handles, list) :
+        # Perform checks on format of control_handles_dict
+        if not isinstance(self.control_handles_dict, dict):
             raise ValueError(
-                "The control handles are of type '{0}' but must be of "
-                "type '<class 'list'>'".format(type(self.control_handles)))
-        # Check if the control_handles are model parameters
-        for ch in self.control_handles:
+                "The control handles dictionary is of type '{0}' but must be a dict".format(type(self.control_handles_dict)))
+        # Extract the names of the control handles
+        self.control_handles_names = list(self.control_handles_dict.keys())
+        # Check if every entry contains another dict with keys: continuous, bounds_values
+        for ch in self.control_handles_names:
+            if not set(['continuous', 'bounds_values']).issubset(set(list(self.control_handles_dict[ch].keys()))):
+                raise ValueError(
+                    "The control handles dictionary must contain the properties 'continuous' and 'bounds_values'"
+                )
+            for prop, value in self.control_handles_dict[ch].items():
+                if prop == 'continuous':
+                    if not isinstance(self.control_handles_dict[ch][prop], bool):
+                        raise ValueError(
+                            "Control handle '{0}' property '{1}' must be of type 'bool'!".format(ch,prop)
+                        )
+                elif prop == 'bounds_values':
+                    if self.control_handles_dict[ch]['continuous'] == True:
+                        if not isinstance(self.control_handles_dict[ch][prop], tuple):
+                            raise ValueError(
+                            "Control handle '{0}' property '{1}' must be a tuple containing the upper and lower bounds".format(ch,prop)
+                            )
+                        if len(self.control_handles_dict[ch][prop]) != 2:
+                            raise ValueError(
+                            "Control handle '{0}' property '{1}' must be a tuple of length 2 (containing the upper and lower bounds)".format(ch,prop)
+                            )                            
+                    else:
+                        if not isinstance(self.control_handles_dict[ch][prop], list):
+                            raise ValueError(
+                            "Control handle '{0}' property '{1}' must be a list containing the discrete values control handle '{2}' can assume".format(ch,prop,ch)
+                            )               
+        # Check if the control_handles names are model parameters
+        for ch in self.control_handles_names:
             if ch not in self.model.parameters:
                 raise ValueError(
                     "The specified control handle '{0}' is not an "
@@ -88,33 +116,99 @@ class MPC():
 
             return horizon
 
+    def pso_to_horizons(self, thetas, L, t_start):
+        # Reshape thetas to size: n_control handles * length_control_horizon, where the order of the control handles is assumed the same as the one provided in the control_handles_dict
+        thetas = np.reshape(thetas, (len(list(self.control_handles_dict.keys())), len(thetas)/len(list(self.control_handles_dict.keys())) ))
 
-    def constructHorizon(self,thetas,parNames,policy_period):
-        # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames))
-        # Time
-        t = []
-        for i in range(N-1):
-            t.append(policy_period*(i+1))
-        checkpoints = {'t': t}
-        # Initialise empty list for every control handle
-        for i in range(len(parNames)):
-            checkpoints.update({parNames[i] : []})
-        # Append to list
-        for i in range(len(parNames)):
-            if parNames[i] == 'Nc':
-                for j in range(0,N):
-                    if j == 0:
-                        setattr(self, parNames[i],numpy.array([thetas[i*N+j]]))
+        horizons = []
+        # Loop over control handles
+        for idx,ch in enumerate(self.control_handles_names):
+            if self.control_handles_dict[ch]['continuous'] == True:
+                ### Continuous : pass estimate to function construct_horizon as argument values
+                horizons.append(self.construct_horizon(thetas[idx,:], L, ch, t_start[idx]))
+                ### Discrete : convert pso estimate to discrete values (then --> construct_horizon)
+        
+        return horizons
+        
+        # Next up: function passed to pso
+
+    def cost_economic(self, model_output, model_output_costs, control_handles, L):
+        """A cost function where a cost can be associated with any model state and with any control handle"""
+
+        cost=0
+        
+        ###########################
+        ## Cost of model outputs ##
+        ###########################
+        
+        for state, cost in model_output_costs.items():
+            # Reduce the output dimensions to 'time only' by default
+            ymodel = model_output[state]
+            for dimension in model_output.dims:
+                if dimension != 'time':
+                    if dimension == 'draws':
+                        ymodel = ymodel.mean(dim=dimension)
                     else:
-                        checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
+                        ymodel = ymodel.sum(dim=dimension)
+            # Compute cost
+            cost = cost + sum(ymodel.values*cost)
+
+        #############################
+        ## Cost of control handles ##
+        #############################   
+        
+        # Loop over the control handles --> provide these as dict to the function
+        for idx, (ch, values) in enumerate(control_handles.items()):
+            # Check if the control handle is continuous or discrete
+            if self.control_handles_dict[ch]['continuous'] == True:
+                # If continuous, then the cost is a 'per unit cost'
+                cost = cost + L*self.control_handles_dict[ch]['costs']
             else:
-                for j in range(0,N):
-                    if j == 0:
-                        setattr(self, parNames[i],numpy.array([thetas[i*N+j]]))
+                # If discrete, then the cost of each discrete value must be summed over the control horizon
+                discrete_cost=0
+                for policy_idx in range(len(values)):
+                    discrete_cost = discrete_cost + L*self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
+                cost = cost + discrete_cost
+
+        return cost
+
+    def cost_setpoint(self, model_output, states, setpoints, weights):
+        """ A generic function to drive the values of 'states' to 'setpoints'
+            Automatically performs a dimension reduction in the xarray model output until only time remains
+            The sum-of-squared errors in this objective function is minimized if the desired 'states' go to the values 'setpoints'
+        """
+        ##################
+        ## Input checks ##
+        ##################
+        
+        if not isinstance(states, list):
+            raise ValueError("Input argument states must be of type list instead of '{0}'".format(type(states)))
+        if not isinstance(setpoints, list):
+            raise ValueError("Input argument setpoints must be of type list instead of '{0}'".format(type(setpoints)))    
+        if not isinstance(weights, list):
+            raise ValueError("Input argument weights must be of type list instead of '{0}'".format(type(weights)))      
+        if ((len(states) != len(setpoints)) | (len(states) != len(weights))):
+            raise ValueError("The lengths of 'states', 'setpoints' and 'weights' must be equal")
+            
+        ######################
+        ## Cost calculation ##
+        ######################
+        
+        SSE = []
+        for idx, state in enumerate(states):
+            # Reduce the output dimensions to 'time only' by default
+            ymodel = model_output[state]
+            for dimension in model_output.dims:
+                if dimension != 'time':
+                    if dimension == 'draws':
+                        ymodel = ymodel.mean(dim=dimension)
                     else:
-                        checkpoints[parNames[i]].append(numpy.array([thetas[i*N + j]]))
-        return(checkpoints)
+                        ymodel = ymodel.sum(dim=dimension)
+            # Compute SSE
+            SSE.append(sum((ymodel - np.ones(len(ymodel))*setpoints[idx])**2))
+        # Compute total weighted SSE
+        return np.sum(SSE*np.array(weights))
+
 
     def calcMPCsse(self,thetas,parNames,setpoints,positions,weights,policy_period,P):
         # ------------------------------------------------------
