@@ -266,6 +266,9 @@ class make_vaccination_function():
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
+        """
+        Note that there is no difference between first and second dose in the spatial case.
+        """
         # Output shape (patch, age): (11,9)
         age_levels=9
         try:
@@ -339,7 +342,7 @@ class make_vaccination_function():
         First, all available first-dose data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_first_dose" first doses per day,
         administered in the order specified by the vector "vacc_order" with a refusal propensity of "refusal" in every age group.
         This vaccination strategy does not distinguish between vaccination doses, individuals are transferred to the vaccination circuit after some time delay after the first dose.
-        For use with the model `COVID19_SEIRD` in `~src/models/models.py`
+        For use with the model `COVID19_SEIRD` and `COVID19_SEIRD_spatial_vacc` in `~src/models/models.py`
 
         Parameters
         ----------
@@ -365,7 +368,7 @@ class make_vaccination_function():
         Return
         ------
         N_vacc : np.array
-            Number of individuals to be vaccinated at simulation time "t"
+            Number of individuals to be vaccinated at simulation time "t" per age, or per [patch,age]
 
         """
 
@@ -376,7 +379,7 @@ class make_vaccination_function():
         # Compute the number of vaccine eligible individuals
         VE = states['S'] + states['R']
 
-        if t <= self.df + delay:
+        if t <= self.df_start + delay:
             return np.zeros(9)
         elif self.df_start + delay < t <= self.df_end + delay:
             return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
