@@ -72,10 +72,11 @@ class MPC():
                     TDPF = value
                     TDPF_parameter_names = self.model._function_parameters[idx]
                     TDPF_parameter_values = [self.model.parameters[x] for x in TDPF_parameter_names]
+            TDPF_kwargs = dict(zip(TDPF_parameter_names,TDPF_parameter_values))
 
-            def horizon(t, states, param): # *TDPF_parameter_values --> may have to be moved to the horizon function call
+            def horizon(t, states, param, **TDPF_kwargs): # *TDPF_parameter_values --> may have to be moved to the horizon function call
                 if t <= t_start:
-                    return TDPF(t, states, param, *TDPF_parameter_values)
+                    return TDPF(t, states, param, **TDPF_kwargs)
                 else:
                     return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
 
