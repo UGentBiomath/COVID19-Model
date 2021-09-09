@@ -266,20 +266,26 @@ class make_vaccination_function():
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
+        # Output shape (patch, age): (11,9)
+        age_levels=9
         try:
-            incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (9, len(self.df.index.get_level_values(1).unique().values)) )
-            N_vacc = np.zeros([9,len(self.df.index.get_level_values(1).unique().values)])
-            N_vacc[1,:] = incidence[0,:] + (2/6)*incidence[1,:]
-            N_vacc[2,:] = (4/6)*incidence[1,:] + (5/10)*incidence[2,:]
-            N_vacc[3,:] = (5/10)*incidence[2,:] + (5/10)*incidence[3,:]
-            N_vacc[4,:] = (5/10)*incidence[3,:] + (5/10)*incidence[4,:]
-            N_vacc[5,:] = (5/10)*incidence[4,:] + (5/10)*incidence[5,:]
-            N_vacc[6,:] = (5/10)*incidence[5,:] + (5/10)*incidence[6,:]
-            N_vacc[7,:] = (5/10)*incidence[6,:] + (5/10)*incidence[7,:]
-            N_vacc[8,:] = (5/10)*incidence[7,:] + incidence[8,:]
+            incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (len(self.df.index.get_level_values(1).unique().values), age_levels) )
+            N_vacc = np.zeros([len(self.df.index.get_level_values(1).unique().values),age_levels])
+#             N_vacc[:,0] = (10/18)*incidence[:,0]                        # 00-09
+#             N_vacc[:,1] = (8/18)*incidence[:,0] + (2/7)*incidence[:,1]  # 10-19
+            # Hardcode the <10 years for now
+            N_vacc[:,0] = (0/18)*incidence[:,0]                         # 00-09
+            N_vacc[:,1] = (18/18)*incidence[:,0] + (2/7)*incidence[:,1] # 10-19
+            N_vacc[:,2] = (5/7)*incidence[:,1] + (5/10)*incidence[:,2]  # 20-29
+            N_vacc[:,3] = (5/10)*incidence[:,2] + (5/10)*incidence[:,3] # 30-39
+            N_vacc[:,4] = (5/10)*incidence[:,3] + (5/10)*incidence[:,4] # 40-49
+            N_vacc[:,5] = (5/10)*incidence[:,4] + (5/10)*incidence[:,5] # 50-59
+            N_vacc[:,6] = (5/10)*incidence[:,5] + (5/10)*incidence[:,6] # 60-69
+            N_vacc[:,7] = (5/10)*incidence[:,6] + (5/10)*incidence[:,7] # 70-79
+            N_vacc[:,8] = (5/10)*incidence[:,7] + incidence[:,8]        # 80+
             return N_vacc
         except:
-            return np.zeros([9,len(self.df.index.get_level_values(1).unique().values)])
+            return np.zeros([len(self.df.index.get_level_values(1).unique().values),age_levels])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
