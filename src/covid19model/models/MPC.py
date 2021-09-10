@@ -1,5 +1,8 @@
+import math
 import pandas as pd
 import numpy as np
+import multiprocessing as mp
+from ..optimization import pso
 
 class MPC():
 
@@ -120,8 +123,7 @@ class MPC():
         """ This functions converts the pso output 'thetas' to a list of control horizons"""
 
         # Compute length of the control horizon
-        N = len(thetas)/len(list(self.control_handles_dict.keys()))
-
+        N = int(len(thetas)/len(list(self.control_handles_dict.keys())))
         # Check if the prediction horizon is equal than or longer than the control horizon
         # TODO: move this check higher up?
         if N > P:
@@ -139,23 +141,26 @@ class MPC():
                 ph = list(thetas[idx,:])
                 ph += (P-N) * [thetas[idx,-1]]
                 ### Append horizon to the function output
-                horizons.append(self.construct_horizon(ph, L, ch, t_start[idx]))
+                horizons.append(self.construct_horizon(ph, L, ch, t_start))
             else:
                 ### Discrete : convert pso estimate to discrete values (then --> construct_horizon) 
                 #### Loop over estimates
                 converted_thetas=[]
                 for theta in thetas[idx,:]:
                     ##### Make a list containing the corresponding values
-                    converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][math.floor(theta)])
+                    try:
+                        converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][math.floor(theta)])
+                    except:
+                        converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][int(math.floor(theta)-1)])
                 #### Converted control horizon in prediction horizon
                 ph = converted_thetas
                 ph += (P-N) * [converted_thetas[-1]]
-                horizons.append(self.construct_horizon(ph, L, ch, t_start[idx]))
+                horizons.append(self.construct_horizon(ph, L, ch, t_start))
 
         return horizons
         
-    def run(self, thetas, L, P, t_start_controller, t_start_simulation, cost_function, *cost_function_args, **simulation_kwargs):
-        
+    def run(self, thetas, L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs):
+
         #################################################################################
         ## Convert pso estimate into prediction horizon TDPFs and assign them to model ##
         #################################################################################
@@ -174,13 +179,39 @@ class MPC():
         ## Compute cost ##
         ##################
 
-        return sum(cost_function(out, *cost_function_args )
+        return sum(cost_function(out, t_start_controller, *cost_function_args ))
 
-    def optimize(self, ):
-        return chosen_policies
+    def pso_optimize(self, L, N, P, t_start_controller, t_start_simulation, cost_function, maxiter, popsize, *cost_function_args, **simulation_kwargs):
+        
+        ########################################
+        ## Construct bounds for pso optimizer ##
+        ########################################
+
+        bounds=[]
+        for idx, (ch, properties_dict) in enumerate(self.control_handles_dict.items()):
+            if properties_dict['continuous'] == True:
+                bounds += N * [(properties_dict['bounds_values'][0], properties_dict['bounds_values'][1])]
+            else:
+                bounds += N * [(0, len(properties_dict['bounds_values']))]
+
+        ##########################
+        ## Perform optimization ##
+        ##########################
+
+        estimates, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run, bounds,
+                    args=(L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs),
+                    swarmsize=popsize, maxiter=maxiter, minfunc=1e-9, minstep=1e-9, debug=True, particle_output=True)
+        
+        ######################################
+        ## Retrieve the corresponding TDPFs ##
+        ######################################
+
+        estimates_TDPF = self.pso_to_horizons(estimates, L, t_start_controller, P)
+
+        return estimates, estimates_TDPF
 
 
-    def cost_economic(self, model_output, L, t_start, model_output_costs, control_handles):
+    def cost_economic(self, model_output, t_start, L, model_output_costs, control_handles):
         """A cost function where a cost can be associated with any model state and with any control handle"""
 
         ###########################
@@ -219,7 +250,7 @@ class MPC():
 
         return cost_lst
 
-    def cost_setpoint(self, model_output, states, setpoints, weights, t_start):
+    def cost_setpoint(self, model_output, t_start, states, setpoints, weights):
         """ A generic function to drive the values of 'states' to 'setpoints'
             Automatically performs a dimension reduction in the xarray model output until only time remains
             The sum-of-squared errors in this objective function is minimized if the desired 'states' go to the values 'setpoints'
