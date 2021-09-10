@@ -178,7 +178,7 @@ class MPC():
 
     def optimize(self, ):
         return chosen_policies
-        
+
 
     def cost_economic(self, model_output, L, t_start, model_output_costs, control_handles):
         """A cost function where a cost can be associated with any model state and with any control handle"""
@@ -257,52 +257,6 @@ class MPC():
             # Compute SSE
             SSE = SSE + weights[idx]*((ymodel.sel(time=slice(t_start,None)).values - np.ones(len(ymodel.sel(time=slice(t_start,None)).values))*setpoints[idx])**2)
         return SSE
-
-
-    def calcMPCsse(self,thetas,parNames,setpoints,positions,weights,policy_period,P):
-        # ------------------------------------------------------
-        # Building the prediction horizon checkpoints dictionary
-        # ------------------------------------------------------
-
-        # from length of theta list and number of parameters, length of horizon can be calculated
-        N = int(len(thetas)/len(parNames))
-
-        # Build prediction horizon
-        thetas_lst=[]
-        for i in range(len(parNames)):
-            for j in range(0,N):
-                thetas_lst.append(thetas[i*N + j])
-            for k in range(P-N):
-                thetas_lst.append(thetas[i*N + j])
-        chk = self.constructHorizon(thetas_lst,parNames,policy_period)
-
-        # ------------------
-        # Perform simulation
-        # ------------------
-
-        # Set correct simtime
-        T = chk['t'][-1] + policy_period
-        # run simulation
-        self.reset()
-        self.sim(T,checkpoints=chk)
-        # tuple the results, this is necessary to use the positions index
-        out = (self.sumS,self.sumE,self.sumI,self.sumA,self.sumM,self.sumCtot,self.sumICU,self.sumR,self.sumD,self.sumSQ,self.sumEQ,self.sumAQ,self.sumMQ,self.sumRQ)
-
-        # ---------------
-        # Calculate error
-        # ---------------
-        error = 0
-        ymodel =[]
-        for i in range(len(setpoints)):
-            som = 0
-            for j in positions[i]:
-                som = som + numpy.mean(out[j],axis=1).reshape(numpy.mean(out[j],axis=1).size,1)
-            ymodel.append(som.reshape(som.size,1))
-            # calculate error
-        for i in range(len(ymodel)):
-            error = error + weights[i]*(ymodel[i]-setpoints[i])**2
-        SSE = sum(error)[0]
-        return(SSE)
 
     def optimizePolicy(self,parNames,bounds,setpoints,positions,weights,policy_period=7,N=6,P=12,disp=True,polish=True,maxiter=100,popsize=20):
         # -------------------------------
