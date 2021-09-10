@@ -263,6 +263,10 @@ class make_vaccination_function():
         else:
             self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
             self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
+        # Hard-code number of age levels
+        self.space_agg = len(self.df.index.get_level_values(1).unique().values)
+        # self.age_agg = len(self.df.index.get_level_values(2).unique().values)
+        self.age_agg = 9
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
@@ -270,10 +274,10 @@ class make_vaccination_function():
         Note that there is no difference between first and second dose in the spatial case.
         """
         # Output shape (patch, age): (11,9)
-        age_levels=9
         try:
-            incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (len(self.df.index.get_level_values(1).unique().values), age_levels) )
-            N_vacc = np.zeros([len(self.df.index.get_level_values(1).unique().values),age_levels])
+            incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
+            N_vacc = np.zeros([self.space_agg,self.age_agg])
+            # Simple interpolation to redefine age classes
 #             N_vacc[:,0] = (10/18)*incidence[:,0]                        # 00-09
 #             N_vacc[:,1] = (8/18)*incidence[:,0] + (2/7)*incidence[:,1]  # 10-19
             # Hardcode the <10 years for now
@@ -288,7 +292,7 @@ class make_vaccination_function():
             N_vacc[:,8] = (5/10)*incidence[:,7] + incidence[:,8]        # 80+
             return N_vacc
         except:
-            return np.zeros([len(self.df.index.get_level_values(1).unique().values),age_levels])
+            return np.zeros([self.space_agg,self.age_agg])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
@@ -402,7 +406,7 @@ class make_vaccination_function():
                         idx = idx + 1
                 return N_vacc
             else: # spatial case
-                N_vacc = np.zeros([len(self.df.index.get_level_values(1).unique().values),9])
+                N_vacc = np.zeros([self.space_agg,self.age_agg])
                 idx=0
                 while daily_first_dose > 0:
                     if idx == stop_idx:
