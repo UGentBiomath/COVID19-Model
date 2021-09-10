@@ -171,7 +171,7 @@ class MPC():
 
         return cost_lst
 
-    def cost_setpoint(self, model_output, states, setpoints, weights):
+    def cost_setpoint(self, model_output, states, setpoints, weights, t_start):
         """ A generic function to drive the values of 'states' to 'setpoints'
             Automatically performs a dimension reduction in the xarray model output until only time remains
             The sum-of-squared errors in this objective function is minimized if the desired 'states' go to the values 'setpoints'
@@ -193,7 +193,6 @@ class MPC():
         ## Cost calculation ##
         ######################
         
-        SSE = []
         for idx, state in enumerate(states):
             # Reduce the output dimensions to 'time only' by default
             ymodel = model_output[state]
@@ -203,10 +202,13 @@ class MPC():
                         ymodel = ymodel.mean(dim=dimension)
                     else:
                         ymodel = ymodel.sum(dim=dimension)
+
+            if idx == 0:
+                SSE = np.zeros(len(ymodel.sel(time=slice(t_start,None)).values))
+
             # Compute SSE
-            SSE.append(sum((ymodel - np.ones(len(ymodel))*setpoints[idx])**2))
-        # Compute total weighted SSE
-        return np.sum(SSE*np.array(weights))
+            SSE = SSE + weights[idx]*((ymodel.sel(time=slice(t_start,None)).values - np.ones(len(ymodel.sel(time=slice(t_start,None)).values))*setpoints[idx])**2)
+        return SSE
 
 
     def calcMPCsse(self,thetas,parNames,setpoints,positions,weights,policy_period,P):
