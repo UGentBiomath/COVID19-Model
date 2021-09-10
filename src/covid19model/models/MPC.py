@@ -132,16 +132,14 @@ class MPC():
         
         # Next up: function passed to pso
 
-    def cost_economic(self, model_output, model_output_costs, control_handles, L):
+    def cost_economic(self, model_output, L, t_start, model_output_costs, control_handles):
         """A cost function where a cost can be associated with any model state and with any control handle"""
 
-        cost=0
-        
         ###########################
         ## Cost of model outputs ##
         ###########################
         
-        for state, cost in model_output_costs.items():
+        for idx,(state, cost) in enumerate(model_output_costs.items()):
             # Reduce the output dimensions to 'time only' by default
             ymodel = model_output[state]
             for dimension in model_output.dims:
@@ -150,8 +148,11 @@ class MPC():
                         ymodel = ymodel.mean(dim=dimension)
                     else:
                         ymodel = ymodel.sum(dim=dimension)
-            # Compute cost
-            cost = cost + sum(ymodel.values*cost)
+
+            if idx == 0:
+                cost_lst = np.zeros(len(ymodel.sel(time=slice(t_start,None)).values))
+
+            cost_lst = cost_lst + ymodel.sel(time=slice(t_start,None)).values*cost
 
         #############################
         ## Cost of control handles ##
@@ -161,16 +162,14 @@ class MPC():
         for idx, (ch, values) in enumerate(control_handles.items()):
             # Check if the control handle is continuous or discrete
             if self.control_handles_dict[ch]['continuous'] == True:
-                # If continuous, then the cost is a 'per unit cost'
-                cost = cost + L*self.control_handles_dict[ch]['costs']
-            else:
-                # If discrete, then the cost of each discrete value must be summed over the control horizon
-                discrete_cost=0
                 for policy_idx in range(len(values)):
-                    discrete_cost = discrete_cost + L*self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
-                cost = cost + discrete_cost
+                    # Find the right elements
+                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + L*self.control_handles_dict[ch]['costs']*values[policy_idx]
+            else:
+                for policy_idx in range(len(values)):
+                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + L*self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
 
-        return cost
+        return cost_lst
 
     def cost_setpoint(self, model_output, states, setpoints, weights):
         """ A generic function to drive the values of 'states' to 'setpoints'
