@@ -116,21 +116,69 @@ class MPC():
 
             return horizon
 
-    def pso_to_horizons(self, thetas, L, t_start):
+    def pso_to_horizons(self, thetas, L, t_start, P):
+        """ This functions converts the pso output 'thetas' to a list of control horizons"""
+
+        # Compute length of the control horizon
+        N = len(thetas)/len(list(self.control_handles_dict.keys()))
+
+        # Check if the prediction horizon is equal than or longer than the control horizon
+        # TODO: move this check higher up?
+        if N > P:
+            raise ValueError("The control horizon (length: {0}) must be shorter or equal in length as the prediction horizon (length: {1})").format(N,P)
+
         # Reshape thetas to size: n_control handles * length_control_horizon, where the order of the control handles is assumed the same as the one provided in the control_handles_dict
-        thetas = np.reshape(thetas, (len(list(self.control_handles_dict.keys())), len(thetas)/len(list(self.control_handles_dict.keys())) ))
+        thetas = np.reshape(thetas, (len(list(self.control_handles_dict.keys())), N) )
 
         horizons = []
         # Loop over control handles
         for idx,ch in enumerate(self.control_handles_names):
+            ## Check if the control handle is continuous or discrete
             if self.control_handles_dict[ch]['continuous'] == True:
-                ### Continuous : pass estimate to function construct_horizon as argument values
-                horizons.append(self.construct_horizon(thetas[idx,:], L, ch, t_start[idx]))
-                ### Discrete : convert pso estimate to discrete values (then --> construct_horizon)
-        
+                ### Extend control horizon to prediction horizon
+                ph = list(thetas[idx,:])
+                ph += (P-N) * [thetas[idx,-1]]
+                ### Append horizon to the function output
+                horizons.append(self.construct_horizon(ph, L, ch, t_start[idx]))
+            else:
+                ### Discrete : convert pso estimate to discrete values (then --> construct_horizon) 
+                #### Loop over estimates
+                converted_thetas=[]
+                for theta in thetas[idx,:]:
+                    ##### Make a list containing the corresponding values
+                    converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][math.floor(theta)])
+                #### Converted control horizon in prediction horizon
+                ph = converted_thetas
+                ph += (P-N) * [converted_thetas[-1]]
+                horizons.append(self.construct_horizon(ph, L, ch, t_start[idx]))
+
         return horizons
         
-        # Next up: function passed to pso
+    def run(self, thetas, L, P, t_start_controller, t_start_simulation, cost_function, *cost_function_args, **simulation_kwargs):
+        
+        #################################################################################
+        ## Convert pso estimate into prediction horizon TDPFs and assign them to model ##
+        #################################################################################
+
+        horizons = self.pso_to_horizons(thetas, L, t_start_controller, P)
+        for idx,horizon in enumerate(horizons):
+            self.model.time_dependent_parameters.update({self.control_handles_names[idx]: horizon})
+
+        ########################
+        ## Perform simulation ##
+        ########################
+
+        out = self.model.sim(t_start_controller + pd.Timedelta(days=L*P), start_date=t_start_simulation, **simulation_kwargs)
+
+        ##################
+        ## Compute cost ##
+        ##################
+
+        return sum(cost_function(out, *cost_function_args )
+
+    def optimize(self, ):
+        return chosen_policies
+        
 
     def cost_economic(self, model_output, L, t_start, model_output_costs, control_handles):
         """A cost function where a cost can be associated with any model state and with any control handle"""
