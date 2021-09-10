@@ -297,7 +297,7 @@ class make_vaccination_function():
     @lru_cache()
     def get_sciensano_first_dose(self,t):
         # Extrapolate Sciensano n0. first dose vaccinations to the model's native age bins
-        N_vacc = np.zeros(9)
+        N_vacc = np.zeros(self.age_agg)
         N_vacc[0] = (10/12)*self.df['V1_00_11'][t]
         N_vacc[1] = (2/12)*self.df['V1_00_11'][t] + self.df['V1_12_15'][t] + self.df['V1_16_17'][t] + (2/6)*self.df['V1_18_24'][t] # 10-20
         N_vacc[2] = (4/6)*self.df['V1_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
@@ -312,7 +312,7 @@ class make_vaccination_function():
     @lru_cache()
     def get_sciensano_second_dose(self,t):
         # Extrapolate Sciensano n0. second dose vaccinations to the model's native age bins
-        N_vacc = np.zeros(9)
+        N_vacc = np.zeros(self.age_agg)
         N_vacc[0] = (10/12)*self.dfo['V2_00_11'][t]
         N_vacc[1] = (2/12)*self.df['V2_00_11'][t] + self.df['V2_12_15'][t] + self.df['V2_16_17'][t] + (2/6)*self.df['V2_18_24'][t] # 10-20
         N_vacc[2] = (4/6)*self.df['V2_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
@@ -327,7 +327,7 @@ class make_vaccination_function():
     @lru_cache()
     def get_sciensano_one_shot_dose(self,t):
         # Extrapolate Sciensano n0. one-shot vaccines to the model's native age bins
-        N_vacc = np.zeros(9)
+        N_vacc = np.zeros(self.age_agg)
         N_vacc[0] = (10/12)*self.df['VJ&J_00_11'][t]
         N_vacc[1] = (2/12)*self.df['VJ&J_00_11'][t] + self.df['VJ&J_12_15'][t] + self.df['VJ&J_16_17'][t] + (2/6)*self.df['VJ&J_18_24'][t] # 10-20
         N_vacc[2] = (4/6)*self.df['VJ&J_18_24'][t] + (5/10)*self.df['VJ&J_25_34'][t] # 20-30
@@ -381,18 +381,27 @@ class make_vaccination_function():
         # Convert delay to a timedelta
         delay = pd.Timedelta(str(int(delay_immunity))+'D')
         # Compute the number of vaccine eligible individuals
-        VE = states['S'] + states['R']
+        if not self.spatial:
+            VE = states['S'] + states['R']
 
+        # Before start of effect of vaccinations
         if t <= self.df_start + delay:
-            return np.zeros(9)
+            if not self.spatial:
+                return np.zeros(self.age_agg)
+            else:
+                return np.zeros([self.space_agg, self.age_agg])
+            
+        # During effect of vaccination, with available data
         elif self.df_start + delay < t <= self.df_end + delay:
             if not self.spatial:
                 return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
             else:
                 return self.get_sciensano_spatial_first_dose(t-delay)
+            
+        # Projection into the future
         else:
             if not self.spatial:
-                N_vacc = np.zeros(9)
+                N_vacc = np.zeros(self.age_agg)
                 idx = 0
                 while daily_first_dose > 0:
                     if idx == stop_idx:
@@ -406,24 +415,24 @@ class make_vaccination_function():
                         idx = idx + 1
                 return N_vacc
             else: # spatial case
+                # For now: suppose no new shots are being given (worst-case scenario)
                 N_vacc = np.zeros([self.space_agg,self.age_agg])
-                idx=0
-                while daily_first_dose > 0:
-                    if idx == stop_idx:
-                        daily_first_dose = 0 # halt loop
-                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                        N_vacc[vacc_order[idx]] = daily_first_dose
-                        daily_first_dose = 0 # halt loop
-                    else:
-                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                        idx = idx + 1
+#                 idx=0
+#                 while daily_first_dose > 0:
+#                     if idx == stop_idx:
+#                         daily_first_dose = 0 # halt loop
+#                     elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
+#                         N_vacc[vacc_order[idx]] = daily_first_dose
+#                         daily_first_dose = 0 # halt loop
+#                     else:
+#                         N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
+#                         daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+#                         idx = idx + 1
                 return N_vacc
 
     # Stratified vaccination strategy
     # = Sciensano data + hypothetical scheme after end of data collection
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 4*7, stop_idx=9,
-                                            refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
+    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 4*7, stop_idx=9, refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
         """
         time-dependent function for the Belgian vaccination strategy
         First, all available first- and second dose data from Sciensano are used. Then, the user can specify a custom multi-jab vaccination strategy of "daily_first_dose" first doses per day,
