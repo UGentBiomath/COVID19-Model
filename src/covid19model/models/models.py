@@ -1181,12 +1181,6 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         # Compute the hospital rates of changes
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#         print('M: ', M)
-#         print('dhospital :', dhospital)
-#         print('M_v: ', M_v)
-#         print('e_h: ', e_h)
-#         print('H_in: ', H_in)
-              
         dH_in = M*(h/dhospital) + M_v*((1-e_h_eff)*h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
             + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
