@@ -123,16 +123,12 @@ class MPC():
 
         return horizon
     
-    def thetas_to_values(self, thetas, P):
+    def thetas_to_values(self, thetas):
         """ A function to convert the pso-specific 'thetas' format into key-value pairs of the control handles
         """
 
         # Compute length of the control horizon
         N = int(len(thetas)/len(list(self.control_handles_dict.keys())))
-        # Check if the prediction horizon is equal than or longer than the control horizon
-        # TODO: move this check higher up?
-        if N > P:
-            raise ValueError("The control horizon (length: {0}) must be shorter or equal in length as the prediction horizon (length: {1})").format(N,P)
 
         # Reshape thetas to size: n_control handles * length_control_horizon, where the order of the control handles is assumed the same as the one provided in the control_handles_dict
         thetas = np.reshape(thetas, (len(list(self.control_handles_dict.keys())), N) )
@@ -140,11 +136,8 @@ class MPC():
         values={}
         for idx,ch in enumerate(self.control_handles_names):
             if self.control_handles_dict[ch]['continuous'] == True:
-                ### Extend control horizon to prediction horizon
-                ph = list(thetas[idx,:])
-                ph += (P-N) * [thetas[idx,-1]]
                 ### Append to dictionary
-                values.update({ch : ph})
+                values.update({ch : list(thetas[idx,:])})
             else:
                 ### Discrete : convert pso estimate to discrete values (then --> construct_horizon) 
                 #### Loop over estimates
@@ -155,24 +148,33 @@ class MPC():
                         converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][math.floor(theta)])
                     except:
                         converted_thetas.append(self.control_handles_dict[ch]['bounds_values'][int(math.floor(theta)-1)])
-                #### Converted control horizon in prediction horizon
-                ph = converted_thetas
-                ph += (P-N) * [converted_thetas[-1]]
                 ### Append to dictionary
-                values.update({ch : ph})
+                values.update({ch : converted_thetas})
         return values
 
-    def run(self, thetas, L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs):
+    def run_pso(self, thetas, *run_args):
+        """ This function is a wrapper designed specifically to convert the pso estimate thetas into a key-value dictionary of the control horizon,
+            which is the required input format for the MPC algorithm"""
 
-        ###########################################################################
-        ## Convert pso estimate 'thetas' into key-value pairs of control handles ##
-        ###########################################################################
+        # Convert thetas into control horizon dictionary
+        control_handles = self.thetas_to_values(thetas)
 
-        control_handles = self.thetas_to_values(thetas, P)
+        return self.run(control_handles, *run_args)
 
-        ###################################
-        ## Build and assign the horizons ##
-        ###################################
+    def run(self, control_handles, L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs):
+
+        #####################################################
+        ## Convert control horizon into prediction horizon ##
+        #####################################################
+
+        # Extend control horizon into prediction horizon
+        for key,value in control_handles.items():
+            N = len(control_handles[key])
+            value += (P-N) * value[-1]
+
+        ############################################
+        ## Build and assign the horizons as TDPFs ##
+        ############################################
 
         for ch,ph in control_handles.items():
             self.model.time_dependent_parameters.update({ch : self.construct_horizon(ph, L, ch, t_start_controller)})
@@ -206,7 +208,7 @@ class MPC():
         ## Perform optimization ##
         ##########################
 
-        thetas, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run, bounds,
+        thetas, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run_pso, bounds,
                     args=(L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs),
                     swarmsize=popsize, maxiter=maxiter, minfunc=1e-9, minstep=1e-9, debug=True, particle_output=True)
         
@@ -214,7 +216,12 @@ class MPC():
         ## Retrieve the corresponding TDPFs ##
         ######################################
 
-        thetas_values = self.thetas_to_values(thetas, P)
+        # Control horizon dictionary
+        thetas_values = self.thetas_to_values(thetas)
+        # Conversion into prediction horizon dictionary
+        for key,value in thetas_values.items():
+            value += (P-N) * value[-1]
+        # Conversion into prediction horizon TDPFs
         thetas_TDPF={}
         for ch,ph in thetas_values.items():
             thetas_TDPF.update({ch : self.construct_horizon(ph, L, ch, t_start_controller)})
