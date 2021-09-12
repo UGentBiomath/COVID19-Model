@@ -116,16 +116,16 @@ class MPC():
         TDPF_kwargs = dict(zip(TDPF_parameter_names,TDPF_parameter_values))
 
         def horizon(t, states, param, **TDPF_kwargs): # *TDPF_parameter_values --> may have to be moved to the horizon function call
-            if t <= t_start:
+            if t < t_start:
                 return TDPF(t, states, param, **TDPF_kwargs)
             else:
                 return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
 
         return horizon
-
-
-    def pso_to_horizons(self, thetas, L, t_start, P):
-        """ This functions converts the pso output 'thetas' to a list of control horizons"""
+    
+    def thetas_to_values(self, thetas, P):
+        """ A function to convert the pso-specific 'thetas' format into key-value pairs of the control handles
+        """
 
         # Compute length of the control horizon
         N = int(len(thetas)/len(list(self.control_handles_dict.keys())))
@@ -137,16 +137,14 @@ class MPC():
         # Reshape thetas to size: n_control handles * length_control_horizon, where the order of the control handles is assumed the same as the one provided in the control_handles_dict
         thetas = np.reshape(thetas, (len(list(self.control_handles_dict.keys())), N) )
 
-        horizons = []
-        # Loop over control handles
+        values={}
         for idx,ch in enumerate(self.control_handles_names):
-            ## Check if the control handle is continuous or discrete
             if self.control_handles_dict[ch]['continuous'] == True:
                 ### Extend control horizon to prediction horizon
                 ph = list(thetas[idx,:])
                 ph += (P-N) * [thetas[idx,-1]]
-                ### Append horizon to the function output
-                horizons.append(self.construct_horizon(ph, L, ch, t_start))
+                ### Append to dictionary
+                values.update({ch : ph})
             else:
                 ### Discrete : convert pso estimate to discrete values (then --> construct_horizon) 
                 #### Loop over estimates
@@ -160,31 +158,36 @@ class MPC():
                 #### Converted control horizon in prediction horizon
                 ph = converted_thetas
                 ph += (P-N) * [converted_thetas[-1]]
-                horizons.append(self.construct_horizon(ph, L, ch, t_start))
+                ### Append to dictionary
+                values.update({ch : ph})
+        return values
 
-        return horizons
-        
     def run(self, thetas, L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs):
 
-        #################################################################################
-        ## Convert pso estimate into prediction horizon TDPFs and assign them to model ##
-        #################################################################################
+        ###########################################################################
+        ## Convert pso estimate 'thetas' into key-value pairs of control handles ##
+        ###########################################################################
 
-        horizons = self.pso_to_horizons(thetas, L, t_start_controller, P)
-        for idx,horizon in enumerate(horizons):
-            self.model.time_dependent_parameters.update({self.control_handles_names[idx]: horizon})
+        control_handles = self.thetas_to_values(thetas, P)
+
+        ###################################
+        ## Build and assign the horizons ##
+        ###################################
+
+        for ch,ph in control_handles.items():
+            self.model.time_dependent_parameters.update({ch : self.construct_horizon(ph, L, ch, t_start_controller)})
 
         ########################
         ## Perform simulation ##
         ########################
 
-        out = self.model.sim(t_start_controller + pd.Timedelta(days=L*P), start_date=t_start_simulation, **simulation_kwargs)
+        simout = self.model.sim(t_start_controller + pd.Timedelta(days=L*P), start_date=t_start_simulation, **simulation_kwargs)
 
         ##################
         ## Compute cost ##
         ##################
 
-        return sum(cost_function(out, t_start_controller, *cost_function_args ))
+        return sum(cost_function(simout, control_handles, t_start_controller, *cost_function_args ))
 
     def pso_optimize(self, L, N, P, t_start_controller, t_start_simulation, cost_function, maxiter, popsize, *cost_function_args, **simulation_kwargs):
         
@@ -203,7 +206,7 @@ class MPC():
         ## Perform optimization ##
         ##########################
 
-        estimates, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run, bounds,
+        thetas, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run, bounds,
                     args=(L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs),
                     swarmsize=popsize, maxiter=maxiter, minfunc=1e-9, minstep=1e-9, debug=True, particle_output=True)
         
@@ -211,12 +214,15 @@ class MPC():
         ## Retrieve the corresponding TDPFs ##
         ######################################
 
-        estimates_TDPF = self.pso_to_horizons(estimates, L, t_start_controller, P)
+        thetas_values = self.thetas_to_values(thetas, P)
+        thetas_TDPF={}
+        for ch,ph in thetas_values.items():
+            thetas_TDPF.update({ch : self.construct_horizon(ph, L, ch, t_start_controller)})
 
-        return estimates, estimates_TDPF
+        return thetas, thetas_values, thetas_TDPF
 
 
-    def cost_economic(self, model_output, t_start, L, model_output_costs, control_handles):
+    def cost_economic(self, model_output, control_handles, t_start, L, model_output_costs):
         """A cost function where a cost can be associated with any model state and with any control handle"""
 
         ###########################
@@ -255,7 +261,7 @@ class MPC():
 
         return cost_lst
 
-    def cost_setpoint(self, model_output, t_start, states, setpoints, weights):
+    def cost_setpoint(self, model_output, control_handles, t_start, states, setpoints, weights):
         """ A generic function to drive the values of 'states' to 'setpoints'
             Automatically performs a dimension reduction in the xarray model output until only time remains
             The sum-of-squared errors in this objective function is minimized if the desired 'states' go to the values 'setpoints'
