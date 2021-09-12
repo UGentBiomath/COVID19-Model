@@ -83,7 +83,7 @@ class MPC():
             >>> print(function(pd.Timestamp('2020-05-02'),{},5))
             Return a value of 3
         """
-
+        print
         # Construct vector with timesteps of policy changes, starting at time 0
         policy_nodes = []
         for i in range(len(values)):
@@ -243,10 +243,10 @@ class MPC():
             if self.control_handles_dict[ch]['continuous'] == True:
                 for policy_idx in range(len(values)):
                     # Find the right elements
-                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + L*self.control_handles_dict[ch]['costs']*values[policy_idx]
+                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + self.control_handles_dict[ch]['costs']*values[policy_idx]
             else:
                 for policy_idx in range(len(values)):
-                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + L*self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
+                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
 
         return cost_lst
 
