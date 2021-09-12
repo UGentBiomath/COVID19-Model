@@ -9,9 +9,22 @@ class MPC():
     def __init__(self, model, control_handles_dict): #NOTE: include output + function to match here?
         self.model = model
         self.control_handles_dict = control_handles_dict
-        self.validate_control_handles()
+        self._validate_control_handles()
+        self._assign_TDPF()
+        self.model._validate_time_dependent_parameters()
 
-    def validate_control_handles(self):
+
+    def _assign_TDPF(self):
+
+        def dummy_TDPF(t, states, param):
+            return param
+
+        for ch in self.control_handles_names:
+            if not ch in self.model.time_dependent_parameters:
+                self.model.time_dependent_parameters.update({ch: dummy_TDPF})
+        
+
+    def _validate_control_handles(self):
         """ Check if the control_handles_dict passed by the user has the right format
         """
         # Perform checks on format of control_handles_dict
@@ -83,7 +96,7 @@ class MPC():
             >>> print(function(pd.Timestamp('2020-05-02'),{},5))
             Return a value of 3
         """
-        print
+
         # Construct vector with timesteps of policy changes, starting at time 0
         policy_nodes = []
         for i in range(len(values)):
@@ -95,29 +108,21 @@ class MPC():
         except:
             policy_nodes = [t_start + policy_node for policy_node in policy_nodes]
 
-        # Based on parameter name, find out if the parameter is a TDPF
-        if parameter_name in self.model.time_dependent_parameters:
-            # Get the TDPF by using the parameter_name
-            for idx, (key,value) in enumerate(self.model.time_dependent_parameters.items()):
-                if key == parameter_name:
-                    TDPF = value
-                    TDPF_parameter_names = self.model._function_parameters[idx]
-                    TDPF_parameter_values = [self.model.parameters[x] for x in TDPF_parameter_names]
-            TDPF_kwargs = dict(zip(TDPF_parameter_names,TDPF_parameter_values))
+        for idx, (key,value) in enumerate(self.model.time_dependent_parameters.items()):
+            if key == parameter_name:
+                TDPF = value
+                TDPF_parameter_names = self.model._function_parameters[idx]
+                TDPF_parameter_values = [self.model.parameters[x] for x in TDPF_parameter_names]
+        TDPF_kwargs = dict(zip(TDPF_parameter_names,TDPF_parameter_values))
 
-            def horizon(t, states, param, **TDPF_kwargs): # *TDPF_parameter_values --> may have to be moved to the horizon function call
-                if t <= t_start:
-                    return TDPF(t, states, param, **TDPF_kwargs)
-                else:
-                    return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
-
-            return horizon
-
-        else:
-            def horizon(t, states, param):
+        def horizon(t, states, param, **TDPF_kwargs): # *TDPF_parameter_values --> may have to be moved to the horizon function call
+            if t <= t_start:
+                return TDPF(t, states, param, **TDPF_kwargs)
+            else:
                 return values[[index for index,value in enumerate(policy_nodes) if value <= t][-1]]
 
-            return horizon
+        return horizon
+
 
     def pso_to_horizons(self, thetas, L, t_start, P):
         """ This functions converts the pso output 'thetas' to a list of control horizons"""
