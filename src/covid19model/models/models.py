@@ -1036,6 +1036,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         """
 
         # array of infinity gains of resp. 'OG', British, and Indian variants
+        # Currently not used!
         K_inf = np.array([1, K_inf1, K_inf2])
         
 #         print('CHECKPOINT: start integration function')
@@ -1150,7 +1151,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
-        # Vaccinated susceptibles exit the S class with efficiency e_a_eff
+        # Fraction S/VE = S/(S+R) of the total number of new vaccinations exit the S class with efficiency e_a_eff
         # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
         dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
         dE  = dS_inf - E/sigma
@@ -1160,7 +1161,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a_eff*N_vacc/VE*R # Recovered subjects enter from 4 compartments
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
         # Compute the  rates of change in every population compartment (vaccinated)
