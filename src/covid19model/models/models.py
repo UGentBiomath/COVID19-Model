@@ -1125,7 +1125,9 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
         
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
-        # Note how part of the vaccinated people still contribute to infection pressure
+        # Note how part of the vaccinated people still contribute to infection pressure, but ...
+        # - they are presumably less infectious by a factor e_i_eff
+        # - there aren't many of them to begin with, because only a small part of the S_v subjects trickle down
         multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
         
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
@@ -1170,6 +1172,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         # Subjects from S or R class that are vaccinated enter the S_v class
         # Some subjects in S_v class become susceptible again (end of immunity)
+        # It is assumed that ONLY subjects in S_v and R_v class can re-enter the S compartment
         dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc - (1/d_vacc)*S_v # all vaccinated people enter S_v
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
