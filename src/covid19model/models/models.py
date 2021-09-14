@@ -1161,6 +1161,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+        # Fraction R/VE = R/(S+R) of the total number of new vaccinations exit the R class with efficiency e_a_eff
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a_eff*N_vacc/VE*R # Recovered subjects enter from 4 compartments
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
@@ -1169,7 +1170,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         # Subjects from S or R class that are vaccinated enter the S_v class
         # Some subjects in S_v class become susceptible again (end of immunity)
-        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc/VE*S + e_a_eff*N_vacc/VE*R - (1/d_vacc)*S_v
+        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc - (1/d_vacc)*S_v # all vaccinated people enter S_v
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
