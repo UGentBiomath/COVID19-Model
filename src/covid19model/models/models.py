@@ -1179,6 +1179,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
         dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        # dead = dead, but it is interesting to gauge how many vaccinated people would still die
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
         # Compute the hospital rates of changes
