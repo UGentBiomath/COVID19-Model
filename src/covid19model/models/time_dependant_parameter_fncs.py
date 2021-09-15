@@ -852,6 +852,10 @@ class make_contact_matrix_function():
         t24 = pd.Timestamp('2022-04-04') # Start of Easter Break
         t25 = pd.Timestamp('2022-04-17') # End of Easter Break
 
+        # First wave
+        if t <= t4:
+            return self.policies_WAVE1(t, states, param, l , prev_schools, prev_work, prev_rest_lockdown, prev_home)
+        
         # Second wave
         if t4 < t <= t5:
             return self.__call__(t, school=1)
