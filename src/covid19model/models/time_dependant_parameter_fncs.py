@@ -736,8 +736,12 @@ class make_contact_matrix_function():
         t16 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t17 = pd.Timestamp('2021-09-01')
 
+        # First wave
+        if t <= t4:
+            return self.policies_WAVE1(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home)
+        
         # Second wave
-        if t4 < t <= t5:
+        elif t4 < t <= t5:
             return self.__call__(t, school=1)
         elif t5  < t <= t5 + l_days:
             policy_old = self.__call__(t, school=1)
@@ -786,7 +790,7 @@ class make_contact_matrix_function():
         elif t16 < t <= t17:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
                                 work=0.8, leisure=1, transport=0.90, others=1, school=0)
-        else:
+        else: # full relaxation
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
@@ -917,7 +921,7 @@ class make_contact_matrix_function():
         elif t24 < t <= t25:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)
-        else:
+        else: # full relaxation
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
