@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 import numpy as np
+import rbfopt
 import multiprocessing as mp
 from ..optimization import pso
 
@@ -15,10 +16,10 @@ class MPC():
 
 
     def _assign_TDPF(self):
-
+        # Construct dummy TDPF in right format
         def dummy_TDPF(t, states, param):
             return param
-
+        # If control handle is not a TDPF yet, initialize the dummmy TDPF
         for ch in self.control_handles_names:
             if not ch in self.model.time_dependent_parameters:
                 self.model.time_dependent_parameters.update({ch: dummy_TDPF})
@@ -123,7 +124,7 @@ class MPC():
 
         return horizon
     
-    def thetas_to_values(self, thetas):
+    def thetas_to_control_handles(self, thetas):
         """ A function to convert the pso-specific 'thetas' format into key-value pairs of the control handles
         """
 
@@ -152,12 +153,12 @@ class MPC():
                 values.update({ch : converted_thetas})
         return values
 
-    def run_pso(self, thetas, *run_args):
-        """ This function is a wrapper designed specifically to convert the pso estimate thetas into a key-value dictionary of the control horizon,
+    def run_theta_wrapper(self, thetas, *run_args):
+        """ This function converts the pso/rbfopt estimate thetas into a key-value dictionary of the control horizon,
             which is the required input format for the MPC algorithm"""
 
         # Convert thetas into control horizon dictionary
-        control_handles = self.thetas_to_values(thetas)
+        control_handles = self.thetas_to_control_handles(thetas)
 
         return self.run(control_handles, *run_args)
 
@@ -169,8 +170,8 @@ class MPC():
 
         # Extend control horizon into prediction horizon
         for key,value in control_handles.items():
-            N = len(control_handles[key])
-            value += (P-N) * value[-1]
+            N = len(value)
+            value += value[-1] * (P-N)
 
         ############################################
         ## Build and assign the horizons as TDPFs ##
@@ -191,6 +192,59 @@ class MPC():
 
         return sum(cost_function(simout, control_handles, t_start_controller, *cost_function_args ))
 
+    def rbfopt_optimize(self, L, N, P, t_start_controller, t_start_simulation, cost_function, max_evals, *cost_function_args, **simulation_kwargs):
+
+        #######################################################################
+        ## Construct vector of lower and upper bounds, construct type vector ##
+        #######################################################################
+
+        t = []
+        lower = []
+        upper = []
+
+        for idx, (ch, properties_dict) in enumerate(self.control_handles_dict.items()):
+            if properties_dict['continuous'] == True:
+                t += ['R'] * N
+                lower += [properties_dict['bounds_values'][0]] * N
+                upper += [properties_dict['bounds_values'][1]] * N
+            else:
+                t += ['C'] * N
+                lower +=  [0] * N
+                upper = [len(properties_dict['bounds_values'])] * N
+
+        #############################
+        ## Wrap objective function ##
+        #############################
+
+        run_theta_wrapper = self.run_theta_wrapper
+        def obj_fun(theta):
+            return run_theta_wrapper(theta, L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs)
+
+        ##########################
+        ## Perform optimization ##
+        ##########################
+
+        blackbox = rbfopt.RbfoptUserBlackBox(N*len(self.control_handles_dict), lower, upper, t, obj_fun)
+        settings = rbfopt.RbfoptSettings(max_evaluations=max_evals)
+        algorithm = rbfopt.RbfoptAlgorithm(settings,blackbox)
+        objval, thetas, itercount, evalcount, fast_evalcount = algorithm.optimize()
+
+        ######################################
+        ## Retrieve the corresponding TDPFs ##
+        ######################################
+
+        # Control horizon dictionary
+        thetas_values = self.thetas_to_control_handles(thetas)
+        # Conversion into prediction horizon dictionary
+        for key,value in thetas_values.items():
+            value +=  value[-1] * (P-N) 
+        # Conversion into prediction horizon TDPFs
+        thetas_TDPF={}
+        for ch,ph in thetas_values.items():
+            thetas_TDPF.update({ch : self.construct_horizon(ph, L, ch, t_start_controller)})
+
+        return thetas, thetas_values, thetas_TDPF
+
     def pso_optimize(self, L, N, P, t_start_controller, t_start_simulation, cost_function, maxiter, popsize, *cost_function_args, **simulation_kwargs):
         
         ########################################
@@ -208,7 +262,7 @@ class MPC():
         ## Perform optimization ##
         ##########################
 
-        thetas, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run_pso, bounds,
+        thetas, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = pso.optim(self.run_theta_wrapper, bounds,
                     args=(L, P, t_start_controller, t_start_simulation, cost_function, cost_function_args, simulation_kwargs),
                     swarmsize=popsize, maxiter=maxiter, minfunc=1e-9, minstep=1e-9, debug=True, particle_output=True)
         
@@ -217,7 +271,7 @@ class MPC():
         ######################################
 
         # Control horizon dictionary
-        thetas_values = self.thetas_to_values(thetas)
+        thetas_values = self.thetas_to_control_handles(thetas)
         # Conversion into prediction horizon dictionary
         for key,value in thetas_values.items():
             value += (P-N) * value[-1]
@@ -264,8 +318,8 @@ class MPC():
                     cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + self.control_handles_dict[ch]['costs']*values[policy_idx]
             else:
                 for policy_idx in range(len(values)):
-                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + self.control_handles_dict[ch]['costs'][int(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
-
+                    cost_lst[policy_idx*L:(policy_idx+1)*L] = cost_lst[policy_idx*L:(policy_idx+1)*L] + self.control_handles_dict[ch]['costs'][math.floor(np.where([np.allclose(matrix, values[policy_idx]) for matrix in self.control_handles_dict[ch]['bounds_values']])[0])]
+        
         return cost_lst
 
     def cost_setpoint(self, model_output, control_handles, t_start, states, setpoints, weights):
