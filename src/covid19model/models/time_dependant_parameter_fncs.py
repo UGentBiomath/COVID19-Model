@@ -1112,32 +1112,34 @@ class make_contact_matrix_function():
                                 work=1, leisure=1, transport=1, others=1, school=1)    
 
 
-# Define policy function
-def policies_WAVE1(t, states, param, l, prev_schools, prev_work, prev_rest, prev_home):
+##########################
+## Seasonality function ##
+##########################
 
-    # Convert time to timestamp
-    t = pd.Timestamp(t.date())
+class make_seasonality_function():
+    """
+    Simple class to create a function that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
+    """
+    def __call__(self, t, states, param, amplitude, peak_shift):
+        """
+        Default output function. Returns a sinusoid with average value 1.
+        
+        t : Timestamp
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
+        amplitude : float
+            maximum deviation of output with respect to the average (1)
+        peak_shift : float
+            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+        """
+        ref_date = pd.to_datetime('2021-01-01')
+        # If peak_shift = 0, the max is on the first of January
+        maxdate = pd.Timedelta(days=peak_shift) + ref_date
+        # One period is one year long (seasonality)
+        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+        rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
+        return rescaling
 
-    # Convert l to a date
-    l_days = pd.Timedelta(l, unit='D')
-
-    # Define additional dates where intensity or school policy changes
-    t1 = pd.Timestamp('2020-03-15') # start of lockdown
-    t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-    t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-    t4 = pd.Timestamp('2020-08-07') # peak of 'second wave' in antwerp
-    t5 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-    if t <= t1:
-        return all_contact(t)
-    elif t1 < t <= t1 + l_days:
-        policy_old = all_contact(t)
-        policy_new = contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest,
-                                    school=0)
-        return ramp_fun(policy_old, policy_new, t, t1, l)
-    elif t1 + l_days < t <= t2:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest,
-                              school=0)
-    elif t2 < t <= t3:
-        return contact_matrix_4prev(t, prev_home, prev_schools, prev_work, prev_rest,
-                              school=0)
