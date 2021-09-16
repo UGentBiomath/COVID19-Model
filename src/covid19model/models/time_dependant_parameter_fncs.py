@@ -269,7 +269,7 @@ class make_vaccination_function():
         self.age_agg = 9
 
     @lru_cache()
-    def get_sciensano_spatial_first_dose(self,t):#,like=None):
+    def get_sciensano_spatial_first_dose(self,t):
         """
         Note that there is no difference between first and second dose in the spatial case.
         """
@@ -298,10 +298,6 @@ class make_vaccination_function():
                 return N_vacc
             except:
                 return np.zeros([self.space_agg,self.age_agg])
-#         elif like == 'bxl':
-            ###
-#         elif like == 'flanders':
-            ###
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
@@ -406,116 +402,6 @@ class make_vaccination_function():
                 return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
             else:
                 return self.get_sciensano_spatial_first_dose(t-delay)
-            
-        # Projection into the future
-        else:
-            if not self.spatial:
-                N_vacc = np.zeros(self.age_agg)
-                idx = 0
-                while daily_first_dose > 0:
-                    if idx == stop_idx:
-                        daily_first_dose = 0 #End vaccination campaign at age 20
-                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                        N_vacc[vacc_order[idx]] = daily_first_dose
-                        daily_first_dose = 0
-                    else:
-                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                        idx = idx + 1
-                return N_vacc
-            else: # spatial case
-                # For now: suppose no new shots are being given (worst-case scenario)
-                N_vacc = np.zeros([self.space_agg,self.age_agg])
-#                 idx=0
-#                 while daily_first_dose > 0:
-#                     if idx == stop_idx:
-#                         daily_first_dose = 0 # halt loop
-#                     elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-#                         N_vacc[vacc_order[idx]] = daily_first_dose
-#                         daily_first_dose = 0 # halt loop
-#                     else:
-#                         N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-#                         daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-#                         idx = idx + 1
-                return N_vacc
-
-    def vaccination_like_bxl(t, states, param, initN, daily_first_dose=60000, delay_immunity=21, vacc_order=[8, 7, 6, 5, 4, 3, 2, 1, 0], stop_idx=9, refusal=[0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]):
-        # Convert time to suitable format
-        t = pd.Timestamp(t.date())
-        # Convert delay to a timedelta
-        delay = pd.Timedelta(str(int(delay_immunity))+'D')
-        # Compute the number of vaccine eligible individuals
-        if not self.spatial:
-            VE = states['S'] + states['R']
-
-        # Before start of effect of vaccinations
-        if t <= self.df_start + delay:
-            if not self.spatial:
-                return np.zeros(self.age_agg)
-            else:
-                return np.zeros([self.space_agg, self.age_agg])
-            
-        # During effect of vaccination, with available data
-        elif self.df_start + delay < t <= self.df_end + delay:
-            if not self.spatial:
-                return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
-            else:
-                return self.get_sciensano_spatial_first_dose(t-delay, like='bxl')
-            
-        # Projection into the future
-        else:
-            if not self.spatial:
-                N_vacc = np.zeros(self.age_agg)
-                idx = 0
-                while daily_first_dose > 0:
-                    if idx == stop_idx:
-                        daily_first_dose = 0 #End vaccination campaign at age 20
-                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                        N_vacc[vacc_order[idx]] = daily_first_dose
-                        daily_first_dose = 0
-                    else:
-                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                        idx = idx + 1
-                return N_vacc
-            else: # spatial case
-                # For now: suppose no new shots are being given (worst-case scenario)
-                N_vacc = np.zeros([self.space_agg,self.age_agg])
-#                 idx=0
-#                 while daily_first_dose > 0:
-#                     if idx == stop_idx:
-#                         daily_first_dose = 0 # halt loop
-#                     elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-#                         N_vacc[vacc_order[idx]] = daily_first_dose
-#                         daily_first_dose = 0 # halt loop
-#                     else:
-#                         N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-#                         daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-#                         idx = idx + 1
-                return N_vacc
-
-    def vaccination_like_flanders(t, states, param, initN, daily_first_dose=60000, delay_immunity=21, vacc_order=[8, 7, 6, 5, 4, 3, 2, 1, 0], stop_idx=9, refusal=[0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]):
-        # Convert time to suitable format
-        t = pd.Timestamp(t.date())
-        # Convert delay to a timedelta
-        delay = pd.Timedelta(str(int(delay_immunity))+'D')
-        # Compute the number of vaccine eligible individuals
-        if not self.spatial:
-            VE = states['S'] + states['R']
-
-        # Before start of effect of vaccinations
-        if t <= self.df_start + delay:
-            if not self.spatial:
-                return np.zeros(self.age_agg)
-            else:
-                return np.zeros([self.space_agg, self.age_agg])
-            
-        # During effect of vaccination, with available data
-        elif self.df_start + delay < t <= self.df_end + delay:
-            if not self.spatial:
-                return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
-            else:
-                return self.get_sciensano_spatial_first_dose(t-delay, like='flanders')
             
         # Projection into the future
         else:
