@@ -1014,6 +1014,10 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
     """
 
     # ...state variables and parameters
+    
+    # In parameter_names kan een naam staan van een parameter met eender welke size. Dat kan real_Nc zijn. En dan varieer je in de tijd real_Nc.
+    # Bij stratification = ... kan je iets insteken dat 9x9 is, want die checkt naar wat de dimensie is
+    # En verder moet je aan de start van je code Nc = real_Nc plaatsen
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc', 'xi', 'season_factor']
