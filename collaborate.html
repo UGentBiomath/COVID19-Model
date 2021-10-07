@@ -1,73 +1,34 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
   <title>Start to collaborate &mdash; covid19-model  documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Git workflow" href="git_workflow.html" />
     <link rel="prev" title="Installation" href="installation.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="index.html" class="icon icon-home"> covid19-model
-          
-
-          
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -75,18 +36,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
@@ -123,75 +73,34 @@
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">covid19-model</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
       <li>Start to collaborate</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/collaborate.md.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="start-to-collaborate">
+             
+  <section id="start-to-collaborate">
 <h1>Start to collaborate<a class="headerlink" href="#start-to-collaborate" title="Permalink to this headline">¶</a></h1>
 <p>When working on the model or the model code, make sure to read the following guidelines and keep them in mind. The main purpose of being rigid about the structure of the repository is to improve the general collaboration while keeping structure of the code in the long run and support reproducibility of the work. Still, it is work in progress and it should not block your work. In case you get stuck on something or you have a suggestion for improvement, feel free to open an <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/issues/new">New Issue</a> on the repository.</p>
-<div class="section" id="using-data">
+<section id="using-data">
 <h2>Using data<a class="headerlink" href="#using-data" title="Permalink to this headline">¶</a></h2>
 <p>Data is crucial for both the setup and the evaluation of the models and all the required data is collected in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory. To organize the data sets, the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory has been split up:</p>
 <ul class="simple">
@@ -206,8 +115,8 @@
 <li><p>When a (new) data set has been downloaded from a source, store it as such in the <code class="docutils literal notranslate"><span class="pre">raw</span></code> directory and document the origin in the <code class="docutils literal notranslate"><span class="pre">data/README.md</span></code> file.</p></li>
 <li><p>The functions to prepare data sets are stored in the <code class="docutils literal notranslate"><span class="pre">src/covid19model/data/</span></code> folder. Add the function to the <code class="docutils literal notranslate"><span class="pre">data/README.md</span></code>./data/README.md document to define on which raw files the function operates and which <code class="docutils literal notranslate"><span class="pre">interim</span></code> files are created by it.</p></li>
 </ul>
-</div>
-<div class="section" id="notebooks-are-for-exploration-and-communication">
+</section>
+<section id="notebooks-are-for-exploration-and-communication">
 <h2>Notebooks are for exploration and communication<a class="headerlink" href="#notebooks-are-for-exploration-and-communication" title="Permalink to this headline">¶</a></h2>
 <p>Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:</p>
 <ul class="simple">
@@ -224,8 +133,8 @@
 </div>
 <p><strong>Note:</strong> Use one of the <code class="docutils literal notranslate"><span class="pre">notebook/templates</span></code> to get started. You can run these online using <a class="reference external" href="https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master?filepath=notebook/templates">Binder</a>. To use them locally, copy paste one of the templates to the general notebooks directory, rename it according to the defined format and start working on it.</p>
 <p><a class="reference external" href="https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master"><img alt="Binder" src="https://mybinder.org/badge_logo.svg" /></a></p>
-</div>
-<div class="section" id="documentation-website">
+</section>
+<section id="documentation-website">
 <h2>Documentation website<a class="headerlink" href="#documentation-website" title="Permalink to this headline">¶</a></h2>
 <p>Documentation consists of both the technical matter about the code as well as background information on the models. To keep these up to date and centralized, we use <a class="reference external" href="https://www.sphinx-doc.org/en/master/">Sphinx</a> which enables us to keep the documentation together on a website.</p>
 <p>The Sphinx setup provides the usage of both <code class="docutils literal notranslate"><span class="pre">.rst</span></code> file, i.e. <a class="reference external" href="https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html">restructuredtext</a> as well as <code class="docutils literal notranslate"><span class="pre">.md</span></code> files, i.e. <a class="reference external" href="https://www.markdownguide.org/basic-syntax/">Markdown</a>. The latter is generally experienced as easier to write, while the former provides more advanced functionalities. Existing pages can be adjusted directly (editing them online or on your computer). When you want to create a new page, make sure to add the page to the <code class="docutils literal notranslate"><span class="pre">index.rst</span></code> in order to make the page part of the website.</p>
@@ -234,8 +143,8 @@
 </pre></div>
 </div>
 <p>The resulting html-website is created in the directory <code class="docutils literal notranslate"><span class="pre">build/html</span></code>. Double click any of the <code class="docutils literal notranslate"><span class="pre">html</span></code> file in the folder to open the website in your browser (no server required).</p>
-</div>
-<div class="section" id="the-covid19model-python-package">
+</section>
+<section id="the-covid19model-python-package">
 <h2>The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package<a class="headerlink" href="#the-covid19model-python-package" title="Permalink to this headline">¶</a></h2>
 <p>The code inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.</p>
 <p>Before doing any changes, always make sure your own version of your code (i.e. <code class="docutils literal notranslate"><span class="pre">fork</span></code>) is up to date with the <code class="docutils literal notranslate"><span class="pre">master</span></code> of the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">main repository </a>. First, check out the <strong><a class="reference internal" href="git_workflow.html"><span class="doc std std-doc">git workflow</span></a></strong> for a step-by-step explanation of the proposed workflow. For more information, see also:</p>
@@ -255,12 +164,12 @@
 <li><p>the environment file, <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/blob/master/environment.yml">evironment.yml</a> for binder,</p></li>
 <li><p>the setup file, <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/blob/master/setup.py">setup.py</a> file to include this dependency for the installation of the package.</p></li>
 </ul>
-</div>
-<div class="section" id="repository-layout-overview">
+</section>
+<section id="repository-layout-overview">
 <h2>Repository layout overview<a class="headerlink" href="#repository-layout-overview" title="Permalink to this headline">¶</a></h2>
 <p>As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/issues/new/choose">New issue</a>.</p>
 <p><strong>Remember:</strong> Anyone should be able to reproduce the final products with only the <code class="docutils literal notranslate"><span class="pre">code</span></code> in <code class="docutils literal notranslate"><span class="pre">src</span></code> and the data in <code class="docutils literal notranslate"><span class="pre">data/raw</span></code>!</p>
-<div class="section" id="data">
+<section id="data">
 <h3>data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── data                                    &lt;- cfr. current set of data sets
 │   ├── raw                                 &lt;- data as provided in raw format
@@ -275,8 +184,8 @@
 │   └── README.md                           &lt;- for each data set: what, how to get,...
 </pre></div>
 </div>
-</div>
-<div class="section" id="code">
+</section>
+<section id="code">
 <h3>code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── src                                     &lt;- all reusable code blocks
 │   ├── covid19model
@@ -289,8 +198,8 @@
 |   │   ├── ... .py                         &lt;- all test code during development
 </pre></div>
 </div>
-</div>
-<div class="section" id="documentation">
+</section>
+<section id="documentation">
 <h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── docs                                    &lt;- documentation
 │   ├── conf.py
@@ -303,8 +212,8 @@
 │   │       └── SEIRSNetworkModel.jpg
 </pre></div>
 </div>
-</div>
-<div class="section" id="hpc-specific-code">
+</section>
+<section id="hpc-specific-code">
 <h3>HPC specific code<a class="headerlink" href="#hpc-specific-code" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── hpc
 │   ├── calibrate_stochastic.py
@@ -313,8 +222,8 @@
 │   └── test.sh
 </pre></div>
 </div>
-</div>
-<div class="section" id="notebooks">
+</section>
+<section id="notebooks">
 <h3>notebooks<a class="headerlink" href="#notebooks" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── notebooks                               &lt;- notebooks are collected here
 │   ├── 0.1-user-content.ipynb              &lt;- notebook per version-user-content
@@ -327,8 +236,8 @@
 │   └── figures
 </pre></div>
 </div>
-</div>
-<div class="section" id="automate-stuff">
+</section>
+<section id="automate-stuff">
 <h3>automate stuff<a class="headerlink" href="#automate-stuff" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── .github                                 &lt;- Automate specific steps with github actions
 │   ├── workflows
@@ -336,8 +245,8 @@
 │   │   └── ...
 </pre></div>
 </div>
-</div>
-<div class="section" id="other-info">
+</section>
+<section id="other-info">
 <h3>other info<a class="headerlink" href="#other-info" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── LICENSE
 ├── environment.yml
@@ -345,56 +254,39 @@
 └── README.md                               &lt;- focus on how to get started, setup environment name conventions and
 </pre></div>
 </div>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="git_workflow.html" class="btn btn-neutral float-right" title="Git workflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="git_workflow.html" class="btn btn-neutral float-right" title="Git workflow" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2020, Biomath.
-
-    </p>
+    <p>&#169; Copyright 2020, Biomath.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

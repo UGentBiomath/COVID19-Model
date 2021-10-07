@@ -1,75 +1,36 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
   <title>Introduction &mdash; covid19-model  documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="How to use the model" href="application.html" />
     <link rel="prev" title="Git workflow" href="git_workflow.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
-
-          
             <a href="index.html" class="icon icon-home"> covid19-model
-          
-
-          
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
@@ -77,18 +38,7 @@
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
@@ -128,81 +78,40 @@
 <li class="toctree-l1"><a class="reference internal" href="license.html">License</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">covid19-model</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
       <li>Introduction</li>
-    
-    
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/models.md.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="introduction">
+             
+  <section id="introduction">
 <h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
 <p>After an initial outbreak in early 2020 in Wuhan, China, Severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) has spread globally. SARS-CoV-2 is capable of sustained human-to-human trans-
 mission, and may cause severe disease, especially in older individuals. The COVID-19 pandemic has, in general, shown a remarkedly low incidence among children and young adults. Children have a lower susceptibility to infection and a lower propensity to show clinical symptoms. Furthermore, pre-symptomatic transmission is a major contributor to SARS-CoV-2 spread.
 Unfortunately, pharmaceutical interventions such as vaccination and antiviral drugs are not yet available. On March 13th, 2020, the Belgian governments imposed strict social restrictions after tracing methods had failed to prevent large-scale spread of SARS-CoV-2. One and a half months later, the curve was succesfully flattened and social restrictions were gradually relaxed during the months of May, June and the beginning of July. In spite of these relaxations, hospitalizations kept declining. It is expected that during the coming year(s), preventing COVID-19 outbreaks will depend mostly on the successful implementation of non-pharmaceutical interventions such as social distancing, testing, contact tracing and quarantine. Hence the need for well-informed models that can assist policymakers in choosing the best non-pharmaceutical interventions in case of another large-scale SARS-CoV-2 outbreak. Currently, two other models exist to make predictions for Belgium, the agent-based model of Willem et al. and the discrete-time, stochastic metapopulation model of Coletti et al.</p>
 <p>We built a deterministic, continuous-time, age-stratified, extended SEIRD model and calibrated it to national Belgian hospitalization data. The model accounts for pre-symptomatic and asymptomatic transmission. Furthermore, the susceptibility to SARS-CoV-2, the severity of the disease and the susceptibility to a subclinical infection depend on the age of the individual. We used social contact rates from a 2012 study by Willem to model age-specific social mixing. Because detailed hospitalization data are not made publicly available by the Belgian Scientific Institute of Public Health (Sciensano), we derived age-stratified hospitalization parameters from data of 370 patients treated in two Ghent (Belgium) hospitals. To overcome this unconstructive data policy, we used the computed hospitalization parameters as temporary proxies to fit the model to the total number of patients in Belgian hospitals and ICU units. Using the model, we computed the basic reproduction number (<span class="math notranslate nohighlight">\(R_0\)</span>) during the March 2020 epidemic. Because the model systematically overestimates the hospitalizations during lockdown relaxation, we re-estimated the basic reproduction using data from May 2020 until July 2020.</p>
-</div>
-<div class="section" id="the-model">
+</section>
+<section id="the-model">
 <h1>The model<a class="headerlink" href="#the-model" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="model-dynamics">
+<section id="model-dynamics">
 <h2>Model dynamics<a class="headerlink" href="#model-dynamics" title="Permalink to this headline">¶</a></h2>
 <p>The SEIR(D) model was first proposed in 1929 by two Scottish scientists. It is a compartmental model that subdivides the human population into four groups: 1) susceptible individuals, 2) exposed individuals in the latent phase 1, 3) infectious individuals capable of transmitting the disease and 4) individuals removed from the population either through immunization or death. Despite being a simple and idealized reality, the SEIR(D) dynamics are used extensively to predict the outbreak of infectious diseases and this was no different during the SARS-CoV-2 outbreak earlier this year.</p>
 <p>In this work, we extend the SEIRD model to incorporate more expert knowledge on SARS-CoV-2. For that purpose, the infectious compartment is split into four parts. The first is a period of presymptomatic infectiousness because several studies have shown that pre-symptomatic transmission is a dominant transmission mechanism of SARS-CoV-2. After the period of pre-symptomatic transmission, three possible infectious outcomes are modeled: (1) Asymptomatic outcome, for individuals who show no symptoms at all, (2) Mild outcome, for individuals with mild symptoms who recover at home, and (3) Hospitalization, when mild symptoms worsen. Children and young adults have a high propensity to experience an asymptomatic or mild outcome, while older individual have a high propensity to be hospitalized.</p>
@@ -211,14 +120,14 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 <img src="_static/figs/flowchart_full.png" alt="drawing" width="600"/>
 <p><em> Extended SEIRD dynamics of the BIOMATH COVID-19 model. Nodes represent model states, edges denote transfers. An overview of the model parameters can be found on the bottom of this page.</em></p>
 </p>
-</div>
-<div class="section" id="model-framework-and-equations">
+</section>
+<section id="model-framework-and-equations">
 <h2>Model framework and equations<a class="headerlink" href="#model-framework-and-equations" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="age-stratification">
+<section id="age-stratification">
 <h3>Age-stratification<a class="headerlink" href="#age-stratification" title="Permalink to this headline">¶</a></h3>
 <p>We introduced heterogeneity in the deterministic implementation by means of age-stratification. Every population compartment is split into a number of age classes, the age-groups have different contact rates with other age-groups and the disease progresses differently for each age-group, making the model behaviour more realistic. Our age-stratified model consists of 9 age classes, i.e., [0-10[, [10-20[, [20-30[, [30-40[, [40-50[, [50-60[, [60-70[, [70-80[, [80- <span class="math notranslate nohighlight">\(\infty\)</span>[. The age-stratified implementation provides a good balance between added complexity and computational resources.</p>
-</div>
-<div class="section" id="deterministic-framework">
+</section>
+<section id="deterministic-framework">
 <h3>Deterministic framework<a class="headerlink" href="#deterministic-framework" title="Permalink to this headline">¶</a></h3>
 <p>Our extended SEIRD model is implemented using two frameworks: a deterministic and a stochastic framework. The deterministic equations are obtained by writing down the following equation,</p>
 <p><code class="docutils literal notranslate"><span class="pre">rate</span> <span class="pre">of</span> <span class="pre">change</span> <span class="pre">=</span> <span class="pre">in</span> <span class="pre">-</span> <span class="pre">out</span></code>,</p>
@@ -250,8 +159,8 @@ Unfortunately, pharmaceutical interventions such as vaccination and antiviral dr
 \]</div>
 <p>where <span class="math notranslate nohighlight">\(S_i(t)\)</span> denotes the number of susceptibles in age-class i at time t after the introduction of the virus in the population.</p>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The integration is performed in <code class="docutils literal notranslate"><span class="pre">_sim_single</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code> by using Scipy’s <code class="docutils literal notranslate"><span class="pre">solve_ivp</span></code>. The integrator timestep depends on the rate of change of the system and the solver method is thus referred to as a ‘continuous-time’ solver. The implementation uses non-integer individuals.</p>
-</div>
-<div class="section" id="stochastic-framework">
+</section>
+<section id="stochastic-framework">
 <h3>Stochastic framework<a class="headerlink" href="#stochastic-framework" title="Permalink to this headline">¶</a></h3>
 <p>By defining the probabilities of transitioning (propensities) from one state to another, a system of coupled stochastic difference equations (SDEs) can be obtained. The probability to transition from one state to another is assumed to be exponentially distributed. As an example, consider the average time a patient spends in an ICU when recovering, which is <span class="math notranslate nohighlight">\(d_{\text{ICU,R}} = 9.9\)</span> days. The chances of survival in ICU are <span class="math notranslate nohighlight">\((1-m_{\text{ICU,i}})\)</span>, where <span class="math notranslate nohighlight">\(m_{\text{ICU,i}}\)</span> is the mortality in ICU for an individual in age group <span class="math notranslate nohighlight">\(i\)</span>. The probability of transitioning from state ICU to state <span class="math notranslate nohighlight">\(C_{\text{ICU,rec}}\)</span> on any given day and for an individual in age group <span class="math notranslate nohighlight">\(i\)</span> is,</p>
 <div class="math notranslate nohighlight">
@@ -306,9 +215,9 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 \end{eqnarray}
 \end{split}\]</div>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model defenition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
-</div>
-</div>
-<div class="section" id="spatial-extension">
+</section>
+</section>
+<section id="spatial-extension">
 <h2>Spatial extension<a class="headerlink" href="#spatial-extension" title="Permalink to this headline">¶</a></h2>
 <p>Rather than considering the entire nation as a homogeneous collection of compartments, it is more realistic to consider spatially distinct regions that are mutually connected. The relevance of this approach becomes clear by looking at the spatial spread in the data (embedded video below): the occurence of confirmed cases is not entirely homogeneous.</p>
 <figure class="video_container">
@@ -318,7 +227,7 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 </figure>
 <p>The main motivation for investigating spatial relations is to quantify the effect of certain types of mobility on the severity and speed of the spread of COVID19, and the effect of spatial isolation of key regions. We consider e.g. the 43 Belgian arrondissements or the 10 Belgian provinces (plus Brussels-Capital). These regions are considered internally homogeneous and are connected through known or estimated mobility matrices.</p>
 <p>Below, the spatially explicit model is worked out in a deterministic framework and a stochastic framework. These are largely based on the approach taken in <a class="reference external" href="https://www.medrxiv.org/content/10.1101/2020.03.21.20040022v1">this 2020 paper</a> by Arenas et al.</p>
-<div class="section" id="deterministic-spatial-framework">
+<section id="deterministic-spatial-framework">
 <h3>Deterministic spatial framework<a class="headerlink" href="#deterministic-spatial-framework" title="Permalink to this headline">¶</a></h3>
 <p>The deterministic approach is largely the same as in the non-spatial framework, only this time every ‘patch’ (either arrondissement or province) exhibits the dynamics explained before. We make the following assumptions from the mobility:</p>
 <ol class="simple">
@@ -403,8 +312,8 @@ N^g_{c,ij} \propto f\left( \frac{T^g_\text{eff}}{a^g} \right).
 \end{split}\]</div>
 <p>All state matrices have dimensions <span class="math notranslate nohighlight">\(G \times N\)</span>, so integrating these ODEs takes (more than) <span class="math notranslate nohighlight">\(G\)</span> times the computation time compared to the non-spatial case. Note that, if relevant and available, all parameters may be further stratified per patch <span class="math notranslate nohighlight">\(g\)</span>.</p>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. When creating the simulation, these equations are integrated numerically.</p>
-</div>
-<div class="section" id="stochastic-spatial-framework">
+</section>
+<section id="stochastic-spatial-framework">
 <h3>Stochastic spatial framework<a class="headerlink" href="#stochastic-spatial-framework" title="Permalink to this headline">¶</a></h3>
 <p>Extending the deterministic spatial framework to a (discrete) stochastic one is straightforward. The probability of being infected in patch <span class="math notranslate nohighlight">\(g\)</span> in the next timestep (stepsize <span class="math notranslate nohighlight">\(\ell\)</span>) for a susceptible individual is</p>
 <div class="math notranslate nohighlight">
@@ -451,8 +360,8 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 </figure>
 <em>Simulation with the stochastic model and an initial condition where at time = 0, 5 exposed individuals in age class 30-40 years are 'released' in Arlon, all the way on the south-easter side of the country. At the onset, it is clear how the 'wave' of new exposures travels through the country, hitting the densely populated patches first. At day 40, measures are taken that bring down the effective reproduction constant below zero.</em>
 <p>These equations are implemented in the function <code class="docutils literal notranslate"><span class="pre">COVID19_SEIRD_sto_spatial</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/models.py</span></code>. The computation itself is performed in the function <code class="docutils literal notranslate"><span class="pre">solve_discrete</span></code> located in <code class="docutils literal notranslate"><span class="pre">src/covid19model/base.py</span></code>. Please note that the deterministic model uses <strong>differentials</strong> in the model definition and must be integrated, while the stochastic model uses <strong>differences</strong> and must be iterated. The discrete timestep is fixed at one day. The stochastic implementation only uses integer individuals, which is considered an advantage over the deterministic implementation.</p>
-</div>
-<div class="section" id="spatial-remaining-issues-and-tasks">
+</section>
+<section id="spatial-remaining-issues-and-tasks">
 <h3>Spatial: remaining issues and tasks<a class="headerlink" href="#spatial-remaining-issues-and-tasks" title="Permalink to this headline">¶</a></h3>
 <p>The theory at the basis of both the deterministic and the stochastic spatial model is still subject to change. Some of these ‘to-dos’ are listed below.</p>
 <ol class="simple">
@@ -479,9 +388,9 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 <li><p>The contact rate’s dependence on the density may be omitted – it has little effect – but is currently implemented to parallel Arenas et al.’s approach.</p></li>
 <li><p>Arguably, stratification at the level of arrondissements is too highly detailed in a ‘big city’ like Belgium. Data analysis of the current situation may point out that it is justified to aggregate some arrondissements with a similar time series morphology together.</p></li>
 </ol>
-</div>
-</div>
-<div class="section" id="transmission-rates-and-social-contact-data">
+</section>
+</section>
+<section id="transmission-rates-and-social-contact-data">
 <h2>Transmission rates and social contact data<a class="headerlink" href="#transmission-rates-and-social-contact-data" title="Permalink to this headline">¶</a></h2>
 <p>In our model, the transmission rate of the disease depends on the product of four contributions. The first contribution, <span class="math notranslate nohighlight">\((I+A)/T\)</span>, is the fraction of contagious individuals in the population. The second contribution, <span class="math notranslate nohighlight">\(\mathbf{N}_c\)</span>, is the average number of human-to-human interactions per day. The third contribution, <span class="math notranslate nohighlight">\(s_i\)</span>, is the relative susceptiblity to SARS-CoV-2 infection in age group <span class="math notranslate nohighlight">\(i\)</span>, and the fourth contribution, <span class="math notranslate nohighlight">\(\beta\)</span>, is the probability of contracting COVID-19 when encountering a contagious individual under the assumption of 100 % susceptibility to SARS-CoV-2 infection. We assume that the per contact transmission probability <span class="math notranslate nohighlight">\(\beta\)</span> is independent of age and we will infer its distribution by calibrating the model to national Belgian hospitalization data. The number of human-human interactions, <span class="math notranslate nohighlight">\(\mathbf{N}_c\)</span>, are both place and age-dependent. These matrices assume the form of a 9x9 <em>interaction matrix</em> where an entry X, Y denotes the number of social contacts age group X has with age group Y per day. These matrices are available for homes, schools, workplaces, in public transport, and leisure activities, from a survey study by Lander Willem (2012). The total number of social interactions is given by the sum of the contributions in different places,</p>
 <div class="math notranslate nohighlight">
@@ -491,8 +400,8 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 \end{equation}
 \]</div>
 <p>Coefficients can be added to the contributing contact matrices to model a goverment policy. For instance, to model the Belgian lockdown, the mobility reductions deduced from the Google community mobility reports were used as coefficients for the different interaction matrices. We assumed workplace interactions were down to only 40 % of their prepandemic values before the lockdown.</p>
-</div>
-<div class="section" id="modeling-social-intertia">
+</section>
+<section id="modeling-social-intertia">
 <h2>Modeling social intertia<a class="headerlink" href="#modeling-social-intertia" title="Permalink to this headline">¶</a></h2>
 <p>The model takes into account the effect of <em>social inertia</em> when measures are taken. In reality, social restrictions or relaxations represent a change in behaviour which is gradual and cannot be modeled using a step-wise change of the social interaction matrix <span class="math notranslate nohighlight">\(\mathbf{N_c}\)</span>. This can be seen when closely inspecting the <em>Google community mobility report</em> above. Multiple functions can be used to model the effects of social compliance, e.g. a delayed or non-delayed ramp, or a logistic function. In our model, we use a delayed ramp to model compliance,</p>
 <div class="math notranslate nohighlight">
@@ -514,8 +423,8 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 \end{equation}
 \end{split}\]</div>
 <p>where <span class="math notranslate nohighlight">\(\tau\)</span> is the number of days before measures start having an effect and <span class="math notranslate nohighlight">\(l\)</span> is the number of additional days after the time delay until full compliance is reached. Both parameters were calibrated to the daily number of hospitalizations in Belgium (notebooks <code class="docutils literal notranslate"><span class="pre">notebooks/0.1-twallema-calibration-deterministic.ipynb</span></code> and <code class="docutils literal notranslate"><span class="pre">notebooks/0.1-twallema-calibration-stochastic.ipynb</span></code>). <span class="math notranslate nohighlight">\(k\)</span> denotes the number of days since a change in social policy.</p>
-</div>
-<div class="section" id="basic-reproduction-number">
+</section>
+<section id="basic-reproduction-number">
 <h2>Basic reproduction number<a class="headerlink" href="#basic-reproduction-number" title="Permalink to this headline">¶</a></h2>
 <p>The basic reproduction number <span class="math notranslate nohighlight">\(R_0\)</span>, defined as the expected number of secondary cases directly generated by one case in a population where all individuals are susceptible to infection, is computed using the next generation matrix (NGM) approach introducted by Diekmann. For our model, the basic reproduction number of age group <span class="math notranslate nohighlight">\(i\)</span> is,</p>
 <div class="math notranslate nohighlight">
@@ -525,63 +434,46 @@ R_{0,i} = (a_i d_a + \omega) \beta s_i \sum_{j=1}^{N} N_{c,ij}
 \end{equation}
 \]</div>
 <p>and the population basic reproduction number is calculated as the weighted average over all age groups using the demographics of Belgium. The detailed algebra underlying the computation equation of the basic reproduction number is presented in the supplementary materials of our manuscript (see section <em>Previous work</em>).</p>
-</div>
-<div class="section" id="model-parameters">
+</section>
+<section id="model-parameters">
 <h2>Model parameters<a class="headerlink" href="#model-parameters" title="Permalink to this headline">¶</a></h2>
 <p>An in-depth motivation of the model parameters is provided in our manuscript (see section <em>Previous work</em>). Hospital parameters were derived from a dataset obtained from two hospitals in Ghent (Belgium).</p>
 <p align="center">
 <img src="_static/figs/parameters.png" alt="parameters" width="1200"/>
 <em> Overview of BIOMATH COVID-19 model parameters. </em>
 </p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="application.html" class="btn btn-neutral float-right" title="How to use the model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="git_workflow.html" class="btn btn-neutral float-left" title="Git workflow" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="application.html" class="btn btn-neutral float-right" title="How to use the model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2020, Biomath.
-
-    </p>
+    <p>&#169; Copyright 2020, Biomath.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>
