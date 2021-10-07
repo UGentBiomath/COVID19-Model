@@ -442,6 +442,9 @@ if __name__ == '__main__':
         pars = ['beta_R', 'beta_U', 'beta_M']
         pert = [0.02, 0.02, 0.02]
         ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+        
+        # Manually overwrite the number of walkers (12 times 14 is too much man!)
+        nwalkers = processes * 4
 
         # Set up the sampler backend if needed
         if backend:
