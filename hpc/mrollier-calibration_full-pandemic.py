@@ -453,7 +453,7 @@ if job == 'R0':
         backend.reset(nwalkers, ndim)
 
     # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$']
+    labels = ['$\\beta^R$', '$\\beta^U$', '$\\beta^M$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
@@ -707,7 +707,7 @@ elif job == 'FULL':
         backend.reset(nwalkers, ndim)
 
     # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
+    labels = ['$\\beta^R$', '$\\beta^U$', '$\\beta^M$', \
               '$l_1$', '$l_2$', \
               '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
               '$K_{inf,1}$', 'K_{inf,2}', \
