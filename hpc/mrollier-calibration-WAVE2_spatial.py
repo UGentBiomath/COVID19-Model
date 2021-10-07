@@ -484,7 +484,7 @@ elif job == 'FULL':
         end_calibration = '2020-12-31' # Keep it in 2020
     else:
         end_calibration = str(args.enddate)
-    # Spatial unit: depends on aggregation
+    # Spatial unit: depesnds on aggregation
     spatial_unit = f'{agg}_WAVE2-{job}_{signature}'
 
     # PSO settings
