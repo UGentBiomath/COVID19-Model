@@ -346,7 +346,7 @@ if job == 'R0':
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     sys.stdout.flush()
-    multiplier = 10
+    multiplier = 2
     maxiter = maxiter_PSO
     popsize = multiplier*processes
 
@@ -427,104 +427,6 @@ if job == 'R0':
         print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
     else:
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
-    sys.stdout.flush()
-
-
-    # ------------------
-    # Setup MCMC sampler
-    # ------------------
-
-    # NOTE: actually, I don't think running the MCMC is necessary for job==R0?
-
-    # Define priors
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fcn_args = bounds[1:]
-    # Perturbate PSO estimate
-    pars = ['beta_R', 'beta_U', 'beta_M']
-    pert = [0.02, 0.02, 0.02]
-    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
-
-    # Manually overwrite the number of walkers (12 times 14 is too much man!)
-    nwalkers = processes * 4
-
-    # Set up the sampler backend if needed
-    if backend:
-        filename = f'{spatial_unit}_backend_{run_date}'
-        backend = emcee.backends.HDFBackend(results_folder+filename)
-        backend.reset(nwalkers, ndim)
-
-    # Labels for traceplots
-    labels = ['$\\beta^R$', '$\\beta^U$', '$\\beta^M$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
-
-
-    print('\n2) Markov-Chain Monte-Carlo sampling')
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-    print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
-    sys.stdout.flush()
-
-
-    # ----------------
-    # Run MCMC sampler
-    # ----------------
-
-    # Print autocorrelation and traceplot every print_n'th iteration
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, \
-                       objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress, agg=agg)
-
-
-    # ---------------
-    # Process results
-    # ---------------
-
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
-        sys.stdout.flush()
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
-        sys.stdout.flush()
-
-    # Print runtime in hours
-    final_time = datetime.datetime.now()
-    runtime = (final_time - intermediate_time)
-    totalMinute, second = divmod(runtime.seconds, 60)
-    hour, minute = divmod(totalMinute, 60)
-    day = runtime.days
-    if day == 0:
-        print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
-    else:
-        print(f"Run time MCMC: {day}d{hour}h{minute:02}m{second:02}s")
-    sys.stdout.flush()
-
-    print('\n3) Sending samples to dictionary')
-    sys.stdout.flush()
-
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-
-    samples_dict.update({
-        'warmup' : warmup,
-        'start_date_R0' : start_calibration,
-        'end_date_R0' : end_calibration,
-        'n_chains_R0': int(nwalkers)
-    })
-
-    json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
-    with open(json_file, 'w') as fp:
-        json.dump(samples_dict, fp)
-
-    print('DONE!')
-    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
-    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
     sys.stdout.flush()
 
     # Work is done
