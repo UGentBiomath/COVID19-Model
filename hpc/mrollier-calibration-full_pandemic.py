@@ -446,9 +446,9 @@ elif job == 'FULL':
 
     # Start of calibration
     start_calibration = '2020-03-02'
-    # Last datapoint used to calibrate infectivity, compliance and effectivity 
+    # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = '2021-08-27'
+        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
@@ -456,7 +456,7 @@ elif job == 'FULL':
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-    multiplier = 1 # 10
+    multiplier = 2 # 10
     maxiter = maxiter_PSO
     popsize = multiplier*processes
 
