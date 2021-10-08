@@ -288,8 +288,7 @@ params.update({'initN' : initN,
                'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
 
 # time-dependent seasonality parameters in seasonality_function
-params.update({'season_factor' : 1,
-               'amplitude' : 0.1,
+params.update({'amplitude' : 0.1,
                'peak_shift' : 0})
 
 
@@ -310,7 +309,9 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
-                                                   'season_factor' : seasonality_function})
+                                                   'beta_R' : seasonality_function,
+                                                   'beta_U': seasonality_function,
+                                                   'beta_M': seasonality_function})
 
 
 
