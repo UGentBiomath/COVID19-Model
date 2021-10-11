@@ -493,6 +493,12 @@ if job == 'R0':
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
+    # ------------
+    # Perform MCMC
+    # ------------
+
+    
+
     # Work is done
     sys.exit()
 
