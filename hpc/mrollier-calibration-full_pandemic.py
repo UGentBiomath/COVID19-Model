@@ -72,9 +72,9 @@ from covid19model.data import mobility, sciensano, model_parameters, VOC
 
 # Import function associated with the PSO and MCMC
 from covid19model.optimization import pso, objective_fcns
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson
+from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
-
 
 # ---------------------
 # HPC-specific settings
@@ -354,7 +354,6 @@ if job == 'R0':
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
 
-
     # -------------------------
     # Print statement to stdout
     # -------------------------
@@ -368,7 +367,6 @@ if job == 'R0':
     print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     sys.stdout.flush()
 
-
     # --------------
     # define dataset
     # --------------
@@ -378,18 +376,89 @@ if job == 'R0':
     states = ["H_in"]
     weights = [1]
 
-
     # -----------
     # Perform PSO
     # -----------
 
     # set optimisation settings
     pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-    bounds=((0.0,60.0),(0.005,0.060), (0.005,0.060), (0.005,0.060))
-    # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
-    # Assign estimate.
+    bounds=((0.0,60),(0.005,0.060), (0.005,0.060), (0.005,0.060))
+
+
+    # STEP 1: attach bounds of inital conditions
+    bounds += model.initial_states['S'].shape[0] * ((0,10),)
+
+    # STEP 2: write a custom objective function
+    def objective_fcn(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, poisson_offset='auto', agg=None):
+
+        #######################
+        ## Assign parameters ##
+        #######################
+
+        for i, param in enumerate(parNames):
+            if param == 'warmup':
+                warmup = int(round(thetas[i]))
+            else:
+                model.parameters.update({param : thetas[i]})
+
+        ###############################
+        ## Assign the initial states ##
+        ###############################
+
+        values_initE = np.array(thetas[len(parNames):])
+        new_initE = np.ones(model.initial_states['E'].shape)
+        new_initE = values_initE[:, np.newaxis] * new_initE
+        model.initial_states.update({'E': new_initE})
+
+        ####################
+        ## Run simulation ##
+        ####################
+
+        # Compute simulation time
+        index_max=[]
+        for idx, d in enumerate(data):
+            index_max.append(d.index.max())
+        end_sim = max(index_max)
+        # Use previous samples
+        if draw_fcn:
+            model.parameters = draw_fcn(model.parameters,samples)
+        # Perform simulation and loose the first 'warmup' days
+        out = model.sim(end_sim, start_date=start_date, warmup=warmup)
+
+        #################
+        ## Compute MLE ##
+        #################
+
+        NIS_list = list(data[0].columns)
+        MLE = 0
+        for NIS in NIS_list:
+            for idx,state in enumerate(states):
+                new_xarray = out[state].sel(place=NIS)
+                for dimension in out.dims:
+                    if ((dimension != 'time') & (dimension != 'place')):
+                        new_xarray = new_xarray.sum(dim=dimension)
+                ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
+                MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
+                MLE += MLE_add
+
+        return -MLE
+
+    # STEP 3: perform PSO
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
+                                                                                                kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
+                                                                                                'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
+                                                                                                minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
+    theta = p_hat
+
+    # STEP 4: Visualize the result
+    
+    # Assign initial state estimate
+    values_initE = np.array(theta[len(pars):])
+    new_initE = np.ones(model.initial_states['E'].shape)
+    new_initE = values_initE[:, np.newaxis] * new_initE
+    model.initial_states.update({'E': new_initE})    
+    # Assign parameter estimate
+    theta = theta[:len(pars)]
     warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
 

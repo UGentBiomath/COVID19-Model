@@ -137,10 +137,9 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                         if ((dimension != 'time') & (dimension != 'place')):
                             new_xarray = new_xarray.sum(dim=dimension)
                     ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-                    #ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
                     MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
-                    MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
-    return -MLE # must be positive for pso, which attempts to minimises MLE
+                    MLE += MLE_add
+    return -MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
     """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
