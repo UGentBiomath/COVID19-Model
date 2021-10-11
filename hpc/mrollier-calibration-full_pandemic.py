@@ -267,8 +267,8 @@ seasonality_function = make_seasonality_function()
 params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True,VOC=True)
 
 # time-dependent social contact parameters in policies_function
-params.update({'l1' : 5,
-               'l2' : 5,
+params.update({'l1' : 7,
+               'l2' : 7,
                'prev_schools' : 0,
                'prev_work' : .5,
                'prev_rest_lockdown' : .5,
@@ -339,7 +339,7 @@ if job == 'R0':
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     sys.stdout.flush()
     multiplier = 2
     maxiter = maxiter_PSO
@@ -529,21 +529,21 @@ elif job == 'FULL':
     start_calibration = '2020-03-02'
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
+        end_calibration = '2021-01-01' #df_sciensano.index.max().strftime("%m-%d-%Y")
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-    multiplier = 2 # 10
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    multiplier = 2
     maxiter = maxiter_PSO
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = maxn_MCMC # 500000
-    print_n = 100
+    max_n = maxn_MCMC
+    print_n = 10
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
@@ -581,11 +581,11 @@ elif job == 'FULL':
 
     # transmission
     pars1 = ['beta']
-    bounds1=((0.005,0.060))
+    bounds1=((0.005,0.060),)
 
     # Social intertia
-    pars2 = ['l1',   'l2']
-    bounds2=((4,14), (4,14))
+    #pars2 = ['l1',   'l2']
+    #bounds2=((4,14), (4,14))
 
     # Prevention parameters (effectivities)
     pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
@@ -600,12 +600,13 @@ elif job == 'FULL':
     bounds5=((0,0.30),    (-31, 31))
 
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 +  pars3 + pars4 + pars5
+    bounds = bounds1 +  bounds3 + bounds4 + bounds5
 
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    theta = [ 0.02335694, 0.27473524, 0.90578985, 0.25274748, 0.95, 0.05, 1.53892486, 2.2108892, 0.14908791, 11.78892271]
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
@@ -653,16 +654,15 @@ elif job == 'FULL':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                      prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                     prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                      prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.02, 0.02, 0.02]
+    pert1=[0.02]
 
     # pars2 = ['l1', 'l2']
-    pert2=[0.05, 0.05]
+    #pert2=[0.05, 0.05]
 
     # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
     pert3=[0.2, 0.2, 0.2, 0.2, 0.2]
@@ -674,10 +674,10 @@ elif job == 'FULL':
     pert5=[0.2, 0.2]
 
     # Join them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert = pert1 +  pert3 + pert4 + pert5
 
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier, bounds=log_prior_fcn_args, verbose=False)
 
 #     nwalkers = int(8*36/4)
 #     print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")
@@ -690,8 +690,7 @@ elif job == 'FULL':
         backend.reset(nwalkers, ndim)
 
     # Labels for traceplots
-    labels = ['$\\beta^R$', '$\\beta^U$', '$\\beta^M$', \
-              '$l_1$', '$l_2$', \
+    labels = ['$\\beta$', \
               '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
               '$K_{inf,1}$', 'K_{inf,2}', \
               '$A$', '$\\phi$']
