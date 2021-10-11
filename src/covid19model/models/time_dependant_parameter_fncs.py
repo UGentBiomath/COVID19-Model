@@ -1141,5 +1141,5 @@ class make_seasonality_function():
         # One period is one year long (seasonality)
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
-        return rescaling
+        return param*rescaling
 
