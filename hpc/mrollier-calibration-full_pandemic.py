@@ -186,7 +186,6 @@ else:
 # Bookkeeping: date at which script is started
 run_date = str(datetime.date.today())
 
-
 # ------------------------
 # Define results locations
 # ------------------------
@@ -199,15 +198,15 @@ samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{ag
 # Path where samples backend should be stored
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
-# Verify that these paths exists
-if not (os.path.exists(fig_path) and os.path.exists(samples_path) and os.path.exists(backend_folder)):
-    raise Exception("Some of the results location directories do not exist.")
+# Verify that the paths exist and if not, generate them
+for directory in [fig_path, samples_path, backend_folder]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # Verify that the fig_path subdirectories used in the code exist
-if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") \
-       and os.path.exists(fig_path+"pso/")):
-    raise Exception(f"The directory {fig_path} should have subdirectories 'autocorrelation', 'traceplots' and 'pso'.")
-
+for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # -------------------------------
 # Load data: dicts and DataFrames
@@ -288,7 +287,7 @@ params.update({'initN' : initN,
                'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
 
 # time-dependent seasonality parameters in seasonality_function
-params.update({'amplitude' : 0.1,
+params.update({'amplitude' : 0,
                'peak_shift' : 0})
 
 
@@ -310,10 +309,8 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
                                                    'beta_R' : seasonality_function,
-                                                   'beta_U': seasonality_function,
-                                                   'beta_M': seasonality_function})
-
-
+                                                   'beta_U' : seasonality_function,
+                                                   'beta_M' : seasonality_function})
 
 ##The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
