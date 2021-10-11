@@ -199,15 +199,15 @@ samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{ag
 # Path where samples backend should be stored
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
-# Verify that these paths exists
-if not (os.path.exists(fig_path) and os.path.exists(samples_path) and os.path.exists(backend_folder)):
-    raise Exception("Some of the results location directories do not exist.")
+# Verify that the paths exist and if not, generate them
+for directory in [fig_path, samples_path, backend_folder]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # Verify that the fig_path subdirectories used in the code exist
-if not (os.path.exists(fig_path+"autocorrelation/") and os.path.exists(fig_path+"traceplots/") \
-       and os.path.exists(fig_path+"pso/")):
-    raise Exception(f"The directory {fig_path} should have subdirectories 'autocorrelation', 'traceplots' and 'pso'.")
-
+for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # -------------------------------
 # Load data: dicts and DataFrames
