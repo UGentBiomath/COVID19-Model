@@ -483,6 +483,14 @@ if job == 'R0':
     sys.stdout.flush()
     plt.close()
 
+    # STEP 5: Visualize the provincial result
+    fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
+    for idx,NIS in enumerate(data[0].columns):
+        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+        ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    plt.show()
+    plt.close()
+
     # Print runtime in hours
     intermediate_time = datetime.datetime.now()
     runtime = (intermediate_time - initial_time)
@@ -505,6 +513,13 @@ if job == 'R0':
 ###############
 
 elif job == 'FULL':
+
+    # From estimation of optimal initial condition in previous step
+    warmup = int(17.6668995)
+    values_initE = np.array([3.34460977, 7.16905281, 0., 10.,  0., 0., 8.94654087, 9.6646737, 6.07187571, 9.93597661, 5.00997169])
+    new_initE = np.ones(model.initial_states['E'].shape)
+    new_initE = values_initE[:, np.newaxis] * new_initE
+    model.initial_states.update({'E': new_initE})    
 
     # ------------------
     # Calibration set-up
