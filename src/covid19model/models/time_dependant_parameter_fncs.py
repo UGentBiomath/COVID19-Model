@@ -1020,10 +1020,10 @@ class make_contact_matrix_function():
         t27 = pd.Timestamp('2022-04-17') # End of Easter Break
 
         if t <= t1:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1) 
         elif t1 < t <= t1 + l1_days:
             t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1) 
             policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:

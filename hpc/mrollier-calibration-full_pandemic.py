@@ -84,7 +84,7 @@ from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 initial_time = datetime.datetime.now()
 
 # Choose to show progress bar. This cannot be shown on HPC
-progress = False
+progress = True
 
 
 # -----------------------
@@ -347,7 +347,7 @@ if job == 'R0':
 
     # MCMC settings
     max_n = maxn_MCMC
-    print_n = 100
+    print_n = 10
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
@@ -442,13 +442,15 @@ if job == 'R0':
         return -MLE
 
     # STEP 3: perform PSO
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
-                                                                                                kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
-                                                                                                'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
-                                                                                                minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
-    theta = p_hat
-
-    # STEP 4: Visualize the result
+    #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
+    #                                                                                            kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
+    #                                                                                            'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
+    #                                                                                            minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
+    #theta = p_hat
+    # Hard-code a good result:
+    theta = [17.6668995, 0.02488816, 3.34460977, 7.16905281, 0., 10.,  0., 0., 8.94654087, 9.6646737, 6.07187571, 9.93597661, 5.00997169] #-4499.297390248223
+    
+    # STEP 4: Visualize the national result
     
     # Assign initial state estimate
     values_initE = np.array(theta[len(pars):])
@@ -492,12 +494,6 @@ if job == 'R0':
     else:
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
-
-    # ------------
-    # Perform MCMC
-    # ------------
-
-    
 
     # Work is done
     sys.exit()
@@ -562,7 +558,6 @@ elif job == 'FULL':
     states = ["H_in"]
     weights = [1]
 
-
     # -----------
     # Perform PSO
     # -----------
@@ -570,8 +565,8 @@ elif job == 'FULL':
     # Define the 14 free parameters.
 
     # transmission
-    pars1 = ['beta_R',     'beta_U',      'beta_M']
-    bounds1=((0.005,0.060),(0.005,0.060), (0.005,0.060))
+    pars1 = ['beta']
+    bounds1=((0.005,0.060))
 
     # Social intertia
     pars2 = ['l1',   'l2']
