@@ -186,7 +186,6 @@ else:
 # Bookkeeping: date at which script is started
 run_date = str(datetime.date.today())
 
-
 # ------------------------
 # Define results locations
 # ------------------------
@@ -288,7 +287,7 @@ params.update({'initN' : initN,
                'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
 
 # time-dependent seasonality parameters in seasonality_function
-params.update({'amplitude' : 0.1,
+params.update({'amplitude' : 0,
                'peak_shift' : 0})
 
 
@@ -310,10 +309,8 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
                                                    'beta_R' : seasonality_function,
-                                                   'beta_U': seasonality_function,
-                                                   'beta_M': seasonality_function})
-
-
+                                                   'beta_U' : seasonality_function,
+                                                   'beta_M' : seasonality_function})
 
 ##The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
