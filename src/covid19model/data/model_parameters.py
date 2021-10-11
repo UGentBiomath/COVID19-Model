@@ -401,12 +401,12 @@ def get_COVID19_SEIRD_parameters(age_stratified=True, spatial=None, vaccination=
     pars_dict.update(df_other_pars.T.to_dict()[0])
 
     # Fitted parameters
-    if not spatial:
-        pars_dict['beta'] = 0.03492
-    else:
-        pars_dict['beta_R'] = 0.03492 # rural
-        pars_dict['beta_U'] = 0.03492 # urban
-        pars_dict['beta_M'] = 0.03492 # metropolitan
+    #if not spatial:
+    pars_dict['beta'] = 0.03492
+    #else:
+    #    pars_dict['beta_R'] = 0.03492 # rural
+    #    pars_dict['beta_U'] = 0.03492 # urban
+    #    pars_dict['beta_M'] = 0.03492 # metropolitan
 
     # Co-infection model: infectivity gain
     if VOC:

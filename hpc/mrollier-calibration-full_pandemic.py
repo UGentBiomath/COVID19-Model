@@ -308,9 +308,7 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
-                                                   'beta_R' : seasonality_function,
-                                                   'beta_U' : seasonality_function,
-                                                   'beta_M' : seasonality_function})
+                                                   'beta' : seasonality_function})
 
 ##The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
@@ -381,8 +379,8 @@ if job == 'R0':
     # -----------
 
     # set optimisation settings
-    pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-    bounds=((0.0,60),(0.005,0.060), (0.005,0.060), (0.005,0.060))
+    pars = ['warmup','beta']
+    bounds=((0.0,60),(0.005,0.060))
 
 
     # STEP 1: attach bounds of inital conditions
