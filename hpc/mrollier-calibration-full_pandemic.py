@@ -212,8 +212,8 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Load data: dicts and DataFrames
 # -------------------------------
 
-# Total population and contact matrices for the correct aggregation level
-initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
+# Contact matrices for the correct aggregation level
+Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
 
 # Google Mobility data (for social contact Nc)
 df_google = mobility.get_google_mobility_data(update=False)
@@ -227,8 +227,8 @@ df_VOC_abc = VOC.get_abc_data()
 # Load and format local vaccination data, which is also under the sciensano object
 public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg=agg)
 
-# All 36 parameters associated with the full model
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True,VOC=True)
+# Population size and the model parameters
+initN, params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True, VOC=True)
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration
 values = 'hospitalised_IN'
@@ -262,9 +262,6 @@ seasonality_function = make_seasonality_function()
 # ---------------------
 # Load model parameters
 # ---------------------
-
-# Reload params first (not necessary but often useful)
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True,VOC=True)
 
 # time-dependent social contact parameters in policies_function
 params.update({'l1' : 5,
@@ -311,6 +308,8 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'beta_R' : seasonality_function,
                                                    'beta_U' : seasonality_function,
                                                    'beta_M' : seasonality_function})
+
+sys.exit()
 
 ##The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
