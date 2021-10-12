@@ -56,12 +56,6 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 
 + `wave1.xlsx`, ..., `wave8.xlsx` : contain the interaction matrices under lockdown measures in Belgium. There is one spreadsheet per survey wave. The dates of the surveys were (wave 1 - 8): ['24-04-2020','08-05-2020','21-05-2020','04-06-2020','18-06-2020','02-07-2020','02-08-2020','02-09-2020'].  Each spreadsheet has two tabs to distinguish between the nature and duration of the contact. The data were extracted using a beta version of the social contact rates data tool made by Lander Willem, SOCRATES. The data are not yet publically available. For the extraction of the data, weighing by age, weighing by week/weekend were used and reciprocity was assumed.
 
-##### Demographic
-
-+ `Age pyramid of Belgium.csv` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per gender and per 5 year age bins. Retreived from https://statbel.fgov.be/en/themes/population/structure-population
-
-+ `TF_SOC_POP_STRUCT_2020.xlsx` contains the most recent (January 1st, 2020) structure of the Belgian population, per age and per municipality. This is used to extract the spatially and age-stratified population `initN`. Retrieved from https://statbel.fgov.be/nl/open-data/bevolking-naar-woonplaats-nationaliteit-burgerlijke-staat-leeftijd-en-geslacht-10
-
 #### Mobility
 ##### Google
 
@@ -91,9 +85,6 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 + `verity_etal.csv` contains age-stratified estimates of the number of symptomatic cases which result in hospitalization, the number of hospitalized patients in need of intensive care and the case fatality ratio (the percentage of individuals with symptomatic or confirmed disease who die from the disease). Data were obtained from https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(20)30243-7/fulltext
 + `davies_etal.csv` contains age-stratified estimates of the fraction of asymptomatic cases and relative susceptibility. Data were copied from https://www.nature.com/articles/s41591-020-0962-9
 + `others.csv` contains all other parameters used to run the model. Obtained from various sources, detailed in the report.
-+ `molenberghs_etal.csv` contains age-stratified probability to die after infection,
-split between general population and elderly homes. Data from https://m.standaard.be/cnt/dmf20200609_04985767. Paper: https://www.medrxiv.org/content/10.1101/2020.06.20.20136234v1.
-+ `non_stratified.csv` contains non-stratified estimates of asymptomatic cases, symptomatic cases which result in hospitalization, hospitalized patients in need of intensive care and the case fatality ratio
 
 #### Belgian Census 2011
 
@@ -132,21 +123,15 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 + `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. Two sheets were added to every corresponding spreadsheet in the raw folder: 1) interactions longer than 5 minutes and 2) interactions longer than 15 minutes. These were computed as the total number of interactions minus the interaction lasting less than 5/15 minutes.
 
-##### Demographic
-
-+ `BELagedist_5year.txt` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per 5 year age bins irrespective of gender. Converted from raw dataset `Age pyramid of Belgium.csv` using MS Excel.
-
-+ `BELagedist_10year.txt` contains the most recent (January 1st, 2020) age pyramid of Belgium. Given as the number of individuals per 10 year age bins irrespective of gender. Converted from raw dataset `Age pyramid of Belgium.csv` using MS Excel.
-
-#### Hospital data
-+ `twallema_AZMM_UZG.xlsx` contains the merged dataset from AZ Maria Middelares and Ghent University hospital. The combined samplesize is 370 patients. The resulting dataset contains the following entries: 1) age of patient, 2) sex of patient, 3) type of stay. Emergency room only, Cohort only or ICU. Here, ICU implies that the patient spent a limited time in Cohort before transitioning to an ICU unit and if not deceased in ICU, the patient returns to Cohort for recovery, 4) outcome (R: recovered, D: deceased), 5) dC: time spent in a Cohort ward, 6) dICU: time spent in an ICU, 7) dICUrec: time spent in Cohort recovering after an ICU stay. Code of reformat performed in `notebooks/0.1-twallema-AZMM-UZG-data-analysis.ipynb`.
+#### Hospital
++ `twallema_AZMM_UZG.xlsx` contains the merged dataset from AZ Maria Middelares and Ghent University hospital. The combined samplesize is 370 patients. The resulting dataset contains the following entries: 1) age of patient, 2) sex of patient, 3) type of stay. Emergency room only, Cohort only or ICU. Here, ICU implies that the patient spent a limited time in Cohort before transitioning to an ICU unit and if not deceased in ICU, the patient returns to Cohort for recovery, 4) outcome (R: recovered, D: deceased), 5) dC: time spent in a Cohort ward, 6) dICU: time spent in an ICU, 7) dICUrec: time spent in Cohort recovering after an ICU stay. Code of reformat performed in `~/notebooks/preprocesing/AZMM-UZG-hospital-data-analysis.py`.
 
 #### Model parameters
 
-+ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. The analysis is performed using the script `~/notebooks/preprocessing/AZMM-UZG-hospital-data-analysis`.
-+ `sciensano_hospital_parameters.csv` contains age-stratified estimates for the hospital parameters of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
-+ `sciensano_bootstrap_fractions.npy` contains age-stratified bootstrapped samples for the cohort/ICU distribution and for the mortalities of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it.
-+ `wu_asymptomatic_fraction.xlsx` contains the computation of the symptomatic fraction of the Belgian population per age group based on a study of Wu, 2020 (https://www.nature.com/articles/s41591-020-0822-7/figures/2).
++ `AZMM_UZG_hospital_parameters.csv` contains age-stratified estimates for the following model parameters: 1) c: probability of not going to an ICU where (1-c) is the probability of needing IC. 2) m0: mortality, given as a total (cohort + ICU) and separate for Cohort and ICU. 3) dC: average time spent in a Cohort ward if not going to ICU. Split in recovered and deceased. 4) dICU: average time spent in an ICU. Split in recovered and deceased. 4) dICU,rec: average length of recovery stay in Cohort after ICU. The analysis is performed using the script `~/notebooks/preprocessing/AZMM-UZG-hospital-data-analysis.py`.
++ `sciensano_hospital_parameters.csv` contains age-stratified estimates for the hospital parameters of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it. Permission from Sciensano is needed to obtain the raw dataset.
++ `sciensano_bootstrap_fractions.npy` contains age-stratified bootstrapped samples for the cohort/ICU distribution and for the mortalities of the COVID19_SEIRD model. The analysis was performed using the script `~/notebooks/preprocessing/sciensano-hospital-data-analysis`. You must place the super secret detailed hospitalization dataset `COVID19BE_CLINIC.csv`in the same folder as this script in order to run it. Permission from Sciensano is needed to obtain the raw dataset.
++ `wu_asymptomatic_fraction.xlsx` contains the computation of the asymptomatic fraction of the Belgian population per age group based on a study of Wu, 2020 (https://www.nature.com/articles/s41591-020-0822-7/figures/2).
 
 
 #### Belgian Census 2011
@@ -154,15 +139,10 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
     - rows: municipality of residence
     - columns: municipality of work   
 The dataset contained, for each Belgian province, a column of 'unknowns', indicating we know where these individuals live but not where they work. These 10 columns were removed manually. Further, the column `Werkt in Belgie` was renamed `Belgie` to make name-based row and column matching easier. The recurrent mobility matrix was extracted from these data. The conversion notebook is `notebooks/0.1-twallema-extract-census-data.ipynb`.
-
 + `recurrent_mobility.csv` contains a square recurrent mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`, the conversion was performed in `notebooks/0.1-twallema-extract-census-data.ipynb`. This data is deprecated since 2019.
-
 + `census-2011-updated_row-commutes-to-column_arrondissements.csv` contains a square (but non-symmetric) mobility matrix of the Belgian arrondissements (43x43). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
-
 + `census-2011-updated_row-commutes-to-column_municipalities.csv` contains a square (but non-symmetric) mobility matrix of the Belgian municipalities (581x581). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
-
 + `census-2011-updated_row-commutes-to-column_provinces.csv` contains a square (but non-symmetric) mobility matrix of the Belgian provinces *and* arrondissement Brussels-Capital (NIS 21000) (11x11). The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
-
 + `census-20110-updated_row-commutes-to-column_test.csv` contains a square (but non-symmetric) mobility matrix of the three Belgian arrondissements (Antwerpen, Brussel, Gent) (3x3). This is an artificial case: all commuters that leave the home arrondissement but do *not* go to one of the other two arrondissements, have been counted as staying at the home arrondissement instead. The data were extracted from `Pop_LPW_NL_25FEB15_delete_unknown.xlsx`.
 
 #### QALY model
@@ -175,34 +155,24 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 #### Sciensano
 
 + `clusters.csv` contains the number of clusters traced back to 1) families, 2) WZCs, 3) schools, 4) workplaces and 5) others over the period 2020-12-28 until 2021-02-21. Data extracted from the weekly Sciensano reports, available at https://covid-19.sciensano.be/nl/covid-19-epidemiologische-situatie. Last visited 2021-03-31.
-+ `sciensano_detailed_mortality.csv` contains the number of deaths (incidence and cumulative number) per age group, in total, in hospitals and in nursing homes. Since our model does not predict nursing home deaths, model output must be compared to deaths in hospitals. Data conversion was done using the script` ~/notebooks/preprocessing/sciensano-mortality-data-analysis.py`. You must place the super secret detailed hospitalization dataset `COVID19BE_MORT_RAW.csv` in the same folder as this script in order to run it. Permission of Sciensano is needed to obtain the raw dataset.
++ `sciensano_detailed_mortality.csv` contains the number of deaths (incidence and cumulative number) per age group, in total, in hospitals and in nursing homes. Since our model does not predict nursing home deaths, model output must be compared to deaths in hospitals. Data conversion was done using the script` ~/notebooks/preprocessing/sciensano-mortality-data-analysis.py`. You must place the super secret detailed hospitalization dataset `COVID19BE_MORT_RAW.csv` in the same folder as this script in order to run it. Permission from Sciensano is needed to obtain the raw dataset.
 + `COVID19BE_VACC_MUNI_format_{agg}.csv` contains the formatted number of (first) vaccine doses per week, per geographical aggregation and per age group in a pandas dataframe with three-level multiindex.
 
 #### Demographic data
 
-+ `age_structure_per_arrondissement.csv` : population of each age per arrondissement
++ `age_structure_per_arrondissement.csv` : population of each age per arrondissement. Most likely retrieved from Statbel: https://bestat.statbel.fgov.be/bestat/crosstable.xhtml?datasource=65ee413b-3859-4c6f-a847-09b631766fa7. 
 
-+ `age_structure_per_municipality.csv` : population of each age per municipality
++ `age_structure_per_municipality.csv` : population of each age per municipality. Most likely retrieved from Statbel: https://bestat.statbel.fgov.be/bestat/crosstable.xhtml?datasource=65ee413b-3859-4c6f-a847-09b631766fa7.
 
-+ `age_structure_per_province.csv` : population of each age per province
++ `age_structure_per_province.csv` : population of each age per province. Most likely retrieved from Statbel: https://bestat.statbel.fgov.be/bestat/crosstable.xhtml?datasource=65ee413b-3859-4c6f-a847-09b631766fa7.
 
-+ `age_structure_per_test.csv` : population for the test case: only arrondissements Antwerp, Brussels, Gent
++ `area_arrond.csv` contains the area of Belgian arrondissements per NIS code in square meters.
 
-+ `area_arrond.csv` contains the area of Belgian arrondissements per NIS code in square meters
++ `area_municip.csv` contains the area of Belgian municipalities per NIS code in square meters.
 
-+ `area_municip.csv` contains the area of Belgian municipalities per NIS code in square meters
++ `area_province.csv` contains the area of Belgian provinces per NIS code in square meters.
 
-+ `area_province.csv` contains the area of Belgian provinces per NIS code in square meters
-
-+ `area_test.csv` contains the area of arrondissements Antwerp, Brussels, Gent
-
-+ `initN_arrond.csv` contains a CSV with the following columns: arrondissement NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
-
-+ `initN_province.csv` contains a CSV with the following columns: province NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
-
-+ `initN_municip.csv` contains a CSV with the following columns: municipality NIS-code, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
-
-+ `initN_test.csv` contains a CSV with the following columns: NIS-code of arrondissement Antwerpen, Brussel, Gent, total population, population aged 0-9, population aged 10-19, ..., population aged 80 and above. Created in `notebooks/JV-extract-age-structures.ipynb`.
++ `area_test.csv` contains the area of arrondissements Antwerp, Brussels, Gent.
 
 #### Economic data
 
