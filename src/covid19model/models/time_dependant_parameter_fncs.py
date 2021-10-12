@@ -282,19 +282,16 @@ class make_vaccination_function():
             try:
                 incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
                 N_vacc = np.zeros([self.space_agg,self.age_agg])
-                # Simple interpolation to redefine age classes
-    #             N_vacc[:,0] = (10/18)*incidence[:,0]                        # 00-09
-    #             N_vacc[:,1] = (8/18)*incidence[:,0] + (2/7)*incidence[:,1]  # 10-19
-                # Hardcode the <10 years for now
+                # Interpolation
                 N_vacc[:,0] = (0/18)*incidence[:,0]                         # 00-09
-                N_vacc[:,1] = (18/18)*incidence[:,0] + (2/7)*incidence[:,1] # 10-19
-                N_vacc[:,2] = (5/7)*incidence[:,1] + (5/10)*incidence[:,2]  # 20-29
-                N_vacc[:,3] = (5/10)*incidence[:,2] + (5/10)*incidence[:,3] # 30-39
-                N_vacc[:,4] = (5/10)*incidence[:,3] + (5/10)*incidence[:,4] # 40-49
-                N_vacc[:,5] = (5/10)*incidence[:,4] + (5/10)*incidence[:,5] # 50-59
-                N_vacc[:,6] = (5/10)*incidence[:,5] + (5/10)*incidence[:,6] # 60-69
-                N_vacc[:,7] = (5/10)*incidence[:,6] + (5/10)*incidence[:,7] # 70-79
-                N_vacc[:,8] = (5/10)*incidence[:,7] + incidence[:,8]        # 80+
+                N_vacc[:,1] = (18/18)*incidence[:,0] + 0.275*incidence[:,1] # 10-19
+                N_vacc[:,2] = 0.725*incidence[:,1] + 0.49*incidence[:,2]  # 20-29
+                N_vacc[:,3] = 0.51*incidence[:,2] + 0.50*incidence[:,3] # 30-39
+                N_vacc[:,4] = 0.50*incidence[:,3] + 0.49*incidence[:,4] # 40-49
+                N_vacc[:,5] = 0.51*incidence[:,4] + 0.52*incidence[:,5] # 50-59
+                N_vacc[:,6] = 0.48*incidence[:,5] + 0.53*incidence[:,6] # 60-69
+                N_vacc[:,7] = 0.47*incidence[:,6] + 0.54*incidence[:,7] # 70-79
+                N_vacc[:,8] = 0.46*incidence[:,7] + incidence[:,8]        # 80+
                 return N_vacc
             except:
                 return np.zeros([self.space_agg,self.age_agg])
