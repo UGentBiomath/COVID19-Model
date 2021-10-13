@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', age_stratification_size=10):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
 
@@ -13,18 +13,26 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         The desired interaction matrices to be extracted. These can either be the pre-pandemic matrices for Belgium ('willem_2012') or pandemic matrices for Belgium ('comix').
         The pandemic data are 'time-dependent', i.e. associated with a date at which the survey was conducted.
         Default dataset: pre-pandemic Willem 2012.
+
     wave : int
         The wave number of the comix data.
         Defaults to the first wave.
-	intensity : string
 
+	intensity : string
 		The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
 		This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
 		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'.
         Valid options for CoMiX include 'all' (default) or 'physical_only'.
 
+    age_stratification_size : int
+        The the desired number of age groups in the model. Three options are programmed for use with the COVID19-SEIQRD model:
+        3.  [0,20(, [20,60(, [60,120(
+        9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
+        10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
+
+
     Returns
-    ------------
+    -------
 
     Willem 2012:
     ------------
@@ -59,7 +67,6 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
     ----------
     The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
     During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled. Contacts with friends are moved from the home to the leisure interaction matrix.
-    The demographic data were retreived from https://statbel.fgov.be/en/themes/population/structure-population
 
     Example use
     -----------
@@ -75,21 +82,34 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
 
     if dataset == 'willem_2012':
         # Define data path
-        matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/willem_2012")
+        matrix_path = "../../../data/raw/interaction_matrices/willem_2012/"
+        # Define age path
+        if age_stratification_size == 3:
+            age_path = "0_20_60"
+        elif age_stratification_size == 9:
+            age_path = "0_10_20_30_40_50_60_70_80"
+        elif age_stratification_size == 10:
+            age_path = "0_12_18_25_35_45_55_65_75_85"
+        else:
+            raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )
+
+        path = os.path.join(abs_dir, matrix_path+age_path)
 
         # Input check on user-defined intensity
-        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx"), engine='openpyxl').sheet_names:
+        if intensity not in pd.ExcelFile(os.path.join(path, "total.xlsx"), engine='openpyxl').sheet_names:
             raise ValueError(
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
         # Extract interaction matrices
-        Nc_home = pd.read_excel(os.path.join(matrix_path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_work = pd.read_excel(os.path.join(matrix_path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_schools = pd.read_excel(os.path.join(matrix_path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_transport = pd.read_excel(os.path.join(matrix_path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_leisure = pd.read_excel(os.path.join(matrix_path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_others = pd.read_excel(os.path.join(matrix_path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_total = pd.read_excel(os.path.join(matrix_path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_home = pd.read_excel(os.path.join(path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_work = pd.read_excel(os.path.join(path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_schools = pd.read_excel(os.path.join(path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_transport = pd.read_excel(os.path.join(path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_leisure = pd.read_excel(os.path.join(path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_others = pd.read_excel(os.path.join(path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_total = pd.read_excel(os.path.join(path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
         Nc_dict = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 
         return Nc_dict
@@ -121,7 +141,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
         raise ValueError(
             "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
 
-def get_integrated_willem2012_interaction_matrices():
+def get_integrated_willem2012_interaction_matrices(age_stratification_size=10):
     """
     Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the duration of the contact.
     The relative share of contacts changes as follows by integrating with the duration of the contact (absolute number vs. time integrated):
@@ -131,6 +151,14 @@ def get_integrated_willem2012_interaction_matrices():
         leisure: 20% --> 18%
         transport: 4% --> 2%
         others: 19% --> 15%
+
+    Parameters
+    ----------
+    age_stratification_size : int
+        The the desired number of age groups in the model. Three options are programmed for use with the COVID19-SEIQRD model:
+        3.  [0,20(, [20,60(, [60,120(
+        9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
+        10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
 
 	Returns
 	-------
@@ -150,7 +178,7 @@ def get_integrated_willem2012_interaction_matrices():
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
-        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity)
+        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, age_stratification_size=age_stratification_size)
         matrices_raw.update({intensities[idx]: Nc_dict})
     # Integrate matrices at defined intensities
     Nc_dict = {}
@@ -205,9 +233,9 @@ def construct_initN(age_classes, spatial=None):
         return initN.values.sum(axis=0)
 
 
-def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, intensity='all'):
+def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vaccination=False, VOC=True):
     """
-    Extracts and returns the parameters for the age-stratified deterministic model (spatial or non-spatial)
+    Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
     This function returns all parameters needed to run the age-stratified and/or spatially stratified model.
     This function was created to group all parameters in one centralised location.
@@ -215,16 +243,22 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
     Parameters
     ----------
 
+    age_stratification_size : int
+        The the desired number of age groups in the model. Three options are programmed for use with the COVID19-SEIQRD model:
+        3.  [0,20(, [20,60(, [60,120(
+        9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
+        10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
+
     spatial : string
         Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
         'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
         mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
 
-    intensity : string
-        the extracted interaction matrix can be altered based on the nature or duration of the social contacts
-		this is necessary because a contact is defined as any conversation longer than 3 sentences
-		however, an infectious disease may only spread upon more 'intense' contact, hence the need to exclude the so-called 'non-physical contacts'
-		valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'
+    vaccination : boolean
+        Attach the vaccination parameters to the model parameters dictionary.
+    
+    VOC : boolean
+        Attach the variant-of-concern parameters to the model parameters dictionary.
 
     Returns
     -------
@@ -249,8 +283,6 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
         xi : factor controlling the contact dependence on density f (spatial only)
-        injection_day : number of days after start of simulation when new strain is injected
-        injection_ratio : ratio of new strain vs total amount of virus on injection_day
 
         Age-stratified parameters
         -------------------------
@@ -271,6 +303,10 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
         sg : average size of a household per patch. Not used as of yet.
 
+        Other stratified parameters
+        ---------------------------
+
+
     Example use
     -----------
     initN, parameters = get_COVID19_SEIRD_parameters()
@@ -279,14 +315,6 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
     abs_dir = os.path.dirname(__file__)
     par_raw_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
     par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/COVID19_SEIRD")
-
-
-    ###############################
-    ## Define desired age-groups ##
-    ###############################
-
-    age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,110)], 
-                                           closed='left')
     
     # Initialize parameters dictionary
     pars_dict = {}
@@ -301,14 +329,24 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
                         "spatial stratification '{0}' is not legitimate. Possible spatial "
                         "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
-    initN = construct_initN(age_classes, spatial)
+
+    if age_stratification_size == 3:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial)
+    elif age_stratification_size == 9:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial)
+    elif age_stratification_size == 10:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial)
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )
 
     ##########################
     ## Interaction matrices ##
     ##########################
 
-    # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary
-    Nc_dict = get_interaction_matrices(intensity=intensity)
+    # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary (integrated version)
+    Nc_dict = get_integrated_willem2012_interaction_matrices(age_stratification_size)
     pars_dict['Nc'] = Nc_dict['total']
 
     ###############################
@@ -316,7 +354,8 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
     ###############################
 
     # Susceptibility (Davies et al.)
-    pars_dict['s'] =  np.ones(len(age_classes))
+    # Equal susceptibility for all ages assumed
+    pars_dict['s'] =  np.ones(age_stratification_size)
 
     # Hospitalization propensity
     pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80])
@@ -362,7 +401,7 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
     #################
 
     if vaccination == True:
-        pars_dict['N_vacc'] = np.zeros(len(age_classes)) # Default: no vaccination at simulation start
+        pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
         pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
         pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
         pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
@@ -418,4 +457,4 @@ def get_COVID19_SEIRD_parameters(spatial=None, vaccination=False, VOC=True, inte
         xi = 0.01 # km^-2
         pars_dict['xi'] = xi
 
-    return initN, pars_dict
+    return initN, Nc_dict, pars_dict

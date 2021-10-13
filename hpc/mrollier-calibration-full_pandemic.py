@@ -197,12 +197,10 @@ fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
 samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
 # Path where samples backend should be stored
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
-
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
         os.makedirs(directory)
-
 # Verify that the fig_path subdirectories used in the code exist
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
@@ -212,8 +210,8 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Load data: dicts and DataFrames
 # -------------------------------
 
-# Contact matrices for the correct aggregation level
-Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
+# Population size, interaction matrices and the model parameters
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=agg, vaccination=True, VOC=True)
 
 # Google Mobility data (for social contact Nc)
 df_google = mobility.get_google_mobility_data(update=False)
@@ -227,24 +225,20 @@ df_VOC_abc = VOC.get_abc_data()
 # Load and format local vaccination data, which is also under the sciensano object
 public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg=agg)
 
-# Population size and the model parameters
-initN, params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True, VOC=True)
-
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration
-values = 'hospitalised_IN'
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values=values, moving_avg=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False)
 
 # Serological data
-# Currently not used
-# df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
+sys.exit()
 
 # ---------------------------------------------
 # Load data: time-dependent parameter functions
 # ---------------------------------------------
 
 # Time-dependent social contact matrix over all policies, updating Nc
-policy_function = make_contact_matrix_function(df_google, Nc_all).policies_all
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 
 # Time-dependent mobility function, updating P (place)
 mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
