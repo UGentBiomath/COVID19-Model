@@ -117,12 +117,6 @@ Conversion scripts are managed inside the `covid19model` package (`src/covid19mo
 
 `all_RESTORE_simulations.csv` contains all RESTORE predictions in a uniform format. The resulting .csv has a five-dimensional header: 1) author, 2) report version, 3) scenario, 4) hospital incidences or load, 5) statistic: mean, median, LL, UL. To load the .csv file correctly using pandas: `RESTORE_df = pd.read_csv(path_to_file+'all_RESTORE_simulations.csv', header=[0,1,2,3,4])`. Indexing is performed in the following way: `RESTORE_df['UGent','v7.0','S1','incidences','mean']` returns the daily hospitalizations (incidences) in scenario S1 of report v7.0 by UGent. The dataset was created by converting the raw RESTORE predictions using the script `~/notebooks/preprocessing/format-RESTORE-predictions.py`.
 
-#### Interaction matrices
-
-##### Willem 2012
-
-+ `total.xlsx`, `home.xlsx`, `work.xlsx`, `leisure.xlsx`, `transport.xlsx`, `school.xlsx`, `otherplace.xlsx`:  contains the interaction matrix (in the place suggested by the spreadsheets name) based on a survey study in Flanders with 1752 participants. Two sheets were added to every corresponding spreadsheet in the raw folder: 1) interactions longer than 5 minutes and 2) interactions longer than 15 minutes. These were computed as the total number of interactions minus the interaction lasting less than 5/15 minutes.
-
 #### Hospital
 + `twallema_AZMM_UZG.xlsx` contains the merged dataset from AZ Maria Middelares and Ghent University hospital. The combined samplesize is 370 patients. The resulting dataset contains the following entries: 1) age of patient, 2) sex of patient, 3) type of stay. Emergency room only, Cohort only or ICU. Here, ICU implies that the patient spent a limited time in Cohort before transitioning to an ICU unit and if not deceased in ICU, the patient returns to Cohort for recovery, 4) outcome (R: recovered, D: deceased), 5) dC: time spent in a Cohort ward, 6) dICU: time spent in an ICU, 7) dICUrec: time spent in Cohort recovering after an ICU stay. Code of reformat performed in `~/notebooks/preprocesing/AZMM-UZG-hospital-data-analysis.py`.
 
