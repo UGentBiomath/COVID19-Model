@@ -20,7 +20,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
 
 		The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
 		This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
-		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', 'more_5_min', less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours'.
+		Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'.
         Valid options for CoMiX include 'all' (default) or 'physical_only'.
 
     Returns
@@ -75,7 +75,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all'):
 
     if dataset == 'willem_2012':
         # Define data path
-        matrix_path = os.path.join(abs_dir, "../../../data/interim/interaction_matrices/willem_2012")
+        matrix_path = os.path.join(abs_dir, "../../../data/raw/interaction_matrices/willem_2012")
 
         # Input check on user-defined intensity
         if intensity not in pd.ExcelFile(os.path.join(matrix_path, "total.xlsx"), engine='openpyxl').sheet_names:
@@ -144,18 +144,18 @@ def get_integrated_willem2012_interaction_matrices():
     ## Extract and integrate Willem 2012 matrices ##
     ################################################
 
-    intensities = ['all', 'less_5_min', 'less_15_min', 'more_15_min', 'more_one_hour', 'more_four_hours']
+    intensities = ['all', 'less_5_min', 'less_15_min', 'more_one_hour', 'more_four_hours']
     # Define places
     places = ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total']
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
-        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, spatial=spatial)
+        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity)
         matrices_raw.update({intensities[idx]: Nc_dict})
     # Integrate matrices at defined intensities
     Nc_dict = {}
     for idx, place in enumerate(places):
-        integration = matrices_raw['less_5_min'][place]*2.5/60 + (matrices_raw['less_15_min'][place] - matrices_raw['less_5_min'][place])*10/60 + (matrices_raw['more_15_min'][place] - matrices_raw['more_one_hour'][place])*37.5/60 + (matrices_raw['more_one_hour'][place] - matrices_raw['more_four_hours'][place])*150/60 + matrices_raw['more_four_hours'][place]*240/60
+        integration = matrices_raw['less_5_min'][place]*2.5/60 + (matrices_raw['less_15_min'][place] - matrices_raw['less_5_min'][place])*10/60 + ((matrices_raw['all'][place] - matrices_raw['less_15_min'][place]) - matrices_raw['more_one_hour'][place])*37.5/60 + (matrices_raw['more_one_hour'][place] - matrices_raw['more_four_hours'][place])*150/60 + matrices_raw['more_four_hours'][place]*240/60
         Nc_dict.update({place: integration})
 
     return Nc_dict
