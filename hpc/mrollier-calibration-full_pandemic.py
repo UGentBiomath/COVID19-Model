@@ -231,8 +231,6 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hos
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
-sys.exit()
-
 # ---------------------------------------------
 # Load data: time-dependent parameter functions
 # ---------------------------------------------
@@ -247,7 +245,7 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 VOC_function = make_VOC_function(df_VOC_abc)
 
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True, age_stratification_size=10)
 
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
