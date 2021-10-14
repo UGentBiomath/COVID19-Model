@@ -255,7 +255,7 @@ class make_vaccination_function():
         # Assign inputs to object
         self.df = df
         self.spatial = spatial
-        self.age_stratification_size = age_stratification_size
+        self.age_agg = age_stratification_size
         if not spatial:
             try:
                 self.df_start = df['V1_tot'].ne(0).idxmax()
@@ -280,9 +280,8 @@ class make_vaccination_function():
         # Output shape (patch, age): (11,9)
         if not like:
             try:
-                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_stratification_size) )
-                print(incidence)
-                N_vacc = np.zeros([self.space_agg, self.age_stratification_size])
+                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
+                N_vacc = np.zeros([self.space_agg, self.age_agg])
                 N_vacc[:,0] = 0*incidence[:,0] # 00-11
                 N_vacc[:,1] = incidence[:,0]   # 12-17
                 N_vacc[:,2] = incidence[:,1]   # 18-24
@@ -293,10 +292,9 @@ class make_vaccination_function():
                 N_vacc[:,7] = incidence[:,6]   # 65-74
                 N_vacc[:,8] = incidence[:,7]   # 75-84
                 N_vacc[:,9] = incidence[:,8]   # 85+
-                sys.exit()
                 return N_vacc
             except:
-                return np.zeros([self.space_agg, self.age_stratification_size])
+                return np.zeros([self.space_agg, self.age_agg])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
