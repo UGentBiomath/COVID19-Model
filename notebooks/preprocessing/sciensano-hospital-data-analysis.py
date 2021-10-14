@@ -22,12 +22,52 @@ from scipy.stats import mannwhitneyu, ttest_ind, gamma, exponweib, weibull_min
 import matplotlib.pyplot as plt
 import datetime
 from datetime import timedelta
+import argparse
+
+# ----------------
+# Script arguments
+# ----------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--subset_size", help="Size of subset drawn from total population during bootstrapping", default=1000, type=int)
+parser.add_argument("-n", "--number_iterations", help="Total number of bootstraps", default=100, type=int)
+parser.add_argument("-a", "--age_stratification_size", help="Total number of age groups", default=9, type=int)
+
+# Save as dict
+args = parser.parse_args()
+
+# Set correct age_classes
+if args.age_stratification_size == 3:
+    age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+    age_path = '0_20_60/'
+elif args.age_stratification_size == 9:
+    age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+    age_path = '0_10_20_30_40_50_60_70_80/'
+elif args.age_stratification_size == 10:
+    age_classes =pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    age_path = '0_12_18_25_35_45_55_65_75_85/'
+else:
+    raise ValueError(
+        "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(args.age_stratification_size)
+        )
+
+# -----
+# Paths
+# -----
+
+fig_path = '../../results/analysis/hospital/'+age_path
+data_path = '../../data/interim/model_parameters/COVID19_SEIRD/hospitals/' + age_path
+
+# Verify that the paths exist and if not, generate them
+for directory in [fig_path, data_path]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # -----------------------------
 # Helper functions and settings
 # -----------------------------
 
-plot_fit=True
+plot_fit=False
 
 colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
                         "green" : "#009E73", "yellow" : "#F0E442",
@@ -126,8 +166,7 @@ df['dt_icu_transfer'] = pd.to_datetime(df['dt_icu_transfer'])
 df['dt_icu_transfer'] = df['dt_icu_transfer'].dt.date
 
 # Add column with the age classes
-age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], 
-                                           closed='left')
+
 df['age_class'] = pd.cut(df.age, bins=age_classes)
 
 # Remove the negative residence times
@@ -195,8 +234,8 @@ fractions['m0_{C}','point estimate']= df.groupby(by='age_class').apply(
 # Bootstrap fraction parameters
 # -----------------------------
 
-subset_size = 1000
-n = 20
+subset_size = args.subset_size
+n = args.number_iterations
 
 # First initialize a numpy array for the results
 # First axis: parameter: c, m0, m0_C, m0_ICU
@@ -229,12 +268,12 @@ for idx,par in enumerate(['c', 'm0', 'm0_{C}', 'm0_{ICU}']):
         fractions[par,'bootstrap Q'+str(quantile)] = np.quantile(bootstrap_fractions_age[idx,:,:], q=quantile/100, axis=1)
 
 # Save raw samples as a .npy
-with open('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy', 'wb') as f:
+with open(data_path+'sciensano_bootstrap_fractions.npy', 'wb') as f:
     np.save(f,bootstrap_fractions_age)
 
 # Compute population average/total point estimate
 averages['total_sample_size','point estimate'] = fractions['total_sample_size','point estimate'].sum()
-averages['admission_propensity', 'point estimate'] = sum(((fractions['total_sample_size','point estimate']*fractions['admission_propensity', 'point estimate']).values)/(np.ones(9)*fractions['total_sample_size', 'point estimate'].sum()))
+averages['admission_propensity', 'point estimate'] = sum(((fractions['total_sample_size','point estimate']*fractions['admission_propensity', 'point estimate']).values)/(np.ones(len(age_classes))*fractions['total_sample_size', 'point estimate'].sum()))
 averages['c', 'point estimate'] = df[df.ICU_transfer=='Non'].age.count()/df[df.ICU_transfer.isin(['Oui', 'Non'])].age.count()
 averages['m0', 'point estimate'] = df[((df.status_discharge=='D'))].age.count()/df[df.ICU_transfer.isin(['Oui', 'Non'])].age.count()
 averages['m0_{ICU}', 'point estimate'] = df[((df.ICU_transfer=='Oui') & (df.status_discharge=='D'))].age.count()/df[df.ICU_transfer.isin(['Oui'])].age.count()
@@ -280,7 +319,7 @@ ax.set_ylim(0,1)
 ax.set_xticklabels(['Cohort mortality (N={}) \n median = {:.2f} \n mean = {:.2f}'.format(len(x), np.median(x), np.mean(x)),
                     'ICU mortality (N={}) \n median = {:.2f} \n mean = {:.2f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in overall mortality, \ntwo-sided t-test: p={:.2e} \nMann-Withney U-test: p={:.2e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/SCIENSANO_test_mortalities.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_test_mortalities.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # -----------------------------------------------------------------
@@ -348,11 +387,11 @@ ax.hlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
 ax.set_xlabel('mortality (-)')
 ax.set_xlim(0,1)
-ax.set_ylim(0,10)
+ax.set_ylim(0,len(age_classes)+1)
 ax.set_yticks(inds)
 ax.set_yticklabels(age_classes.values,fontsize=10)
 plt.tight_layout()
-plt.savefig('../../results/analysis/hospital/SCIENSANO_violin_mortalities.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_violin_mortalities.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 
@@ -496,12 +535,21 @@ for quantile in quantiles:
 # Gamma fit
 v = df.groupby(by='age_class').apply(lambda x: ((x['dt_discharge'][((x.ICU_transfer=='Non')&(x.status_discharge=='D'))] - x['dt_admission'][((x.ICU_transfer=='Non')&(x.status_discharge=='D'))])/datetime.timedelta(days=1)))
 sample_size, shape, loc, scale = fit_weibull(v)
-for i in range(2):
+
+if args.age_stratification_size == 3:
+    append_idx = 1
+elif args.age_stratification_size == 9:
+    append_idx = 2
+elif args.age_stratification_size == 10:
+    append_idx = 2
+
+for i in range(append_idx):
     sample_size.insert(0,0)
     shape.insert(0,1)
     loc.insert(0,0)
     scale.insert(0,1)
 residence_times['dC_D','sample_size'], residence_times['dC_D','shape'],residence_times['dC_D','loc'],residence_times['dC_D','scale'] = sample_size, shape, loc, scale
+
 if plot_fit:
     plot_weibull_fit(v,'dC_D',90)
 # Append samples
@@ -540,7 +588,15 @@ for quantile in quantiles:
 # Gamma fit
 v = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))
 sample_size, shape, loc, scale = fit_weibull(v)
-for i in range(1):
+
+if args.age_stratification_size == 3:
+    append_idx = 0
+elif args.age_stratification_size == 9:
+    append_idx = 1
+elif args.age_stratification_size == 10:
+    append_idx = 1
+
+for i in range(append_idx):
     sample_size.insert(0,0)
     shape.insert(0,1)
     loc.insert(0,0)
@@ -764,7 +820,7 @@ ax.set_ylim(0,200)
 ax.set_xticklabels(['ICU patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
                     'Cohort only patients (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in hospital residence Cohort vs ICU, \ntwo-sided t-test: p={:.2e} \nMann-Withney U-test: p={:.2e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_ICU_Cohort.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_test_residence_ICU_Cohort.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # Difference in ICU residence time in case of recovery and death
@@ -780,7 +836,7 @@ ax.set_ylim(0,200)
 ax.set_xticklabels(['ICU recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
                     'ICU deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in ICU residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_ICU_R_D.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_test_residence_ICU_R_D.pdf', dpi=300, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # Difference in Cohort residence time in case of recovery and death
@@ -796,7 +852,7 @@ ax.set_ylim(0,200)
 ax.set_xticklabels(['Cohort only recovered (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(x), np.median(x), np.mean(x)),
                     'Cohort only deceased (N={}) \n median = {:.1f} \n mean = {:.1f}'.format(len(y), np.median(y), np.mean(y))])
 ax.set_title('Difference in Cohort residence time in case of recovery and death, \ntwo-sided t-test: p={:.1e} \nMann-Withney U-test: p={:.1e}'.format(p_tt,p_mwu))
-plt.savefig('../../results/analysis/hospital/SCIENSANO_test_residence_Cohort_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_test_residence_Cohort_R_D.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # ------------------------------------------------------
@@ -845,13 +901,13 @@ ax.set_xlim(0,60)
 ax.set_yticks(inds)
 ax.set_yticklabels(labels,fontsize=10)
 plt.tight_layout()
-plt.savefig('../../results/analysis/hospital/SCIENSANO_violin_residence_times.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
+plt.savefig(fig_path+'SCIENSANO_violin_residence_times.pdf', dpi=600, bbox_inches='tight',orientation='portrait', papertype='a4')
 plt.close()
 
 # ----------------------------------------------------------------
 # Write age-stratified parameters to data/interim/model_parameters
 # ----------------------------------------------------------------
-with pd.ExcelWriter('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx') as writer:  
+with pd.ExcelWriter(data_path+'sciensano_hospital_parameters.xlsx') as writer:  
     fractions.to_excel(writer,sheet_name='fractions')
     residence_times.to_excel(writer,sheet_name='residence_times')
     #samples.to_excel(writer,sheet_name='residence_times_samples')
