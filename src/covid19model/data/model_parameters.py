@@ -2,6 +2,7 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
+from scipy.optimize import minimize
 
 def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', age_stratification_size=10):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
@@ -352,7 +353,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
 
     Example use
     -----------
-    initN, parameters = get_COVID19_SEIRD_parameters()
+    initN, Nc_dict, parameters = get_COVID19_SEIRD_parameters()
     """
 
     abs_dir = os.path.dirname(__file__)
@@ -392,22 +393,48 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     Nc_dict = get_integrated_willem2012_interaction_matrices(age_stratification_size)
     pars_dict['Nc'] = Nc_dict['total']
 
-    ###############################
-    ## Age-stratified parameters ##
-    ###############################
+    ##########################################################################
+    ## Susceptibility, hospitalization propensity and asymptomatic fraction ##
+    ##########################################################################
 
     # Susceptibility (Davies et al.)
-    # Equal susceptibility for all ages assumed
     pars_dict['s'] =  np.ones(age_stratification_size)
 
-    # Hospitalization propensity
-    pars_dict['h'] = np.array([0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80])
+    # Hospitalization propensity (manually fitted)
+    hosp_prop = pd.Series(index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'),
+                             data = [0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80])
 
-    # Asymptomatic fraction (Wu et al.)
-    df_asymp = pd.read_excel(os.path.join(par_interim_path,"wu_asymptomatic_fraction.xlsx"), engine='openpyxl')
-    pars_dict['a']  = 1 - np.array(df_asymp['result'][0:9].values)
+    # Relative symptoms dataframe (Wu et al., 2020)
+    rel_symptoms = pd.Series(index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'),
+                             data = [0.053, 0.072, 0.408, 1.000, 1.349, 1.993, 2.849, 3.046, 3.240])
 
-    # Hospital parameters
+    def rescale_relative_to_absolute(relative_data, desired_pop_avg_fraction):
+        """ A function to rescale age-structured relative information into absolute population information.
+            F.i. The relative fraction of symptomatic individuals per age group is given but must be converted to a fraction between [0,1] for every age group.
+            This can only be accomplished if an overall population average fraction is provided.
+        """
+        n = sum(relative_data * construct_initN(age_classes=relative_data.index))
+        n_desired = desired_pop_avg_fraction * sum(construct_initN(None,None))
+        def errorfcn(multiplier, n, n_desired):
+            return (multiplier*n - n_desired)**2
+        return minimize(errorfcn, 0, args=(n, n_desired))['x'] * relative_data
+    
+    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
+
+    if age_stratification_size == 3:
+        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
+    elif age_stratification_size == 9:
+        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
+    elif age_stratification_size == 10:
+        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
+
+    #########################
+    ## Hospital parameters ##
+    #########################
+
     fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
     
     pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
