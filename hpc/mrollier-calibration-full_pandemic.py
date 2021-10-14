@@ -211,7 +211,8 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # -------------------------------
 
 # Population size, interaction matrices and the model parameters
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=agg, vaccination=True, VOC=True)
+age_stratification_size=3
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Google Mobility data (for social contact Nc)
 df_google = mobility.get_google_mobility_data(update=False)
@@ -245,11 +246,10 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 VOC_function = make_VOC_function(df_VOC_abc)
 
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True, age_stratification_size=10)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True, age_stratification_size=age_stratification_size)
 
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
-
 
 # ---------------------
 # Load model parameters
@@ -285,8 +285,9 @@ params.update({'amplitude' : 0,
 # --------------------
 
 # Define the matrix of exposed subjects that will be identified with compartment E
-age = -1 # hard-coded as following the demographic distribution
-initE = initial_state(dist='frac', agg=agg, age=age, number=init_number)
+#age = -1 # hard-coded as following the demographic distribution
+#initE = initial_state(dist='frac', agg=agg, age=age, number=init_number)
+initE = np.ones([11, age_stratification_size])
 
 # Add the susceptible and exposed population to the initial_states dict
 initial_states = {'S': initN-initE, 'E': initE}
