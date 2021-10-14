@@ -2,6 +2,7 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
+from covid19model.data.model_parameters import construct_initN
 
 def get_mortality_data():
     """Load and return the detailed mortality data for Belgium
@@ -45,11 +46,10 @@ def get_serological_data():
         df_sero_herzog['abs','mean']
     """
     
-    # Load demographic data
+    # Load national demographic data
     abs_dir = os.path.dirname(__file__)
-    initN_data = "../../../data/interim/demographic/initN_arr.csv"
-    initN_df = pd.read_csv(os.path.join(abs_dir, initN_data), index_col='NIS')
-    initN = initN_df.values[:,:-1].sum(axis=0)
+    # Provided age_classes don't matter, only sum is used
+    initN = construct_initN(age_classes=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)]))
     # Load and format serodata of Herzog
     data = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/sero/sero_national_overall_herzog.csv'), parse_dates=True)
     data.index = data['collection_midpoint']
