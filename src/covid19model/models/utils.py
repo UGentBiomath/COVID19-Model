@@ -9,7 +9,7 @@ import ujson as json
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def load_samples_dict(filepath, wave=1):
+def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     """
     A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
 
@@ -31,12 +31,23 @@ def load_samples_dict(filepath, wave=1):
         For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
     """
     
+    # Set correct age_paths to find the hospital data
+    if args.age_stratification_size == 3:
+        age_path = '0_20_60/'
+    elif args.age_stratification_size == 9:
+        age_path = '0_10_20_30_40_50_60_70_80/'
+    elif args.age_stratification_size == 10:
+        age_path = '0_12_18_25_35_45_55_65_75_85/'
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(args.age_stratification_size)
+            )
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
-    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
     samples_dict.update({'residence_times': residence_time_distributions})
-    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy')
+    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     if wave == 2:
         # Append samples of re-susceptibility estimated from WAVE 1
