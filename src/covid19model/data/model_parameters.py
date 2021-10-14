@@ -376,14 +376,18 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
 
     if age_stratification_size == 3:
         initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial)
+        age_path = '0_20_60/'
     elif age_stratification_size == 9:
         initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial)
+        age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
         initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial)
+        age_path = '0_12_18_25_35_45_55_65_75_85/'
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
         )
+    par_interim_path = os.path.join(par_interim_path, 'hospitals/'+age_path)
 
     ##########################
     ## Interaction matrices ##
@@ -436,7 +440,6 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     #########################
 
     fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
-    
     pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
     pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
     pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
@@ -446,9 +449,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1])
     pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
     pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1])
-
-    df = pd.read_csv(os.path.join(par_interim_path,"AZMM_UZG_hospital_parameters.csv"), sep=',',header='infer')
-    pars_dict['dICUrec'] = np.array(df['dICUrec'].values[-1])
+    pars_dict['dICUrec'] = np.array(residence_times['dICUrec', 'median'].values[:-1])
 
     ###################################
     ## Non-age-stratified parameters ##
