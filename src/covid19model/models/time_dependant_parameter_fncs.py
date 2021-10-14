@@ -242,7 +242,7 @@ class make_vaccination_function():
         `df = sciensano.get_public_spatial_vaccination_data(update=False,agg='arr')`
         
     spatial : Boolean
-        True if df is spatially explicit. False by default.
+        True if df is spatially explicit. None by default.
 
     Output
     ------
@@ -251,9 +251,11 @@ class make_vaccination_function():
         Default vaccination function
 
     """
-    def __init__(self, df, spatial=None):
+    def __init__(self, df, spatial=None, age_stratification_size=10):
+        # Assign inputs to object
         self.df = df
         self.spatial = spatial
+        self.age_stratification_size = age_stratification_size
         if not spatial:
             try:
                 self.df_start = df['V1_tot'].ne(0).idxmax()
@@ -263,10 +265,8 @@ class make_vaccination_function():
         else:
             self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
             self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
-        # Hard-code number of age levels
+        # Number of spatial patches
         self.space_agg = len(self.df.index.get_level_values(1).unique().values)
-        # self.age_agg = len(self.df.index.get_level_values(2).unique().values)
-        self.age_agg = 9
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
@@ -280,24 +280,23 @@ class make_vaccination_function():
         # Output shape (patch, age): (11,9)
         if not like:
             try:
-                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
-                N_vacc = np.zeros([self.space_agg,self.age_agg])
-                # Simple interpolation to redefine age classes
-    #             N_vacc[:,0] = (10/18)*incidence[:,0]                        # 00-09
-    #             N_vacc[:,1] = (8/18)*incidence[:,0] + (2/7)*incidence[:,1]  # 10-19
-                # Hardcode the <10 years for now
-                N_vacc[:,0] = (0/18)*incidence[:,0]                         # 00-09
-                N_vacc[:,1] = (18/18)*incidence[:,0] + (2/7)*incidence[:,1] # 10-19
-                N_vacc[:,2] = (5/7)*incidence[:,1] + (5/10)*incidence[:,2]  # 20-29
-                N_vacc[:,3] = (5/10)*incidence[:,2] + (5/10)*incidence[:,3] # 30-39
-                N_vacc[:,4] = (5/10)*incidence[:,3] + (5/10)*incidence[:,4] # 40-49
-                N_vacc[:,5] = (5/10)*incidence[:,4] + (5/10)*incidence[:,5] # 50-59
-                N_vacc[:,6] = (5/10)*incidence[:,5] + (5/10)*incidence[:,6] # 60-69
-                N_vacc[:,7] = (5/10)*incidence[:,6] + (5/10)*incidence[:,7] # 70-79
-                N_vacc[:,8] = (5/10)*incidence[:,7] + incidence[:,8]        # 80+
+                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_stratification_size) )
+                print(incidence)
+                N_vacc = np.zeros([self.space_agg, self.age_stratification_size])
+                N_vacc[:,0] = 0*incidence[:,0] # 00-11
+                N_vacc[:,1] = incidence[:,0]   # 12-17
+                N_vacc[:,2] = incidence[:,1]   # 18-24
+                N_vacc[:,3] = incidence[:,2]   # 25-34
+                N_vacc[:,4] = incidence[:,3]   # 35-44
+                N_vacc[:,5] = incidence[:,4]   # 45-54
+                N_vacc[:,6] = incidence[:,5]   # 55-64
+                N_vacc[:,7] = incidence[:,6]   # 65-74
+                N_vacc[:,8] = incidence[:,7]   # 75-84
+                N_vacc[:,9] = incidence[:,8]   # 85+
+                sys.exit()
                 return N_vacc
             except:
-                return np.zeros([self.space_agg,self.age_agg])
+                return np.zeros([self.space_agg, self.age_stratification_size])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
