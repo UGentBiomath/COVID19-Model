@@ -84,7 +84,7 @@ from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 initial_time = datetime.datetime.now()
 
 # Choose to show progress bar. This cannot be shown on HPC
-progress = False
+progress = True
 
 
 # -----------------------
@@ -431,7 +431,7 @@ elif job == 'FULL':
     start_calibration = '2020-03-02'
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = '2021-08-26'#df_sciensano.index.max().strftime("%m-%d-%Y")
+        end_calibration = '2021-01-01'#df_sciensano.index.max().strftime("%m-%d-%Y")
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
@@ -509,17 +509,15 @@ elif job == 'FULL':
     # run optimisation
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [ 1.10822243e-02,  3.03177455e-02,  3.79418424e-02,  4.00000000e+00,
-                1.40000000e+01,  5.49109007e-01,  3.79111290e-01,  2.74122342e-01,
-                4.51845685e-01,  5.00000000e-02,  1.46261655e+00,  2.30106392e+00,
-                3.00000000e-01, -3.10000000e+01] #-53026.18853957646
+    theta = [ 2.82059268e-02,  2.22244880e-02,  3.42109053e-02,  8.21866164e+00,
+                4.00000000e+00,  2.90506455e-01,  9.50000000e-01,  5.00000000e-02,
+                1.23202137e-01,  1.37989561e-01,  1.40000000e+00,  2.10000000e+00,
+                2.91325113e-03, -2.71220614e+01] #-132709.60593752057
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
     # Perform simulation with best-fit results
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-
-    
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
@@ -554,8 +552,6 @@ elif job == 'FULL':
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
-    sys.exit()
-
     # ------------------
     # Setup MCMC sampler
     # ------------------
@@ -587,7 +583,7 @@ elif job == 'FULL':
     pert = pert1 + pert2 + pert3 + pert4 + pert5
 
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier, bounds=log_prior_fcn_args, verbose=False)
 
 #     nwalkers = int(8*36/4)
 #     print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")
