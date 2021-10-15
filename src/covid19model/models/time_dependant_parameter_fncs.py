@@ -278,9 +278,10 @@ class make_vaccination_function():
             if like not in ['flanders', 'bxl']:
                 raise Exception(f'Kwarg like={like} is not recognised. Choose either None, bxl, or flanders.')
         # Output shape (patch, age): (11,9)
+
         if not like:
             try:
-                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
+                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, len(self.df['INCIDENCE'].index.get_level_values(2).unique())) )
                 N_vacc = np.zeros([self.space_agg, self.age_agg])
                 N_vacc[:,0] = 0*incidence[:,0] # 00-11
                 N_vacc[:,1] = incidence[:,0]   # 12-17
