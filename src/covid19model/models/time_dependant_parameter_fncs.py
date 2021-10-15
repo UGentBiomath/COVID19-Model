@@ -226,6 +226,8 @@ class make_VOC_function():
 ## Vaccination functions ##
 ###########################
 
+from covid19model.data.model_parameters import construct_initN
+
 class make_vaccination_function():
     """
     Class that returns a two-fold time-dependent parameter function for the vaccination strategy by default. First, first dose data by sciensano are used. In the future, a hypothetical scheme is used. If spatial data is given, the output consists of vaccination data per NIS code.
@@ -256,6 +258,21 @@ class make_vaccination_function():
         self.df = df
         self.spatial = spatial
         self.age_agg = age_stratification_size
+
+        # Convert vaccination data to right age groups
+
+
+
+        # Initialize a new dataframe
+
+        # Loop over existing dataframe
+        for start_week in self.df.index.get_level_values('start_week'):
+            for NIS in self.df.index.get_level_values('NIS'):
+                data = self.df.loc[(start_week,NIS),'INCIDENCE']
+                age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+                print(self.convert_age_stratified_vaccination_data(data, age_classes))
+
+        # Extract start- and enddate of vaccination campaign
         if not spatial:
             try:
                 self.df_start = df['V1_tot'].ne(0).idxmax()
@@ -265,8 +282,44 @@ class make_vaccination_function():
         else:
             self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
             self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
-        # Number of spatial patches
+
+        # Extract number of spatial patches
         self.space_agg = len(self.df.index.get_level_values(1).unique().values)
+
+    def convert_age_stratified_vaccination_data(self, data, age_classes):
+        """ 
+        Given an age-stratified series of data: [age_group_lower, age_group_upper] : property,
+        this function can convert the data into another user-defined age-stratification using demographic weighing
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified data. Index must be of type pd.Intervalindex.
+        
+        age_classes : pd.IntervalIndex
+            Desired age groups of the converted table.
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+        # Pre-allocate new series
+        out = pd.Series(index = age_classes)
+        data_n_individuals = construct_initN(data.index)
+        # Extract demographics for all ages
+        demographics = construct_initN(None,None)
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/data_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/data_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
 
     @lru_cache()
     def get_sciensano_spatial_first_dose(self,t):
