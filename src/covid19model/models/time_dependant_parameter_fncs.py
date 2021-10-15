@@ -260,17 +260,25 @@ class make_vaccination_function():
         self.age_agg = age_stratification_size
 
         # Convert vaccination data to right age groups
-
-
-
+        if age_stratification_size == 3:
+            age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+        elif age_stratification_size == 9:
+            age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+        elif age_stratification_size == 10:
+            pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
         # Initialize a new dataframe
-
+        iterables = [self.df.index.get_level_values(0).unique(),
+                     self.df.index.get_level_values(1).unique(),
+                     age_classes]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        columns = df.columns
+        self.new_df = pd.DataFrame(index=index, columns=columns)
         # Loop over existing dataframe
-        for start_week in self.df.index.get_level_values('start_week'):
-            for NIS in self.df.index.get_level_values('NIS'):
+        for start_week in self.df.index.get_level_values('start_week').unique():
+            for NIS in self.df.index.get_level_values('NIS').unique():
                 data = self.df.loc[(start_week,NIS),'INCIDENCE']
-                age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
-                output = self.convert_age_stratified_vaccination_data(data, age_classes)
+                self.new_df.loc[(start_week, NIS),'INCIDENCE'] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+        self.df = self.new_df
 
         # Extract start- and enddate of vaccination campaign
         if not spatial:
@@ -286,18 +294,23 @@ class make_vaccination_function():
         # Extract number of spatial patches
         self.space_agg = len(self.df.index.get_level_values(1).unique().values)
 
-    def convert_age_stratified_vaccination_data(self, data, age_classes):
+    def convert_age_stratified_vaccination_data(self, data, age_classes, spatial, NIS):
         """ 
-        Given an age-stratified series of data: [age_group_lower, age_group_upper] : property,
-        this function can convert the data into another user-defined age-stratification using demographic weighing
+        A function to convert the sciensano vaccination data to the desired model age groups
 
         Parameters
         ----------
         data: pd.Series
-            A series of age-stratified data. Index must be of type pd.Intervalindex.
+            A series of age-stratified vaccination incidences. Index must be of type pd.Intervalindex.
         
         age_classes : pd.IntervalIndex
-            Desired age groups of the converted table.
+            Desired age groups of the vaccination dataframe.
+
+        spatial: str
+            Spatial aggregation: prov, arr or mun
+        
+        NIS : str
+            NIS code of consired spatial element
 
         Returns
         -------
@@ -307,9 +320,9 @@ class make_vaccination_function():
         """
         # Pre-allocate new series
         out = pd.Series(index = age_classes)
-        data_n_individuals = construct_initN(data.index)
+        data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
         # Extract demographics for all ages
-        demographics = construct_initN(None,None)
+        demographics = construct_initN(None, spatial).loc[NIS,:].values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []
@@ -326,29 +339,10 @@ class make_vaccination_function():
         """
         Note that there is no difference between first and second dose in the spatial case.
         """
-        like=None
-        if like:
-            if like not in ['flanders', 'bxl']:
-                raise Exception(f'Kwarg like={like} is not recognised. Choose either None, bxl, or flanders.')
-        # Output shape (patch, age): (11,9)
-
-        if not like:
-            try:
-                incidence = np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, len(self.df['INCIDENCE'].index.get_level_values(2).unique())) )
-                N_vacc = np.zeros([self.space_agg, self.age_agg])
-                N_vacc[:,0] = 0*incidence[:,0] # 00-11
-                N_vacc[:,1] = incidence[:,0]   # 12-17
-                N_vacc[:,2] = incidence[:,1]   # 18-24
-                N_vacc[:,3] = incidence[:,2]   # 25-34
-                N_vacc[:,4] = incidence[:,3]   # 35-44
-                N_vacc[:,5] = incidence[:,4]   # 45-54
-                N_vacc[:,6] = incidence[:,5]   # 55-64
-                N_vacc[:,7] = incidence[:,6]   # 65-74
-                N_vacc[:,8] = incidence[:,7]   # 75-84
-                N_vacc[:,9] = incidence[:,8]   # 85+
-                return N_vacc
-            except:
-                return np.zeros([self.space_agg, self.age_agg])
+        try:
+            return np.array(self.df['INCIDENCE'].loc[t,:,:].values)
+        except:
+            return np.zeros([self.space_agg, self.age_agg])
 
     @lru_cache()
     def get_sciensano_first_dose(self,t):
