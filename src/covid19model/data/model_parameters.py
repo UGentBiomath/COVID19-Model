@@ -236,9 +236,9 @@ def construct_initN(age_classes=None, spatial=None):
     initN.columns = initN.columns.astype(str)
 
     if spatial:
-        return initN.values
+        return initN
     else:
-        return initN.values.sum(axis=0)
+        return initN.sum(axis=0)
 
 def convert_age_stratified_property(data, age_classes):
     """ 
@@ -276,6 +276,7 @@ def convert_age_stratified_property(data, age_classes):
         out.iloc[idx] = sum(result)
     return out
 
+import sys
 
 def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vaccination=False, VOC=True):
     """
@@ -375,13 +376,13 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
                     )
 
     if age_stratification_size == 3:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial)
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial).values
         age_path = '0_20_60/'
     elif age_stratification_size == 9:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial)
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial).values
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial)
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial).values
         age_path = '0_12_18_25_35_45_55_65_75_85/'
     else:
         raise ValueError(
@@ -417,7 +418,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
             F.i. The relative fraction of symptomatic individuals per age group is given but must be converted to a fraction between [0,1] for every age group.
             This can only be accomplished if an overall population average fraction is provided.
         """
-        n = sum(relative_data * construct_initN(age_classes=relative_data.index))
+        n = sum(relative_data * construct_initN(age_classes=relative_data.index).values)
         n_desired = desired_pop_avg_fraction * sum(construct_initN(None,None))
         def errorfcn(multiplier, n, n_desired):
             return (multiplier*n - n_desired)**2
