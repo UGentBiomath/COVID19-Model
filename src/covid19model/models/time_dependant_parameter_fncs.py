@@ -340,7 +340,7 @@ class make_vaccination_function():
         Note that there is no difference between first and second dose in the spatial case.
         """
         try:
-            return np.array(self.df['INCIDENCE'].loc[t,:,:].values)
+            return np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
         except:
             return np.zeros([self.space_agg, self.age_agg])
 
