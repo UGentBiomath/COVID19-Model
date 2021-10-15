@@ -483,6 +483,16 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         
         rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
         df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['start_week'])
+        # pd.read_csv cannot read an IntervalIndex so we need to set this manually
+        iterables = [df.index.get_level_values(0).unique(),
+                     df.index.get_level_values(1).unique(),
+                     pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        columns = df.columns
+        desired_df = pd.DataFrame(index=index, columns=columns)
+        for col_name in df.columns:
+            desired_df[col_name] = df[col_name].values
+        df = desired_df
 
     return df
 
