@@ -270,7 +270,7 @@ class make_vaccination_function():
             for NIS in self.df.index.get_level_values('NIS'):
                 data = self.df.loc[(start_week,NIS),'INCIDENCE']
                 age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
-                print(self.convert_age_stratified_vaccination_data(data, age_classes))
+                output = self.convert_age_stratified_vaccination_data(data, age_classes)
 
         # Extract start- and enddate of vaccination campaign
         if not spatial:
@@ -315,9 +315,9 @@ class make_vaccination_function():
             result = []
             for age in range(interval.left, interval.right):
                 try:
-                    result.append(demographics[age]/data_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                    result.append(demographics[age]/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
                 except:
-                    result.append(0/data_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                    result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
             out.iloc[idx] = sum(result)
         return out
 
