@@ -265,7 +265,7 @@ class make_vaccination_function():
         elif age_stratification_size == 9:
             age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         elif age_stratification_size == 10:
-            pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+            age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
         # Initialize a new dataframe
         iterables = [self.df.index.get_level_values(0).unique(),
                      self.df.index.get_level_values(1).unique(),
