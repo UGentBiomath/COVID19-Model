@@ -246,7 +246,7 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 VOC_function = make_VOC_function(df_VOC_abc)
 
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True, age_stratification_size=age_stratification_size)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=agg, age_stratification_size=age_stratification_size)
 
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
@@ -302,8 +302,6 @@ model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'beta_U' : seasonality_function,
                                                    'beta_M' : seasonality_function})
 
-sys.exit()
-
 ##The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
 ## and the complete fit (with knowledge of the warmup value) on the other hand.
@@ -333,15 +331,11 @@ if job == 'R0':
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     sys.stdout.flush()
-    multiplier = 2
+    multiplier = 3
     maxiter = maxiter_PSO
     popsize = multiplier*processes
-
-    # MCMC settings
-    max_n = maxn_MCMC
-    print_n = 100
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
@@ -437,14 +431,14 @@ elif job == 'FULL':
     start_calibration = '2020-03-02'
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
+        end_calibration = '2021-08-26'#df_sciensano.index.max().strftime("%m-%d-%Y")
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     multiplier = 2 # 10
     maxiter = maxiter_PSO
     popsize = multiplier*processes
@@ -513,13 +507,19 @@ elif job == 'FULL':
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    theta = [ 1.10822243e-02,  3.03177455e-02,  3.79418424e-02,  4.00000000e+00,
+                1.40000000e+01,  5.49109007e-01,  3.79111290e-01,  2.74122342e-01,
+                4.51845685e-01,  5.00000000e-02,  1.46261655e+00,  2.30106392e+00,
+                3.00000000e-01, -3.10000000e+01] #-53026.18853957646
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
     # Perform simulation with best-fit results
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+
+    
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
@@ -554,6 +554,7 @@ elif job == 'FULL':
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
+    sys.exit()
 
     # ------------------
     # Setup MCMC sampler
