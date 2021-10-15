@@ -445,7 +445,7 @@ elif job == 'FULL':
 
     # MCMC settings
     max_n = maxn_MCMC # 500000
-    print_n = 100
+    print_n = 20
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
