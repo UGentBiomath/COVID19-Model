@@ -240,7 +240,7 @@ def construct_initN(age_classes=None, spatial=None):
     else:
         return initN.values.sum(axis=0)
 
-def convert_age_stratified_series(data, age_classes):
+def convert_age_stratified_property(data, age_classes):
     """ 
     Given an age-stratified series of data: [age_group_lower, age_group_upper] : property,
     this function can convert the data into another user-defined age-stratification using demographic weighing
@@ -426,14 +426,14 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
 
     if age_stratification_size == 3:
-        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
+        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
     elif age_stratification_size == 9:
-        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
+        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
     elif age_stratification_size == 10:
-        pars_dict['h'] = convert_age_stratified_series(hosp_prop, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_series(rel_symptoms, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
+        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
+        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
 
     #########################
     ## Hospital parameters ##
