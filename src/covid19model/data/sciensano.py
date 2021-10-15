@@ -408,14 +408,19 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         # Save *municipality* data #
         ############################
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
-        mun_df = df
+        iterables = [df.index.get_level_values(0).unique(), df.index.get_level_values(1).unique(), pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age"])
+        desired_formatted_df = pd.DataFrame(index=index, columns=df.columns)
+        for col_name in df.columns:
+            desired_formatted_df[col_name] = df[col_name].values
+        mun_df =  desired_formatted_df
         mun_df.to_csv(rel_dir, index=True)
         
         # Save *arrondissement* data
         # Extract arrondissement's NIS codes
         NIS_arr = read_coordinates_nis(spatial='arr')
         # Make a new dataframe
-        iterables = [df.index.get_level_values(0).unique(), NIS_arr, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
+        iterables = [df.index.get_level_values(0).unique(), NIS_arr, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
         index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
         columns = ['CUMULATIVE','INCIDENCE']
         arr_df = pd.DataFrame(index=index, columns=columns)
@@ -438,7 +443,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         # Extract provincial NIS codes
         NIS_prov = read_coordinates_nis(spatial='prov')
         # Make a new dataframe
-        iterables = [df.index.get_level_values(0).unique(), NIS_prov, ['0-17','18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84', '85+']]
+        iterables = [df.index.get_level_values(0).unique(), NIS_prov, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
         index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
         columns = ['CUMULATIVE','INCIDENCE']
         prov_df = pd.DataFrame(index=index, columns=columns)
