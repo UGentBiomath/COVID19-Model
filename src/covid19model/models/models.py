@@ -216,7 +216,7 @@ class simple_stochastic_SIR(BaseModel):
 
         return S_new, I_new, R_new
 
-class COVID19_SEIRD(BaseModel):
+class COVID19_SEIQRD(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
@@ -339,7 +339,7 @@ class COVID19_SEIRD(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU)
 
 
-class COVID19_SEIRD_stratified_vacc(BaseModel):
+class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
@@ -560,7 +560,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
-class COVID19_SEIRD_vacc(BaseModel):
+class COVID19_SEIQRD_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variants.
@@ -742,7 +742,7 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
-class COVID19_SEIRD_spatial(BaseModel):
+class COVID19_SEIQRD_spatial(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
 
@@ -916,7 +916,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
     
-class COVID19_SEIRD_spatial_vacc(BaseModel):
+class COVID19_SEIQRD_spatial_vacc(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
     Can account for re-infection and co-infection with a new COVID-19 variants.
@@ -1208,7 +1208,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
-class COVID19_SEIRD_spatial_fiddling(BaseModel):
+class COVID19_SEIQRD_spatial_fiddling(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
     Additional parameters for adding exposure injection, in order to fix the fit for every arrondissement
