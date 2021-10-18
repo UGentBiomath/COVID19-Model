@@ -1127,7 +1127,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
-        
+        # Add effects of variants
+        beta = beta*sum(alpha*K_inf)
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         # Note how part of the vaccinated people still contribute to infection pressure, but ...
         # - they are presumably less infectious by a factor e_i_eff
