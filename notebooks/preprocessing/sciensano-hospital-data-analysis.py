@@ -56,7 +56,7 @@ else:
 # -----
 
 fig_path = '../../results/analysis/hospital/'+age_path
-data_path = '../../data/interim/model_parameters/COVID19_SEIRD/hospitals/' + age_path
+data_path = '../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/' + age_path
 
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, data_path]:
