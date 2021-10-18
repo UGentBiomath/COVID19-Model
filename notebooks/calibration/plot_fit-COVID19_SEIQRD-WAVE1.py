@@ -70,9 +70,9 @@ conf_int = 0.05
 # ------------------------
 
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/WAVE1/'
+fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE1/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
