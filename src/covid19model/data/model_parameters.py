@@ -359,7 +359,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
 
     abs_dir = os.path.dirname(__file__)
     par_raw_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
-    par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/COVID19_SEIRD")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD")
     
     # Initialize parameters dictionary
     pars_dict = {}
