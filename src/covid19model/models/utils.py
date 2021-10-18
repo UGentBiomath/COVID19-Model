@@ -93,7 +93,7 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
     names = ['c','m_C','m_ICU']
     for idx,name in enumerate(names):
         par=[]
-        for jdx in range(9):
+        for jdx in range(len(param_dict['c'])):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
