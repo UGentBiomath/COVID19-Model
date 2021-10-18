@@ -401,10 +401,11 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0
     # Extract simulation timesteps
     simtime = pd.to_datetime(output['time'].values)
     # Extract output of correct state and sum over all ages
-    for dimension in output.dims:
+    data = output.copy(deep=True)
+    for dimension in data.dims:
         if ((dimension != 'time') & (dimension != 'draws')):
-            output[state_name] = output[state_name].sum(dim=dimension)
-    data = output[state_name].values
+            data[state_name] = data[state_name].sum(dim=dimension)
+    data = data[state_name].values
     # Initialize vectors
     vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
