@@ -1155,9 +1155,14 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         ### ODEs for all non-vaccinated people
         
+        # Test for potential negative values of S due to vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)
+        N_vacc[np.where(S + dS <= 0)] = 0
+
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # Fraction S/VE = S/(S+R) of the total number of new vaccinations exit the S class with efficiency e_a_eff
         # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
         dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
