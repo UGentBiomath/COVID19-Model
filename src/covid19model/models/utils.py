@@ -32,11 +32,11 @@ def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     """
     
     # Set correct age_paths to find the hospital data
-    if args.age_stratification_size == 3:
+    if age_stratification_size == 3:
         age_path = '0_20_60/'
-    elif args.age_stratification_size == 9:
+    elif age_stratification_size == 9:
         age_path = '0_10_20_30_40_50_60_70_80/'
-    elif args.age_stratification_size == 10:
+    elif age_stratification_size == 10:
         age_path = '0_12_18_25_35_45_55_65_75_85/'
     else:
         raise ValueError(
