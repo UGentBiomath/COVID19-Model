@@ -167,7 +167,7 @@ def get_sciensano_COVID19_data(update=True):
         df_vacc = pd.read_csv(os.path.join(abs_dir,
         '../../../data/raw/sciensano/COVID19BE_VACC.csv'), parse_dates=['DATE'])
 
-        df = pd.read_csv(os.path.join(abs_dir,
+        df_hosp = pd.read_csv(os.path.join(abs_dir,
         '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
 
         df_mort = pd.read_csv(os.path.join(abs_dir,
@@ -176,47 +176,71 @@ def get_sciensano_COVID19_data(update=True):
     # --------
     # Hospital
     # --------
-
+    
     # Use hospitalization dataframe as the template
-    df = df.resample('D', on='DATE').sum()
+    df_hosp = df_hosp.resample('D', on='DATE').sum()
 
     variable_mapping = {"TOTAL_IN": "H_tot",
                         "TOTAL_IN_ICU": "ICU_tot",
                         "NEW_IN": "H_in",
                         "NEW_OUT": "H_out"}
-    df = df.rename(columns=variable_mapping)
-    df = df[list(variable_mapping.values())]
+    df_hosp = df_hosp.rename(columns=variable_mapping)
+    df_hosp = df_hosp[list(variable_mapping.values())]
 
     # ------
     # Deaths
     # ------
 
-    df["D_tot"] = df_mort.resample('D', on='DATE')['DEATHS'].sum()
-    df["D_25_44"] = df_mort.loc[(df_mort['AGEGROUP'] == '25-44')].resample('D', on='DATE')['DEATHS'].sum()
-    df["D_45_64"] = df_mort.loc[(df_mort['AGEGROUP'] == '45-64')].resample('D', on='DATE')['DEATHS'].sum()
-    df["D_65_74"] = df_mort.loc[(df_mort['AGEGROUP'] == '65-74')].resample('D', on='DATE')['DEATHS'].sum()
-    df["D_75_84"] = df_mort.loc[(df_mort['AGEGROUP'] == '75-84')].resample('D', on='DATE')['DEATHS'].sum()
-    df["D_85+"] = df_mort.loc[(df_mort['AGEGROUP'] == '85+')].resample('D', on='DATE')['DEATHS'].sum()
+    # Define desired multiindexed pd.Series format
+    interval_index = pd.IntervalIndex.from_tuples([(25,45),(45,65),(65,75),(75,85),(85,120)], closed='left')
+    iterables = [df_mort['DATE'].unique(), interval_index]
+    index = pd.MultiIndex.from_product(iterables, names=["date", "age"])
+    df = pd.Series(index=index)
+
+    for idx, age_group in enumerate(['25-44', '45-64','65-74', '75-84', '85+']):
+        # Resample data: A problem occurs: only dates on which date is available are returned
+        series = df_mort.loc[(df_mort['AGEGROUP'] == age_group)].resample('D',on='DATE')['DEATHS'].sum()
+        # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
+        dummy = pd.Series(index = df_mort['DATE'].unique())
+        C = dummy.to_frame().join(series.to_frame()).fillna(0)['DEATHS']
+        # Assign data
+        df.loc[(slice(None), interval_index[idx])] = C.values
+    df_mort = df
+
 
     # -----
     # Cases
     # -----
 
-    df["C_tot"] = df_cases.resample('D', on='DATE')['CASES'].sum()
-    df["C_0_9"] = df_cases.loc[(df_cases['AGEGROUP'] == '0-9')].resample('D', on='DATE')['CASES'].sum()
-    df["C_10_19"] = df_cases.loc[(df_cases['AGEGROUP'] == '10-19')].resample('D', on='DATE')['CASES'].sum()
-    df["C_20_29"] = df_cases.loc[(df_cases['AGEGROUP'] == '20-29')].resample('D', on='DATE')['CASES'].sum()
-    df["C_30_39"] = df_cases.loc[(df_cases['AGEGROUP'] == '30-39')].resample('D', on='DATE')['CASES'].sum()
-    df["C_40_49"] = df_cases.loc[(df_cases['AGEGROUP'] == '40-49')].resample('D', on='DATE')['CASES'].sum()
-    df["C_50_59"] = df_cases.loc[(df_cases['AGEGROUP'] == '50-59')].resample('D', on='DATE')['CASES'].sum()
-    df["C_60_69"] = df_cases.loc[(df_cases['AGEGROUP'] == '60-69')].resample('D', on='DATE')['CASES'].sum()
-    df["C_70_79"] = df_cases.loc[(df_cases['AGEGROUP'] == '70-79')].resample('D', on='DATE')['CASES'].sum()
-    df["C_80_89"] = df_cases.loc[(df_cases['AGEGROUP'] == '80-89')].resample('D', on='DATE')['CASES'].sum()
-    df["C_90+"] = df_cases.loc[(df_cases['AGEGROUP'] == '90+')].resample('D', on='DATE')['CASES'].sum()
+    # Define desired multiindexed pd.Series format
+    interval_index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,90),(90,120)], closed='left')
+    iterables = [df_cases['DATE'].unique()[:-1], interval_index]
+    index = pd.MultiIndex.from_product(iterables, names=["date", "age"])
+    df = pd.Series(index=index)
+
+    for idx, age_group in enumerate(['0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-79', '80-89', '90+']):
+        # Resample data: A problem occurs: only dates on which date is available are returned
+        series = df_cases.loc[(df_cases['AGEGROUP'] == age_group)].resample('D',on='DATE')['CASES'].sum()
+        # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
+        dummy = pd.Series(index = df_cases['DATE'].unique()[:-1])
+        C = dummy.to_frame().join(series.to_frame()).fillna(0)['CASES']
+        # Assign data
+        df.loc[(slice(None), interval_index[idx])] = C.values
+    df_cases = df
+
+    print(df_cases)
+    print(df_cases.sum(level='date'))
+    print(df_cases.sum(level='age'))
 
     # ----------------------
     # Vaccination (national)
     # ----------------------
+
+    # Define desired multiindexed pd.Series format
+
+    out = df_vacc.groupby(by=['DATE', 'REGION', 'AGEGROUP', 'DOSE']).sum()
+    print(out)
+    print(out.index)
 
     # First dose
     df["V1_tot"] = df_vacc[df_vacc['DOSE'] == 'A'].resample('D', on='DATE')['COUNT'].sum()
