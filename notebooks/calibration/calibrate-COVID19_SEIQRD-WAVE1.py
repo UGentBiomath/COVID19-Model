@@ -94,8 +94,9 @@ initial_time = datetime.datetime.now()
 # Population size, interaction matrices and the model parameters
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=False, VOC=False)
 levels = initN.size
-# Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+# Sciensano hospital data
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp = df_hosp.groupby(by=['date']).sum()
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
@@ -121,12 +122,6 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# -----------------------
-# Define helper functions
-# -----------------------
-
-from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
-
 # ---------------------------------
 # Time-dependant parameter function
 # ---------------------------------
@@ -134,6 +129,12 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # Time-dependent social contact matrix over all policies, updating Nc
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE1
+
+# -----------------------
+# Define helper functions
+# -----------------------
+
+from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
 
 # --------------------
 # Initialize the model
@@ -184,7 +185,7 @@ if job == 'R0':
     # define dataset
     # --------------
 
-    data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
 
     # -----------
@@ -274,7 +275,7 @@ sys.stdout.flush()
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'][0:5], df_sero_sciensano['abs','mean'][0:8]]
+data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'][0:5], df_sero_sciensano['abs','mean'][0:8]]
 index_max=[]
 for idx, d in enumerate(data):
     index_max.append(d.index.max())

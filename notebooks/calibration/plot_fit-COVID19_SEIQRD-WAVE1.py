@@ -101,8 +101,9 @@ end_calibration = samples_dict['end_calibration']
 # Population size, interaction matrices and the model parameters
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=False, VOC=False)
 levels = initN.size
-# Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+# Sciensano hospital data
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp = df_hosp.groupby(by=['date']).sum()
 # Sciensano mortality data
 df_sciensano_mortality = sciensano.get_mortality_data()
 # Google Mobility data
@@ -110,7 +111,7 @@ df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Start of data collection
-start_data = df_sciensano.idxmin()
+start_data = df_hosp.idxmin()
 
 # --------------------------------------
 # Time-dependant social contact function
@@ -160,8 +161,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
 ax1.plot(df_2plot['H_in','mean'],'--', color='blue')
 ax1.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
-ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax1 = _apply_tick_locator(ax1)
 ax1.set_xlim(start_sim,end_sim)
 ax1.set_ylabel('Daily hospitalizations (-)', fontsize=12)
@@ -169,7 +170,7 @@ ax1.get_yaxis().set_label_coords(-0.1,0.5)
 # Plot hospital total
 ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue')
 ax2.fill_between(simtime, df_2plot['H_tot', 'LL'], df_2plot['H_tot', 'UL'], alpha=0.20, color = 'blue')
-ax2.scatter(df_sciensano[start_calibration:end_sim].index,df_sciensano['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax2.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
 ax2.get_yaxis().set_label_coords(-0.1,0.5)

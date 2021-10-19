@@ -201,6 +201,7 @@ def get_sciensano_COVID19_data(update=True):
     df_hosp = df_hosp.rename(columns=variable_mapping)
     # Group data by date and province
     df_hosp = df_hosp.groupby(by=['DATE', 'PROVINCE']).sum()
+    df_hosp.index.names = ['date','province']
     # Retain only columns of interest
     df_hosp = df_hosp[list(variable_mapping.values())]
 
