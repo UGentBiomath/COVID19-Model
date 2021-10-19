@@ -10,7 +10,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
-import gc
+import os
 import sys, getopt
 import ujson as json
 import random
@@ -40,6 +40,9 @@ parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="sto
 parser.add_argument("-j", "--job", help="Full or partial calibration")
 parser.add_argument("-w", "--warmup", help="Warmup must be defined for job = FULL")
 parser.add_argument("-e", "--enddate", help="Calibration enddate")
+parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
+parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 
 args = parser.parse_args()
 
@@ -72,87 +75,108 @@ else:
             'Job "None" requires the defenition of warmup (-w)'
         )     
 
+# Maximum number of PSO iterations
+n_pso = int(args.n_pso)
+# Maximum number of MCMC iterations
+n_mcmc = int(args.n_mcmc)
+# Number of age groups used in the model
+age_stratification_size=int(args.n_age_groups)
 # Date at which script is started
 run_date = str(datetime.date.today())
+# Keep track of runtime
+initial_time = datetime.datetime.now()
 
 # ---------
 # Load data
 # ---------
 
-# Time-integrated contact matrices
-initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
+# Population size, interaction matrices and the model parameters
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
 levels = initN.size
-# Sciensano data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
+# Sciensano hospital and vaccination data
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp = df_hosp.groupby(by=['date']).sum()
+df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
+            df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-# VOC data
-df_VOC_501Y = VOC.get_501Y_data()
+# Load and format national VOC data (for time-dependent VOC fraction)
+df_VOC_abc = VOC.get_abc_data()
 # Model initial condition on September 1st
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
 
 # ------------------------
 # Define results locations
 # ------------------------
 
-# Path where samples bakcend should be stored
-results_folder = "../../results/calibrations/COVID19_SEIRD/national/backends/"
-# Path where figures should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
+# Path where traceplot and autocorrelation figures should be stored.
+# This directory is split up further into autocorrelation, traceplots
+fig_path = f'../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+# Path where samples backend should be stored
+backend_folder = f'../results/calibrations/COVID19_SEIRD/national/backends/'
+# Verify that the paths exist and if not, generate them
+for directory in [fig_path, samples_path, backend_folder]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+# Verify that the fig_path subdirectories used in the code exist
+for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # ---------------------------
 # Time-dependant VOC function
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function(df_VOC_501Y)
+# Time-dependent VOC function, updating alpha
+VOC_function = make_VOC_function(df_VOC_abc)
 
 # -----------------------------------
 # Time-dependant vaccination function
 # -----------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
-vacc_strategy = make_vaccination_function(df_sciensano)
+vacc_strategy = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
 
 # --------------------------------------
 # Time-dependant social contact function
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
-contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-policies_WAVE2_full_relaxation = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_full_relaxation
-    
-# --------------------
-# Initialize the model
-# --------------------
-
-# Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
-# Add the time-dependant parameter function arguments
-# Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5, 'relaxdate': '2021-07-01', 'l_relax' : 31})
-# VOC
-params.update({'t_sig': '2021-08-01'}) # No new Indian variant currently
-# Vaccination
-params.update(
-    {'vacc_order': np.array(range(9))[::-1], 'daily_dose': 55000,
-     'refusal': 0.2*np.ones(9), 'delay': 20}
-)
-# Initialize model
-model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2_full_relaxation, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE2_no_relaxation
 
 # -----------------------------------
 # Define calibration helper functions
 # -----------------------------------
 
 from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO, run_MCMC
+
+# --------------------
+# Initialize the model
+# --------------------
+
+# Add the time-dependant parameter function arguments
+# Social policies
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
+# Vaccination
+params.update(
+    {'vacc_order': np.array(range(9))[::-1],
+    'daily_first_dose': 60000,
+    'refusal': 0.2*np.ones(age_stratification_size),
+    'delay_immunity': 21,
+    'stop_idx': 9,
+    'initN': initN}
+)
+# Initialize model
+model = models.COVID19_SEIQRD_vacc(initial_states, params,
+                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
 
 #############
 ## JOB: R0 ##
@@ -173,13 +197,10 @@ else:
 # Spatial unit: Belgium
 spatial_unit = 'BE_WAVE2'
 # PSO settings
-processes = mp.cpu_count()
-multiplier = 2
-maxiter = 3
+processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+multiplier = 10
+maxiter = n_pso
 popsize = multiplier*processes
-# MCMC settings
-print_n = 100
-max_n = 100
 
 if job == 'R0':
 
@@ -188,13 +209,14 @@ if job == 'R0':
     print('--------------------------------------------\n')
     print('Using data from '+start_calibration+' until '+end_calibration+'\n')
     print('1) Particle swarm optimization\n')
-    print('Using ' + str(processes) + ' cores\n')
+    print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    sys.stdout.flush()
 
     # --------------
     # define dataset
     # --------------
 
-    data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
 
     # -----------
@@ -216,69 +238,31 @@ if job == 'R0':
     plt.show()
     plt.close()
 
-    # ------------------
-    # Setup MCMC sampler
-    # ------------------
+    # -----------
+    # Print stats
+    # -----------
 
-    print('\n2) Markov-Chain Monte-Carlo sampling\n')
+    # Print statement to stdout once
+    print(f'\nPSO RESULTS:')
+    print(f'------------')
+    print(f'warmup : {int(theta[0])}.')
+    print(f'infectivity : {round(theta[1], 3)}.')
+    print(f'd_a : {round(theta[2], 3)}.')
 
-    # Define priors
-    log_prior_fcn = [prior_uniform, prior_uniform]
-    log_prior_fcn_args = [(0.005, 0.15),(0.1, 14)]
-    # Perturbate PSO Estimate
-    pars = ['beta','da']
-    pert = [0.10, 0.10]
-    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, 2)
-    # Set up the sampler backend if needed
-    if backend:
-        filename = spatial_unit+'_R0_'+run_date
-        backend = emcee.backends.HDFBackend(results_folder+filename)
-        backend.reset(nwalkers, ndim)
-    # Labels for traceplots
-    labels = ['$\\beta$','$d_{a}$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
+    # Print runtime in hours
+    intermediate_time = datetime.datetime.now()
+    runtime = (intermediate_time - initial_time)
+    totalMinute, second = divmod(runtime.seconds, 60)
+    hour, minute = divmod(totalMinute, 60)
+    day = runtime.days
+    if day == 0:
+        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    else:
+        print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
 
-    # ----------------
-    # Run MCMC sampler
-    # ----------------
+    sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
-   
-    # ---------------
-    # Process results
-    # ---------------
-
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = int(0.5 * np.min(autocorr))
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    print('\n3) Sending samples to dictionary')
-
-    flat_samples = sampler.get_chain(discard=100,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-
-    samples_dict.update({
-        'warmup' : warmup,
-        'start_date_R0' : start_calibration,
-        'end_date_R0' : end_calibration,
-        'n_chains_R0': int(nwalkers)
-    })
-
-    with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.json', 'w') as fp:
-        json.dump(samples_dict, fp)
-
-    print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_'+run_date+'.json'+'"')
-    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    
+    # Work is done
     sys.exit()
 
 ############################################

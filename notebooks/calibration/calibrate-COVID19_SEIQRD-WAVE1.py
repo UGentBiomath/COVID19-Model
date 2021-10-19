@@ -220,7 +220,7 @@ if job == 'R0':
     print(f'\nPSO RESULTS:')
     print(f'------------')
     print(f'warmup : {int(theta[0])}.')
-    print(f'infectivities : {round(theta[1], 3)}.')
+    print(f'infectivity : {round(theta[1], 3)}.')
     print(f'd_a : {round(theta[2], 3)}.')
 
     # Print runtime in hours
