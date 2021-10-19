@@ -279,7 +279,8 @@ def get_sciensano_COVID19_data(update=True):
     index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
     df = pd.Series(index=index)
 
-    for idx, age_group in enumerate(df_vacc['AGEGROUP'].unique()):
+    print(df_vacc['AGEGROUP'].unique())
+    for idx, age_group in enumerate(['00-11', '12-15', '16-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84','85+']):
         for jdx, NIS in enumerate(corresponding_NIS):
             for kdx, dose in enumerate(df_vacc['DOSE'].unique()):
                 series = df_vacc.loc[((df_vacc['AGEGROUP'] == age_group) & (df_vacc['REGION'] == NIS) & (df_vacc['DOSE'] == dose))].resample('D',on='DATE')['COUNT'].sum()
