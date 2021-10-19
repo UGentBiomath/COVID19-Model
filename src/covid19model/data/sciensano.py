@@ -443,7 +443,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ############################
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
         iterables = [df.index.get_level_values(0).unique(), df.index.get_level_values(1).unique(), pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age"])
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NUTS5", "age"])
         desired_formatted_df = pd.DataFrame(index=index, columns=df.columns)
         for col_name in df.columns:
             desired_formatted_df[col_name] = df[col_name].values
@@ -455,7 +455,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         NIS_arr = read_coordinates_nis(spatial='arr')
         # Make a new dataframe
         iterables = [df.index.get_level_values(0).unique(), NIS_arr, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
         columns = ['CUMULATIVE','INCIDENCE']
         arr_df = pd.DataFrame(index=index, columns=columns)
         arr_df['CUMULATIVE'] = 0
@@ -478,7 +478,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         NIS_prov = read_coordinates_nis(spatial='prov')
         # Make a new dataframe
         iterables = [df.index.get_level_values(0).unique(), NIS_prov, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
         columns = ['CUMULATIVE','INCIDENCE']
         prov_df = pd.DataFrame(index=index, columns=columns)
         prov_df['CUMULATIVE'] = 0
@@ -516,12 +516,12 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ##############################
         
         rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
-        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['start_week'])
+        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['date'])
         # pd.read_csv cannot read an IntervalIndex so we need to set this manually
         iterables = [df.index.get_level_values(0).unique(),
                      df.index.get_level_values(1).unique(),
                      pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
         columns = df.columns
         desired_df = pd.DataFrame(index=index, columns=columns)
         for col_name in df.columns:
