@@ -118,7 +118,7 @@ fig_path = f'../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
 samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIRD/national/backends/'
+backend_folder = f'../results/calibrations/COVID19_SEIQRD/national/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):

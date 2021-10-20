@@ -108,11 +108,11 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIRD/national/'
+fig_path = f'../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIRD/national/backends/'
+backend_folder = f'../results/calibrations/COVID19_SEIQRD/national/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -256,10 +256,11 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier = 5
+multiplier_pso = 5
 maxiter = n_pso
-popsize = multiplier*processes
+popsize = multiplier_pso*processes
 # MCMC settings
+multiplier_mcmc = 4
 print_n = 100
 max_n = n_mcmc
 
@@ -358,7 +359,7 @@ log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, pri
 log_prior_fcn_args = [(0.01,0.12), (0.1,14), (0.001,20), (0,1), (0,1), (0,1), (1e-4,1e-2)]
 # Perturbate PSO estimate
 pert = [5e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2]
-ndim, nwalkers, pos = perturbate_PSO(theta, pert, 4)
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date

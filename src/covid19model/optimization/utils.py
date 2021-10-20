@@ -11,8 +11,8 @@ from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
 # Path to figures and samples --> used by run_MCMC
-fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/')
-samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/')
+fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
+samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
 def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
     # Determine save path
