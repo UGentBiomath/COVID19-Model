@@ -457,8 +457,12 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     ###################################
 
     # Other parameters
-    df_other_pars = pd.read_csv(os.path.join(par_raw_path,"others.csv"), sep=',',header='infer')
-    pars_dict.update(df_other_pars.T.to_dict()[0])
+    pars_dict['da'] = 7
+    pars_dict['dm'] = 7
+    pars_dict['sigma'] = 4.54
+    pars_dict['omega'] = 0.66
+    pars_dict['zeta'] = 0.003206
+    pars_dict['dhospital'] = 7.543
 
     # Fitted parameters
     if not spatial:
