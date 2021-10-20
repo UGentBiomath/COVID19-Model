@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import pandas as pd
+import itertools
 from functools import lru_cache
 
 ##########################
@@ -253,48 +254,50 @@ class make_vaccination_function():
         Default vaccination function
 
     """
-    def __init__(self, df, spatial=None, age_stratification_size=10):
+    def __init__(self, df, age_stratification_size=10):
         # Assign inputs to object
         self.df = df
-        self.spatial = spatial
         self.age_agg = age_stratification_size
 
-        # Convert vaccination data to right age groups
+        # Check if spatial data is provided
+        self.spatial = None
+        if 'NIS' in self.df.index.names:
+            self.spatial = True
+            self.space_agg = len(self.df.index.get_level_values(1).unique().values)
+
+        # Define start- and enddate
+        self.df_start = pd.Timestamp(df.ne(0).idxmax()[0], freq='D')
+        self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
+
+        # Define age groups
         if age_stratification_size == 3:
             age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
         elif age_stratification_size == 9:
             age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         elif age_stratification_size == 10:
             age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
-        # Initialize a new dataframe
-        iterables = [self.df.index.get_level_values(0).unique(),
-                     self.df.index.get_level_values(1).unique(),
-                     age_classes]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NIS", "age"])
-        columns = df.columns
-        self.new_df = pd.DataFrame(index=index, columns=columns)
-        # Loop over existing dataframe
-        for start_week in self.df.index.get_level_values('start_week').unique():
-            for NIS in self.df.index.get_level_values('NIS').unique():
-                data = self.df.loc[(start_week,NIS),'INCIDENCE']
-                self.new_df.loc[(start_week, NIS),'INCIDENCE'] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+
+        # Perform age conversion
+        iterables=[]
+        for i in range(len(self.df.index.names)-1):
+            iterables += [self.df.index.get_level_values(i).unique()]
+        iterables += [age_classes]
+        index = pd.MultiIndex.from_product(iterables, names=self.df.index.names)
+        self.new_df = pd.Series(index=index)
+
+        if self.spatial:
+            for date in self.df.index.get_level_values('date').unique():
+                for NIS in self.df.index.get_level_values('NIS').unique():
+                    data = self.df.loc[(date,NIS)]
+                    self.new_df.loc[(date, NIS)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+        else:
+            for date in self.df.index.get_level_values('date').unique():
+                data = self.df.loc[(date)]
+                self.new_df.loc[(date)] = self.convert_age_stratified_vaccination_data(data, age_classes).values
+
         self.df = self.new_df
 
-        # Extract start- and enddate of vaccination campaign
-        if not spatial:
-            try:
-                self.df_start = df['V1_tot'].ne(0).idxmax()
-                self.df_end = df.index[-1]
-            except:
-                raise Exception("Error loading vaccination data. Make sure the spatial argument is correct (True/False).")
-        else:
-            self.df_start = pd.Timestamp(df['INCIDENCE'].ne(0).idxmax()[0], freq='D')
-            self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
-
-        # Extract number of spatial patches
-        self.space_agg = len(self.df.index.get_level_values(1).unique().values)
-
-    def convert_age_stratified_vaccination_data(self, data, age_classes, spatial, NIS):
+    def convert_age_stratified_vaccination_data(self, data, age_classes, spatial=None, NIS=None):
         """ 
         A function to convert the sciensano vaccination data to the desired model age groups
 
@@ -318,11 +321,16 @@ class make_vaccination_function():
         out: pd.Series
             Converted data.
         """
+
         # Pre-allocate new series
         out = pd.Series(index = age_classes)
-        data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
-        # Extract demographics for all ages
-        demographics = construct_initN(None, spatial).loc[NIS,:].values
+        # Extract demographics
+        if spatial: 
+            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
+            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        else:
+            data_n_individuals = construct_initN(data.index, spatial).values
+            demographics = construct_initN(None, spatial).values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []
@@ -340,24 +348,16 @@ class make_vaccination_function():
         Note that there is no difference between first and second dose in the spatial case.
         """
         try:
-            return np.array(self.df['INCIDENCE'].loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
+            return np.array(self.df.loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
         except:
             return np.zeros([self.space_agg, self.age_agg])
 
     @lru_cache()
-    def get_sciensano_first_dose(self,t):
-        # Extrapolate Sciensano n0. first dose vaccinations to the model's native age bins
-        N_vacc = np.zeros(self.age_agg)
-        N_vacc[0] = (10/12)*self.df['V1_00_11'][t]
-        N_vacc[1] = (2/12)*self.df['V1_00_11'][t] + self.df['V1_12_15'][t] + self.df['V1_16_17'][t] + (2/6)*self.df['V1_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df['V1_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df['V1_25_34'][t] + (5/10)*self.df['V1_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df['V1_35_44'][t] + (5/10)*self.df['V1_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df['V1_45_54'][t] + (5/10)*self.df['V1_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df['V1_55_64'][t] + (5/10)*self.df['V1_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df['V1_65_74'][t] + (5/10)*self.df['V1_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df['V1_75_84'][t] + self.df['V1_85+'][t]# 80+
-        return N_vacc
+    def get_nonstratified_data(self,t):
+        try:
+            return np.array(self.df[t,:].values)
+        except:
+            return np.zeros(self.age_agg)
 
     @lru_cache()
     def get_sciensano_second_dose(self,t):
@@ -444,7 +444,7 @@ class make_vaccination_function():
         # During effect of vaccination, with available data
         elif self.df_start + delay < t <= self.df_end + delay:
             if not self.spatial:
-                return self.get_sciensano_first_dose(t-delay)+self.get_sciensano_one_shot_dose(t-delay)
+                return self.get_nonstratified_data(t-delay)
             else:
                 return self.get_sciensano_spatial_first_dose(t-delay)
             
