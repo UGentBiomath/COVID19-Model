@@ -104,9 +104,66 @@ df_google = mobility.get_google_mobility_data(update=False)
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Load and format national VOC data (for time-dependent VOC fraction)
 df_VOC_abc = VOC.get_abc_data()
-# Model initial condition on September 1st
+# Model initial condition on September 1st for 9 age classes
 with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
+age_classes_init = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+# Define age groups
+if age_stratification_size == 3:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+elif age_stratification_size == 9:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+elif age_stratification_size == 10:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+
+from covid19model.data.model_parameters import construct_initN
+def convert_age_stratified_vaccination_data( data, age_classes, spatial=None, NIS=None):
+        """ 
+        A function to convert the sciensano vaccination data to the desired model age groups
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified vaccination incidences. Index must be of type pd.Intervalindex.
+        
+        age_classes : pd.IntervalIndex
+            Desired age groups of the vaccination dataframe.
+
+        spatial: str
+            Spatial aggregation: prov, arr or mun
+        
+        NIS : str
+            NIS code of consired spatial element
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+
+        # Pre-allocate new series
+        out = pd.Series(index = age_classes)
+        # Extract demographics
+        if spatial: 
+            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
+            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        else:
+            data_n_individuals = construct_initN(data.index, spatial).values
+            demographics = construct_initN(None, spatial).values
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
+
+for state,init in initial_states.items():
+    initial_states.update({state: convert_age_stratified_vaccination_data(pd.Series(data=init, index=age_classes_init), desired_age_classes)})
 
 # ------------------------
 # Define results locations
@@ -198,9 +255,9 @@ else:
 spatial_unit = 'BE_WAVE2'
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier = 10
+multiplier_pso = 10
 maxiter = n_pso
-popsize = multiplier*processes
+popsize = multiplier_pso*processes
 
 if job == 'R0':
 
@@ -224,8 +281,8 @@ if job == 'R0':
     # -----------
 
     # set optimisation settings
-    pars = ['warmup','beta','da']
-    bounds=((5,30),(0.010,0.100),(3,8))
+    pars = ['warmup','beta']
+    bounds=((5,30),(0.010,0.100))
     # run optimisation
     theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, processes=processes)
@@ -247,7 +304,6 @@ if job == 'R0':
     print(f'------------')
     print(f'warmup : {int(theta[0])}.')
     print(f'infectivity : {round(theta[1], 3)}.')
-    print(f'd_a : {round(theta[2], 3)}.')
 
     # Print runtime in hours
     intermediate_time = datetime.datetime.now()
@@ -283,40 +339,42 @@ if not args.enddate:
 else:
     end_calibration = str(args.enddate)
 # PSO settings
-processes = int(mp.cpu_count()/2)
-multiplier = 2
+processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+multiplier_pso = 4
 maxiter = 30
-popsize = multiplier*processes
+popsize = multiplier_pso*processes
 # MCMC settings
-max_n = 500000
-print_n = 100
+multiplier_mcmc = 2
+max_n = n_mcmc
+print_n = 10
 
 print('\n---------------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
 print('---------------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('\n1) Particle swarm optimization\n')
-print('Using ' + str(processes) + ' cores\n')
+print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+sys.stdout.flush()
 
 # --------------
 # Define dataset
 # --------------
 
-data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sciensano['H_in']['2020-04-14':]]
-states = ["H_in","H_in"]
-weights = [1, 1]
+data=[df_hosp['H_in'][start_calibration:end_calibration]]
+states = ["H_in"]
+weights = [1]
 
 # -----------
 # Perform PSO
 # -----------
 
 # optimisation settings
-pars = ['beta','da','l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home', 'K_inf1']
-bounds=((0.013,0.014),(2,14),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.40,0.99),(1,1.6))
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1']
+bounds=((0.013,0.014),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.40,0.99),(1,1.6))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-theta = np.array([0.0134, 8.32, 4.03, 0.687, 0.118, 0.105, 0.649, 1.47])
+theta = np.array([0.0148, 4.03, 0.80, 0.118, 0.105, 0.50, 0.649, 1.50])
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
@@ -346,28 +404,30 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'da', 'l', 'prev_schools', 'prev_work', 'prev_rest', 'prev_home','K_inf1']
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.01, 14), (0.1,14), (0.05,1), (0.05,1), (0.05,1), (0.05,1),(1.3,1.8)]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
-ndim, nwalkers, pos = perturbate_PSO(theta, pert, 3)
+pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
+ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
     filename = spatial_unit+'_R0_COMP_EFF_'+run_date
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 # Labels for traceplots
-labels = ['$\\beta$','$d_{a}$','$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$K_{inf}$']
+labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
 objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
 
-
 # ----------------
 # Run MCMC sampler
 # ----------------
+
+print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+sys.stdout.flush()
 
 sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
 

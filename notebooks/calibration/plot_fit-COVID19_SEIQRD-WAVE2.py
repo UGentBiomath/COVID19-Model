@@ -27,7 +27,7 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # Load required packages
 # ----------------------
 
-import gc
+import os
 import sys, getopt
 import ujson as json
 import random
@@ -51,7 +51,11 @@ parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratif
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
+parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 args = parser.parse_args()
+
+# Number of age groups used in the model
+age_stratification_size=int(args.n_age_groups)
 
 # --------------------------
 # Define simulation settings
@@ -62,50 +66,118 @@ start_sim = '2020-09-01'
 end_sim = '2022-03-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
+
+# ------------------------
+# Define results locations
+# ------------------------
+
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/others/WAVE2/'
+fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+# Verify that the paths exist and if not, generate them
+for directory in [fig_path, samples_path]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 # -----------------------
 # Load samples dictionary
 # -----------------------
 
 from covid19model.models.utils import load_samples_dict
-samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2)
+samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2, age_stratification_size=age_stratification_size)
 warmup = int(samples_dict['warmup'])
-
-# ---------
-# Load data
-# ---------
-
-# Time-integrated contact matrices
-initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
-levels = initN.size
-# Sciensano public data
-df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
-# Sciensano mortality data
-df_sciensano_mortality =sciensano.get_mortality_data()
-# Google Mobility data
-df_google = mobility.get_google_mobility_data(update=False)
-# Serological data
-df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-# VOC data
-df_VOC_abc = VOC.get_abc_data()
-# Start of data collection
-start_data = df_sciensano.idxmin()
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
+# ---------
+# Load data
+# ---------
+
+# Population size, interaction matrices and the model parameters
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
+levels = initN.size
+# Sciensano hospital and vaccination data
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp = df_hosp.groupby(by=['date']).sum()
+df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
+            df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
+# Sciensano mortality data
+df_sciensano_mortality = sciensano.get_mortality_data()
+# Google Mobility data
+df_google = mobility.get_google_mobility_data(update=False)
+# Serological data
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# Load and format national VOC data (for time-dependent VOC fraction)
+df_VOC_abc = VOC.get_abc_data()
+
 # --------------
 # Initial states
 # --------------
 
-# Model initial condition on September 1st
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
-    initial_states = json.load(fp)
+# Model initial condition on September 1st for 9 age classes
+with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+    initial_states = json.load(fp)    
+age_classes_init = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+# Define age groups
+if age_stratification_size == 3:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+elif age_stratification_size == 9:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+elif age_stratification_size == 10:
+    desired_age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+
+from covid19model.data.model_parameters import construct_initN
+def convert_age_stratified_vaccination_data( data, age_classes, spatial=None, NIS=None):
+        """ 
+        A function to convert the sciensano vaccination data to the desired model age groups
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified vaccination incidences. Index must be of type pd.Intervalindex.
+        
+        age_classes : pd.IntervalIndex
+            Desired age groups of the vaccination dataframe.
+
+        spatial: str
+            Spatial aggregation: prov, arr or mun
+        
+        NIS : str
+            NIS code of consired spatial element
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+
+        # Pre-allocate new series
+        out = pd.Series(index = age_classes, dtype=float)
+        # Extract demographics
+        if spatial: 
+            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
+            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        else:
+            data_n_individuals = construct_initN(data.index, spatial).values
+            demographics = construct_initN(None, spatial).values
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
+
+for state,init in initial_states.items():
+    initial_states.update({state: convert_age_stratified_vaccination_data(pd.Series(data=init, index=age_classes_init), desired_age_classes)})
+
 if args.vaccination_model == 'stratified':
     # Correct size of initial states
     entries_to_remove = ('S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v')
@@ -119,7 +191,8 @@ if args.vaccination_model == 'stratified':
 # ---------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
-VOC_function = make_VOC_function()
+# Time-dependent VOC function, updating alpha
+VOC_function = make_VOC_function(df_VOC_abc)
 
 # ---------------------------------------------------------
 # Time-dependant vaccination function and sampling function
@@ -127,10 +200,10 @@ VOC_function = make_VOC_function()
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
 if args.vaccination_model == 'non-stratified':
-    vacc_strategy = make_vaccination_function(df_sciensano)
+    vacc_strategy = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
     from covid19model.models.utils import draw_fcn_WAVE2
 elif args.vaccination_model == 'stratified':
-    vacc_strategy = make_vaccination_function(df_sciensano).stratified_vaccination_strategy
+    vacc_strategy = make_vaccination_function(df_vacc).stratified_vaccination_strategy
     from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
 else:
     raise ValueError(
@@ -143,10 +216,10 @@ else:
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, delayed_ramp_fun, ramp_fun
-contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
-policies_WAVE2 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE2_no_relaxation
-    
+from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
+contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE2_no_relaxation
+
 # -----------------------------------
 # Time-dependant seasonality function
 # -----------------------------------
@@ -155,7 +228,6 @@ def seasonality(t,states,param,amplitude, peak_shift):
     maxdate = pd.Timedelta(days=peak_shift) + pd.to_datetime('2021-01-01')
     t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
     return param*(1+amplitude*np.cos( 2*np.pi*(t)))
-
 
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function
@@ -167,8 +239,6 @@ from covid19model.models.utils import output_to_visuals
 # Initialize the model
 # --------------------
 
-# Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
 if args.vaccination_model == 'stratified':
     params['dICUrec'] = [9.9, 3.4, 8.4, 6.6, 8.2, 10.1, 11.5, 15.2, 13.3]
     # Add "size dummy" for vaccination stratification
@@ -186,21 +256,26 @@ if args.vaccination_model == 'stratified':
     params.update({'amplitude': 0.1, 'peak_shift': 0})
 else:
     # Social policies
-    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest': 0.5, 'prev_home': 0.5})
+    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 
 # Add the remaining time-dependant parameter function arguments
 # Vaccination
 params.update(
-    {'initN': initN, 'vacc_order': np.array(range(9))[::-1], 'daily_first_dose': 55000,
-     'refusal': 0.2*np.ones([9,2]), 'delay_immunity': 14, 'delay_doses': 3*7, 'stop_idx': 0}
+    {'vacc_order': np.array(range(age_stratification_size))[::-1],
+    'daily_first_dose': 60000,
+    'refusal': 0.2*np.ones(age_stratification_size),
+    'delay_immunity': 21,
+    'stop_idx': 9,
+    'initN': initN}
 )
+
 # Initialize model
 if args.vaccination_model == 'stratified':
-    model = models.COVID19_SEIRD_stratified_vacc(initial_states, params,
+    model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality, 'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 else:
-    model = models.COVID19_SEIRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+    model = models.COVID19_SEIQRD_vacc(initial_states, params,
+                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 # -------------------
 # Perform simulations
@@ -221,7 +296,7 @@ print('2) Hammer/Dance/Tipping Point figure')
 fig,ax = plt.subplots(figsize=(15,4))
 ax.plot(df_2plot['H_in','mean'],'--', color='blue')
 ax.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
-ax.scatter(df_sciensano[start_calibration:].index,df_sciensano['H_in'][start_calibration:], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_hosp[start_calibration:].index,df_hosp['H_in'][start_calibration:], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 plt.axvline(x='2020-12-01', linestyle = '--', color='black', linewidth=1.5)
 plt.axvline(x='2021-05-24', linestyle = '--', color='black', linewidth=1.5)
 ax.text(x='2020-09-01',y=800,s='The Hammer', fontsize=16)
@@ -243,8 +318,8 @@ print('3) Visualizing fit')
 fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
 ax1.plot(df_2plot['H_in','mean'],'--', color='blue')
 ax1.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
-ax1.scatter(df_sciensano[start_calibration:end_calibration].index,df_sciensano['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax1.scatter(df_sciensano[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_sciensano['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax1.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax1 = _apply_tick_locator(ax1)
 ax1.set_xlim(start_sim,end_sim)
 ax1.set_ylabel('Daily hospitalizations (-)', fontsize=12)
@@ -252,7 +327,7 @@ ax1.get_yaxis().set_label_coords(-0.1,0.5)
 # Plot hospital total
 ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue')
 ax2.fill_between(simtime, df_2plot['H_tot', 'LL'], df_2plot['H_tot', 'UL'], alpha=0.20, color = 'blue')
-ax2.scatter(df_sciensano[start_calibration:end_sim].index,df_sciensano['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax2.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
 ax2.get_yaxis().set_label_coords(-0.1,0.5)
