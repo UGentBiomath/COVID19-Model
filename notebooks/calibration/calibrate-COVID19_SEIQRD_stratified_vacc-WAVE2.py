@@ -10,7 +10,8 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 # Load required packages
 # ----------------------
-import gc
+
+import os
 import sys, getopt
 import ujson as json
 import random
@@ -242,69 +243,6 @@ if job == 'R0':
     plt.show()
     plt.close()
 
-    # ------------------
-    # Setup MCMC sampler
-    # ------------------
-
-    print('\n2) Markov-Chain Monte-Carlo sampling\n')
-
-    # Define priors
-    log_prior_fcn = [prior_uniform, prior_uniform]
-    log_prior_fcn_args = [(0.005, 0.15),(0.1, 14)]
-    # Perturbate PSO Estimate
-    pars = ['beta','da']
-    pert = [0.10, 0.10]
-    ndim, nwalkers, pos = perturbate_PSO(theta[1:], pert, 2)
-    # Set up the sampler backend if needed
-    if backend:
-        filename = spatial_unit+'_R0_'+run_date
-        backend = emcee.backends.HDFBackend(results_folder+filename)
-        backend.reset(nwalkers, ndim)
-    # Labels for traceplots
-    labels = ['$\\beta$','$d_{a}$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'start_date': start_calibration, 'warmup': warmup}
-
-    # ----------------
-    # Run MCMC sampler
-    # ----------------
-
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
-   
-    # ---------------
-    # Process results
-    # ---------------
-
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = int(0.5 * np.min(autocorr))
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    print('\n3) Sending samples to dictionary')
-
-    flat_samples = sampler.get_chain(discard=100,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-
-    samples_dict.update({
-        'warmup' : warmup,
-        'start_date_R0' : start_calibration,
-        'end_date_R0' : end_calibration,
-        'n_chains_R0': int(nwalkers)
-    })
-
-    with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.json', 'w') as fp:
-        json.dump(samples_dict, fp)
-
-    print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_'+run_date+'.json'+'"')
-    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    
     sys.exit()
 
 ############################################
