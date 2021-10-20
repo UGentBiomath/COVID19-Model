@@ -77,10 +77,6 @@ samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
-# Verify that the fig_path subdirectories used in the code exist
-for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
 # -----------------------
 # Load samples dictionary
@@ -144,7 +140,6 @@ model = models.COVID19_SEIQRD(initial_states, params,
 # --------------------------------
 
 print('\n1) Simulating COVID-19 SEIQRD '+str(args.n_samples)+' times')
-
 out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE1,samples=samples_dict)
 
 # -----------

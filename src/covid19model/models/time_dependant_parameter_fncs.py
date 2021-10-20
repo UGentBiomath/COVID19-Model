@@ -355,7 +355,7 @@ class make_vaccination_function():
     @lru_cache()
     def get_nonstratified_data(self,t):
         try:
-            return np.array(self.df[t,:].values)
+            return np.array(self.df.loc[t,:].values)
         except:
             return np.zeros(self.age_agg)
 

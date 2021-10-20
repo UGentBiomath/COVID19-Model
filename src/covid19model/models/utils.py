@@ -155,8 +155,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
+    param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=120000)
+    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.4,high=0.6),
                                   np.random.uniform(low=0.4,high=0.6),
                                   np.random.uniform(low=0.4,high=0.6)])
@@ -176,7 +176,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     names = ['c','m_C','m_ICU']
     for idx,name in enumerate(names):
         par=[]
-        for jdx in range(9):
+        for jdx in range(len(param_dict['c'])):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
@@ -186,7 +186,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
                      samples_dict['residence_times']['dICU_R'],
                      samples_dict['residence_times']['dICU_D'],
                      samples_dict['residence_times']['dICUrec']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
