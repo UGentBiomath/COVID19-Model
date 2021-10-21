@@ -96,10 +96,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-j", "--job", help="Partial or full calibration (R0 or FULL)")
 parser.add_argument("-w", "--warmup", help="Warmup must be defined for job == FULL")
 parser.add_argument("-e", "--enddate", help="Calibration enddate. Format YYYY-MM-DD.")
-parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
-parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
+parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
+parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
+
 # enddate is handled after job==? statement
 
 # spatial
@@ -138,18 +140,6 @@ else:
         raise ValueError(
             'Job "None" requires the definition of warmup (-w)'
         )
-        
-# Maxiter
-if args.maxiter:
-    maxiter_PSO = int(args.maxiter)
-else:
-    maxiter_PSO = 50
-    
-# Number
-if args.number:
-    maxn_MCMC = int(args.number)
-else:
-    maxn_MCMC = 100
     
 # Signature (name)
 if args.signature:
@@ -182,9 +172,16 @@ if args.indexpatients:
 else:
     init_number = 3
 
-
-# Bookkeeping: date at which script is started
+# Maximum number of PSO iterations
+n_pso = int(args.n_pso)
+# Maximum number of MCMC iterations
+n_mcmc = int(args.n_mcmc)
+# Number of age groups used in the model
+age_stratification_size=int(args.n_age_groups)
+# Date at which script is started
 run_date = str(datetime.date.today())
+# Keep track of runtime
+initial_time = datetime.datetime.now()
 
 # ------------------------
 # Define results locations
@@ -192,11 +189,11 @@ run_date = str(datetime.date.today())
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
+fig_path = f'../results/calibrations/COVID19_SEIQRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
+backend_folder = f'../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -211,7 +208,6 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # -------------------------------
 
 # Population size, interaction matrices and the model parameters
-age_stratification_size=3
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Google Mobility data (for social contact Nc)
@@ -246,7 +242,7 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 VOC_function = make_VOC_function(df_VOC_abc)
 
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=agg, age_stratification_size=age_stratification_size)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
 
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
@@ -293,7 +289,7 @@ initE = np.ones([11, age_stratification_size])
 initial_states = {'S': initN-initE, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
-model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
+model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                         time_dependent_parameters={'Nc' : policy_function,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
@@ -334,7 +330,7 @@ if job == 'R0':
     processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     sys.stdout.flush()
     multiplier = 3
-    maxiter = maxiter_PSO
+    maxiter = n_pso
     popsize = multiplier*processes
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
@@ -440,16 +436,15 @@ elif job == 'FULL':
     # PSO settings
     processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     multiplier = 2 # 10
-    maxiter = maxiter_PSO
+    maxiter = n_pso
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = maxn_MCMC # 500000
+    max_n = n_mcmc # 500000
     print_n = 20
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
-
 
     # -------------------------
     # Print statement to stdout
@@ -507,12 +502,8 @@ elif job == 'FULL':
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
     # run optimisation
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [ 2.70687172e-02,  2.41736978e-02,  3.30791616e-02,  8.61054567e+00,
-                6.89605831e+00,  3.00000000e-01,  2.00337581e-02,  2.00000000e-02,
-                6.83571260e-01,  8.06287564e-01,  1.59114859e+00,  2.10000000e+00,
-                1.15569026e-01, -2.53463966e+01] #-138436.8750227228
+    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
