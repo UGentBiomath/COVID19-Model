@@ -248,8 +248,6 @@ if args.vaccination_model == 'stratified':
     params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
     params.update({'d_vacc': 31*36})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
-    # Seasonality
-    params.update({'amplitude': 0.1, 'peak_shift': 0})
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
@@ -263,14 +261,15 @@ params.update(
     'stop_idx': 9,
     'initN': initN}
 )
-
+# Seasonality
+   params.update({'amplitude': 0.1, 'peak_shift': 0})
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 else:
     model = models.COVID19_SEIQRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 #############
 ## JOB: R0 ##
@@ -408,8 +407,8 @@ weights = [1]
 # -----------
 
 # optimisation settings
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2']
-bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.3,1.6),(1.6,2.4))
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.3,1.6),(1.6,2.4),(0, 0.30),(-62,62))
 # run optimization
 theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes)
@@ -443,11 +442,11 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2']
-log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8), (1.6,2.4)]
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8), (1.6,2.4), (0,0.35), (-62,62)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
+pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
@@ -455,7 +454,8 @@ if backend:
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 # Labels for traceplots
-labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf, 1}$', '$K_{inf, 2}$']
+labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$',
+            '$\Omega_{home}$', '$K_{inf, 1}$', '$K_{inf, 2}$', 'A', '$\phi$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
