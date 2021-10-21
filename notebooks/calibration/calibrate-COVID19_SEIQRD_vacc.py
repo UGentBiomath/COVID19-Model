@@ -219,7 +219,7 @@ vacc_strategy = make_vaccination_function(df_vacc, age_stratification_size=age_s
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
-policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE2_no_relaxation
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 
 # -----------------------------------
 # Time-dependant seasonality function
@@ -251,18 +251,18 @@ if args.vaccination_model == 'stratified':
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
+params.update({'l1': 21, 'l2': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
     'daily_first_dose': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
     'delay_immunity': 21,
-    'stop_idx': 9,
+    'stop_idx': 0,
     'initN': initN}
 )
 # Seasonality
-params.update({'amplitude': 0.1, 'peak_shift': 0})
+params.update({'amplitude': 0, 'peak_shift': 0})
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
