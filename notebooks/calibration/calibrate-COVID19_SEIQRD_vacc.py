@@ -251,7 +251,7 @@ if args.vaccination_model == 'stratified':
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
-params.update({'l1': 21, 'l2': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
+params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.1, 'prev_rest_lockdown': 0.1, 'prev_rest_relaxation': 0.8, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
@@ -263,6 +263,10 @@ params.update(
 )
 # Seasonality
 params.update({'amplitude': 0, 'peak_shift': 0})
+
+# Overwrite the initial_states
+initial_states = {"S": initN, "E": np.ones(age_stratification_size), "I": np.ones(age_stratification_size)}
+
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
@@ -282,7 +286,7 @@ else:
 # Start of data collection
 start_data = '2020-03-15'
 # Start data of recalibration ramp
-start_calibration = '2020-09-30'
+start_calibration = '2020-03-15'
 if not args.enddate:
     end_calibration = '2020-10-24'
 else:
@@ -320,7 +324,7 @@ if job == 'R0':
 
     # set optimisation settings
     pars = ['warmup','beta']
-    bounds=((5,30),(0.010,0.100))
+    bounds=((5,30),(0.010,0.050))
     # run optimisation
     theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, processes=processes)
