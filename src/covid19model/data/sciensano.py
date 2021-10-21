@@ -275,13 +275,13 @@ def get_sciensano_COVID19_data(update=True):
 
     # Define desired multiindexed pd.Series format
     interval_index = pd.IntervalIndex.from_tuples([(0,12),(12,16),(16,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
-    iterables = [df_vacc['DATE'].unique(), df_vacc['REGION'].unique(), interval_index, df_vacc['DOSE'].unique()]
+    iterables = [df_vacc['DATE'].unique(), df_vacc['REGION'].unique(), interval_index, ['A', 'B', 'C']] # Leave dose 'E' out
     index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
     df = pd.Series(index=index)
 
     for idx, age_group in enumerate(['00-11', '12-15', '16-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84','85+']):
         for jdx, NIS in enumerate(corresponding_NIS):
-            for kdx, dose in enumerate(df_vacc['DOSE'].unique()):
+            for kdx, dose in enumerate(['A', 'B', 'C']):
                 series = df_vacc.loc[((df_vacc['AGEGROUP'] == age_group) & (df_vacc['REGION'] == NIS) & (df_vacc['DOSE'] == dose))].resample('D',on='DATE')['COUNT'].sum()
                 # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
                 dummy = pd.Series(index = df_vacc['DATE'].unique())
