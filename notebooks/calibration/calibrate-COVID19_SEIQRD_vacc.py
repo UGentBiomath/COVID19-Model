@@ -378,7 +378,7 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier_pso = 4
+multiplier_pso = 2
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
@@ -408,7 +408,7 @@ weights = [1]
 
 # optimisation settings
 pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
-bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.3,1.6),(1.6,2.4),(0, 0.30),(-62,62))
+bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.35,1.6),(1.6,2.4),(0, 0.30),(-62,62))
 # run optimization
 theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
                     start_date=start_calibration, warmup=warmup, processes=processes)
