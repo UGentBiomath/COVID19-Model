@@ -11,8 +11,8 @@ from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
 # Path to figures and samples --> used by run_MCMC
-fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/')
-samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/')
+fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
+samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
 def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
     # Determine save path
@@ -240,23 +240,6 @@ def assign_PSO(param_dict, pars, theta):
                 param_dict[par] = theta[idx]
         return warmup, param_dict
 
-def plot_PSO_stratified(output, theta, pars, data, states, start_calibration, end_calibration):
-    # Visualize fit
-    if len(states) == 1:
-        idx = 0
-        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-        ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax.set_xlim([start_calibration,end_calibration])
-    else:
-        fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
-        for idx,ax in enumerate(axes):
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax.set_xlim([start_calibration,end_calibration])
-    ax = _apply_tick_locator(ax)
-    return ax
-
 def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
@@ -308,23 +291,32 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
     if len(states) == 1:
         idx = 0
         fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        try: # spatial case
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
+        # Reduce dimensions
+        new_xarray = output[states[idx]].copy(deep=True)
+        for dimension in output.dims:
+            if (dimension != 'time') :
+                new_xarray = new_xarray.sum(dim=dimension)
+        # Plot data
+        ax.plot(output['time'],new_xarray,'--', color='blue')
+        try: 
             ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         except:
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
             ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax.set_xlim([start_calibration,end_calibration])
     else:
         fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
         for idx,ax in enumerate(axes):
-            try: # spatial
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx].sum(axis=1), \
-                           color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            # Reduce dimensions
+            new_xarray = output[states[idx]].copy(deep=True)
+            for dimension in output.dims:
+                if (dimension != 'time') :
+                    new_xarray = new_xarray.sum(dim=dimension)
+            # Plot data
+            ax.plot(output['time'],new_xarray,'--', color='blue')
+            try:
+                ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             except:
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)   
             ax.set_xlim([start_calibration,end_calibration])
     ax = _apply_tick_locator(ax)
     return ax
