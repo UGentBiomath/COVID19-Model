@@ -9,7 +9,7 @@ import ujson as json
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def load_samples_dict(filepath, wave=1):
+def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     """
     A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
 
@@ -31,16 +31,27 @@ def load_samples_dict(filepath, wave=1):
         For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
     """
     
+    # Set correct age_paths to find the hospital data
+    if age_stratification_size == 3:
+        age_path = '0_20_60/'
+    elif age_stratification_size == 9:
+        age_path = '0_10_20_30_40_50_60_70_80/'
+    elif age_stratification_size == 10:
+        age_path = '0_12_18_25_35_45_55_65_75_85/'
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(args.age_stratification_size)
+            )
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
-    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
     samples_dict.update({'residence_times': residence_time_distributions})
-    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_bootstrap_fractions.npy')
+    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     if wave == 2:
         # Append samples of re-susceptibility estimated from WAVE 1
-        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
+        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
         samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
     return samples_dict
 
@@ -82,7 +93,7 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
     names = ['c','m_C','m_ICU']
     for idx,name in enumerate(names):
         par=[]
-        for jdx in range(9):
+        for jdx in range(len(param_dict['c'])):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
@@ -144,8 +155,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    param_dict['daily_dose'] = np.random.uniform(low=60000,high=120000)
-    param_dict['delay'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
+    param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=120000)
+    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))    
     param_dict['e_i'] = np.array([np.random.uniform(low=0.4,high=0.6),
                                   np.random.uniform(low=0.4,high=0.6),
                                   np.random.uniform(low=0.4,high=0.6)])
@@ -165,7 +176,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     names = ['c','m_C','m_ICU']
     for idx,name in enumerate(names):
         par=[]
-        for jdx in range(9):
+        for jdx in range(len(param_dict['c'])):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
@@ -175,7 +186,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
                      samples_dict['residence_times']['dICU_R'],
                      samples_dict['residence_times']['dICU_D'],
                      samples_dict['residence_times']['dICUrec']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
@@ -390,10 +402,11 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0
     # Extract simulation timesteps
     simtime = pd.to_datetime(output['time'].values)
     # Extract output of correct state and sum over all ages
-    for dimension in output.dims:
+    data = output.copy(deep=True)
+    for dimension in data.dims:
         if ((dimension != 'time') & (dimension != 'draws')):
-            output[state_name] = output[state_name].sum(dim=dimension)
-    data = output[state_name].values
+            data[state_name] = data[state_name].sum(dim=dimension)
+    data = data[state_name].values
     # Initialize vectors
     vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
