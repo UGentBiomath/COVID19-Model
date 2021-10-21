@@ -159,10 +159,10 @@ def get_sciensano_COVID19_data(update=True):
         df_vacc.to_csv(rel_dir, index=False)
 
         # Extract hospitalisation data from source
-        df = pd.read_excel(url, sheet_name="HOSP")
+        df_hosp = pd.read_excel(url, sheet_name="HOSP")
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
-        df.to_csv(rel_dir, index=False)
+        df_hosp.to_csv(rel_dir, index=False)
 
         # Extract total reported deaths per day
         df_mort = pd.read_excel(url, sheet_name='MORT', parse_dates=['DATE'])
