@@ -84,7 +84,7 @@ from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 initial_time = datetime.datetime.now()
 
 # Choose to show progress bar. This cannot be shown on HPC
-progress = False
+progress = True
 
 
 # -----------------------
@@ -96,10 +96,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-j", "--job", help="Partial or full calibration (R0 or FULL)")
 parser.add_argument("-w", "--warmup", help="Warmup must be defined for job == FULL")
 parser.add_argument("-e", "--enddate", help="Calibration enddate. Format YYYY-MM-DD.")
-parser.add_argument("-m", "--maxiter", help="Maximum number of PSO iterations.")
-parser.add_argument("-n", "--number", help="Maximum number of MCMC iterations.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
+parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
+parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
+
 # enddate is handled after job==? statement
 
 # spatial
@@ -138,18 +140,6 @@ else:
         raise ValueError(
             'Job "None" requires the definition of warmup (-w)'
         )
-        
-# Maxiter
-if args.maxiter:
-    maxiter_PSO = int(args.maxiter)
-else:
-    maxiter_PSO = 50
-    
-# Number
-if args.number:
-    maxn_MCMC = int(args.number)
-else:
-    maxn_MCMC = 100
     
 # Signature (name)
 if args.signature:
@@ -182,9 +172,16 @@ if args.indexpatients:
 else:
     init_number = 3
 
-
-# Bookkeeping: date at which script is started
+# Maximum number of PSO iterations
+n_pso = int(args.n_pso)
+# Maximum number of MCMC iterations
+n_mcmc = int(args.n_mcmc)
+# Number of age groups used in the model
+age_stratification_size=int(args.n_age_groups)
+# Date at which script is started
 run_date = str(datetime.date.today())
+# Keep track of runtime
+initial_time = datetime.datetime.now()
 
 # ------------------------
 # Define results locations
@@ -192,17 +189,15 @@ run_date = str(datetime.date.today())
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
+fig_path = f'../results/calibrations/COVID19_SEIQRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
-
+backend_folder = f'../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
         os.makedirs(directory)
-
 # Verify that the fig_path subdirectories used in the code exist
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
@@ -212,8 +207,8 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Load data: dicts and DataFrames
 # -------------------------------
 
-# Total population and contact matrices for the correct aggregation level
-initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices(spatial=agg)
+# Population size, interaction matrices and the model parameters
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Google Mobility data (for social contact Nc)
 df_google = mobility.get_google_mobility_data(update=False)
@@ -227,24 +222,18 @@ df_VOC_abc = VOC.get_abc_data()
 # Load and format local vaccination data, which is also under the sciensano object
 public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg=agg)
 
-# All 36 parameters associated with the full model
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True,VOC=True)
-
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration
-values = 'hospitalised_IN'
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values=values, moving_avg=False)
+df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False)
 
 # Serological data
-# Currently not used
-# df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # ---------------------------------------------
 # Load data: time-dependent parameter functions
 # ---------------------------------------------
 
 # Time-dependent social contact matrix over all policies, updating Nc
-policy_function = make_contact_matrix_function(df_google, Nc_all).policies_all
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 
 # Time-dependent mobility function, updating P (place)
 mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
@@ -253,18 +242,14 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 VOC_function = make_VOC_function(df_VOC_abc)
 
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data, spatial=True)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
 
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
 
-
 # ---------------------
 # Load model parameters
 # ---------------------
-
-# Reload params first (not necessary but often useful)
-params = model_parameters.get_COVID19_SEIRD_parameters(spatial=agg, vaccination=True,VOC=True)
 
 # time-dependent social contact parameters in policies_function
 params.update({'l1' : 5,
@@ -296,14 +281,15 @@ params.update({'amplitude' : 0,
 # --------------------
 
 # Define the matrix of exposed subjects that will be identified with compartment E
-age = -1 # hard-coded as following the demographic distribution
-initE = initial_state(dist='frac', agg=agg, age=age, number=init_number)
+#age = -1 # hard-coded as following the demographic distribution
+#initE = initial_state(dist='frac', agg=agg, age=age, number=init_number)
+initE = np.ones([11, age_stratification_size])
 
 # Add the susceptible and exposed population to the initial_states dict
 initial_states = {'S': initN-initE, 'E': initE}
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
-model = models.COVID19_SEIRD_spatial_vacc(initial_states, params, spatial=agg,
+model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                         time_dependent_parameters={'Nc' : policy_function,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
@@ -341,15 +327,11 @@ if job == 'R0':
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     sys.stdout.flush()
-    multiplier = 2
-    maxiter = maxiter_PSO
+    multiplier = 3
+    maxiter = n_pso
     popsize = multiplier*processes
-
-    # MCMC settings
-    max_n = maxn_MCMC
-    print_n = 100
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
@@ -445,25 +427,24 @@ elif job == 'FULL':
     start_calibration = '2020-03-02'
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
+        end_calibration = '2021-01-01'#df_sciensano.index.max().strftime("%m-%d-%Y")
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     multiplier = 2 # 10
-    maxiter = maxiter_PSO
+    maxiter = n_pso
     popsize = multiplier*processes
 
     # MCMC settings
-    max_n = maxn_MCMC # 500000
-    print_n = 100
+    max_n = n_mcmc # 500000
+    print_n = 20
 
     # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
     poisson_offset = 1
-
 
     # -------------------------
     # Print statement to stdout
@@ -562,7 +543,6 @@ elif job == 'FULL':
         print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
     sys.stdout.flush()
 
-
     # ------------------
     # Setup MCMC sampler
     # ------------------
@@ -594,7 +574,7 @@ elif job == 'FULL':
     pert = pert1 + pert2 + pert3 + pert4 + pert5
 
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier, bounds=log_prior_fcn_args, verbose=False)
 
 #     nwalkers = int(8*36/4)
 #     print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")

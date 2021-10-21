@@ -216,7 +216,7 @@ class simple_stochastic_SIR(BaseModel):
 
         return S_new, I_new, R_new
 
-class COVID19_SEIRD(BaseModel):
+class COVID19_SEIQRD(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
@@ -339,7 +339,7 @@ class COVID19_SEIRD(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU)
 
 
-class COVID19_SEIRD_stratified_vacc(BaseModel):
+class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
@@ -560,7 +560,7 @@ class COVID19_SEIRD_stratified_vacc(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
 
-class COVID19_SEIRD_vacc(BaseModel):
+class COVID19_SEIQRD_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variants.
@@ -742,7 +742,7 @@ class COVID19_SEIRD_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
-class COVID19_SEIRD_spatial(BaseModel):
+class COVID19_SEIQRD_spatial(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
 
@@ -916,7 +916,7 @@ class COVID19_SEIRD_spatial(BaseModel):
         
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
     
-class COVID19_SEIRD_spatial_vacc(BaseModel):
+class COVID19_SEIQRD_spatial_vacc(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
     Can account for re-infection and co-infection with a new COVID-19 variants.
@@ -1127,7 +1127,8 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
-        
+        # Add effects of variants
+        beta = beta*sum(alpha*K_inf)
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         # Note how part of the vaccinated people still contribute to infection pressure, but ...
         # - they are presumably less infectious by a factor e_i_eff
@@ -1154,9 +1155,14 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         
         ### ODEs for all non-vaccinated people
         
+        # Test for potential negative values of S due to vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)
+        N_vacc[np.where(S + dS <= 0)] = 0
+
         # Compute the  rates of change in every population compartment (non-vaccinated)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+
         # Fraction S/VE = S/(S+R) of the total number of new vaccinations exit the S class with efficiency e_a_eff
         # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
         dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
@@ -1202,7 +1208,7 @@ class COVID19_SEIRD_spatial_vacc(BaseModel):
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
 
-class COVID19_SEIRD_spatial_fiddling(BaseModel):
+class COVID19_SEIQRD_spatial_fiddling(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
     Additional parameters for adding exposure injection, in order to fix the fit for every arrondissement
