@@ -344,7 +344,7 @@ class make_vaccination_function():
         """
 
         # Pre-allocate new series
-        out = pd.Series(index = age_classes)
+        out = pd.Series(index = age_classes, dtype=float)
         # Extract demographics
         if spatial: 
             data_n_individuals = construct_initN(data.index.get_level_values('age'), spatial).loc[NIS,:].values
