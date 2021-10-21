@@ -258,12 +258,18 @@ class make_vaccination_function():
         # Assign inputs to object
         self.df = df
         self.age_agg = age_stratification_size
-
+        
         # Check if spatial data is provided
         self.spatial = None
         if 'NIS' in self.df.index.names:
             self.spatial = True
-            self.space_agg = len(self.df.index.get_level_values(1).unique().values)
+            self.space_agg = len(self.df.index.get_level_values('NIS').unique().values)
+
+        # Check if dose data is provided
+        self.doses = None
+        if 'dose' in self.df.index.names:
+            self.doses = True
+            self.dose_agg = len(self.df.index.get_level_values('dose').unique().values)
 
         # Define start- and enddate
         self.df_start = pd.Timestamp(df.ne(0).idxmax()[0], freq='D')
@@ -278,22 +284,37 @@ class make_vaccination_function():
             age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
 
         # Perform age conversion
+        # Define dataframe with desired format
         iterables=[]
-        for i in range(len(self.df.index.names)-1):
-            iterables += [self.df.index.get_level_values(i).unique()]
-        iterables += [age_classes]
+        for index_name in self.df.index.names:
+            if index_name != 'age':
+                iterables += [self.df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [age_classes]
         index = pd.MultiIndex.from_product(iterables, names=self.df.index.names)
         self.new_df = pd.Series(index=index)
 
+        # Four possibilities exist
         if self.spatial:
-            for date in self.df.index.get_level_values('date').unique():
-                for NIS in self.df.index.get_level_values('NIS').unique():
-                    data = self.df.loc[(date,NIS)]
-                    self.new_df.loc[(date, NIS)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+            if self.doses:
+                raise ValueError(
+                    "The combination of a spatially explicit, multidose vaccine model is not implemented!"
+                )
+            else:
+                for date in self.df.index.get_level_values('date').unique():
+                    for NIS in self.df.index.get_level_values('NIS').unique():
+                        data = self.df.loc[(date,NIS)]
+                        self.new_df.loc[(date, NIS)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
         else:
-            for date in self.df.index.get_level_values('date').unique():
-                data = self.df.loc[(date)]
-                self.new_df.loc[(date)] = self.convert_age_stratified_vaccination_data(data, age_classes).values
+            if self.doses:
+                for date in self.df.index.get_level_values('date').unique():
+                    for dose in self.df.index.get_level_values('dose').unique():
+                        data = self.df.loc[(date, slice(None), dose)]
+                        self.new_df.loc[(date, slice(None), dose)] = self.convert_age_stratified_vaccination_data(data, age_classes).values
+            else:
+                for date in self.df.index.get_level_values('date').unique():
+                    data = self.df.loc[(date)]
+                    self.new_df.loc[(date)] = self.convert_age_stratified_vaccination_data(data, age_classes).values
 
         self.df = self.new_df
 
@@ -326,70 +347,47 @@ class make_vaccination_function():
         out = pd.Series(index = age_classes)
         # Extract demographics
         if spatial: 
-            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
+            data_n_individuals = construct_initN(data.index.get_level_values('age'), spatial).loc[NIS,:].values
             demographics = construct_initN(None, spatial).loc[NIS,:].values
         else:
-            data_n_individuals = construct_initN(data.index, spatial).values
+            data_n_individuals = construct_initN(data.index.get_level_values('age'), spatial).values
             demographics = construct_initN(None, spatial).values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []
             for age in range(interval.left, interval.right):
                 try:
-                    result.append(demographics[age]/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                    result.append(demographics[age]/data_n_individuals[data.index.get_level_values('age').contains(age)]*data.iloc[np.where(data.index.get_level_values('age').contains(age))[0][0]])
                 except:
-                    result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                    result.append(0/data_n_individuals[data.index.get_level_values('age').contains(age)]*data.iloc[np.where(data.index.get_level_values('age').contains(age))[0][0]])
             out.iloc[idx] = sum(result)
         return out
 
     @lru_cache()
-    def get_sciensano_spatial_first_dose(self,t):
-        """
-        Note that there is no difference between first and second dose in the spatial case.
-        """
-        try:
-            return np.array(self.df.loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
-        except:
-            return np.zeros([self.space_agg, self.age_agg])
+    def get_data(self,t):
+        if self.spatial:
+            if self.doses:
+                raise ValueError(
+                    "The combination of a spatially explicit, multidose vaccine model is not implemented!"
+                )
+            else:
+                try:
+                    return np.array(self.df.loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
+                except:
+                    return np.zeros([self.space_agg, self.age_agg])
+        else:
+            if self.doses:
+                try:
+                    return np.array(self.df.loc[t,:,:].values).reshape( (self.age_agg, self.dose_agg) )
+                except:
+                    return np.zeros([self.age_agg, self.dose_agg])
+            else:
+                try:
+                    return np.array(self.df.loc[t,:].values)
+                except:
+                    return np.zeros(self.age_agg)
 
-    @lru_cache()
-    def get_nonstratified_data(self,t):
-        try:
-            return np.array(self.df.loc[t,:].values)
-        except:
-            return np.zeros(self.age_agg)
-
-    @lru_cache()
-    def get_sciensano_second_dose(self,t):
-        # Extrapolate Sciensano n0. second dose vaccinations to the model's native age bins
-        N_vacc = np.zeros(self.age_agg)
-        N_vacc[0] = (10/12)*self.dfo['V2_00_11'][t]
-        N_vacc[1] = (2/12)*self.df['V2_00_11'][t] + self.df['V2_12_15'][t] + self.df['V2_16_17'][t] + (2/6)*self.df['V2_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df['V2_18_24'][t] + (5/10)*self.df['V1_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df['V2_25_34'][t] + (5/10)*self.df['V2_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df['V2_35_44'][t] + (5/10)*self.df['V2_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df['V2_45_54'][t] + (5/10)*self.df['V2_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df['V2_55_64'][t] + (5/10)*self.df['V2_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df['V2_65_74'][t] + (5/10)*self.df['V2_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df['V2_75_84'][t] + self.df['V2_85+'][t]# 80+
-        return N_vacc
-
-    @lru_cache()
-    def get_sciensano_one_shot_dose(self,t):
-        # Extrapolate Sciensano n0. one-shot vaccines to the model's native age bins
-        N_vacc = np.zeros(self.age_agg)
-        N_vacc[0] = (10/12)*self.df['VJ&J_00_11'][t]
-        N_vacc[1] = (2/12)*self.df['VJ&J_00_11'][t] + self.df['VJ&J_12_15'][t] + self.df['VJ&J_16_17'][t] + (2/6)*self.df['VJ&J_18_24'][t] # 10-20
-        N_vacc[2] = (4/6)*self.df['VJ&J_18_24'][t] + (5/10)*self.df['VJ&J_25_34'][t] # 20-30
-        N_vacc[3] = (5/10)*self.df['VJ&J_25_34'][t] + (5/10)*self.df['VJ&J_35_44'][t] # 30-40
-        N_vacc[4] = (5/10)*self.df['VJ&J_35_44'][t] + (5/10)*self.df['VJ&J_45_54'][t] # 40-50
-        N_vacc[5] = (5/10)*self.df['VJ&J_45_54'][t] + (5/10)*self.df['VJ&J_55_64'][t] # 50-60
-        N_vacc[6] = (5/10)*self.df['VJ&J_55_64'][t] + (5/10)*self.df['VJ&J_65_74'][t] # 60-70
-        N_vacc[7] = (5/10)*self.df['VJ&J_65_74'][t] + (5/10)*self.df['VJ&J_75_84'][t] # 70-80
-        N_vacc[8] = (5/10)*self.df['VJ&J_75_84'][t] + self.df['VJ&J_85+'][t]# 80+
-        return N_vacc
-
-    # Default vaccination strategy = Sciensano data + hypothetical scheme after end of data collection
+    # Default vaccination strategy = Sciensano data + hypothetical scheme after end of data collection for unidose model only (for now)
     def __call__(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 21, vacc_order = [8,7,6,5,4,3,2,1,0], stop_idx=9, refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
         """
         time-dependent function for the Belgian vaccination strategy
@@ -434,131 +432,33 @@ class make_vaccination_function():
         if not self.spatial:
             VE = states['S'] + states['R']
 
-        # Before start of effect of vaccinations
-        if t <= self.df_start + delay:
-            if not self.spatial:
-                return np.zeros(self.age_agg)
-            else:
-                return np.zeros([self.space_agg, self.age_agg])
-            
-        # During effect of vaccination, with available data
-        elif self.df_start + delay < t <= self.df_end + delay:
-            if not self.spatial:
-                return self.get_nonstratified_data(t-delay)
-            else:
-                return self.get_sciensano_spatial_first_dose(t-delay)
-            
+        if t <= self.df_end + delay:
+            return self.get_data(t-delay)
+
         # Projection into the future
         else:
-            if not self.spatial:
-                N_vacc = np.zeros(self.age_agg)
-                idx = 0
-                while daily_first_dose > 0:
-                    if idx == stop_idx:
-                        daily_first_dose = 0 #End vaccination campaign at age 20
-                    elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                        N_vacc[vacc_order[idx]] = daily_first_dose
-                        daily_first_dose = 0
-                    else:
-                        N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                        daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                        idx = idx + 1
-                return N_vacc
-            else: # spatial case
-                # For now: suppose no new shots are being given (worst-case scenario)
-                N_vacc = np.zeros([self.space_agg,self.age_agg])
-#                 idx=0
-#                 while daily_first_dose > 0:
-#                     if idx == stop_idx:
-#                         daily_first_dose = 0 # halt loop
-#                     elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-#                         N_vacc[vacc_order[idx]] = daily_first_dose
-#                         daily_first_dose = 0 # halt loop
-#                     else:
-#                         N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-#                         daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-#                         idx = idx + 1
-                return N_vacc
-
-
-    # Stratified vaccination strategy
-    # = Sciensano data + hypothetical scheme after end of data collection
-    def stratified_vaccination_strategy(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 14, vacc_order = [8,7,6,5,4,3,2,1,0], delay_doses = 4*7, stop_idx=9, refusal = np.array([[0.1,0.1,0.1,0.2,0.2,0.2,0.3,0.3,0.3],[0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1]])):
-        """
-        time-dependent function for the Belgian vaccination strategy
-        First, all available first- and second dose data from Sciensano are used. Then, the user can specify a custom multi-jab vaccination strategy of "daily_first_dose" first doses per day,
-        administered in the order specified by the vector "vacc_order" with a first dose refusal propensity of "refusal" (first row) in every age group.
-        The number of second doses administered is computed based on the refusal fraction (individuals choosing not to collect second vaccination dose) and based on the rate delay_doses.
-        This vaccination strategy distinguishes between vaccination doses. For use with the model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
-
-        Parameters
-        ----------
-        t : int
-            Simulation time
-        states: dict
-            Dictionary containing values of model states
-        param : dict
-            Model parameter dictionary
-        initN : list or np.array
-            Demographics according to the epidemiological model age bins
-        daily_first_dose : int
-            Number of doses administered per day. Default is 60000 doses/day.
-        delay_immunity : int
-            Time delay between vaccination and start of immunity. Default is 14 days.
-        vacc_order : array
-            Vector containing vaccination prioritization preference. Default is old to young. Must be equal in length to the number of age bins in the model.
-        delay_doses : float
-            Average delay between first- and second dose. Default is 7 weeks.
-        stop_idx : float
-            Index of age group at which the vaccination campaign is halted. An index of 9 corresponds to vaccinating all age groups, an index of 8 corresponds to not vaccinating the age group corresponding with vacc_order[idx].
-        refusal: array
-            Vector containing the fraction of individuals refusing a vaccine per age group (rows) and per vaccine dose (columns).
-
-        Return
-        ------
-        N_vacc : array
-            Number of individuals to be vaccinated (first column: 0 --> 1 doses, second column: 1 --> 2 doses, third column: 0 --> 2 doses) at simulation time "t"
-
-        """
-        # Convert time to suitable format
-        t = pd.Timestamp(t.date())
-        # Convert delay_immunity to a timedelta
-        delay_immunity_float = delay_immunity
-        delay_immunity = pd.Timedelta(str(int(delay_immunity))+'D')
-        # Compute the number of vaccine eligible individuals: received 0 doses
-        VE = states['S'][:,0:2] + states['R'][:,0:2]
-
-        if t <= self.df_start + delay_immunity:
-            return np.zeros([9,3])
-        elif self.df_start + delay_immunity < t <= self.df_end + delay_immunity:
-            return np.concatenate((np.expand_dims(self.get_sciensano_first_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_second_dose(t-delay_immunity),axis=1), np.expand_dims(self.get_sciensano_one_shot_dose(t-delay_immunity),axis=1)),axis=1)
-        else:
-            N_vacc = np.zeros([9,3])
-            # LOGIC:
-            # 1) The user presets a number of daily first doses (f.e. 50.000)
-            # 2) Individuals are transferred from 0 --> 1 at the rate of the daily first doses according to vacc_order prioritization strategy and the refusal rate (first column of refusal)
-            # 3) Individuals are transferred from 1 --> 2 at a computed given rate (5 weeks + delay), accounting for a fraction which will not receive the second dose (second column of refusal)
-
-            # 0 to 1 doses
-            idx = 0
-            while daily_first_dose > 0:
-                if idx == stop_idx: # To end vaccination campaign at a certain age
-                    daily_first_dose = -1
-                elif (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]) <= 0:
-                    N_vacc[vacc_order[idx],0] = 0
-                    idx=idx+1
-                elif (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]) > daily_first_dose:
-                    N_vacc[vacc_order[idx],0] = daily_first_dose
-                    daily_first_dose = 0
-                    idx=idx+1
+            if self.spatial:
+                if not self.doses:
+                    # No projection implemented
+                    return np.zeros([self.space_agg,self.age_agg])
+            else:
+                if self.doses:
+                    return np.zeros([self.age_agg,self.dose_agg])
                 else:
-                    N_vacc[vacc_order[idx],0] = VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]]
-                    daily_first_dose = daily_first_dose - (VE[:,0][vacc_order[idx]] - initN[vacc_order[idx]]*refusal[:,0][vacc_order[idx]])
-                    idx=idx+1
-            # 1 to 2 doses
-            N_vacc[:,1] = (VE[:,1]-initN*(1-refusal[:,0])*refusal[:,1])/(delay_doses+delay_immunity_float)
-            N_vacc[:,1] = np.where(N_vacc[:,1] > 0, N_vacc[:,1], 0)
-            return N_vacc
+                    N_vacc = np.zeros(self.age_agg)
+                    idx = 0
+                    while daily_first_dose > 0:
+                        if idx == stop_idx:
+                            daily_first_dose = 0 #End vaccination campaign at age 20
+                        elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
+                            N_vacc[vacc_order[idx]] = daily_first_dose
+                            daily_first_dose = 0
+                        else:
+                            N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
+                            daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+                            idx = idx + 1
+                    return N_vacc
+                
 
 ############################
 ## Google policy function ##
