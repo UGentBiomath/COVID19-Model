@@ -265,8 +265,11 @@ params.update(
 params.update({'amplitude': 0, 'peak_shift': 0})
 
 # Overwrite the initial_states
-initial_states = {"S": initN, "E": np.ones(age_stratification_size), "I": np.ones(age_stratification_size)}
-
+dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique())
+initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,1]), np.zeros([age_stratification_size,dose_stratification_size-2])), axis=1),
+                  "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
+                  #"I": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1) }
+print(initial_states)
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
@@ -288,7 +291,7 @@ start_data = '2020-03-15'
 # Start data of recalibration ramp
 start_calibration = '2020-03-15'
 if not args.enddate:
-    end_calibration = '2020-10-24'
+    end_calibration = '2020-03-22'
 else:
     end_calibration = str(args.enddate)
 if args.vaccination_model == 'non-stratified':
