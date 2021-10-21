@@ -43,6 +43,7 @@ parser.add_argument("-e", "--enddate", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
+parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratified vaccination model", default='non-stratified', type=str)
 
 args = parser.parse_args()
 
@@ -96,8 +97,11 @@ levels = initN.size
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
-            df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
+if args.vaccination_model == 'non-stratified':
+    df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
+                df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
+elif args.vaccination_model == 'stratified':
+    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=False)
 # Serological data
@@ -143,7 +147,7 @@ def convert_age_stratified_vaccination_data( data, age_classes, spatial=None, NI
         """
 
         # Pre-allocate new series
-        out = pd.Series(index = age_classes)
+        out = pd.Series(index = age_classes, dtype=float)
         # Extract demographics
         if spatial: 
             data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
@@ -164,6 +168,14 @@ def convert_age_stratified_vaccination_data( data, age_classes, spatial=None, NI
 
 for state,init in initial_states.items():
     initial_states.update({state: convert_age_stratified_vaccination_data(pd.Series(data=init, index=age_classes_init), desired_age_classes)})
+
+if args.vaccination_model == 'stratified':
+    # Correct size of initial states
+    entries_to_remove = ('S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v')
+    for k in entries_to_remove:
+        initial_states.pop(k, None)
+    for key, value in initial_states.items():
+        initial_states[key] = np.concatenate((np.expand_dims(initial_states[key],axis=1),np.ones([age_stratification_size,2])),axis=1) 
 
 # ------------------------
 # Define results locations
@@ -210,6 +222,13 @@ contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
 policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE2_no_relaxation
 
 # -----------------------------------
+# Time-dependant seasonality function
+# -----------------------------------
+
+from covid19model.models.time_dependant_parameter_fncs import make_seasonality_function
+seasonality_function = make_seasonality_function()
+
+# -----------------------------------
 # Define calibration helper functions
 # -----------------------------------
 
@@ -219,21 +238,39 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # Initialize the model
 # --------------------
 
-# Add the time-dependant parameter function arguments
+if args.vaccination_model == 'stratified':
+    # Add "size dummy" for vaccination stratification
+    params.update({'doses': np.zeros([len(df_vacc.index.get_level_values('dose').unique()), len(df_vacc.index.get_level_values('dose').unique())])})
+    # Correct size of other parameters
+    params.update({'e_s': np.array([[0, 0.5, 0.8],[0, 0.5, 0.8],[0, 0.3, 0.75]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.78,0.92],[0,0.78,0.92],[0,0.75,0.94]])})
+    params.pop('e_a')
+    params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
+    params.update({'d_vacc': 31*36})
+    params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
+    # Seasonality
+    params.update({'amplitude': 0.1, 'peak_shift': 0})
+
+# Add the remaining time-dependant parameter function arguments
 # Social policies
 params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 # Vaccination
 params.update(
-    {'vacc_order': np.array(range(9))[::-1],
+    {'vacc_order': np.array(range(age_stratification_size))[::-1],
     'daily_first_dose': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
     'delay_immunity': 21,
     'stop_idx': 9,
     'initN': initN}
 )
+
 # Initialize model
-model = models.COVID19_SEIQRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha': VOC_function})
+if args.vaccination_model == 'stratified':
+    model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+else:
+    model = models.COVID19_SEIQRD_vacc(initial_states, params,
+                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 #############
 ## JOB: R0 ##
@@ -251,8 +288,10 @@ if not args.enddate:
     end_calibration = '2020-10-24'
 else:
     end_calibration = str(args.enddate)
-# Spatial unit: Belgium
-spatial_unit = 'BE_WAVE2'
+if args.vaccination_model == 'non-stratified':
+    spatial_unit = 'BE_WAVE2'
+elif args.vaccination_model == 'stratified':
+    spatial_unit = 'BE_WAVE2_stratified_vacc'
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
 multiplier_pso = 10
@@ -341,7 +380,7 @@ else:
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
 multiplier_pso = 4
-maxiter = 30
+maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
 multiplier_mcmc = 2
@@ -369,12 +408,12 @@ weights = [1]
 # -----------
 
 # optimisation settings
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1']
-bounds=((0.013,0.014),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.40,0.99),(1,1.6))
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2']
+bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.3,1.6),(1.6,2.4))
 # run optimization
-#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-#                    start_date=start_calibration, warmup=warmup, processes=processes)
-theta = np.array([0.0148, 4.03, 0.80, 0.118, 0.105, 0.50, 0.649, 1.50])
+theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+                    start_date=start_calibration, warmup=warmup, processes=processes)
+#theta = np.array([0.0148, 4.03, 0.80, 0.118, 0.105, 0.90, 0.649, 1.50, 2.25])
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
@@ -404,11 +443,11 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1']
-log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8)]
+pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2']
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8), (1.6,2.4)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
+pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
@@ -416,7 +455,7 @@ if backend:
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 # Labels for traceplots
-labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf}$']
+labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$', '$\Omega_{home}$', '$K_{inf, 1}$', '$K_{inf, 2}$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
 objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
