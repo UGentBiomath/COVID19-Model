@@ -147,9 +147,7 @@ out = model.sim(end_sim,start_date=start_calibration,warmup=warmup,N=args.n_samp
 # -----------
 
 print('2) Visualizing fit')
-print(out['D'])
 simtime, df_2plot = output_to_visuals(out,  ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
-print(out['D'])
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
 # Plot hospitalizations
