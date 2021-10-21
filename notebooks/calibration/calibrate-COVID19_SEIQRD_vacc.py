@@ -262,7 +262,7 @@ params.update(
     'initN': initN}
 )
 # Seasonality
-   params.update({'amplitude': 0.1, 'peak_shift': 0})
+params.update({'amplitude': 0.1, 'peak_shift': 0})
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
