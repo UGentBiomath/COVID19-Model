@@ -458,7 +458,6 @@ class make_vaccination_function():
                             daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
                             idx = idx + 1
                     return N_vacc
-                
 
 ############################
 ## Google policy function ##

@@ -102,8 +102,11 @@ levels = initN.size
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
-            df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
+if args.vaccination_model == 'non-stratified':
+    df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
+                df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
+elif args.vaccination_model == 'stratified':
+    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
 # Sciensano mortality data
 df_sciensano_mortality = sciensano.get_mortality_data()
 # Google Mobility data
@@ -194,22 +197,21 @@ from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
 # Time-dependent VOC function, updating alpha
 VOC_function = make_VOC_function(df_VOC_abc)
 
-# ---------------------------------------------------------
-# Time-dependant vaccination function and sampling function
-# ---------------------------------------------------------
+# -----------------------------------
+# Time-dependant vaccination function
+# -----------------------------------
 
 from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
+vacc_strategy = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
+
+# -----------------
+# Sampling function
+# -----------------
+
 if args.vaccination_model == 'non-stratified':
-    vacc_strategy = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
     from covid19model.models.utils import draw_fcn_WAVE2
 elif args.vaccination_model == 'stratified':
-    vacc_strategy = make_vaccination_function(df_vacc).stratified_vaccination_strategy
     from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
-else:
-    raise ValueError(
-                    "'{0}' is not a valid vaccination model "
-                    "please choose either 'stratified' or 'non-stratified'".format(args.vaccination_model)
-                    )
 
 # --------------------------------------
 # Time-dependant social contact function
@@ -224,10 +226,8 @@ policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE
 # Time-dependant seasonality function
 # -----------------------------------
 
-def seasonality(t,states,param,amplitude, peak_shift):
-    maxdate = pd.Timedelta(days=peak_shift) + pd.to_datetime('2021-01-01')
-    t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
-    return param*(1+amplitude*np.cos( 2*np.pi*(t)))
+from covid19model.models.time_dependant_parameter_fncs import make_seasonality_function
+seasonality_function = make_seasonality_function()
 
 # ---------------------------------------------------
 # Function to add poisson draws and sampling function
@@ -240,39 +240,35 @@ from covid19model.models.utils import output_to_visuals
 # --------------------
 
 if args.vaccination_model == 'stratified':
-    params['dICUrec'] = [9.9, 3.4, 8.4, 6.6, 8.2, 10.1, 11.5, 15.2, 13.3]
     # Add "size dummy" for vaccination stratification
-    params.update({'doses': np.zeros([3,3])})
+    params.update({'doses': np.zeros([len(df_vacc.index.get_level_values('dose').unique()), len(df_vacc.index.get_level_values('dose').unique())])})
     # Correct size of other parameters
     params.update({'e_s': np.array([[0, 0.5, 0.8],[0, 0.5, 0.8],[0, 0.3, 0.75]])}) # rows = VOC, columns = # no. doses
     params.update({'e_h': np.array([[0,0.78,0.92],[0,0.78,0.92],[0,0.75,0.94]])})
     params.pop('e_a')
     params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
     params.update({'d_vacc': 31*36})
-    params.update({'N_vacc': np.zeros([9,3])})
-    # Social policies
-    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation':0.5, 'prev_home': 0.5})
+    params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
     # Seasonality
     params.update({'amplitude': 0.1, 'peak_shift': 0})
-else:
-    # Social policies
-    params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 
 # Add the remaining time-dependant parameter function arguments
+# Social policies
+params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
     'daily_first_dose': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
     'delay_immunity': 21,
-    'stop_idx': 9,
+    'stop_idx': 0,
     'initN': initN}
 )
 
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
-                        time_dependent_parameters={'beta': seasonality, 'Nc': policies_WAVE2, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 else:
     model = models.COVID19_SEIQRD_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
