@@ -374,7 +374,7 @@ start_data = '2020-03-15'
 start_calibration = '2020-09-01'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
-    end_calibration = '2021-05-27'
+    end_calibration = df_hosp.index.get_level_values('date').max().strftime("%m-%d-%Y")
 else:
     end_calibration = str(args.enddate)
 # PSO settings
