@@ -272,8 +272,8 @@ class make_vaccination_function():
             self.dose_agg = len(self.df.index.get_level_values('dose').unique().values)
 
         # Define start- and enddate
-        self.df_start = pd.Timestamp(df.ne(0).idxmax()[0], freq='D')
-        self.df_end = pd.Timestamp(df.index[-1][0], freq='D')
+        self.df_start = self.df.index.get_level_values('date').min()
+        self.df_end = self.df.index.get_level_values('date').max()
 
         # Define age groups
         if age_stratification_size == 3:
