@@ -187,7 +187,7 @@ if args.vaccination_model == 'stratified':
     for k in entries_to_remove:
         initial_states.pop(k, None)
     for key, value in initial_states.items():
-        initial_states[key] = np.concatenate((np.expand_dims(initial_states[key],axis=1),np.ones([9,2])),axis=1) 
+        initial_states[key] = np.concatenate((np.expand_dims(initial_states[key],axis=1),np.ones([age_stratification_size,2])),axis=1) 
 
 # ---------------------------
 # Time-dependant VOC function
@@ -220,7 +220,7 @@ elif args.vaccination_model == 'stratified':
 # Extract build contact matrix function
 from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
-policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_WAVE2_no_relaxation
+policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 
 # -----------------------------------
 # Time-dependant seasonality function
@@ -247,23 +247,29 @@ if args.vaccination_model == 'stratified':
     params.update({'e_h': np.array([[0,0.78,0.92],[0,0.78,0.92],[0,0.75,0.94]])})
     params.pop('e_a')
     params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
-    params.update({'d_vacc': 31*36})
+    params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
-    # Seasonality
-    params.update({'amplitude': 0.1, 'peak_shift': 0})
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
-params.update({'l': 21, 'prev_schools': 0, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
+params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
     'daily_first_dose': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
-    'delay_immunity': 21,
+    'delay_immunity': 10,
     'stop_idx': 0,
     'initN': initN}
 )
+# Seasonality
+params.update({'amplitude': 0, 'peak_shift': 0})
+
+# Overwrite the initial_states
+dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique())
+initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,1]), np.zeros([age_stratification_size,dose_stratification_size-2])), axis=1),
+                  "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
+                  #"I": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1) }
 
 # Initialize model
 if args.vaccination_model == 'stratified':
@@ -271,7 +277,7 @@ if args.vaccination_model == 'stratified':
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 else:
     model = models.COVID19_SEIQRD_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
 # -------------------
 # Perform simulations
@@ -280,6 +286,19 @@ else:
 print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
+
+# Plot hospitalizations
+fig,ax= plt.subplots(figsize=(12,4))
+ax.plot(out['time'].values, out['H_in'].mean(dim='draws').sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+ax.fill_between(out['time'].values, out['H_in'].quantile(dim='draws', q=1-conf_int/2).sum(dim='Nc').sum(dim='doses'), out['H_in'].quantile(dim='draws', q=conf_int/2).sum(dim='Nc').sum(dim='doses'),alpha=0.20, color = 'blue')
+ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax = _apply_tick_locator(ax)
+ax.set_xlim(start_sim,end_sim)
+ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
+ax.get_yaxis().set_label_coords(-0.1,0.5)
+plt.show()
+
 simtime, df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
