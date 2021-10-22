@@ -253,7 +253,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
             np.concatenate((np.ones([2,1])*np.random.triangular(0.78,0.92,0.97), np.ones([1,1])*np.random.triangular(0.85,0.94,0.98)),axis=0)),axis=1)
     refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
+                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
     refusal_second = np.zeros([len(param_dict['c']),1]) 
     param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
 
