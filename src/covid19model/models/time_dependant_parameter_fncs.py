@@ -973,12 +973,12 @@ class make_contact_matrix_function():
         elif t1 + l1_days < t <= t2:
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
         elif t2 < t <= t3:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)                  
-        elif t3 < t <= t4:
-            l = (t4 - t3)/pd.Timedelta(days=1)
+            l = (t3 - t2)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
             policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t3, l)
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+        elif t3 < t <= t4:
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
         elif t4 < t <= t5:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)                                          
         elif t5 < t <= t6:
