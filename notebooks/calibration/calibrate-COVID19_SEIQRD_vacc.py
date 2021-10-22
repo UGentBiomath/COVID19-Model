@@ -251,13 +251,13 @@ if args.vaccination_model == 'stratified':
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
-params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.1, 'prev_rest_lockdown': 0.1, 'prev_rest_relaxation': 0.8, 'prev_home': 0.5})
+params.update({'l1': 14, 'l2': 9, 'prev_schools': 0.5, 'prev_work': 0.1, 'prev_rest_lockdown': 0.1, 'prev_rest_relaxation': 0.8, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
     'daily_first_dose': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
-    'delay_immunity': 21,
+    'delay_immunity': 10,
     'stop_idx': 0,
     'initN': initN}
 )
@@ -269,7 +269,7 @@ dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique())
 initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,1]), np.zeros([age_stratification_size,dose_stratification_size-2])), axis=1),
                   "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
                   #"I": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1) }
-print(initial_states)
+
 # Initialize model
 if args.vaccination_model == 'stratified':
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
@@ -300,7 +300,7 @@ elif args.vaccination_model == 'stratified':
     spatial_unit = 'BE_WAVE2_stratified_vacc'
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier_pso = 10
+multiplier_pso = 30
 maxiter = n_pso
 popsize = multiplier_pso*processes
 
@@ -327,7 +327,7 @@ if job == 'R0':
 
     # set optimisation settings
     pars = ['warmup','beta']
-    bounds=((5,30),(0.010,0.050))
+    bounds=((5,60),(0.010,0.050))
     # run optimisation
     theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
                         start_date=start_calibration, processes=processes)
@@ -377,7 +377,7 @@ if job == 'R0':
 # Start of data collection
 start_data = '2020-03-15'
 # Start of calibration
-start_calibration = '2020-09-01'
+start_calibration = '2020-03-15'
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
     end_calibration = df_hosp.index.get_level_values('date').max().strftime("%m-%d-%Y")
@@ -385,13 +385,13 @@ else:
     end_calibration = str(args.enddate)
 # PSO settings
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier_pso = 2
+multiplier_pso = 4
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
-multiplier_mcmc = 2
+multiplier_mcmc = 5
 max_n = n_mcmc
-print_n = 10
+print_n = 100
 
 print('\n---------------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
@@ -414,18 +414,21 @@ weights = [1]
 # -----------
 
 # optimisation settings
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
-bounds=((0.010,0.020),(4,4.1),(0.40,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(0.05,0.99),(1.35,1.6),(1.6,2.4),(0, 0.30),(-62,62))
+pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (2.1,2.4), (0, 0.20),(-21,21))
 # run optimization
-theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-                    start_date=start_calibration, warmup=warmup, processes=processes)
-#theta = np.array([0.0148, 4.03, 0.80, 0.118, 0.105, 0.90, 0.649, 1.50, 2.25])
+#theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+#                    start_date=start_calibration, warmup=warmup, processes=processes)
+
+theta = [0.043, 14, 9, 0.17,  0.05,        0.05,        0.32,   0.28451644, 1.35,        2.,          0.12,  0.1,        ] #--> best manual fit
+theta = np.array([0.043, 14, 9, 0.17,  0.05,        0.05,        0.32,   0.28451644, 1.35,        2.25,          0.12,  14,        ])
+
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
-out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+out = model.sim('2022-07-01',start_date=start_calibration,warmup=warmup)
 # Visualize fit
-ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+ax = plot_PSO(out, theta, pars, data, states, start_calibration, '2022-07-01')
 plt.show()
 plt.close()
 
@@ -449,11 +452,11 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 #density_da_norm = density_da/np.sum(density_da)
 
 # Setup uniform priors
-pars = ['beta', 'l', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
-log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.1,14), (0.05,1), (0.05,1), (0.05,1),(0.05,1), (0.05,1),(1.3,1.8), (1.6,2.4), (0,0.35), (-62,62)]
+pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,16), (0.1,16), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.3,1.8), (2.1,2.4), (0,0.30), (-45,45)]
 # Perturbate PSO Estimate
-pert = [2e-2, 2e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2, 5e-2]
+pert = [1e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 200e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
@@ -461,7 +464,7 @@ if backend:
     backend = emcee.backends.HDFBackend(results_folder+filename)
     backend.reset(nwalkers, ndim)
 # Labels for traceplots
-labels = ['$\\beta$', '$l$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$',
+labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$',
             '$\Omega_{home}$', '$K_{inf, 1}$', '$K_{inf, 2}$', 'A', '$\phi$']
 # Arguments of chosen objective function
 objective_fcn = objective_fcns.log_probability
