@@ -141,8 +141,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     # Calibration of WAVE 2
     # ---------------------
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
@@ -225,8 +225,8 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     # Calibration of WAVE 2
     # ---------------------
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['l1'] = samples_dict['l1'][idx] 
+    param_dict['l2'] = samples_dict['l2'][idx] 
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
@@ -240,7 +240,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     # Vaccination
     # -----------
     param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=80000)
-    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=50))   
+    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=30))   
     param_dict['e_i'] = np.concatenate((np.zeros([3,1]),
                 np.ones([3,1])*np.random.uniform(low=0.4,high=0.6),
                 np.ones([3,1])*np.random.uniform(low=0.4,high=0.6)),axis=1)
@@ -254,7 +254,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
-    refusal_second = np.zeros([9,1]) #np.random.triangular(0.00, 0.02, 0.05, size=(9,1))
+    refusal_second = np.zeros([len(param_dict['c']),1]) 
     param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
 
     # Hospitalization
@@ -263,17 +263,18 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     names = ['c','m_C','m_ICU']
     for idx,name in enumerate(names):
         par=[]
-        for jdx in range(9):
+        for jdx in range(len(param_dict['c'])):
             par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
         param_dict[name] = np.array(par)
     # Residence times
-    n=50
+    n=20
     distributions = [samples_dict['residence_times']['dC_R'],
                      samples_dict['residence_times']['dC_D'],
                      samples_dict['residence_times']['dICU_R'],
                      samples_dict['residence_times']['dICU_D'],
                      samples_dict['residence_times']['dICUrec']]
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec']
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
     for idx,dist in enumerate(distributions):
         param_val=[]
         for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
