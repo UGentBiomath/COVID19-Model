@@ -592,6 +592,143 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dS[:,0] = dS[:,0] + zeta*R[:,0] 
         dR[:,0] = dR[:,0] - zeta*R[:,0] 
 
+        # Perform a test on S to prevent it from becoming smaller than zero
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # This does not do anything at the moment
+        N_vacc[(np.where(S + dS < 0)[0], np.where(S + dS < 0)[1]-1)] = 0
+
+        ##################################################
+        ## Compute the vaccination transitionings again ##
+        ##################################################
+
+        dS = np.zeros(S.shape)
+        dE = np.zeros(E.shape)
+        dI = np.zeros(I.shape)
+        dA = np.zeros(A.shape)
+        dR = np.zeros(R.shape)
+
+        # 0 --> 1 and  0 --> 2
+        # ~~~~~~~~~~~~~~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,0] + E[:,0] + I[:,0] + A[:,0] + R[:,0]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,0]/VE
+        f_E = E[:,0]/VE
+        f_I = I[:,0]/VE
+        f_A = A[:,0]/VE
+        f_R = R[:,0]/VE
+        # Compute transisitoning in zero syringes
+        dS[:,0] = - (N_vacc[:,0] + N_vacc[:,2])*f_S 
+        dE[:,0] = - (N_vacc[:,0] + N_vacc[:,2])*f_E
+        dI[:,0] = - (N_vacc[:,0] + N_vacc[:,2])*f_I
+        dA[:,0] = - (N_vacc[:,0] + N_vacc[:,2])*f_A
+        dR[:,0] = - (N_vacc[:,0]+ N_vacc[:,2])*f_R
+        # Compute transitioning in one short circuit
+        dS[:,1] =  N_vacc[:,0]*f_S # 0 --> 1 dose
+        dE[:,1] =  N_vacc[:,0]*f_E # 0 --> 1 dose
+        dI[:,1] =  N_vacc[:,0]*f_I # 0 --> 1 dose
+        dA[:,1] =  N_vacc[:,0]*f_A # 0 --> 1 dose
+        dR[:,1] =  N_vacc[:,0]*f_R # 0 --> 1 dose
+        # Compute transitioning in two shot circuit
+        dS[:,2] =  N_vacc[:,2]*f_S # 0 --> 2 doses
+        dE[:,2] =  N_vacc[:,2]*f_E # 0 --> 2 doses
+        dI[:,2] =  N_vacc[:,2]*f_I # 0 --> 2 doses
+        dA[:,2] =  N_vacc[:,2]*f_A # 0 --> 2 doses
+        dR[:,2] =  N_vacc[:,2]*f_R # 0 --> 2 doses
+
+        # 1 --> 2 
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,1] + E[:,1] + I[:,1] + A[:,1] + R[:,1]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,1]/VE
+        f_E = E[:,1]/VE
+        f_I = I[:,1]/VE
+        f_A = A[:,1]/VE
+        f_R = R[:,1]/VE
+        # Compute transitioning in one short circuit
+        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
+        dE[:,1] = dE[:,1] - N_vacc[:,1]*f_E
+        dI[:,1] = dI[:,1] - N_vacc[:,1]*f_I
+        dA[:,1] = dA[:,1] - N_vacc[:,1]*f_A
+        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
+        # Compute transitioning in two shot circuit
+        dS[:,2] = dS[:,2] + N_vacc[:,1]*f_S
+        dE[:,2] = dE[:,2] + N_vacc[:,1]*f_E
+        dI[:,2] = dI[:,2] + N_vacc[:,1]*f_I
+        dA[:,2] = dA[:,2] + N_vacc[:,1]*f_A
+        dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
+
+        # waned vaccine, 2 --> B
+        # ~~~~~~~~~~~~~~~~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,2] + E[:,2] + I[:,2] + A[:,2] + R[:,2] \
+                + S[:,3] + E[:,3] + I[:,3] + A[:,3] + R[:,3]
+        # 2 dose circuit
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,2]/VE
+        f_E = E[:,2]/VE
+        f_I = I[:,2]/VE
+        f_A = A[:,2]/VE
+        f_R = R[:,2]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,2] = dS[:,2] - N_vacc[:,3]*f_S
+        dE[:,2] = dE[:,2] - N_vacc[:,3]*f_E
+        dI[:,2] = dI[:,2] - N_vacc[:,3]*f_I
+        dA[:,2] = dA[:,2] - N_vacc[:,3]*f_A
+        dR[:,2] = dR[:,2] - N_vacc[:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,4] = dS[:,4] + N_vacc[:,3]*f_S
+        dE[:,4] = dE[:,4] + N_vacc[:,3]*f_E
+        dI[:,4] = dI[:,4] + N_vacc[:,3]*f_I
+        dA[:,4] = dA[:,4] + N_vacc[:,3]*f_A
+        dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
+        # waned vaccine circuit
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,3]/VE
+        f_E = E[:,3]/VE
+        f_I = I[:,3]/VE
+        f_A = A[:,3]/VE
+        f_R = R[:,3]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,3] = dS[:,3] - N_vacc[:,3]*f_S
+        dE[:,3] = dE[:,3] - N_vacc[:,3]*f_E
+        dI[:,3] = dI[:,3] - N_vacc[:,3]*f_I
+        dA[:,3] = dA[:,3] - N_vacc[:,3]*f_A
+        dR[:,3] = dR[:,3] - N_vacc[:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,4] = dS[:,4] + N_vacc[:,3]*f_S
+        dE[:,4] = dE[:,4] + N_vacc[:,3]*f_E
+        dI[:,4] = dI[:,4] + N_vacc[:,3]*f_I
+        dA[:,4] = dA[:,4] + N_vacc[:,3]*f_A
+        dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
+
+        # Waning of vaccines
+        # ~~~~~~~~~~~~~~~~~~
+
+        # Waning of second dose
+        r_waning_vacc = 1/((5/12)*365)
+        dS[:,2] = dS[:,2] - r_waning_vacc*S[:,2]
+        dR[:,2] = dR[:,2] - r_waning_vacc*R[:,2]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
+        
+        # Waning of booster dose
+        dS[:,4] = dS[:,4] - r_waning_vacc*S[:,4]
+        dR[:,4] = dR[:,4] - r_waning_vacc*R[:,4]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,4]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,4]
+
+        # Waning of natural immunity
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS[:,0] = dS[:,0] + zeta*R[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R[:,0]         
+
         # Update the S state
         # ~~~~~~~~~~~~~~~~~~
         # System below is still computed using the pre-vaccination states
