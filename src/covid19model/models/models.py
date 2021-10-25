@@ -563,8 +563,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Waning of vaccines
         # ~~~~~~~~~~~~~~~~~~
 
-        dS[:,0] = dS[:,0] + (1/d_vacc)*(S[:,1] + S[:,2])
-        dR[:,0] = dR[:,0] + (1/d_vacc)*(R[:,1] + R[:,2])
+        # Waning second dose
+        r_waning_vacc = 1/(0.5*365)
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
+
+        # Regular waning
+        dS[:,0] = dS[:,0] + (1/d_vacc)*(S[:,1] + S[:,3])
+        dR[:,0] = dR[:,0] + (1/d_vacc)*(R[:,1] + R[:,3])
 
         # Waning of natural immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
