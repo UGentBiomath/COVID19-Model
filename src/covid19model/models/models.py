@@ -461,9 +461,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
 
-        ############################################
-        ## Compute the vaccination transitionings ##
-        ############################################
+        #########################################################
+        ## Compute the vaccination transitionings a first time ##
+        #########################################################
 
         dS = np.zeros(S.shape)
         dE = np.zeros(E.shape)
@@ -525,11 +525,13 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dA[:,2] = dA[:,2] + N_vacc[:,1]*f_A
         dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
 
-        # 2 --> B
-        # ~~~~~~~
+        # waned vaccine, 2 --> B
+        # ~~~~~~~~~~~~~~~~~~~~~~
 
         # Compute vaccine eligible population
-        VE = S[:,2] + E[:,2] + I[:,2] + A[:,2] + R[:,2]
+        VE = S[:,2] + E[:,2] + I[:,2] + A[:,2] + R[:,2] \
+                + S[:,3] + E[:,3] + I[:,3] + A[:,3] + R[:,3]
+        # 2 dose circuit
         # Compute fraction of VE to distribute vaccins
         f_S = S[:,2]/VE
         f_E = E[:,2]/VE
@@ -548,17 +550,53 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dI[:,4] = dI[:,4] + N_vacc[:,3]*f_I
         dA[:,4] = dA[:,4] + N_vacc[:,3]*f_A
         dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
+        # waned vaccine circuit
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,3]/VE
+        f_E = E[:,3]/VE
+        f_I = I[:,3]/VE
+        f_A = A[:,3]/VE
+        f_R = R[:,3]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,3] = dS[:,3] - N_vacc[:,3]*f_S
+        dE[:,3] = dE[:,3] - N_vacc[:,3]*f_E
+        dI[:,3] = dI[:,3] - N_vacc[:,3]*f_I
+        dA[:,3] = dA[:,3] - N_vacc[:,3]*f_A
+        dR[:,3] = dR[:,3] - N_vacc[:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,4] = dS[:,4] + N_vacc[:,3]*f_S
+        dE[:,4] = dE[:,4] + N_vacc[:,3]*f_E
+        dI[:,4] = dI[:,4] + N_vacc[:,3]*f_I
+        dA[:,4] = dA[:,4] + N_vacc[:,3]*f_A
+        dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
 
-        # Update the states
-        # ~~~~~~~~~~~~~~~~~
+        # Waning of vaccines
+        # ~~~~~~~~~~~~~~~~~~
 
-        # I think this is needed to have a closed system
+        # Waning of second dose
+        r_waning_vacc = 1/((5/12)*365)
+        dS[:,2] = dS[:,2] - r_waning_vacc*S[:,2]
+        dR[:,2] = dR[:,2] - r_waning_vacc*R[:,2]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
+        
+        # Waning of booster dose
+        dS[:,4] = dS[:,4] - r_waning_vacc*S[:,4]
+        dR[:,4] = dR[:,4] - r_waning_vacc*R[:,4]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,4]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,4]
 
+        # Waning of natural immunity
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS[:,0] = dS[:,0] + zeta*R[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R[:,0] 
+
+        # Update the S state
+        # ~~~~~~~~~~~~~~~~~~
+        # System below is still computed using the pre-vaccination states
+        # For S this is a problem, since there will be too much infections
         S = S + dS
-        #E = E + dE
-        #I = I + dI
-        #A = A + dA
-        #R = R + dR
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -583,28 +621,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dH_in = M*(h_acc/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
-
-        # Waning of vaccines
-        # ~~~~~~~~~~~~~~~~~~
-
-        # Waning of second dose
-        r_waning_vacc = 1/((5/12)*365)
-        dS[:,2] = dS[:,2] - r_waning_vacc*S[:,2]
-        dR[:,2] = dR[:,2] - r_waning_vacc*R[:,2]
-        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
-        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
-        
-        # Waning of booster dose
-        dS[:,4] = dS[:,4] - r_waning_vacc*S[:,4]
-        dR[:,4] = dR[:,4] - r_waning_vacc*R[:,4]
-        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,4]
-        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,4]
-
-        # Waning of natural immunity
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        dS[:,0] = dS[:,0] + zeta*R[:,0] 
-        dR[:,0] = dR[:,0] - zeta*R[:,0] 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
