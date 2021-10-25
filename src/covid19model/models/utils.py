@@ -241,23 +241,26 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     # -----------
     param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=80000)
     param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=30))   
-    param_dict['e_i'] = np.concatenate((np.zeros([3,1]),    # No doses
-                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6), # 1 dose
-                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6), # 2 doses
-                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6), # waned dose
-                np.ones([3,1])*np.random.uniform(low=0.4,high=0.6)),axis=1) # booster dose
-    param_dict['e_s'] = np.concatenate((np.zeros([3,1]),
-            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.4,high=0.6), np.ones([1,1])*np.random.uniform(low=0.2,high=0.4)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.7,high=0.9), np.ones([1,1])*np.random.uniform(low=0.65,high=0.85)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.7/2,high=0.9/2), np.ones([1,1])*np.random.uniform(low=0.65/2,high=0.85/2)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.uniform(low=0.7,high=0.9), np.ones([1,1])*np.random.uniform(low=0.65,high=0.85)),axis=0),),axis=1)
-    # https://media.tghn.org/articles/Effectiveness_of_COVID-19_vaccines_against_hospital_admission_with_the_Delta_B._G6gnnqJ.pdf
-    reduction=0.10
-    param_dict['e_h'] = np.concatenate((np.zeros([3,1]),
-            np.concatenate((np.ones([2,1])*np.random.triangular(0.65,0.78,0.86), np.ones([1,1])*np.random.triangular(0.57,0.75,0.85)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.triangular(0.78,0.92,0.97), np.ones([1,1])*np.random.triangular(0.85,0.94,0.98)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.triangular(0.78-reduction,0.92-reduction,0.97-reduction), np.ones([1,1])*np.random.triangular(0.85-reduction,0.94-reduction,0.98-reduction)),axis=0),
-            np.concatenate((np.ones([2,1])*np.random.triangular(0.78,0.92,0.97), np.ones([1,1])*np.random.triangular(0.85,0.94,0.98)),axis=0),),axis=1)
+    # Reduction of infectiousness
+    #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
+    param_dict['e_i'] = np.zeros([3,5])
+    param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
+    param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
+    # Reduction of susceptibility
+    # Based on: 
+    #https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext#sec1
+    param_dict['e_s'] = np.zeros([3,5])
+    param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
+    param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
+    param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
+    param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
+    # Reduction of hospitalization propensity
+    param_dict['e_h'] = np.zeros([3,5])
+    param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
+    param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
+    param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
+    param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
+    
     refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
                                 np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
