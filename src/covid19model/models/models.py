@@ -525,6 +525,30 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dA[:,2] = dA[:,2] + N_vacc[:,1]*f_A
         dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
 
+        # 2 --> B
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,2] + E[:,2] + I[:,2] + A[:,2] + R[:,2]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,2]/VE
+        f_E = E[:,2]/VE
+        f_I = I[:,2]/VE
+        f_A = A[:,2]/VE
+        f_R = R[:,2]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,2] = dS[:,2] - N_vacc[:,3]*f_S
+        dE[:,2] = dE[:,2] - N_vacc[:,3]*f_E
+        dI[:,2] = dI[:,2] - N_vacc[:,3]*f_I
+        dA[:,2] = dA[:,2] - N_vacc[:,3]*f_A
+        dR[:,2] = dR[:,2] - N_vacc[:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,4] = dS[:,4] + N_vacc[:,3]*f_S
+        dE[:,4] = dE[:,4] + N_vacc[:,3]*f_E
+        dI[:,4] = dI[:,4] + N_vacc[:,3]*f_I
+        dA[:,4] = dA[:,4] + N_vacc[:,3]*f_A
+        dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
+
         # Update the states
         # ~~~~~~~~~~~~~~~~~
 
@@ -563,14 +587,18 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Waning of vaccines
         # ~~~~~~~~~~~~~~~~~~
 
-        # Waning second dose
+        # Waning of second dose
         r_waning_vacc = 1/(0.5*365)
+        dS[:,2] = dS[:,2] - r_waning_vacc*S[:,2]
+        dR[:,2] = dR[:,2] - r_waning_vacc*R[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
         dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
-
-        # Regular waning
-        dS[:,0] = dS[:,0] + (1/d_vacc)*(S[:,1] + S[:,3])
-        dR[:,0] = dR[:,0] + (1/d_vacc)*(R[:,1] + R[:,3])
+        
+        # Waning of booster dose
+        dS[:,4] = dS[:,4] - r_waning_vacc*S[:,4]
+        dR[:,4] = dR[:,4] - r_waning_vacc*R[:,4]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,4]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,4]
 
         # Waning of natural immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~

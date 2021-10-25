@@ -240,14 +240,14 @@ from covid19model.models.utils import output_to_visuals
 # --------------------
 
 if args.vaccination_model == 'stratified':
-    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination
+    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
     # Add "size dummy" for vaccination stratification
     params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
     # Correct size of other parameters
-    params.update({'e_s': np.array([[0, 0.5, 0.8, 0.40],[0, 0.5, 0.8, 0.4],[0, 0.3, 0.75, 0.4]])}) # rows = VOC, columns = # no. doses
-    params.update({'e_h': np.array([[0,0.78,0.92,0.92],[0,0.78,0.92,0.92],[0,0.75,0.94,0.94]])})
+    params.update({'e_s': np.array([[0, 0.5, 0.8, 0.40, 0.80],[0, 0.5, 0.8, 0.4, 0.80],[0, 0.3, 0.75, 0.4, 0.75]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.78,0.92,0.92,0.92],[0,0.78,0.92,0.92,0.92],[0,0.75,0.94,0.94,0.94]])})
     params.pop('e_a')
-    params.update({'e_i': np.array([[0,0.5,0.5, 0.5],[0,0.5,0.5,0.5],[0,0.5,0.5,0.5]])})  
+    params.update({'e_i': np.array([[0,0.5,0.5, 0.5, 0.5],[0,0.5,0.5,0.5, 0.5],[0,0.5,0.5,0.5, 0.5]])})  
     params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 
@@ -267,9 +267,8 @@ params.update(
 params.update({'amplitude': 0, 'peak_shift': 0})
 
 # Overwrite the initial_states
-initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,1]), np.zeros([age_stratification_size,dose_stratification_size-2])), axis=1),
+initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
                   "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
-                  #"I": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1) }
 
 # Initialize model
 if args.vaccination_model == 'stratified':
