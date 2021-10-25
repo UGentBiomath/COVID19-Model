@@ -962,6 +962,10 @@ class make_contact_matrix_function():
         t25 = pd.Timestamp('2022-03-06') # End of Spring Break
         t26 = pd.Timestamp('2022-04-04') # Start of Easter Break
         t27 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t28 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t29 = pd.Timestamp('2022-09-01') # End of summer holidays
+        t30 = pd.Timestamp('2022-10-31') # Start of autumn break
+        t31 = pd.Timestamp('2022-11-06') # End of autumn break
 
         if t <= t1:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
@@ -1028,8 +1032,7 @@ class make_contact_matrix_function():
         elif t18 < t <= t19:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
         elif t20 < t <= t21:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)
@@ -1050,7 +1053,19 @@ class make_contact_matrix_function():
                                 work=1, leisure=1, transport=1, others=1, school=1)           
         elif t26 < t <= t27:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0)                                                                                                   
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+        elif t27 < t <= t28:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t28 < t <= t29:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+        elif t29 < t <= t30:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)    
+        elif t30 < t <= t31:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.9, leisure=1.1, transport=1, others=1, school=0)                                                                                                                                                                                                 
         else:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)    

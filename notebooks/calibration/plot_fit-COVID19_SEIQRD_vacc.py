@@ -63,7 +63,7 @@ age_stratification_size=int(args.n_age_groups)
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2022-03-01'
+end_sim = '2022-12-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
