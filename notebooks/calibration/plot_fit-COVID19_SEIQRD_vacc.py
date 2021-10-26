@@ -63,7 +63,7 @@ age_stratification_size=int(args.n_age_groups)
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2022-12-01'
+end_sim = '2022-09-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -244,10 +244,10 @@ if args.vaccination_model == 'stratified':
     # Add "size dummy" for vaccination stratification
     params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
     # Correct size of other parameters
-    params.update({'e_s': np.array([[0, 0.5, 0.8, 0.40, 0.80],[0, 0.5, 0.8, 0.4, 0.80],[0, 0.3, 0.75, 0.4, 0.75]])}) # rows = VOC, columns = # no. doses
-    params.update({'e_h': np.array([[0,0.78,0.92,0.92,0.92],[0,0.78,0.92,0.92,0.92],[0,0.75,0.94,0.94,0.94]])})
     params.pop('e_a')
-    params.update({'e_i': np.array([[0,0.5,0.5, 0.5, 0.5],[0,0.5,0.5,0.5, 0.5],[0,0.5,0.5,0.5, 0.5]])})  
+    params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
+    params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
     params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 

@@ -239,19 +239,20 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # --------------------
 
 if args.vaccination_model == 'stratified':
+    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
     # Add "size dummy" for vaccination stratification
-    params.update({'doses': np.zeros([len(df_vacc.index.get_level_values('dose').unique()), len(df_vacc.index.get_level_values('dose').unique())])})
+    params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
     # Correct size of other parameters
-    params.update({'e_s': np.array([[0, 0.5, 0.8],[0, 0.5, 0.8],[0, 0.3, 0.75]])}) # rows = VOC, columns = # no. doses
-    params.update({'e_h': np.array([[0,0.78,0.92],[0,0.78,0.92],[0,0.75,0.94]])})
     params.pop('e_a')
-    params.update({'e_i': np.array([[0,0.5,0.5],[0,0.5,0.5],[0,0.5,0.5]])})  
-    params.update({'d_vacc': 31*36})
+    params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
+    params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
+    params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 
 # Add the remaining time-dependant parameter function arguments
 # Social policies
-params.update({'l1': 14, 'l2': 9, 'prev_schools': 0.5, 'prev_work': 0.1, 'prev_rest_lockdown': 0.1, 'prev_rest_relaxation': 0.8, 'prev_home': 0.5})
+params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.5, 'prev_rest_lockdown': 0.5, 'prev_rest_relaxation': 0.5, 'prev_home': 0.5})
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
@@ -265,10 +266,8 @@ params.update(
 params.update({'amplitude': 0, 'peak_shift': 0})
 
 # Overwrite the initial_states
-dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique())
-initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,1]), np.zeros([age_stratification_size,dose_stratification_size-2])), axis=1),
+initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
                   "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
-                  #"I": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1) }
 
 # Initialize model
 if args.vaccination_model == 'stratified':
@@ -389,7 +388,7 @@ multiplier_pso = 4
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
-multiplier_mcmc = 5
+multiplier_mcmc = 3
 max_n = n_mcmc
 print_n = 100
 
@@ -415,22 +414,31 @@ weights = [1]
 
 # optimisation settings
 pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
-bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (2.1,2.4), (0, 0.20),(-21,21))
+bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (2.1,2.4), (0, 0.20),(-62,62))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
 theta = [0.043, 14, 9, 0.17,  0.05,        0.05,        0.32,   0.28451644, 1.35,        2.,          0.12,  0.1,        ] #--> best manual fit
-theta = np.array([0.043, 14, 9, 0.17,  0.05,        0.05,        0.32,   0.28451644, 1.35,        2.25,          0.12,  14,        ])
+theta = np.array([0.0415, 14.4, 8, 0.25,  0.0437,        0.0223,        0.42,   0.256, 1.40,        2.16,          0.133,  31,        ])
 
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
-out = model.sim('2022-07-01',start_date=start_calibration,warmup=warmup)
+out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 # Visualize fit
-ax = plot_PSO(out, theta, pars, data, states, start_calibration, '2022-07-01')
+ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 plt.show()
 plt.close()
+
+#fig,ax = plt.subplots()
+#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=0) + out['R'].sum(dim='Nc').isel(doses=0), color='red')
+#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=1) + out['R'].sum(dim='Nc').isel(doses=1), color='orange')
+#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=2) + out['R'].sum(dim='Nc').isel(doses=2), color='green')
+#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=3) + out['R'].sum(dim='Nc').isel(doses=3), '--', color='orange')
+#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=4) + out['R'].sum(dim='Nc').isel(doses=4), '--', color='green')
+#plt.show()
+#plt.close()
 
 # ------------------
 # Setup MCMC sampler
@@ -456,7 +464,7 @@ pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', '
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
 log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.3,1.8), (2.1,2.4), (0,0.30), (-62,62)]
 # Perturbate PSO Estimate
-pert = [1e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 200e-2]
+pert = [1e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 50e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
