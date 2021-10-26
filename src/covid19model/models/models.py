@@ -1136,6 +1136,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
         
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
+        # Note: first two terms are taken from Arenas and may probably be deleted
         multip *= np.outer(f, s*zi)
         
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
