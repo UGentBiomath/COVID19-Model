@@ -75,6 +75,12 @@ from covid19model.optimization import pso, objective_fcns
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
 
+# ----------------------
+# Public or private data
+# ----------------------
+
+public = True
+
 
 # ---------------------
 # HPC-specific settings
@@ -222,8 +228,8 @@ df_VOC_abc = VOC.get_abc_data()
 # Load and format local vaccination data, which is also under the sciensano object
 public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg=agg)
 
-# Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data rather than private.
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=True)
+# Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
+df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
 
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
@@ -316,7 +322,9 @@ if __name__ == '__main__':
         # ------------------
 
         # Start data of recalibration ramp
-        start_calibration = '2020-03-02' # First available date. Inspect df_sciensano.reset_index().DATE[0] if needed
+        start_calibration = '2020-03-02' # First available date in private data. Inspect df_sciensano.reset_index().DATE[0] if needed
+        if public==True:
+            start_calibration = '2020-03-15' # First available date in public data.
         # Last datapoint used to calibrate warmup and beta
         if not args.enddate:
             end_calibration = '2020-03-21' # Final date at which no interventions were felt (before first inflection point)
@@ -424,6 +432,8 @@ if __name__ == '__main__':
 
         # Start of calibration
         start_calibration = '2020-03-02'
+        if public==True:
+            start_calibration = '2020-03-15' # First available date in public data.
         # Last datapoint used to calibrate infectivity, compliance and effectivity
         if not args.enddate:
             end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
