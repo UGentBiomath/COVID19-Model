@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-        bounds=((20.0,60.0),(0.020,0.060), (0.020,0.060), (0.020,0.060))
+        bounds=((10.0,60.0),(0.010,0.060), (0.010,0.060), (0.010,0.060))
         # run optimisation
         theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
