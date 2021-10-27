@@ -33,7 +33,7 @@ Note: this script has been largely copied from the Notebook MR_spatial-calibrati
 Example
 -------
 
->> python mrollier-calibration_full-pandemic.py -j R0 -n_pso 10 -n_mcmc 10 -n_agg 10 -s test_run -a prov -i bxl -p 3
+>> python mrollier-calibration_full-pandemic.py -j R0 -n_pso 10 -n_mcmc 10 -n_ag 10 -s test_run -a prov -i bxl -p 3
 """
 
 __author__      = "Michiel Rollier, Tijs Alleman"
@@ -374,7 +374,7 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta_R', 'beta_U', 'beta_M']
-        bounds=((20.0,60.0),(0.005,0.040), (0.005,0.040), (0.005,0.040))
+        bounds=((20.0,60.0),(0.020,0.060), (0.020,0.060), (0.020,0.060))
         # run optimisation
         theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
                             poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, processes=processes)
@@ -489,7 +489,7 @@ if __name__ == '__main__':
 
         # transmission
         pars1 = ['beta_R',     'beta_U',      'beta_M']
-        bounds1=((0.005,0.060),(0.005,0.060), (0.005,0.060))
+        bounds1=((0.020,0.060),(0.020,0.060), (0.020,0.060))
 
         # Social intertia
         pars2 = ['l1',   'l2']
