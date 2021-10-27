@@ -321,6 +321,10 @@ if __name__ == '__main__':
         # Calibration set-up
         # ------------------
 
+        # Use private data for R0, because PSO doesn't work well with limited public data
+        public=False
+        df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
+        
         # Start data of recalibration ramp
         start_calibration = '2020-03-02' # First available date in private data. Inspect df_sciensano.reset_index().DATE[0] if needed
         if public==True:
@@ -429,7 +433,7 @@ if __name__ == '__main__':
         # ------------------
         # Calibration set-up
         # ------------------
-
+        
         # Start of calibration
         start_calibration = '2020-03-02'
         if public==True:
