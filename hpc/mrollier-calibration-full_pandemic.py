@@ -493,7 +493,7 @@ if __name__ == '__main__':
 
         # transmission
         pars1 = ['beta_R',     'beta_U',      'beta_M']
-        bounds1=((0.020,0.060),(0.020,0.060), (0.020,0.060))
+        bounds1=((0.010,0.060),(0.010,0.060), (0.010,0.060))
 
         # Social intertia
         pars2 = ['l1',   'l2']
