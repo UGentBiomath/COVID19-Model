@@ -329,9 +329,10 @@ if __name__ == '__main__':
         start_calibration = '2020-03-02' # First available date in private data. Inspect df_sciensano.reset_index().DATE[0] if needed
         if public==True:
             start_calibration = '2020-03-15' # First available date in public data.
-        # Last datapoint used to calibrate warmup and beta
+        # Last datapoint used to calibrate warmup and beta.
+        # Note: first measures in Belgium were taken on March 13, so let's take 5 days of delay regarding hospitalisations
         if not args.enddate:
-            end_calibration = '2020-03-21' # Final date at which no interventions were felt (before first inflection point)
+            end_calibration = '2020-03-18' # Final date at which no interventions were felt (before first inflection point)
         else:
             end_calibration = str(args.enddate)
         # Spatial unit: depends on aggregation and is basically simply a name (extension to signature)
@@ -340,7 +341,7 @@ if __name__ == '__main__':
         # PSO settings
         processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         sys.stdout.flush()
-        multiplier = 3
+        multiplier = 10 # Due to multimodality we need a lot of particles
         maxiter = n_pso
         popsize = multiplier*processes
 
