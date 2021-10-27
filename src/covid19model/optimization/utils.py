@@ -137,14 +137,14 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Relative perturbation factors (plus-minus) on PSO estimate
 
     multiplier : int
-        Multiplier determining the total numer of markov chains that will be run by emcee.
-        Total nr. chains = multiplier * nr. parameters
-        Default (minimum): 2
+        Multiplier determining the total number of markov chains that will be run by emcee.
+        Typically, total nr. chains = multiplier * nr. parameters
+        Default (minimum): 2 (one chain will result in an error in emcee)
         
     bounds : array of tuples of floats
         Ordered boundaries for the parameter values, e.g. ((0.1, 1.0), (1.0, 10.0)) if there are two parameters.
         Note: bounds must not be zero, because the perturbation is based on a percentage of the value,
-        and any percentage of zero returns zero, causing a 
+        and any percentage of zero returns zero, causing an error regarding linear dependence of walkers
         
     verbose : boolean
         Print user feedback to stdout

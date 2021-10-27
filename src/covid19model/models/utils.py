@@ -502,9 +502,9 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
     return beta
 
 
-def initial_state(dist='bxl', agg='arr', number=1, age=-1):
+def initial_state(dist='bxl', agg='arr', number=1, age=-1, age_stratification_size=9):
     """
-    Function determining the initial state of a model compartment. Note: currently only works with 9 age classes and only for the spatially explicit model
+    Function determining the initial state of a model compartment.
     
     Input
     -----
@@ -515,13 +515,17 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
     number: int
         Total number of people initialised in the compartment. 1 by default. Note that this generally needs to be changed if dist != 'bxl'
     age: int
-        Integer larger than -1. If -1 (default), random ages are chosen (following demography). If a positive integer is chosen, the age class is the decade this age falls into (e.g. 43 is age class 4). Everything over 80 is read as age class 80+.
+        Integer larger than -1. If -1 (default), random ages are chosen (following demography and age stratification). If a non-negative integer is chosen, this corresponds to the index of the stratified class. Exception is raised when an age is chosen beyond the number of age classes.
+    age_stratification_size: int
+        The stratification size of the ages considered in the model. Choose between 3, 9 (default) or 10.
 
     Returns
     -------
     init: np.array containing integers
         The initial state with 11, 43 or 581 rows and 9 columns, representing the initial age and spatial distribution of people in a particular SEIR compartment.
     """
+    
+    from covid19model.data.model_parameters import construct_initN
     
     # Raise exceptions if input is wrong
     if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data', 'frac']):
@@ -532,24 +536,29 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
         raise Exception(f"Input number={number} is not acceptable. Choose a natural number.")
     if not ((-1 <= age) and float(number).is_integer()):
         raise Exception(f"Input age={age} is not acceptable. Choose an integer -1 (random) or positive (reduces to age decade).")
+    if age >= age_stratification_size:
+        raise Exception(f"Age index {age} falls outside the number of stratified age classes ({age_stratification_size}).")
 
-    # Turn age into decade
-    age = age//10
-    if age > 8:
-        age = 8
-        
-    # Load population distribution. Fixed number of age classes (9)
-    pops = read_pops(spatial=agg, return_matrix=True, drop_total=True)
-        
+    if age_stratification_size == 3:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), agg).values
+    elif age_stratification_size == 9:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), agg).values
+    elif age_stratification_size == 10:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), agg).values
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )      
+            
     # Initialise matrix with proper dimensions.
-    G = pops.shape[0]
-    init = np.zeros((G,9))
+    G, N = initN.shape
+    initE = np.zeros((G,N))
     
     # Case for chosen NIS code
     if isinstance(dist,int):
         # Find coordinate of chosen NIS code
         gg=np.where(read_coordinates_nis(spatial=agg)==dist)[0][0]
-        init[gg] = _initial_age_dist(number, age, pops[gg])
+        initE[gg] = _initial_age_dist(number, age, initN[gg], age_stratification_size=age_stratification_size)
     
     # Case for Brussels
     elif dist=='bxl':
@@ -558,7 +567,7 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
             gg=np.where(read_coordinates_nis(spatial=agg)==21000)[0][0]
         else:
             gg=np.where(read_coordinates_nis(spatial=agg)==21004)[0][0] # Choice is made for historical Brussels
-        init[gg]= _initial_age_dist(number, age, pops[gg])
+        initE[gg]= _initial_age_dist(number, age, initN[gg], age_stratification_size=age_stratification_size)
     
     # Case for data-inspired initial conditions, based on highest concentration in first peak
     # Note: the cases are spread almost equally (local population is only a secondary attention point)
@@ -578,25 +587,25 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
             gg_array.append(np.where(coordinates_nis==73001)[0][0]) # municipality Alken
             gg_array.append(np.where(coordinates_nis==71053)[0][0]) # municipality Sint-Truiden
             gg_array.append(np.where(coordinates_nis==53084)[0][0]) # municipality Quévy
-        pops_tot=np.array([pops[gg_array[i]].sum(axis=0) for i in range(3)])
-        init_all_ages = np.array([number//3 for i in range(3)])
+        initN_tot=np.array([initN[gg_array[i]].sum(axis=0) for i in range(3)])
+        initE_all_ages = np.array([number//3 for i in range(3)])
         for i in range(number%3):
-            jj = np.where(pops_tot==np.sort(pops_tot)[-i-1])[0][0] # find index of highest populations
-            init_all_ages[jj] += 1 # add remaining initial states to region with highest population first
+            jj = np.where(initN_tot==np.sort(initN_tot)[-i-1])[0][0] # find index of highest populations
+            initE_all_ages[jj] += 1 # add remaining initial states to region with highest population first
         for i in range(3):
-            init[gg_array[i]] += _initial_age_dist(init_all_ages[i], age, pops[gg_array[i]])
+            initE[gg_array[i]] += _initial_age_dist(initE_all_ages[i], age, initN[gg_array[i]], age_stratification_size=age_stratification_size)
             
     # Case for homogeneous initial conditions: equal country-wide distribution
     # Note: the cases are spread almost equally (local population is only a secondary attention point)
     elif dist=='hom':
-        pops_tot = pops.sum(axis=1)
-        init_all_ages = np.array([number//G for i in range(G)])
-        pops_tot_sorted = np.sort(pops_tot)
+        initN_tot = initN.sum(axis=1)
+        initE_all_ages = np.array([number//G for i in range(G)])
+        initN_tot_sorted = np.sort(initN_tot)
         for i in range(number%G):
-            jj = np.where(pops_tot==pops_tot_sorted[i-1])[0][0] # find index of highest populations
-            init_all_ages[jj] += 1 # add remaining initial states to region with highest population first
+            jj = np.where(initN_tot==initN_tot_sorted[i-1])[0][0] # find index of highest populations
+            initE_all_ages[jj] += 1 # add remaining initial states to region with highest population first
         for i in range(G):
-            init[i] += _initial_age_dist(init_all_ages[i], age, pops[i])
+            initE[i] += _initial_age_dist(initE_all_ages[i], age, initN[i], age_stratification_size=age_stratification_size)
           
     # Case for initial conditions based on fraction of hospitalisations on 20 March
     # If age < 0, the number of people is distributed over the age classes fractionally
@@ -610,24 +619,26 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1):
         df_frac = (df.loc[max_date] / max_value * number)
         for nis in df_frac.index:
             gg = np.where(read_coordinates_nis(spatial=agg)==nis)[0][0]
-            init[gg] = _initial_age_dist(df_frac.loc[nis], age, pops[gg], fractional=True)
+            initE[gg] = _initial_age_dist(df_frac.loc[nis], age, initN[gg], fractional=True, age_stratification_size=age_stratification_size)
             
-    return init
+    return initE
 
-def _initial_age_dist(number, age, pop, fractional=False):
+def _initial_age_dist(number, age,  pop, fractional=False, age_stratification_size=9):
     """
-    Help function for initial_state, for the distribution of the initial state over the 9 age classes.
+    Help function for initial_state, for the distribution of the initial state over the required age classes.
     
     Input
     -----
     number: int
         Total number of people initialised in the compartment.
     age: int
-        Integer ranging from -1 to 8. If -1, random ages are chosen (following demography). If 0-8 is chosen, the number corresponds to the age decade (e.g. 1 = ages 10-19)
+        Integer ranging from -1 to age_stratification_size-1. If -1, random ages are chosen (following demography). If 0 to age_stratification_size-1 is chosen, the number corresponds to the index of the stratified age class (e.g. 1 = ages 10-19)
     pop: np.array
         Contains population in the various age classes
     fractional: Boolean
         If True, the number is distributed over the age classes fractionally (such that we are no longer dealing with a whole number of people)
+    age_stratification_size: int
+        The stratification size of the ages considered in the model. Choose between 3, 9 (default) or 10.
         
     Returns
     -------
@@ -635,14 +646,14 @@ def _initial_age_dist(number, age, pop, fractional=False):
         The distribution of the people in a particular state in one particular region per age    
     """
     # Initialise age vector
-    init_per_age = np.zeros(9)
+    init_per_age = np.zeros(age_stratification_size)
     
     # Return vector with people in one particular age class
     if age > -1:
         init_per_age[int(age)] = number
     
     elif not fractional:
-        indices = list(range(0,9))
+        indices = list(range(0,age_stratification_size))
         probs = pop/pop.sum(axis=0)
         index_choices = np.random.choice(indices, p=probs, size=number)
         unique, counts = np.unique(index_choices, return_counts=True)
@@ -651,7 +662,7 @@ def _initial_age_dist(number, age, pop, fractional=False):
             init_per_age[key] = index_dict[key]
             
     elif fractional:
-        indices = list(range(0,9))
+        indices = list(range(0,age_stratification_size))
         probs = pop/pop.sum(axis=0)
         init_per_age = number * probs
     
@@ -718,7 +729,7 @@ def read_areas(spatial='arr'):
 
     return areas
 
-def read_pops(spatial='arr',return_matrix=False,drop_total=False):
+def read_pops(spatial='arr',age_stratification_size=9,return_matrix=False,drop_total=False):
     """
     Reads initial population per age and per area
 
@@ -739,6 +750,9 @@ def read_pops(spatial='arr',return_matrix=False,drop_total=False):
         Age classes are [0,10), [10,20), ... , [80, 110)
     """
 
+    if age_stratification_size not in [3, 9, 10]:
+        raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9 (default), or 10.")
+    
     pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col='NIS')
     if drop_total:
         pops_df.drop(columns='total', inplace=True)
