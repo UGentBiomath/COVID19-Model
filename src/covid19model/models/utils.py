@@ -220,27 +220,30 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
 
     # Calibration of WAVE 1
     # ---------------------
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+    param_dict['zeta'] = np.mean(random.choices(list(samples_dict['zeta']), k=30))
 
     # Calibration of WAVE 2
     # ---------------------
+
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['l1'] = samples_dict['l1'][idx] 
-    param_dict['l2'] = samples_dict['l2'][idx] 
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
     param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
     param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
     param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['K_hosp'] = np.ones(3)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
     param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
 
     # Vaccination
     # -----------
-    param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=80000)
+    param_dict['daily_doses'] = 50000#np.random.uniform(low=95000,high=105000)
     param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=30))   
+    #param_dict['refusal'] = np.zeros(len(param_dict['c'])) #np.ones(len(param_dict['c']))*np.random.normal(loc=0.66, scale=0.033)
     # Reduction of infectiousness
     #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
     param_dict['e_i'] = np.zeros([3,5])
@@ -260,12 +263,6 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
     param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
     param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
     param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
-    
-    refusal_first = np.expand_dims(np.array([np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), np.random.triangular(0.05, 0.10, 0.20), # 60+
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30),np.random.triangular(0.10, 0.20, 0.30)]), axis=1) # 30-
-    refusal_second = np.zeros([len(param_dict['c']),1]) 
-    param_dict['refusal'] = np.concatenate((refusal_first, refusal_second),axis=1)
 
     # Hospitalization
     # ---------------
