@@ -461,9 +461,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
 
-        #########################################################
-        ## Compute the vaccination transitionings a first time ##
-        #########################################################
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
 
         dS = np.zeros(S.shape)
         dR = np.zeros(R.shape)
@@ -527,12 +527,19 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dS[:,4] = dS[:,4] + N_vacc[:,3]*f_S
         dR[:,4] = dR[:,4] + N_vacc[:,3]*f_R
 
-        # Update the S state
-        # ~~~~~~~~~~~~~~~~~~
-        # System below is still computed using the pre-vaccination states
-        # For S this is a problem, since there will be too much infections
-        S = S + dS
-        R = R + dR
+        # Update the S and R state
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        S_post_vacc = S + dS
+        R_post_vacc = R + dR
+
+        # Compute dS that makes S and R equal to zero
+        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
+        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
+        # Set S and R equal to zero
+        S_post_vacc[np.where(S_post_vacc < 0)] = 0
+        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -543,10 +550,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         h_acc = (1-e_h)*h
 
-        dS  = dS - IP*S*(1-e_s)
-        dE  = dE + IP*S*(1-e_s) - E/sigma 
-        dI = dI + (1/sigma)*E - (1/omega)*I
-        dA = dA + (a/omega)*I - A/da
+        dS  = dS - IP*S_post_vacc*(1-e_s)
+        dE  = IP*S_post_vacc*(1-e_s) - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
         dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
@@ -563,10 +570,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # Waning of second dose
         r_waning_vacc = 1/((5/12)*365)
-        dS[:,2] = dS[:,2] - r_waning_vacc*S[:,2]
-        dR[:,2] = dR[:,2] - r_waning_vacc*R[:,2]
-        dS[:,3] = dS[:,3] + r_waning_vacc*S[:,2]
-        dR[:,3] = dR[:,3] + r_waning_vacc*R[:,2]
+        dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
+        dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
+        dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]
+        dR[:,3] = dR[:,3] + r_waning_vacc*R_post_vacc[:,2]
         
         # Waning of booster dose
         # No waning of booster dose
@@ -574,8 +581,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Waning of natural immunity
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        dS[:,0] = dS[:,0] + zeta*R[:,0] 
-        dR[:,0] = dR[:,0] - zeta*R[:,0]       
+        dS[:,0] = dS[:,0] + zeta*R_post_vacc[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]       
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
