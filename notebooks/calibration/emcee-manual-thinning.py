@@ -89,10 +89,10 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # Optional: remove chains stuck in undesired local minima
 # -------------------------------------------------------
 
-# Chains beta
-#idx = np.mean(samples[:,:,0],axis=0) > 0.030
-#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
-#samples=samples[:,idx,:]
+# Chains K_inf1
+idx = np.mean(samples[:,:,8],axis=0) > 1.50
+print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
+samples=samples[:,idx,:]
 
 # Convert to flat samples
 #flat_samples = samples[:,0,:]
