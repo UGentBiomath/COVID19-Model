@@ -17,12 +17,16 @@ class QALY_model():
         # Load comorbidity QoL scores for the Belgian population from Lisa Van Wilder
         QoL_Van_Wilder=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALYs/De_Wilder_QoL_scores.xlsx"),index_col=0,sheet_name='QoL_scores')
         QoL_Van_Wilder.columns = ['0','1','2','3+']
-        idx = QoL_Van_Wilder.index.values
-        idx[-1] = '80+'
-        QoL_Van_Wilder.index = idx
+        QoL_Van_Wilder.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         self.QoL_Van_Wilder = QoL_Van_Wilder
+        # Define overall Belgian QoL scores
+        self.QoL_Belgium = pd.Series(index=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
+        # Convert Belgian QoL and Van Wilder QoL to desired age bins
+        
+        
         # Compute the QoL scores of the studied population
-        self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, QoL_Van_Wilder)
+        self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
+
         # Load comorbidity SMR estimates
         SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALYs/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
         SMR_pop_df.columns = ['0','1','2','3+']
@@ -69,7 +73,7 @@ class QALY_model():
         df['group_limit'] = [9, 19, 29, 39, 49, 59, 69, 79, 110]
         return df
 
-    def build_comorbidity_QoL(self, comorbidity_distribution, comorbidity_QoL):
+    def build_comorbidity_QoL(self, comorbidity_distribution, comorbidity_QoL, average_QoL):
         """ A function to compute the QoL scores in a studied population, based on the comorbidity distribution of the studied population and the QoL scores for 0, 1, 2, 3+ comorbidities for the Belgian population
 
         Parameters
@@ -84,6 +88,9 @@ class QALY_model():
             A dataframe containing the age-stratified QoL scores for individuals with 0, 1, 2 or 3+ comorbidities in the general Belgian population.
             Obtained from Lisa Van Wilder.
 
+        average_QoL : pd.Series
+            A series containing the average QoL score for the (Belgian) population
+
         Returns
         -------
         QoL_df: pd.DataFrame
@@ -96,6 +103,7 @@ class QALY_model():
         columns.extend(populations)
         # Initialize dataframe
         df = pd.DataFrame(index=comorbidity_QoL.index, columns=columns)
+        print(df)
         # Fill dataframe
         for idx,key in enumerate(df.index):
             for jdx,pop in enumerate(populations):
