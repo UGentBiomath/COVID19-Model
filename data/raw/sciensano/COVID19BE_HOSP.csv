@@ -6463,7 +6463,11 @@ DATE,PROVINCE,REGION,NR_REPORTING,TOTAL_IN,TOTAL_IN_ICU,TOTAL_IN_RESP,TOTAL_IN_E
 2021-10-23,Liège,Wallonia,12,179,41,15,2,14,14
 2021-10-23,Luxembourg,Wallonia,3,31,9,6,0,5,3
 2021-10-23,Namur,Wallonia,6,33,12,8,0,4,3
+<<<<<<< HEAD
 2021-10-23,OostVlaanderen,Flanders,14,103,25,11,3,11,19
+=======
+2021-10-23,OostVlaanderen,Flanders,14,103,25,12,4,11,19
+>>>>>>> master
 2021-10-23,VlaamsBrabant,Flanders,6,50,14,4,1,4,5
 2021-10-23,BrabantWallon,Wallonia,2,22,4,2,0,6,2
 2021-10-23,WestVlaanderen,Flanders,11,119,14,6,0,17,8
@@ -6479,7 +6483,11 @@ DATE,PROVINCE,REGION,NR_REPORTING,TOTAL_IN,TOTAL_IN_ICU,TOTAL_IN_RESP,TOTAL_IN_E
 2021-10-24,BrabantWallon,Wallonia,2,21,4,2,0,0,1
 2021-10-24,WestVlaanderen,Flanders,11,121,15,5,0,16,8
 2021-10-25,Antwerpen,Flanders,14,178,40,17,4,15,10
+<<<<<<< HEAD
 2021-10-25,Brussels,Brussels,15,270,61,38,11,19,10
+=======
+2021-10-25,Brussels,Brussels,15,253,61,38,11,23,10
+>>>>>>> master
 2021-10-25,Hainaut,Wallonia,14,164,24,12,4,12,4
 2021-10-25,Limburg,Flanders,7,59,9,4,0,13,4
 2021-10-25,Liège,Wallonia,12,206,39,17,3,18,8
@@ -6489,6 +6497,7 @@ DATE,PROVINCE,REGION,NR_REPORTING,TOTAL_IN,TOTAL_IN_ICU,TOTAL_IN_RESP,TOTAL_IN_E
 2021-10-25,VlaamsBrabant,Flanders,6,57,16,4,1,4,1
 2021-10-25,BrabantWallon,Wallonia,2,24,6,0,0,3,0
 2021-10-25,WestVlaanderen,Flanders,11,137,16,5,0,13,1
+<<<<<<< HEAD
 2021-10-26,Antwerpen,Flanders,14,182,42,15,4,18,14
 2021-10-26,Brussels,Brussels,15,272,64,37,11,24,29
 2021-10-26,Hainaut,Wallonia,14,165,21,14,3,23,19
@@ -6511,3 +6520,5 @@ DATE,PROVINCE,REGION,NR_REPORTING,TOTAL_IN,TOTAL_IN_ICU,TOTAL_IN_RESP,TOTAL_IN_E
 2021-10-27,VlaamsBrabant,Flanders,6,63,18,7,1,4,3
 2021-10-27,BrabantWallon,Wallonia,2,25,4,1,0,3,0
 2021-10-27,WestVlaanderen,Flanders,11,159,19,4,0,25,11
+=======
+>>>>>>> master

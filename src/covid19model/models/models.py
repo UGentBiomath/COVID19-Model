@@ -883,6 +883,10 @@ class COVID19_SEIQRD_spatial(BaseModel):
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
@@ -911,8 +915,14 @@ class COVID19_SEIQRD_spatial(BaseModel):
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         multip = np.matmul( (I_eff + A_eff)/T_eff , np.transpose(Nc) )
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
-        multip *= np.outer(f, s*zi)
+#         multip *= np.outer(f, s*zi)
+
+        ######################
         
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
@@ -1129,6 +1139,10 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         Susc_v = place_eff[:,:,np.newaxis]*S_v[:,np.newaxis,:]
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Density dependence per patch: f[patch]
         # NOTE: this can probably be deleted because the Arenas terms don't do much
         T_eff_total = T_eff.sum(axis=1)
@@ -1162,8 +1176,15 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         # - there aren't many of them to begin with, because only a small part of the S_v subjects trickle down
         multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
-        multip *= np.outer(f, s*zi)
+        # Note: first two terms are taken from Arenas and may probably be deleted
+#         multip *= np.outer(f, s*zi)
+
+        ######################
         
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
@@ -1353,6 +1374,10 @@ class COVID19_SEIQRD_spatial_fiddling(BaseModel):
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
         Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Density dependence per patch: f[patch]
         T_eff_total = T_eff.sum(axis=1)
         rho = T_eff_total / area
@@ -1381,8 +1406,14 @@ class COVID19_SEIQRD_spatial_fiddling(BaseModel):
         # Define the number of contacts multiplier per patch and age, multip[patch,age]
         multip = np.matmul( (I_eff + A_eff)/T_eff , np.transpose(Nc) )
         
+        ######################
+        # SUPERFLUOUS TERMS: #
+        ######################
+        
         # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
-        multip *= np.outer(f, s*zi)
+#         multip *= np.outer(f, s*zi)
+        
+        ######################
         
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
