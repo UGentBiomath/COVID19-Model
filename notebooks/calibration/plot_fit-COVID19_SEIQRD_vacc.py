@@ -257,8 +257,8 @@ params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.5, 'prev_re
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
-    'daily_first_dose': 60000,
-    'refusal': 0.2*np.ones(age_stratification_size),
+    'daily_doses': 60000,
+    'refusal': 0*np.ones(age_stratification_size),
     'delay_immunity': 10,
     'stop_idx': 0,
     'initN': initN}
@@ -294,7 +294,7 @@ ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][star
 ax.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax = _apply_tick_locator(ax)
 ax.set_xlim(start_sim,end_sim)
-ax.set_ylim(0,950)
+ax.set_ylim(-100,950)
 ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
 ax.get_yaxis().set_label_coords(-0.1,0.5)
 plt.show()

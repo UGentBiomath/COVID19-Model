@@ -256,7 +256,7 @@ params.update({'l1': 7, 'l2': 7, 'prev_schools': 0.5, 'prev_work': 0.5, 'prev_re
 # Vaccination
 params.update(
     {'vacc_order': np.array(range(age_stratification_size))[::-1],
-    'daily_first_dose': 60000,
+    'daily_doses': 60000,
     'refusal': 0.2*np.ones(age_stratification_size),
     'delay_immunity': 10,
     'stop_idx': 0,
@@ -388,7 +388,7 @@ multiplier_pso = 4
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
-multiplier_mcmc = 3
+multiplier_mcmc = 2
 max_n = n_mcmc
 print_n = 100
 
@@ -404,9 +404,9 @@ sys.stdout.flush()
 # Define dataset
 # --------------
 
-data=[df_hosp['H_in'][start_calibration:end_calibration]]
-states = ["H_in"]
-weights = [1]
+data=[df_hosp['H_in'][start_calibration:end_calibration], df_hosp['H_in']['2021-09-30':end_calibration]]
+states = ["H_in","H_in"]
+weights = [1,1]
 
 # -----------
 # Perform PSO
@@ -414,13 +414,12 @@ weights = [1]
 
 # optimisation settings
 pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
-bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (2.1,2.4), (0, 0.20),(-62,62))
+bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.9,2.4), (0, 0.20),(-62,62))
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-theta = [0.043, 14, 9, 0.17,  0.05,        0.05,        0.32,   0.28451644, 1.35,        2.,          0.12,  0.1,        ] #--> best manual fit
-theta = np.array([0.0415, 14.4, 8, 0.25,  0.0437,        0.0223,        0.42,   0.256, 1.40,        2.16,          0.133,  31,        ])
+theta = np.array([0.0415, 18.4, 7, 0.30, 0.0211,0.0199,0.412,0.25,1.45,1.95,0.0987,28.1]) #--> from mcmc
 
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -462,9 +461,9 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.3,1.8), (2.1,2.4), (0,0.30), (-62,62)]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,31), (0.1,31), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.3,1.55), (1.9,2.4), (0,0.20), (-45,45)]
 # Perturbate PSO Estimate
-pert = [1e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 50e-2]
+pert = [1e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
