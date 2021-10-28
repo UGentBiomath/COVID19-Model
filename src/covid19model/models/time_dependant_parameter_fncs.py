@@ -387,8 +387,48 @@ class make_vaccination_function():
                 except:
                     return np.zeros(self.age_agg)
 
+    def unidose_2021_vaccination_campaign(self, states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal):
+        # Compute the number of vaccine eligible individuals
+        VE = states['S'] + states['R']
+        # Initialize N_vacc
+        N_vacc = np.zeros(self.age_agg)
+        # Start vaccination loop
+        idx = 0
+        while daily_doses > 0:
+            if idx == stop_idx:
+                daily_doses = 0 #End vaccination campaign at age 20
+            elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_doses:
+                N_vacc[vacc_order[idx]] = daily_doses
+                daily_doses = 0
+            else:
+                N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
+                daily_doses = daily_doses - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
+
+    def booster_campaign(self, states, daily_doses, vacc_order, stop_idx, refusal):
+
+        # Compute the number of booster eligible individuals
+        VE = states['S'][:,2] + states['E'][:,2] + states['I'][:,2] + states['A'][:,2] + states['R'][:,2] \
+                + states['S'][:,3] + states['E'][:,3] + states['I'][:,3] + states['A'][:,3] + states['R'][:,3]
+        # Initialize N_vacc
+        N_vacc = np.zeros([self.age_agg,self.dose_agg])
+        # Booster vaccination strategy without refusal
+        idx = 0
+        while daily_doses > 0:
+            if idx == stop_idx:
+                daily_doses= 0 #End vaccination campaign at age 20
+            elif VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_doses:
+                N_vacc[vacc_order[idx],3] = daily_doses
+                daily_doses= 0
+            else:
+                N_vacc[vacc_order[idx],3] = VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]]
+                daily_doses = daily_doses - (VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]])
+                idx = idx + 1
+        return N_vacc
+
     # Default vaccination strategy = Sciensano data + hypothetical scheme after end of data collection for unidose model only (for now)
-    def __call__(self, t, states, param, initN, daily_first_dose=60000, delay_immunity = 21, vacc_order = [8,7,6,5,4,3,2,1,0], stop_idx=9, refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
+    def __call__(self, t, states, param, initN, daily_doses=60000, delay_immunity = 21, vacc_order = [8,7,6,5,4,3,2,1,0], stop_idx=9, refusal = [0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3]):
         """
         time-dependent function for the Belgian vaccination strategy
         First, all available first-dose data from Sciensano are used. Then, the user can specify a custom vaccination strategy of "daily_first_dose" first doses per day,
@@ -428,13 +468,17 @@ class make_vaccination_function():
         t = pd.Timestamp(t.date())
         # Convert delay to a timedelta
         delay = pd.Timedelta(str(int(delay_immunity))+'D')
-        # Compute the number of vaccine eligible individuals
+        # Compute vaccinated individuals after spring-summer 2021 vaccination campaign
+        check_time = pd.Timestamp('2021-10-01')
+        # Only for non-spatial multi-vaccindation dose model
         if not self.spatial:
-            VE = states['S'] + states['R']
-
+            if self.doses:
+                if t == check_time:
+                    self.fully_vaccinated_0 = states['S'][:,2] + states['E'][:,2] + states['I'][:,2] + states['A'][:,2] + states['R'][:,2] + \
+                                                states['S'][:,3] + states['E'][:,3] + states['I'][:,3] + states['A'][:,3] + states['R'][:,3]
+        # Use data
         if t <= self.df_end + delay:
             return self.get_data(t-delay)
-
         # Projection into the future
         else:
             if self.spatial:
@@ -443,21 +487,9 @@ class make_vaccination_function():
                     return np.zeros([self.space_agg,self.age_agg])
             else:
                 if self.doses:
-                    return np.zeros([self.age_agg,self.dose_agg])
+                    return self.booster_campaign(states, daily_doses, vacc_order, stop_idx, refusal)
                 else:
-                    N_vacc = np.zeros(self.age_agg)
-                    idx = 0
-                    while daily_first_dose > 0:
-                        if idx == stop_idx:
-                            daily_first_dose = 0 #End vaccination campaign at age 20
-                        elif VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]] > daily_first_dose:
-                            N_vacc[vacc_order[idx]] = daily_first_dose
-                            daily_first_dose = 0
-                        else:
-                            N_vacc[vacc_order[idx]] = VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]]
-                            daily_first_dose = daily_first_dose - (VE[vacc_order[idx]] - initN[vacc_order[idx]]*refusal[vacc_order[idx]])
-                            idx = idx + 1
-                    return N_vacc
+                    return self.unidose_2021_vaccination_campaign(states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal)
 
 ############################
 ## Google policy function ##
