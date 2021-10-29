@@ -244,23 +244,19 @@ class QALY_model():
             # Set age-dependant utility weights to lowest possible
             j=0
             age_limit=self.QoL_df.index[j].right - 1
-
-            QoL_x=self.QoL_df[population][j]
+            QoL_x=self.QoL_df[population].values[j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
-                k=0
-                while x > age_limit:
-                    k += 1
-                    age_limit = self.QoL_df.index[k].right - 1
-                SMR_x = self.SMR_df[population][k]
+                k = np.where(self.QoL_df.index.contains(x))[0][-1]
+                age_limit = self.QoL_df.index[k].right - 1
+                SMR_x = self.SMR_df[population].values[k]
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
-                while i > age_limit:
-                    j += 1
-                    age_limit = self.QoL_df.index[j].right - 1
+                j = np.where(self.QoL_df.index.contains(i))[0][-1]
+                age_limit = self.QoL_df.index[j].right - 1
                 # Choose the right QoL score
-                QoL_x = self.QoL_df[population][j]
+                QoL_x = self.QoL_df[population].values[j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
@@ -330,22 +326,19 @@ class QALY_model():
             # Set age-dependant utility weights to lowest possible
             j=0
             age_limit=self.QoL_df.index[j].right -1
-            QoL_x=self.QoL_df[population][j]
+            QoL_x=self.QoL_df[population].values[j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
-                k=0
-                while x > age_limit:
-                    k += 1
-                    age_limit = self.QoL_df.index[k].right - 1
-                SMR_x = self.SMR_df[population][k]
+                k = np.where(self.QoL_df.index.contains(x))[0][-1]
+                age_limit = self.QoL_df.index[k].right - 1
+                SMR_x = self.SMR_df[population].values[k]
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
-                while i > age_limit:
-                    j += 1
-                    age_limit = self.QoL_df.index[j].right - 1
+                j = np.where(self.QoL_df.index.contains(i))[0][-1]
+                age_limit = self.QoL_df.index[j].right - 1
                 # Choose the right QoL score
-                QoL_x = self.QoL_df[population][j]
+                QoL_x = self.QoL_df[population].values[j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
