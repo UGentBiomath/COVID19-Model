@@ -1,5 +1,57 @@
+import os
 import pandas as pd
-from covid19model.data.model_parameters import construct_initN
+import numpy as np
+
+def construct_initN(age_classes=None, spatial=None):
+    """
+    Returns the initial number of susceptibles conform the user-defined age groups and spatial aggregation.
+
+    Parameters
+	----------
+
+    age_classes : pd.IntervalIndex
+        Desired age groups in the model, initialize as follows:
+        age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,110)], closed='left')
+        Alternatively: None --> no grouping in age bins but data/age
+    spatial : string
+        Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
+        'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
+        mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
+
+    Returns
+    -------
+
+    initN : np.array (size: n_spatial_patches * n_age_groups)
+        Number of individuals per age group and per geographic location. Used to initialize the number of susceptibles in the model.
+
+    """
+
+    abs_dir = os.path.dirname(__file__)
+
+    if spatial == 'mun':
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_mun.csv'))
+    elif spatial == 'arr':
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_arr.csv'))
+    elif spatial == 'prov':
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
+    else:
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
+
+    if age_classes is not None:
+        age_struct['age_class'] = pd.cut(age_struct.age, bins=age_classes)
+        age_piramid = age_struct.groupby(['NIS','age_class']).sum().reset_index()
+        initN = age_piramid.pivot(index='NIS', columns='age_class', values='number')
+    else:
+        age_piramid = age_struct.groupby(['NIS','age']).sum().reset_index()
+        initN = age_piramid.pivot(index='NIS', columns='age', values='number')
+        initN = initN.fillna(0)
+        
+    initN.columns = initN.columns.astype(str)
+
+    if spatial:
+        return initN
+    else:
+        return initN.sum(axis=0)
 
 def convert_age_stratified_property(data, age_classes):
     """ 
