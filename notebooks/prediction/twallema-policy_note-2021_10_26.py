@@ -328,17 +328,5 @@ for idx, vacc_order in enumerate(vacc_order_list):
             for statistic in statistics:
                 df.loc[(slice(None), vacc_order_description[idx], refusal), (state,statistic)] = df_2plot.loc[start_sim:end_sim][state, statistic].values
 
-#       ax.plot(df.index.get_level_values('date').unique(), df.loc[(slice(None), vacc_order_description[idx], refusal), ('H_in','mean')], linestyles[idx], linewidth=2, color=colors[jdx])
-        #ax.fill_between(df.index.get_level_values('date').unique(), df.loc[(slice(None), vacc_order_description[idx], refusal), ('H_in','LL')].values, df.loc[(slice(None), vacc_order_description[idx], refusal), ('H_in','UL')].values , alpha=0.2)
-
-#ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-#ax.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-#ax = _apply_tick_locator(ax)
-#ax.set_xlim(start_sim,end_sim)
-#ax.set_ylim(0,950)
-#ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
-#ax.get_yaxis().set_label_coords(-0.1,0.5)
-#plt.show()
-
 if args.save:
     df.to_csv(results_path+'/simulations.csv')
