@@ -3,6 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
+from covid19model.data.utils import convert_age_stratified_property
 
 def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', age_stratification_size=10):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
@@ -239,44 +240,6 @@ def construct_initN(age_classes=None, spatial=None):
         return initN
     else:
         return initN.sum(axis=0)
-
-def convert_age_stratified_property(data, age_classes):
-    """ 
-    Given an age-stratified series of data: [age_group_lower, age_group_upper] : property,
-    this function can convert the data into another user-defined age-stratification using demographic weighing
-
-    Parameters
-    ----------
-    data: pd.Series
-        A series of age-stratified data. Index must be of type pd.Intervalindex.
-    
-    age_classes : pd.IntervalIndex
-        Desired age groups of the converted table.
-
-    Returns
-    -------
-
-    out: pd.Series
-        Converted data.
-    """
-
-    # Pre-allocate new series
-    out = pd.Series(index = age_classes)
-    out_n_individuals = construct_initN(age_classes)
-    # Extract demographics for all ages
-    demographics = construct_initN(None,None)
-    # Loop over desired intervals
-    for idx,interval in enumerate(age_classes):
-        result = []
-        for age in range(interval.left, interval.right):
-            try:
-                result.append(demographics[age]/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
-            except:
-                result.append(0/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
-        out.iloc[idx] = sum(result)
-    return out
-
-import sys
 
 def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vaccination=False, VOC=True):
     """
