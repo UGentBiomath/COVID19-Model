@@ -357,13 +357,16 @@ class QALY_model():
         QALY_x.index.name = 'x'
         return QALY_x
 
-    def bin_QALY_x(self, QALY_x, model_bins=['0-9','10-19','20-29','30-39','40-59','50-59','60-69','70-79','80+'], model_bins_UL=[9,19,29,39,49,59,69,79,110]):
+    def bin_QALY_x(self, QALY_x, model_bins=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')):
         """ A function to bin the vector QALY_x according to the age groups in the COVID-19 SEIQRD
 
         Parameters
         ----------
         QALY_x : np.array
             Quality-adjusted life years remaining at age x
+
+        model_bins : pd.IntervalIndex
+            Desired age bins
 
         Returns
         -------
@@ -373,29 +376,24 @@ class QALY_model():
 
         # Pre-allocate results vector
         QALY_binned = np.zeros(len(model_bins))
-        # Pre-allocate first lower limit
-        low_limit = 0
         # Loop over model bins
         for i in range(len(model_bins)):
             # Map QALY_x to model bins
-            QALY_binned[i] = np.mean(QALY_x[low_limit:model_bins_UL[i]+1])
-            low_limit=model_bins_UL[i]
+            QALY_binned[i] = np.mean(QALY_x[model_bins[i].left:model_bins[i].right-1])
         # Post-allocate to pd.Series object
         QALY_binned = pd.Series(index=model_bins, data=QALY_binned)
         QALY_binned.index.name = 'age_group'
         return QALY_binned
 
-    def build_binned_QALY_df(self, r=0.03, SMR_method='convergent', model_bins=['0-9','10-19','20-29','30-39','40-59','50-59','60-69','70-79','80+'], model_bins_UL=[9,19,29,39,49,59,69,79,110]):
+    def build_binned_QALY_df(self, r=0.03, SMR_method='convergent', model_bins=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')):
         # Extract names of populations
         populations = list(self.SMR_df.columns.get_level_values(0).unique())
-        # Drop group limit
-        populations.remove("group_limit")
         # Initialize empty dataframe
         df = pd.DataFrame()
         # Loop over populations
         for pop in populations:
             QALY_x = self.compute_QALY_x(population=pop, SMR_method='convergent',r=r)
-            binned_QALY = self.bin_QALY_x(QALY_x, model_bins, model_bins_UL)
+            binned_QALY = self.bin_QALY_x(QALY_x, model_bins)
             binned_QALY.name = pop
             df = df.append(binned_QALY)
         return df.T
