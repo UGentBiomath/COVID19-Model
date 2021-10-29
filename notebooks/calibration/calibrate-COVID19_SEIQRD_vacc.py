@@ -95,7 +95,7 @@ initial_time = datetime.datetime.now()
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
 levels = initN.size
 # Sciensano hospital and vaccination data
-df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=True)
 df_hosp = df_hosp.groupby(by=['date']).sum()
 if args.vaccination_model == 'non-stratified':
     df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
@@ -388,9 +388,9 @@ multiplier_pso = 4
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
-multiplier_mcmc = 2
+multiplier_mcmc = 4
 max_n = n_mcmc
-print_n = 100
+print_n = 50
 
 print('\n---------------------------------------------------------------------')
 print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
@@ -419,7 +419,7 @@ bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-theta = np.array([0.0415, 18.4, 7, 0.30, 0.0211,0.0199,0.412,0.25,1.45,1.95,0.0987,28.1]) #--> from mcmc
+theta = np.array([0.0415, 20, 7, 0.25, 0.05,0.05,0.38,0.25,1.35,2.0,0.0987,28.1]) #--> from mcmc
 
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
@@ -461,9 +461,9 @@ print('\n2) Markov Chain Monte Carlo sampling\n')
 # Setup uniform priors
 pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
 log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-log_prior_fcn_args = [(0.001, 0.12), (0.1,31), (0.1,31), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.3,1.55), (1.9,2.4), (0,0.20), (-45,45)]
+log_prior_fcn_args = [(0.001, 0.12), (0.1,31), (0.1,31), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.25,1.55), (1.9,2.4), (0,0.20), (-45,45)]
 # Perturbate PSO Estimate
-pert = [1e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2, 2e-2]
+pert = [1e-2, 2e-2, 2e-2, 10e-2, 10e-2, 10e-2, 10e-2, 10e-2, 2e-2, 2e-2, 2e-2, 2e-2]
 ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
 # Set up the sampler backend if needed
 if backend:
