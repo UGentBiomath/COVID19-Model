@@ -40,6 +40,7 @@ from covid19model.models import models
 from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
+from covid19model.models.QALY import *
 
 # -----------------------
 # Handle script arguments
@@ -127,7 +128,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Load and format national VOC data (for time-dependent VOC fraction)
 df_VOC_abc = VOC.get_abc_data()
 
-print('2) Initializing model\n')
+print('2) Initializing COVID-19 SEIQRD \n')
 
 # --------------
 # Initial states
@@ -291,13 +292,33 @@ else:
     model = models.COVID19_SEIQRD_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vacc_strategy, 'alpha':VOC_function})
 
+# ---------------------
+# Initialize QALY model
+# ---------------------
+
+print('3) Initializing life-table QALY model \n')
+
+# Comorbidity distribution according to Harrison et. al 2020
+columns = [['R','R','R','R','D','D','D','D',],['0','1','2','3+','0','1','2','3+']]
+tuples = list(zip(*columns))
+columns = pd.MultiIndex.from_tuples(tuples, names=["population", "CCI"])
+comorbidity_distribution = pd.DataFrame(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), columns=columns)
+comorbidity_distribution.index.name = 'age_group'
+for idx,key in enumerate(comorbidity_distribution.index):
+    comorbidity_distribution.loc[key]['R'] = [0.614, 0.174, 0.076, 0.137]
+    comorbidity_distribution.loc[key]['D'] = [0.173, 0.161, 0.144, 0.522]
+# Initialize QALY model
+QALY_model = QALY_model(comorbidity_distribution)
+# Extract lost QALYs if individual dies according to model age bins
+QALY_binned = QALY_model.bin_QALY_x(QALY_model.compute_QALY_x(population='BE', SMR_method='convergent',r=0.03))
+
 # ----------------------------
 # Initialize results dataframe
 # ----------------------------
 
 iterables = [pd.date_range(start=start_sim, end=end_sim), vacc_order_description, refusal_list]
 index = pd.MultiIndex.from_product(iterables, names=["date", "vacc_order", "refusal"])
-states = ['H_in', 'D']
+states = ['H_in', 'D', 'QALY_death']
 statistics = ['mean', 'median', 'LL', 'UL']
 iterables = [states, statistics]
 columns = pd.MultiIndex.from_product(iterables, names=["state", "statistic"])
@@ -322,11 +343,21 @@ for idx, vacc_order in enumerate(vacc_order_list):
         model.parameters.update({'refusal': refusal*np.ones(age_stratification_size)})
 
         print('\t### Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
+        # Perform simulation
         out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
+        # Attach QALYs lost upon death
+        out['QALYs_death'] = out['D'] * QALY_binned[np.newaxis, :, np.newaxis, np.newaxis]
+        # Attach QALYs lost due to long COVID
+
+        # Attach QALYs lost due to disability after hospitalization
+
         simtime, df_2plot = output_to_visuals(out, states, n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
         for state in states:
             for statistic in statistics:
                 df.loc[(slice(None), vacc_order_description[idx], refusal), (state,statistic)] = df_2plot.loc[start_sim:end_sim][state, statistic].values
+
+
+
 
 if args.save:
     df.to_csv(results_path+'/simulations.csv')
