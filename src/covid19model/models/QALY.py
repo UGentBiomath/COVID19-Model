@@ -1,6 +1,7 @@
+import os 
 import numpy as np
 import pandas as pd
-import os 
+from covid19model.data.utils import convert_age_stratified_property
 
 class QALY_model():
 
@@ -21,19 +22,26 @@ class QALY_model():
         self.QoL_Van_Wilder = QoL_Van_Wilder
         # Define overall Belgian QoL scores
         self.QoL_Belgium = pd.Series(index=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
-        # Convert Belgian QoL and Van Wilder QoL to desired age bins
-        
-        
+        # Convert Belgian QoL and Van Wilder QoL to age bins of self.comorbidity_distribution
+        self.QoL_Belgium = convert_age_stratified_property(self.QoL_Belgium, self.comorbidity_distribution.index)
+        tmp_QoL_Van_Wilder = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.QoL_Van_Wilder.columns)
+        for column in self.QoL_Van_Wilder.columns:
+            tmp_QoL_Van_Wilder[column] = convert_age_stratified_property(self.QoL_Van_Wilder[column], self.comorbidity_distribution.index)
+        self.QoL_Van_Wilder = tmp_QoL_Van_Wilder
         # Compute the QoL scores of the studied population
         self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
-
         # Load comorbidity SMR estimates
         SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALYs/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
         SMR_pop_df.columns = ['0','1','2','3+']
-        SMR_pop_df.index = idx
+        SMR_pop_df.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         self.SMR_pop_df = SMR_pop_df
+        # Convert comorbidity SMR estimates to age bins of self.comorbidity_distribution
+        tmp_SMR_pop_df = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.SMR_pop_df.columns)
+        for column in self.SMR_pop_df.columns:
+            tmp_SMR_pop_df[column] = convert_age_stratified_property(self.SMR_pop_df[column], self.comorbidity_distribution.index)
+        self.SMR_pop_df = tmp_SMR_pop_df
         # Compute the SMR of the studied population
-        self.SMR_df = self.build_comorbidity_SMR(self.comorbidity_distribution, SMR_pop_df)
+        self.SMR_df = self.build_comorbidity_SMR(self.comorbidity_distribution, self.SMR_pop_df)
 
     def build_comorbidity_SMR(self, comorbidity_distribution, population_SMR):
         """ A function to compute the Standardized Mortality Ratios (SMRs) in a studied population, based on the comorbidity distribution of the studied population and the comorbidity distribution of the Belgian population
@@ -59,18 +67,14 @@ class QALY_model():
 
         # Extract names of populations
         populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
-        # Construct column name vector
-        columns = ['group_limit','Belgium']
-        columns.extend(populations)
         # Initialize dataframe
-        df = pd.DataFrame(index=population_SMR.index, columns=columns)
+        df = pd.DataFrame(index=population_SMR.index, columns=populations)
         # Fill dataframe
-        for idx,key in enumerate(df.index):
+        for idx,age_group in enumerate(df.index):
             for jdx,pop in enumerate(populations):
-                df.loc[key][pop] = sum(population_SMR.loc[key]*comorbidity_distribution.loc[key][pop])
-            df.loc[key]['Belgium'] = 1
-        # Append group limit
-        df['group_limit'] = [9, 19, 29, 39, 49, 59, 69, 79, 110]
+                df.loc[age_group, pop] = sum(comorbidity_distribution.loc[age_group, pop]*population_SMR.loc[age_group])
+        # Append SMR of average Belgian
+        df.loc[slice(None), 'BE'] = 1
         return df
 
     def build_comorbidity_QoL(self, comorbidity_distribution, comorbidity_QoL, average_QoL):
@@ -98,18 +102,14 @@ class QALY_model():
         """
         # Extract names of populations
         populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
-        # Construct column name vector
-        columns = ['group_limit','Belgium']
-        columns.extend(populations)
         # Initialize dataframe
-        df = pd.DataFrame(index=comorbidity_QoL.index, columns=columns)
-        print(df)
+        df = pd.DataFrame(index=comorbidity_QoL.index, columns=populations)
         # Fill dataframe
-        for idx,key in enumerate(df.index):
+        for idx,age_group in enumerate(df.index):
             for jdx,pop in enumerate(populations):
-                df.loc[key][pop] = sum(comorbidity_distribution.loc[key][pop]*comorbidity_QoL.loc[key])
-        df['Belgium'] = [0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72]
-        df['group_limit'] = [9, 19, 29, 39, 49, 59, 69, 79, 110]
+                df.loc[age_group, pop] = sum(comorbidity_distribution.loc[age_group, pop]*comorbidity_QoL.loc[age_group])
+        # Append SMR of average Belgian
+        df.loc[slice(None), 'BE'] = average_QoL
         return df
 
     def compute_death_rate(self, q_x):
@@ -197,7 +197,7 @@ class QALY_model():
         LE_x.index.name = 'x'
         return LE_x
 
-    def compute_QALE_x(self, population='Belgium', SMR_method='convergent'):
+    def compute_QALE_x(self, population='BE', SMR_method='convergent'):
         """ A function to compute the quality-adjusted life expectancy at age x
 
         Parameters
@@ -243,27 +243,28 @@ class QALY_model():
             dQALE = np.zeros([len(self.mu_x)-x-1])
             # Set age-dependant utility weights to lowest possible
             j=0
-            age_limit=self.QoL_df['group_limit'][j]
+            age_limit=self.QoL_df.index[j].right - 1
+
             QoL_x=self.QoL_df[population][j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
                 k=0
                 while x > age_limit:
                     k += 1
-                    age_limit = self.QoL_df['group_limit'][k]
+                    age_limit = self.QoL_df.index[k].right - 1
                 SMR_x = self.SMR_df[population][k]
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
                 while i > age_limit:
                     j += 1
-                    age_limit = self.QoL_df['group_limit'][j]
+                    age_limit = self.QoL_df.index[j].right - 1
                 # Choose the right QoL score
                 QoL_x = self.QoL_df[population][j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
-                    SMR = 1 + (SMR_x-1)*((104-i)/(104-x))
+                    SMR = 1 + (SMR_x-1)*((len(self.mu_x)-1-i)/(len(self.mu_x)-1-x))
                 elif SMR_method == 'constant':
                     # SMR is equal to SMR at age x for remainder of life
                     SMR = SMR_x
@@ -278,7 +279,7 @@ class QALY_model():
         QALE_x.index.name = 'x'
         return QALE_x
 
-    def compute_QALY_x(self, population='Belgium', r=0.03, SMR_method='convergent'):
+    def compute_QALY_x(self, population='BE', r=0.03, SMR_method='convergent'):
 
         """ A function to compute the quality-adjusted life years remaining at age x
 
@@ -328,27 +329,27 @@ class QALY_model():
             dQALY = np.zeros([len(self.mu_x)-x-1])
             # Set age-dependant utility weights to lowest possible
             j=0
-            age_limit=self.QoL_df['group_limit'][j]
+            age_limit=self.QoL_df.index[j].right -1
             QoL_x=self.QoL_df[population][j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
                 k=0
                 while x > age_limit:
                     k += 1
-                    age_limit = self.QoL_df['group_limit'][k]
+                    age_limit = self.QoL_df.index[k].right - 1
                 SMR_x = self.SMR_df[population][k]
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
                 while i > age_limit:
                     j += 1
-                    age_limit = self.QoL_df['group_limit'][j]
+                    age_limit = self.QoL_df.index[j].right - 1
                 # Choose the right QoL score
                 QoL_x = self.QoL_df[population][j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
-                    SMR = 1 + (SMR_x-1)*((104-i)/(104-x))
+                    SMR = 1 + (SMR_x-1)*((len(self.mu_x)-1-i)/(len(self.mu_x)-1-x))
                 elif SMR_method == 'constant':
                     # SMR is equal to SMR at age x for remainder of life
                     SMR = SMR_x
