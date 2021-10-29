@@ -318,7 +318,7 @@ QALY_binned = QALY_model.bin_QALY_x(QALY_model.compute_QALY_x(population='BE', S
 
 iterables = [pd.date_range(start=start_sim, end=end_sim), vacc_order_description, refusal_list]
 index = pd.MultiIndex.from_product(iterables, names=["date", "vacc_order", "refusal"])
-states = ['H_in', 'D', 'QALY_death']
+states = ['H_in', 'H_tot', 'D', 'QALYs_death']
 statistics = ['mean', 'median', 'LL', 'UL']
 iterables = [states, statistics]
 columns = pd.MultiIndex.from_product(iterables, names=["state", "statistic"])
@@ -355,9 +355,6 @@ for idx, vacc_order in enumerate(vacc_order_list):
         for state in states:
             for statistic in statistics:
                 df.loc[(slice(None), vacc_order_description[idx], refusal), (state,statistic)] = df_2plot.loc[start_sim:end_sim][state, statistic].values
-
-
-
 
 if args.save:
     df.to_csv(results_path+'/simulations.csv')
