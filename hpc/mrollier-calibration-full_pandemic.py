@@ -239,6 +239,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # Time-dependent social contact matrix over all policies, updating Nc
 policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
+policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
 
 # Time-dependent mobility function, updating P (place)
 mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
@@ -257,13 +258,13 @@ seasonality_function = make_seasonality_function()
 # ---------------------
 
 # time-dependent social contact parameters in policies_function
-params.update({'l1' : 7,
-               'l2' : 7,
-               'prev_schools' : .5,
-               'prev_work' : .5,
-               'prev_rest_lockdown' : .5,
-               'prev_rest_relaxation' : .5,
-               'prev_home' : .5})
+params.update({'l1' : 23.0,
+               'l2' : 5.72,
+               'prev_schools' : .333,
+               'prev_work' : .0771,
+               'prev_rest_lockdown' : .014,
+               'prev_rest_relaxation' : .444,
+               'prev_home' : .206})
 
 # time-dependent mobility parameters in mobility_function
 params.update({'default_mobility' : None})
@@ -277,8 +278,8 @@ params.update({'initN' : initN,
                'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
 
 # time-dependent seasonality parameters in seasonality_function
-params.update({'amplitude' : 0,
-               'peak_shift' : 0})
+params.update({'amplitude' : 0.104,
+               'peak_shift' :22.2})
 
 
 # --------------------
@@ -294,10 +295,13 @@ initial_states = {'S': initN-initE, 'E': initE}
 params.pop('beta_R')
 params.pop('beta_U')
 params.pop('beta_M')
-params.update({'beta': 0.03})
+params.update({'beta': 0.0411})
+params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
+
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                         time_dependent_parameters={'Nc' : policy_function,
+                                                   'Nc_work' : policy_function_work,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
@@ -332,7 +336,7 @@ if job == 'R0':
     # Last datapoint used to calibrate warmup and beta.
     # Note: first measures in Belgium were taken on March 13, so let's take 5 days of delay regarding hospitalisations
     if not args.enddate:
-        end_calibration = '2020-03-18' # Final date at which no interventions were felt (before first inflection point)
+        end_calibration = '2020-03-20' # Final date at which no interventions were felt (before first inflection point)
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depends on aggregation and is basically simply a name (extension to signature)
@@ -380,7 +384,7 @@ if job == 'R0':
 
 
     # STEP 1: attach bounds of inital conditions
-    bounds += model.initial_states['S'].shape[0] * ((0,10),)
+    bounds += model.initial_states['S'].shape[0] * ((0,3),)
 
     # STEP 2: write a custom objective function
     def objective_fcn(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, poisson_offset='auto', agg=None):
@@ -438,13 +442,14 @@ if job == 'R0':
         return -MLE
 
     # STEP 3: perform PSO
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
-                                                                                                kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
-                                                                                                'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
-                                                                                                minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
-    theta = p_hat
+    #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
+    #                                                                                            kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
+    #                                                                                            'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
+    #                                                                                            minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
+    #theta = p_hat
     # Hard-code a good result:
-    #theta = [17.6668995, 0.02488816, 3.34460977, 7.16905281, 0., 10.,  0., 0., 8.94654087, 9.6646737, 6.07187571, 9.93597661, 5.00997169] #-4499.297390248223
+    theta = [2.37350132e+01, 2.12668195e-02, 1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01,
+                2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00] #-3940.637836944141
 
     # STEP 4: Visualize the national result
 
@@ -525,8 +530,8 @@ elif job == 'FULL':
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # From estimation of optimal initial condition in previous step
-    warmup = int(17.6668995)
-    values_initE = np.array([3.34460977, 7.16905281, 0., 10.,  0., 0., 8.94654087, 9.6646737, 6.07187571, 9.93597661, 5.00997169])
+    warmup = int(2.37350132e+01)
+    values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
     new_initE = np.ones(model.initial_states['E'].shape)
     new_initE = values_initE[:, np.newaxis] * new_initE
     model.initial_states.update({'E': new_initE})    
@@ -546,14 +551,15 @@ elif job == 'FULL':
     spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-    multiplier = 2 # 10
-    maxiter = maxiter_PSO
-    popsize = multiplier*processes
+    processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+    multiplier_pso = 1 # 10
+    maxiter = n_pso
+    popsize = multiplier_pso*processes
 
     # MCMC settings
-    max_n = maxn_MCMC # 500000
-    print_n = 100
+    multiplier_mcmc = 2
+    max_n = n_mcmc # 500000
+    print_n = 50
 
     # Note how we use 4 effectivities now, because the schools are not closed
     print('\n----------------------------------------')
@@ -565,16 +571,14 @@ elif job == 'FULL':
     print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     sys.stdout.flush()
 
-
     # --------------
     # define dataset
     # --------------
 
     # Only use hospitalisation data
-    data=[df_sciensano[start_calibration:end_calibration]]
-    states = ["H_in"]
-    weights = [1]
-
+    data=[df_sciensano[start_calibration:end_calibration], df_sciensano['2021-10-01':end_calibration]]
+    states = ["H_in", "H_in"]
+    weights = [1,1]
 
     # -----------
     # Perform PSO
@@ -583,57 +587,70 @@ elif job == 'FULL':
     # Define the 14 free parameters.
     # Bounds based on results from national run
 
+
     # -----------
     # Perform PSO
     # -----------
 
-    # Prevention parameters (effectivities)
-    pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-    bounds3=((0.1,0.4),      (0.01,0.20), (0.01,0.20),          (0.20,0.60),            (0.15,0.60))
-
     # transmission
-    pars1 = ['beta_R',     'beta_U',      'beta_M']
-    bounds1=((0.005,0.060),(0.005,0.060), (0.005,0.060))
+    pars1 = ['beta']
+    bounds1=((0.005,0.060),)
 
     # Social intertia
     pars2 = ['l1',   'l2']
-    bounds2=((4,14), (4,14))
+    bounds2=((4,31), (4,31))
+
+    # Prevention parameters (effectivities)
+    pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
+    bounds3=((0.05,0.95),      (0.05,0.95), (0.01,0.95),          (0.05,0.95),            (0.05,0.95))
+
+    # Variants
+    pars4 = ['K_inf1','K_inf2']
+    bounds4 = ((1.3,1.6),(1.8,2.4))
+
+    # Seasonality
+    pars5 = ['amplitude','peak_shift']
+    bounds5 = ((0.05,0.15),(15,31))
 
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
     # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    poisson_offset = 1
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.65, 1.30, 1.90, 0.104, 22.2] #--> manual fit
+    theta = [0.0228, 10.0, 10, 0.30, 0.15, 0.014, 0.70, 0.65, 1.30, 1.90, 0.104, 22.2] #--> manual fit
+
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
     # Perform simulation with best-fit results
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
+
+    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
+    ax.set_ylabel('New national hosp./day')
+    plt.show()
+    plt.close()
+
+    # STEP 5: Visualize the provincial result
+    fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
+    for idx,NIS in enumerate(data[0].columns):
+        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+        ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    plt.show()
+    plt.close()
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
     print(f'------------')
-    print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
-    print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
-    print(f'prevention parameters {pars[5:10]}: {theta[5:10]}.')
-    print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
-    print(f'Seasonality {pars[12:]}: {theta[12:]}')
+    print(f'infectivities {pars[0:1]}: {theta[0:1]}.')
+    print(f'social intertia {pars[1:3]}: {theta[1:3]}.')
+    print(f'prevention parameters {pars[3:7]}: {theta[3:7]}.')
+    print(f'VOC effects {pars[7:10]}: {theta[7:10]}.')
+    print(f'Seasonality {pars[10:]}: {theta[10:]}')
     sys.stdout.flush()
-
-    # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
-
-    # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-                        poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    # Assign estimate.
-    pars_PSO = assign_PSO(model.parameters, pars, theta)
-    model.parameters = pars_PSO
-    # Perform simulation with best-fit results
-    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
     # ------------------
     # Setup MCMC sampler
@@ -642,52 +659,25 @@ elif job == 'FULL':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform]
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.02, 0.02, 0.02]
-
-    # Print runtime in hours
-    intermediate_time = datetime.datetime.now()
-    runtime = (intermediate_time - initial_time)
-    totalMinute, second = divmod(runtime.seconds, 60)
-    hour, minute = divmod(totalMinute, 60)
-    day = runtime.days
-    if day == 0:
-        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
-    else:
-        print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
-    sys.stdout.flush()
-
+    pert1=[0.02]
+   # pars2 = ['l1', 'l2']
+    pert2=[0.05, 0.05]
     # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
     pert3=[0.2, 0.2, 0.2, 0.2, 0.2]
-
     # pars4 = ['K_inf1','K_inf2']
     pert4=[0.1, 0.1]
-
-    # Define simple uniform priors based on the PSO bounds
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform]
-    log_prior_fcn_args = bounds
-    # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
-    # Generally, the less certain we are of a value, the higher the perturbation fraction
-    # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.02, 0.02, 0.02]
-
-    # pars2 = ['l1', 'l2']
-    pert2=[0.05, 0.05]
+    # pars5 = ['amplitude','peak_shift']
+    pert5 = [0.1, 0.1] 
+    # Add them together
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
 
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier, bounds=log_prior_fcn_args, verbose=False)
-
-#     nwalkers = int(8*36/4)
-#     print(f"\nNB: Number of walkers hardcoded to {nwalkers}.")
-#     sys.stdout.flush()
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
 
     # Set up the sampler backend if needed
     if backend:
@@ -695,19 +685,8 @@ elif job == 'FULL':
         backend = emcee.backends.HDFBackend(results_folder+filename)
         backend.reset(nwalkers, ndim)
 
-    # Join them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
-
-    # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=processes, bounds=log_prior_fcn_args, verbose=False)
-
-
-    # ----------------
-    # Run MCMC sampler
-    # ----------------
-
     # Labels for traceplots
-    labels = ['$\\beta^R$', '$\\beta^U$', '$\\beta^M$', \
+    labels = ['$\\beta$',
                 '$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
                 '$K_{inf,1}$', 'K_{inf,2}', \
@@ -718,6 +697,14 @@ elif job == 'FULL':
     objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                             'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
+    # ----------------
+    # Run MCMC sampler
+    # ----------------
+
+    print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+    sys.stdout.flush()
+
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
 
     # ---------------
     # Process results

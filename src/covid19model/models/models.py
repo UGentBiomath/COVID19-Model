@@ -1030,7 +1030,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     # En verder moet je aan de start van je code Nc = real_Nc plaatsen
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc', 'xi']
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc', 'xi', 'Nc_work']
     parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -1040,7 +1040,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc, xi, # SEIRD parameters
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc, xi, Nc_work,# SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -1102,15 +1102,15 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         # TO DO: add age stratification for p
         
         # Effective (vaccinated) population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
-        T_eff = np.matmul(np.transpose(place_eff), T)
-        A_eff = np.matmul(np.transpose(place_eff), A)
-        I_eff = np.matmul(np.transpose(place_eff), I)
-        A_v_eff = np.matmul(np.transpose(place_eff),A_v)
-        I_v_eff = np.matmul(np.transpose(place_eff),I_v)
+        #T_eff = np.matmul(np.transpose(place_eff), T)
+        #A_eff = np.matmul(np.transpose(place_eff), A)
+        #I_eff = np.matmul(np.transpose(place_eff), I)
+        #A_v_eff = np.matmul(np.transpose(place_eff),A_v)
+        #I_v_eff = np.matmul(np.transpose(place_eff),I_v)
                 
         # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
-        Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
-        Susc_v = place_eff[:,:,np.newaxis]*S_v[:,np.newaxis,:]
+        #Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
+        #Susc_v = place_eff[:,:,np.newaxis]*S_v[:,np.newaxis,:]
         
         ######################
         # SUPERFLUOUS TERMS: #
@@ -1118,14 +1118,14 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         
         # Density dependence per patch: f[patch]
         # NOTE: this can probably be deleted because the Arenas terms don't do much
-        T_eff_total = T_eff.sum(axis=1)
-        rho = T_eff_total / area
-        f = 1 + (1 - np.exp(-xi * rho))
+        #T_eff_total = T_eff.sum(axis=1)
+        #rho = T_eff_total / area
+        #f = 1 + (1 - np.exp(-xi * rho))
 
         # Normalisation factor per age class: zi[age]
         # Population per age class
-        Ti = T.sum(axis=0)
-        zi = Ti / np.matmul(np.transpose(T_eff),f)
+        #Ti = T.sum(axis=0)
+        #zi = Ti / np.matmul(np.transpose(T_eff),f)
         
         # infer aggregation (prov, arr or mun)
         agg = None
@@ -1150,8 +1150,28 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         # Note how part of the vaccinated people still contribute to infection pressure, but ...
         # - they are presumably less infectious by a factor e_i_eff
         # - there aren't many of them to begin with, because only a small part of the S_v subjects trickle down
-        multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
-        
+
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.matmul(np.transpose(place_eff), T)
+        S_work = np.matmul(np.transpose(place_eff), S)
+        I_work = np.matmul(np.transpose(place_eff), I)
+        A_work = np.matmul(np.transpose(place_eff), A)
+        S_v_work = np.matmul(np.transpose(place_eff), S_v)
+        I_v_work = np.matmul(np.transpose(place_eff), I_v)
+        A_v_work = np.matmul(np.transpose(place_eff), A_v)
+        # Apply work contacts
+        multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , np.transpose(Nc_work) )
+        multip_work *= beta[:,np.newaxis]
+        # Apply all other contacts
+        multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, np.transpose(Nc-Nc_work) )
+        multip_rest *= beta[:,np.newaxis]
+
+        dS_inf = S_work * multip_work + S * multip_rest
+        dS_inf_v = S_v_work * multip_work + S_v * multip_rest
+
+        #multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
+
+
         ######################
         # SUPERFLUOUS TERMS: #
         ######################
@@ -1165,17 +1185,17 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         # if infectivity depends on VISITED region (beta^h), beta_localised = True
         # if infectivity depends on region of origin (beta^g), beta_localised = False
         # Change this in hard-code depending on preference
-        beta_localised = True
-        if beta_localised:
-            multip *= beta[:,np.newaxis]
-        else:
-            Susc *= beta[:,np.newaxis,:]
-            Susc_v *= beta[:,np.newaxis,:]
+        #beta_localised = True
+        #if beta_localised:
+        #    multip *= beta[:,np.newaxis]
+        #else:
+        #    Susc *= beta[:,np.newaxis,:]
+        #    Susc_v *= beta[:,np.newaxis,:]
         
         # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
         # We need to sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
-        dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-        dS_inf_v = (Susc_v * multip[np.newaxis,:,:]).sum(axis=1)
+        #dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
+        #dS_inf_v = (Susc_v * multip[np.newaxis,:,:]).sum(axis=1)
         
         ### ODEs for all non-vaccinated people
         
