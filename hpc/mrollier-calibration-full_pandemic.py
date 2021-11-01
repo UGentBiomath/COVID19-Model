@@ -297,6 +297,7 @@ params.pop('beta_U')
 params.pop('beta_M')
 params.update({'beta': 0.0411})
 params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
+params.pop('e_a')
 
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
@@ -620,12 +621,14 @@ elif job == 'FULL':
     poisson_offset = 1
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.65, 1.30, 1.50, 0.104, 22.2] #--> manual fit
+    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.75, 1.30, 1.90, 0.104, 22.2] #--> manual fit
+    theta = [0.0228, 10.0, 10, 0.29, 0.08, 0.014, 0.60, 0.75, 1.25, 1.83, 0.104, 22.2] #--> manual fit
 
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
     # Perform simulation with best-fit results
+    end_calibration = '2022-01-01'
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
