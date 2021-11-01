@@ -599,19 +599,19 @@ elif job == 'FULL':
 
     # Social intertia
     pars2 = ['l1',   'l2']
-    bounds2=((4,31), (4,31))
+    bounds2=((1,31), (1,31))
 
     # Prevention parameters (effectivities)
     pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-    bounds3=((0.05,0.95),      (0.05,0.95), (0.01,0.95),          (0.05,0.95),            (0.05,0.95))
+    bounds3=((0.01,0.99),      (0.01,0.99), (0.01,0.99),          (0.01,0.99),            (0.01,0.99))
 
     # Variants
     pars4 = ['K_inf1','K_inf2']
-    bounds4 = ((1.3,1.6),(1.8,2.4))
+    bounds4 = ((1.25,1.6),(1.8,2.4))
 
     # Seasonality
     pars5 = ['amplitude','peak_shift']
-    bounds5 = ((0.05,0.15),(15,31))
+    bounds5 = ((0,0.25),(-45,45))
 
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
@@ -621,14 +621,13 @@ elif job == 'FULL':
     poisson_offset = 1
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.75, 1.30, 1.90, 0.104, 22.2] #--> manual fit
-    theta = [0.0228, 10.0, 10, 0.29, 0.08, 0.014, 0.60, 0.75, 1.25, 1.83, 0.104, 22.2] #--> manual fit
+
+    theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, before changing policy function
 
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
     # Perform simulation with best-fit results
-    end_calibration = '2022-01-01'
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
@@ -649,8 +648,8 @@ elif job == 'FULL':
     print(f'------------')
     print(f'infectivities {pars[0:1]}: {theta[0:1]}.')
     print(f'social intertia {pars[1:3]}: {theta[1:3]}.')
-    print(f'prevention parameters {pars[3:7]}: {theta[3:7]}.')
-    print(f'VOC effects {pars[7:10]}: {theta[7:10]}.')
+    print(f'prevention parameters {pars[3:8]}: {theta[3:8]}.')
+    print(f'VOC effects {pars[8:10]}: {theta[8:10]}.')
     print(f'Seasonality {pars[10:]}: {theta[10:]}')
     sys.stdout.flush()
 
