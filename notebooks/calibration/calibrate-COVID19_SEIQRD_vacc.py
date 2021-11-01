@@ -41,7 +41,7 @@ parser.add_argument("-j", "--job", help="Full or partial calibration")
 parser.add_argument("-w", "--warmup", help="Warmup must be defined for job = FULL")
 parser.add_argument("-e", "--enddate", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
-parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratified vaccination model", default='non-stratified', type=str)
 
@@ -388,7 +388,7 @@ multiplier_pso = 4
 maxiter = n_pso
 popsize = multiplier_pso*processes
 # MCMC settings
-multiplier_mcmc = 4
+multiplier_mcmc = 3
 max_n = n_mcmc
 print_n = 50
 
