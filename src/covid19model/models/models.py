@@ -1030,7 +1030,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     # En verder moet je aan de start van je code Nc = real_Nc plaatsen
 
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'e_a', 'd_vacc', 'xi', 'Nc_work']
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'xi', 'Nc_work']
     parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -1040,7 +1040,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, e_a, d_vacc, xi, Nc_work,# SEIRD parameters
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, xi, Nc_work,# SEIRD parameters
                   area, sg, p,  # spatially stratified parameters. Might delete sg later.
                   s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -1049,27 +1049,18 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         BIOMATH extended SEIRD model for COVID-19
         """
 
-        # array of infinity gains of resp. 'OG', British, and Indian variants
-        # Currently not used!
-        K_inf = np.array([1, K_inf1, K_inf2])
-        
-#         print('CHECKPOINT: start integration function')
-        
-        # calculate total population
-        # (sum of vaccinated and non-vaccinated people of all classes)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ################################
+        ## calculate total population ##
+        ################################
 
         T = S + E + I + A + M + C + C_icurec + ICU + R\
             + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
-        
-        # Vaccine-eligible people per age and per region. Note that the vaccine 
-        # eligibility does not depend on where people actually are - only on where
-        # they are registered
-        VE = S + R
-        
-        # Compute weighted average hospitalization propensity
-        # and vaccination parameters in accordance with variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
+
+        K_inf = np.array([1, K_inf1, K_inf2])
 
         # sum of all (three) fractions of variants must be unity
         # alpha is not stratified (nor by age, nor by region)
@@ -1077,9 +1068,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
-        # NOTE: This requires the sizes of alpha, K_hosp, K_inf, e_i, e_s, e_h, e_a to be consistent 
-        # However, because this requires a for loop, we omit a test
-        
+
         # Redefine probability of hospitalisation from mild infection based
         # on the fraction of every VOC and its increased hospitalisation probability
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
@@ -1088,45 +1077,57 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         e_i_eff = np.sum(alpha*e_i)
         e_s_eff = np.sum(alpha*e_s)
         e_h_eff = np.sum(alpha*e_h)
-        e_a_eff = np.sum(alpha*e_a)
 
-        # Define all the parameters needed to determine the rates of change
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
+
+        # Initialize transitionings
+        dS = np.zeros(S.shape)
+        dS_v = np.zeros(S.shape)
+        dR = np.zeros(R.shape)
+        dR_v = np.zeros(R.shape)
+
+        # Compute size of vaccine eligible population
+        VE = S + R
+        f_S = S/VE
+        f_R = R/VE
+
+        # Compute transitionings
+        dS = -N_vacc*f_S
+        dR = -N_vacc*f_R
+
+        # Update the S and R states
+        S = S + dS
+        R = R + dR
+
+        # Compute dS and dR that makes S and R equal to zero
+        dS[np.where(S < 0)] = 0 - S[np.where(S < 0)]
+        dR[np.where(R < 0)] = 0 - R[np.where(R < 0)]
+
+        # Set S and R equal to zero
+        S[np.where(S < 0)] = 0
+        R[np.where(R < 0)] = 0
+
+        # Compute vaccine transitionings
+        dS_v = - dS
+        dR_v = - dR
+
+        # Update S_v and R_v states
+        S_v = S_v + dS_v
+        R_v = R_v + dR_v
+
+        ####################################
+        ## Compute the infection pressure ##
+        ####################################
+
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[0] # age stratification
         
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
-        # TO DO: add age stratification for p
-        
-        # Effective (vaccinated) population per age class per patch: T[patch][age] due to mobility expressed in place and/or regulated by p[patch]
-        #T_eff = np.matmul(np.transpose(place_eff), T)
-        #A_eff = np.matmul(np.transpose(place_eff), A)
-        #I_eff = np.matmul(np.transpose(place_eff), I)
-        #A_v_eff = np.matmul(np.transpose(place_eff),A_v)
-        #I_v_eff = np.matmul(np.transpose(place_eff),I_v)
-                
-        # The number of susceptibles in age class i from patch g that work in patch h. Susc[patch,patch,age]
-        #Susc = place_eff[:,:,np.newaxis]*S[:,np.newaxis,:]
-        #Susc_v = place_eff[:,:,np.newaxis]*S_v[:,np.newaxis,:]
-        
-        ######################
-        # SUPERFLUOUS TERMS: #
-        ######################
-        
-        # Density dependence per patch: f[patch]
-        # NOTE: this can probably be deleted because the Arenas terms don't do much
-        #T_eff_total = T_eff.sum(axis=1)
-        #rho = T_eff_total / area
-        #f = 1 + (1 - np.exp(-xi * rho))
 
-        # Normalisation factor per age class: zi[age]
-        # Population per age class
-        #Ti = T.sum(axis=0)
-        #zi = Ti / np.matmul(np.transpose(T_eff),f)
-        
         # infer aggregation (prov, arr or mun)
         agg = None
         if G == 11:
@@ -1138,19 +1139,8 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         else:
             raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
         
-        # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
-        # Default values for RU_threshold and UM_threshold are taken. beta[patch]
-        beta_R = beta
-        beta_U = beta
-        beta_M = beta
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
-        # Add effects of variants
-        beta = beta*sum(alpha*K_inf)
-        # Define the number of contacts multiplier per patch and age, multip[patch,age]
-        # Note how part of the vaccinated people still contribute to infection pressure, but ...
-        # - they are presumably less infectious by a factor e_i_eff
-        # - there aren't many of them to begin with, because only a small part of the S_v subjects trickle down
-
+        # Expand beta to size G
+        beta = np.ones(G)*beta*sum(alpha*K_inf)
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.matmul(np.transpose(place_eff), T)
         S_work = np.matmul(np.transpose(place_eff), S)
@@ -1159,57 +1149,23 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         S_v_work = np.matmul(np.transpose(place_eff), S_v)
         I_v_work = np.matmul(np.transpose(place_eff), I_v)
         A_v_work = np.matmul(np.transpose(place_eff), A_v)
-        # Apply work contacts
+        # Apply work contacts to place modified populations
         multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , np.transpose(Nc_work) )
         multip_work *= beta[:,np.newaxis]
-        # Apply all other contacts
+        # Apply all other contacts to non-place modified populations
         multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, np.transpose(Nc-Nc_work) )
         multip_rest *= beta[:,np.newaxis]
-
+        # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
         dS_inf_v = S_v_work * multip_work + S_v * multip_rest
 
-        #multip = np.matmul( (I_eff + A_eff + (1-e_i_eff)*(I_v_eff + A_v_eff))/T_eff , np.transpose(Nc) )
-
-
-        ######################
-        # SUPERFLUOUS TERMS: #
-        ######################
+        ############################
+        ## Compute system of ODEs ##
+        ############################
         
-        # Multiply with correctional term for density f[patch], normalisation per age zi[age], and age-dependent susceptibility s[age]
-        # Note: first two terms are taken from Arenas and may probably be deleted
-#         multip *= np.outer(f, s*zi)
+        ### non-vaccinated population
 
-        ######################
-        
-        # if infectivity depends on VISITED region (beta^h), beta_localised = True
-        # if infectivity depends on region of origin (beta^g), beta_localised = False
-        # Change this in hard-code depending on preference
-        #beta_localised = True
-        #if beta_localised:
-        #    multip *= beta[:,np.newaxis]
-        #else:
-        #    Susc *= beta[:,np.newaxis,:]
-        #    Susc_v *= beta[:,np.newaxis,:]
-        
-        # So far we have all the interaction happening in the *visited* patch h. We want to know how this affects the people *from* g.
-        # We need to sum over a patch index h, which is the second index (axis=1). Result is dS_inf[patch,age].
-        #dS_inf = (Susc * multip[np.newaxis,:,:]).sum(axis=1)
-        #dS_inf_v = (Susc_v * multip[np.newaxis,:,:]).sum(axis=1)
-        
-        ### ODEs for all non-vaccinated people
-        
-        # Test for potential negative values of S due to vaccination
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v)
-        N_vacc[np.where(S + dS <= 0)] = 0
-
-        # Compute the  rates of change in every population compartment (non-vaccinated)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Fraction S/VE = S/(S+R) of the total number of new vaccinations exit the S class with efficiency e_a_eff
-        # Vaccinated susceptibles and recovered people re-enter the S class after d_vacc days
-        dS  = -dS_inf + zeta*R - e_a_eff*N_vacc/VE*S + (1/d_vacc)*(S_v + R_v) 
+        dS  = dS - dS_inf + zeta*R + (1/d_vacc)*(S_v + R_v) 
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -1217,17 +1173,12 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        # Fraction R/VE = R/(S+R) of the total number of new vaccinations exit the R class with efficiency e_a_eff
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - e_a_eff*N_vacc/VE*R # Recovered subjects enter from 4 compartments
+        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
-        # Compute the  rates of change in every population compartment (vaccinated)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ### vaccinated population
         
-        # Subjects from S or R class that are vaccinated enter the S_v class
-        # Some subjects in S_v class become susceptible again (end of immunity)
-        # It is assumed that ONLY subjects in S_v and R_v class can re-enter the S compartment
-        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc/VE*S - (1/d_vacc)*S_v # all vaccinated people enter S_v
+        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v 
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
@@ -1235,8 +1186,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
-        dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v + e_a_eff*N_vacc/VE*R
-        # dead = dead, but it is interesting to gauge how many vaccinated people would still die
+        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
         # Compute the hospital rates of changes
