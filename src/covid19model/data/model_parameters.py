@@ -394,7 +394,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
         pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
         pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-        pars_dict['d_vacc'] = 36*30 # Default: 36 months coverage of vaccine
+        pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
 
     ##########
     ## VOCs ##
