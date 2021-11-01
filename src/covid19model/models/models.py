@@ -1227,7 +1227,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         # Subjects from S or R class that are vaccinated enter the S_v class
         # Some subjects in S_v class become susceptible again (end of immunity)
         # It is assumed that ONLY subjects in S_v and R_v class can re-enter the S compartment
-        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc - (1/d_vacc)*S_v # all vaccinated people enter S_v
+        dS_v  = - (1-e_s_eff)*dS_inf_v + e_a_eff*N_vacc/VE*S - (1/d_vacc)*S_v # all vaccinated people enter S_v
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
@@ -1235,7 +1235,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
-        dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dR_v  = A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v + e_a_eff*N_vacc/VE*R
         # dead = dead, but it is interesting to gauge how many vaccinated people would still die
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         

@@ -620,8 +620,7 @@ elif job == 'FULL':
     poisson_offset = 1
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.65, 1.30, 1.90, 0.104, 22.2] #--> manual fit
-    theta = [0.0228, 10.0, 10, 0.30, 0.15, 0.014, 0.70, 0.65, 1.30, 1.90, 0.104, 22.2] #--> manual fit
+    theta = [0.0228, 10.0, 10, 0.34, 0.10, 0.014, 0.75, 0.65, 1.30, 1.50, 0.104, 22.2] #--> manual fit
 
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
