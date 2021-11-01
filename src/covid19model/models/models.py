@@ -1140,6 +1140,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         
         # Define spatially stratified infectivity beta with three degrees of freedom beta_R, beta_U, beta_M, based on stratification
         # Default values for RU_threshold and UM_threshold are taken. beta[patch]
+        beta_R = beta
+        beta_U = beta
+        beta_M = beta
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
         # Add effects of variants
         beta = beta*sum(alpha*K_inf)
