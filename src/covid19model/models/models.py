@@ -1106,8 +1106,12 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
 
         # Set S and R equal to zero
-        S[np.where(S < 0)] = 0
-        R[np.where(R < 0)] = 0
+        S_post_vacc[np.where(S_post_vacc < 0)] = 0
+        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+
+        # Reset names
+        S = S_post_vacc
+        R = R_post_vacc
 
         # Compute vaccine transitionings
         dS_v = - dS
