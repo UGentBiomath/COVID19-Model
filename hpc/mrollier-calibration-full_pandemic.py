@@ -319,6 +319,7 @@ model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
 # Only necessary for local run in Windows environment
 #if __name__ == '__main__':
 
+
 if job == 'R0':
     # Note: this job type is only needed to determine the warmup value
 
@@ -560,7 +561,7 @@ elif job == 'FULL':
     # MCMC settings
     multiplier_mcmc = 2
     max_n = n_mcmc # 500000
-    print_n = 50
+    print_n = 2
 
     # Note how we use 4 effectivities now, because the schools are not closed
     print('\n----------------------------------------')
@@ -705,7 +706,7 @@ elif job == 'FULL':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg)
 
     # ---------------
     # Process results
