@@ -1098,12 +1098,12 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dR = -N_vacc*f_R
 
         # Update the S and R states
-        S = S + dS
-        R = R + dR
+        S_post_vacc = S + dS
+        R_post_vacc = R + dR
 
         # Compute dS and dR that makes S and R equal to zero
-        dS[np.where(S < 0)] = 0 - S[np.where(S < 0)]
-        dR[np.where(R < 0)] = 0 - R[np.where(R < 0)]
+        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
+        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
 
         # Set S and R equal to zero
         S[np.where(S < 0)] = 0
