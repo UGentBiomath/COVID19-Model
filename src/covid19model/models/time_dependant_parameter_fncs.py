@@ -544,6 +544,7 @@ class make_contact_matrix_function():
 
             if self.provincial:
                 CM = (prev_home*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                      prev_schools*school*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                       prev_work*work.values[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                       prev_rest*transport.values[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
                       prev_rest*leisure.values[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
