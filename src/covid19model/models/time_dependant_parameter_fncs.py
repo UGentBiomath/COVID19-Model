@@ -515,7 +515,10 @@ class make_contact_matrix_function():
         """
 
         if t < pd.Timestamp('2020-03-15'):
-            CM = self.Nc_all['total']
+            if self.provincial:
+                CM = np.ones(11)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
+            else:
+                CM = self.Nc_all['total']
         else:
 
             if school is None:
