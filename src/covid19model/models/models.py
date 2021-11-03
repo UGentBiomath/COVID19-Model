@@ -1169,15 +1169,16 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dS_inf = S_work * multip_work + S * multip_rest
         dS_inf_v = S_v_work * multip_work + S_v * multip_rest
         # Write protect the shit out of dS and dS_v to prevent this m*therfucker from blocking my mcmc
-        dS_inf[np.where(S - dS_inf < 0)] = 0 - S[np.where(S  - dS_inf < 0)]
-        dS_inf_v[np.where(S_v - (1-e_s_eff)*dS_inf_v < 0)] = 0 - S_v[np.where(S_v - (1-e_s_eff)*dS_inf_v < 0)]
+        dS_inf[np.where(S - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)] = 0 - S[np.where(S  - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)]
+        dS_inf_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)] = 0 - S_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)]
+
 
         ############################
         ## Compute system of ODEs ##
         ############################
         
         ### non-vaccinated population
-        dS  = dS - dS_inf
+        dS  = dS - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -1185,11 +1186,11 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
         ### vaccinated population
-        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v 
+        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v  - (1/d_vacc)*S_v
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
@@ -1197,7 +1198,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
-        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) 
+        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
         # Compute the hospital rates of changes
@@ -1215,12 +1216,12 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         #####################
 
         # Natural immunity
-        dS = dS + zeta*R
-        dR = dR - zeta*R
+        #dS = dS + zeta*R
+        #dR = dR - zeta*R
         # Vaccines
-        dS_v = dS_v - (1/d_vacc)*S_v
-        dR_v = dR_v - (1/d_vacc)*R_v
-        dS = dS + (1/d_vacc)*(S_v + R_v)
+        #dS_v = dS_v - (1/d_vacc)*S_v
+        #dR_v = dR_v - (1/d_vacc)*R_v
+        #dS = dS + (1/d_vacc)*(S_v + R_v)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
