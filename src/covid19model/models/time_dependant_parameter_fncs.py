@@ -577,7 +577,8 @@ class make_contact_matrix_function():
         l : int
             number of additional days after the time delay until full compliance is reached
         """
-        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
+        return Nc_old + (Nc_new-Nc_old)/l * float( (t-t_start)/pd.Timedelta('1D') )
 
     def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
         """
@@ -590,7 +591,7 @@ class make_contact_matrix_function():
         l : int
             number of additional days after the time delay until full compliance is reached
         """
-        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+        return Nc_old + (Nc_new-Nc_old)/l * float( (t-t_start-tau_days)/pd.Timedelta('1D') )
     
     def policies_all(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
         '''
