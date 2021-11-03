@@ -623,7 +623,9 @@ elif job == 'FULL':
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
-    theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, before changing policy function
+    #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
+    theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.60, 0.65, 1.45, 2.0, 0.104, 22.2] #--> manual fit, provincial == False (without transpose of Nc)
+    #theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.55, 0.65, 1.35, 2.05, 0.104, 22.2] #--> manual fit, provincial == True
 
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -633,20 +635,6 @@ elif job == 'FULL':
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
     ax.set_ylabel('New national hosp./day')
-    plt.show()
-    plt.close()
-
-    fig,ax=plt.subplots(nrows=6,ncols=1)
-    for j in range(6):
-        for i in range(age_stratification_size):
-            ax[j].plot(out['time'], out['S_v'].isel(Nc=i).isel(place=j))
-    plt.show()
-    plt.close()
-
-    fig,ax=plt.subplots(nrows=5,ncols=1)
-    for j in range(6,11):
-        for i in range(age_stratification_size):
-            ax[j-6].plot(out['time'], out['S_v'].isel(Nc=i).isel(place=j))
     plt.show()
     plt.close()
 
@@ -684,11 +672,11 @@ elif job == 'FULL':
    # pars2 = ['l1', 'l2']
     pert2=[0.05, 0.05]
     # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-    pert3=[0.2, 0.2, 0.2, 0.2, 0.2]
+    pert3=[0.05, 0.05, 0.05, 0.05, 0.05]
     # pars4 = ['K_inf1','K_inf2']
-    pert4=[0.1, 0.1]
+    pert4=[0.05, 0.05]
     # pars5 = ['amplitude','peak_shift']
-    pert5 = [0.1, 0.1] 
+    pert5 = [0.05, 0.05] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4 + pert5
 
