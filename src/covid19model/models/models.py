@@ -1155,13 +1155,13 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         A_v_work = np.matmul(np.transpose(place_eff), A_v)
         # Apply work contacts to place modified populations
 
-        #multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , np.transpose(Nc_work) )
+        #multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , Nc_work )
         infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work
         multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
         multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
         
-        #multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, np.transpose(Nc-Nc_work) )
+        #multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, Nc-Nc_work )
         infpop = (I + A + (1-e_i_eff)*(I_v + A_v))/T
         multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
         multip_rest *= beta[:,np.newaxis]
