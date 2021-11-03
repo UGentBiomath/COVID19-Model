@@ -542,9 +542,15 @@ class make_contact_matrix_function():
                         place = place*np.ones(self.space_agg)     
                 values_dict.update({places_names[idx]: place})
 
+            # Schools:
+            try:
+                test=len(school)
+            except:
+                school = school*np.ones(self.space_agg)
+
             # Construct contact matrix
             CM = (prev_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                    prev_schools*school*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                    prev_schools*school[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                     prev_work*values_dict['work'][:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                     prev_rest*values_dict['transport'][:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
                     prev_rest*values_dict['leisure'][:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
