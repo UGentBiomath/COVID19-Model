@@ -482,7 +482,7 @@ class make_contact_matrix_function():
 
     """
     def __init__(self, df_google, Nc_all):
-        self.df_google = df_google
+        self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
         # Compute start and endtimes of dataframe
         self.df_google_start = df_google.index.get_level_values('date')[0]
@@ -494,7 +494,6 @@ class make_contact_matrix_function():
             self.space_agg = len(self.df_google.index.get_level_values('NIS').unique().values)
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    # This is the default output, what was earlier contact_matrix_4prev
     def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
                        school=None, work=None, transport=None, leisure=None, others=None, home=None):
 
@@ -507,88 +506,74 @@ class make_contact_matrix_function():
             level of opening of these sectors
             if None, it is calculated from google mobility data
             only school cannot be None!
-        SB : str '2a', '2b' or '2c'
-            '2a': september behaviour overall
-            '2b': september behaviour, but work = lockdown behaviour
-            '2c': september behaviour, but leisure = lockdown behaviour
 
         """
 
-        if t < pd.Timestamp('2020-03-15'):
-            if self.provincial:
-                CM = np.ones(11)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
-            else:
-                CM = self.Nc_all['total']
-        else:
-
-            if school is None:
-                raise ValueError(
+        if school is None:
+            raise ValueError(
                 "Please indicate to which extend schools are open")
 
-            if pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
-                if self.provincial:
-                    row = -self.df_google.loc[(t, slice(None)),:]/100
-                    # In model, NIS stratification goes from low to high
-                    row.sort_index(level='NIS', ascending=True,inplace=True)
-                else:
-                    row = -self.df_google.loc[t]/100
+
+        places_var = [work, transport, leisure, others]
+        places_names = ['work', 'transport', 'leisure', 'others']
+        GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
+
+        if self.provincial:
+            if t < pd.Timestamp('2020-03-15'):
+                return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
+            elif pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
+                # Extract row at timestep t
+                row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
-                row = -self.df_google[-7:-1].mean()/100 # Extrapolate mean of last week
+                # Extract last 14 days and take the mean
+                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=14)): self.df_google_end, slice(None)].mean(level='NIS')/100
 
-            # columns: retail_recreation grocery parks transport work residential
-            if work is None:
-                work=1-row['work']
-            if transport is None:
-                transport=1-row['transport']
-            if leisure is None:
-                leisure=1-row['retail_recreation']
-            if others is None:
-                others=1-row['grocery']
+            # Sort NIS codes from low to high
+            row.sort_index(level='NIS', ascending=True,inplace=True)
+            # Extract values
+            values_dict={}
+            for idx,place in enumerate(places_var):
+                if place is None:
+                    place = 1 - row[GCMR_names[idx]].values
+                else:
+                    try:
+                        test=len(place)
+                    except:
+                        place = place*np.ones(self.space_agg)     
+                values_dict.update({places_names[idx]: place})
 
-            if self.provincial:
-                try:
-                    test=len(work)
-                except:
-                    work = work*np.ones(11)
+            # Construct contact matrix
+            CM = (prev_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                    prev_schools*school*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                    prev_work*values_dict['work'][:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                    prev_rest*values_dict['transport'][:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                    prev_rest*values_dict['leisure'][:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                    prev_rest*values_dict['others'][:,np.newaxis,np.newaxis]*self.Nc_all['others'])
 
-                try:
-                    test=len(transport)
-                except:
-                    transport = transport*np.ones(11)
+        else:
+            if t < pd.Timestamp('2020-03-15'):
+                return self.Nc_all['total']
+            elif pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
+                # Extract row at timestep t
+                row = -self.df_google.loc[t]/100
+            else:
+                # Extract last 14 days and take the mean
+                row = -self.df_google[-14:-1].mean()/100
+            
+            # Extract values
+            values_dict={}
+            for idx,place in enumerate(places_var):
+                if place is None:
+                    place = 1 - row[GCMR_names[idx]]
+                values_dict.update({places_names[idx]: place})  
 
-                try:
-                    test=len(leisure)
-                except:
-                    leisure = leisure*np.ones(11)
-                
-                try:
-                    test=len(others)
-                except:
-                    others = others*np.ones(11)
-
-            if self.provincial:
-                try:
-                    CM = (prev_home*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                        prev_schools*school*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                        prev_work*work.values[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                        prev_rest*transport.values[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
-                        prev_rest*leisure.values[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
-                        prev_rest*others.values[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
-                except:
-                    CM = (prev_home*np.ones(len(work))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                        prev_schools*school*np.ones(len(work))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                        prev_work*work[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                        prev_rest*transport[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
-                        prev_rest*leisure[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
-                        prev_rest*others[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
-
-            else: 
-                CM = (prev_home*self.Nc_all['home'] +
-                      prev_schools*school*self.Nc_all['schools'] +
-                      prev_work*work*self.Nc_all['work'] +
-                      prev_rest*transport*self.Nc_all['transport'] +
-                      prev_rest*leisure*self.Nc_all['leisure'] +
-                      prev_rest*others*self.Nc_all['others'])
+            # Construct contact matrix
+            CM = (prev_home*self.Nc_all['home'] +
+                    prev_schools*school*self.Nc_all['schools'] +
+                    prev_work*values_dict['work']*self.Nc_all['work'] +
+                    prev_rest*values_dict['transport']*self.Nc_all['transport'] +
+                    prev_rest*values_dict['leisure']*self.Nc_all['leisure'] +
+                    prev_rest*values_dict['others']*self.Nc_all['others'])
 
         return CM
 
