@@ -216,7 +216,7 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Google Mobility data (for social contact Nc)
-df_google = mobility.get_google_mobility_data(update=False)
+df_google = mobility.get_google_mobility_data(update=False, provincial=False)
 
 # Load and format mobility dataframe (for mobility place)
 proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
@@ -298,7 +298,7 @@ params.pop('beta_M')
 params.update({'beta': 0.0411})
 params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
 params.pop('e_a')
-
+params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                         time_dependent_parameters={'Nc' : policy_function,
@@ -308,7 +308,7 @@ model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                                                    'alpha' : VOC_function,
                                                    'beta' : seasonality_function})
 
-##The code was applicable to both jobs until this point.
+## The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
 ## and the complete fit (with knowledge of the warmup value) on the other hand.
 
@@ -561,7 +561,7 @@ elif job == 'FULL':
     # MCMC settings
     multiplier_mcmc = 2
     max_n = n_mcmc # 500000
-    print_n = 2
+    print_n = 50
 
     # Note how we use 4 effectivities now, because the schools are not closed
     print('\n----------------------------------------')
@@ -628,11 +628,25 @@ elif job == 'FULL':
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
     model.parameters = pars_PSO
+    end_calibration = '2022-09-01'
     # Perform simulation with best-fit results
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
     ax.set_ylabel('New national hosp./day')
+    plt.show()
+    plt.close()
+
+    fig,ax=plt.subplots(nrows=6,ncols=1)
+    for j in range(6):
+        for i in range(age_stratification_size):
+            ax[j].plot(out['time'], out['S_v'].isel(Nc=i).isel(place=j))
+    plt.show()
+    plt.close()
+
+    fig,ax=plt.subplots(nrows=5,ncols=1)
+    for j in range(6,11):
+        for i in range(age_stratification_size):
+            ax[j-6].plot(out['time'], out['S_v'].isel(Nc=i).isel(place=j))
     plt.show()
     plt.close()
 
