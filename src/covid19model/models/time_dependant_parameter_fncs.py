@@ -546,12 +546,42 @@ class make_contact_matrix_function():
                 others=1-row['grocery']
 
             if self.provincial:
-                CM = (prev_home*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                      prev_schools*school*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                      prev_work*work.values[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                      prev_rest*transport.values[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
-                      prev_rest*leisure.values[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
-                      prev_rest*others.values[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+                try:
+                    test=len(work)
+                except:
+                    work = work*np.ones(11)
+
+                try:
+                    test=len(transport)
+                except:
+                    transport = transport*np.ones(11)
+
+                try:
+                    test=len(leisure)
+                except:
+                    leisure = leisure*np.ones(11)
+                
+                try:
+                    test=len(others)
+                except:
+                    others = others*np.ones(11)
+
+            if self.provincial:
+                try:
+                    CM = (prev_home*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                        prev_schools*school*np.ones(len(work.values))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                        prev_work*work.values[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                        prev_rest*transport.values[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                        prev_rest*leisure.values[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                        prev_rest*others.values[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+                except:
+                    CM = (prev_home*np.ones(len(work))[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                        prev_schools*school*np.ones(len(work))[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                        prev_work*work[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                        prev_rest*transport[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                        prev_rest*leisure[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                        prev_rest*others[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+
             else: 
                 CM = (prev_home*self.Nc_all['home'] +
                       prev_schools*school*self.Nc_all['schools'] +

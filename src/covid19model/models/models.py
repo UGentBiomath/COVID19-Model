@@ -1127,7 +1127,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
 
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
-        N = Nc.shape[0] # age stratification
+        N = Nc.shape[1] # age stratification
         
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
@@ -1154,10 +1154,16 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         I_v_work = np.matmul(np.transpose(place_eff), I_v)
         A_v_work = np.matmul(np.transpose(place_eff), A_v)
         # Apply work contacts to place modified populations
-        multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , np.transpose(Nc_work) )
+
+        #multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , np.transpose(Nc_work) )
+        infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work
+        multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
         multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
-        multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, np.transpose(Nc-Nc_work) )
+        
+        #multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, np.transpose(Nc-Nc_work) )
+        infpop = (I + A + (1-e_i_eff)*(I_v + A_v))/T
+        multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
         multip_rest *= beta[:,np.newaxis]
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
