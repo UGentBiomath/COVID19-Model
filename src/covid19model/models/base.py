@@ -340,7 +340,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            y0,
-                           args=[self.parameters], t_eval=t_eval, method='RK23')
+                           args=[self.parameters], t_eval=t_eval, method='RK45')
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
