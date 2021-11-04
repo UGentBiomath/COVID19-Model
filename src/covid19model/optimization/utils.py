@@ -4,7 +4,7 @@ import sys
 import emcee
 import numpy as np
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+from multiprocessing import Pool, get_context
 from covid19model.visualization.optimization import traceplot
 from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import stratify_beta
@@ -35,11 +35,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
 
-    with Pool() as pool:
+    with get_context("spawn").Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs,
                         moves=[(emcee.moves.DEMove(), 0.8),(emcee.moves.DESnookerMove(), 0.2)])
-        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=False):
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
