@@ -39,7 +39,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs,
                         moves=[(emcee.moves.DEMove(), 0.8),(emcee.moves.DESnookerMove(), 0.2)])
-        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=False):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
