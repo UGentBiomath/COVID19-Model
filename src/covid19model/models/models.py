@@ -1048,14 +1048,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         """
         BIOMATH extended SEIRD model for COVID-19
         """
+        
+        S_orig = S
 
-        # Negative values are simply not possible here
-        S[np.where(S<0)] = 0
-        S_v[np.where(S_v<0)] = 0
-        R[np.where(R<0)] = 0
-        R_v[np.where(R_v<0)] = 0
-
-    
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
@@ -1179,12 +1174,21 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         #dS_inf[np.where(S - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)] = 0 - S[np.where(S  - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)]
         #dS_inf_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)] = 0 - S_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)]
 
+        
+        # Test for potential negative values of S due to vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #dS  = -dS_inf + zeta*R - N_vacc*f_S + (1/d_vacc)*(S_v + R_v)
+        #N_vacc[np.where(S + dS <= 0)] = 0
+        #dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - N_vacc*f_R
+        #N_vacc[np.where(R + dR <= 0)] = 0
+
+
         ############################
         ## Compute system of ODEs ##
         ############################
         
         ### non-vaccinated population
-        dS  = dS - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R
+        dS  = dS - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R 
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -1192,7 +1196,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
         ### vaccinated population
@@ -1216,6 +1220,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
             + M_v*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
         dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) - R_C
         dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec)- R_ICU
+
+        #S_new = S_orig + dS
+        #print(t, S_orig[np.where(S_orig<0)], S_post_vacc[np.where(S_post_vacc<0)], S_new[np.where(S_new<0)])
 
         #####################
         ## Waning immunity ##
