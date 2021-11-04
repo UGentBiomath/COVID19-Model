@@ -308,6 +308,9 @@ model = models.COVID19_SEIQRD_discrete_spatial_vacc(initial_states, params, spat
                                                    'alpha' : VOC_function,
                                                    'beta' : seasonality_function}, discrete=True)
 
+# Offset needed to deal with zeros in data in a Poisson distribution-based calibration
+poisson_offset = 'auto'
+
 ## The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
 ## and the complete fit (with knowledge of the warmup value) on the other hand.
@@ -350,9 +353,6 @@ if job == 'R0':
     multiplier = 10 # Due to multimodality we need a lot of particles
     maxiter = n_pso
     popsize = multiplier*processes
-
-    # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
-    poisson_offset = 1
 
     # -------------------------
     # Print statement to stdout
@@ -619,7 +619,6 @@ elif job == 'FULL':
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
     # run optimisation
-    poisson_offset = 1
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
