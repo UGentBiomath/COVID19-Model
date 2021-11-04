@@ -1430,7 +1430,7 @@ class COVID19_SEIQRD_discrete_spatial_vacc(BaseModel):
         ## Compute new values of states ##
         ##################################
 
-        l = 0.5
+        l = 1
 
         S_new = S_orig + l*dS
         E_new = E + l*dE
@@ -1452,7 +1452,6 @@ class COVID19_SEIQRD_discrete_spatial_vacc(BaseModel):
         C_icurec_v_new = C_icurec_v + l*dC_icurec_v
         ICU_v_new = ICU_v + l*dICUstar_v
         R_v_new = R_v_orig + l*dR_v
-        #D_v_new = D_v + l*dD_v --> state is not used
 
         H_in_new = H_in + l*dH_in
         H_out_new = H_out + l*dH_out
