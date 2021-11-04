@@ -106,7 +106,6 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                 if dimension != 'time':
                     new_xarray = new_xarray.sum(dim=dimension)
             ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-            #ymodel = np.where(ymodel<=0, 0.01, ymodel) #TODO: Multidose model can sometimes glitch and return negative hospitalizations (susceptibles become negative) --> manual fix
             if dist == 'gaussian':            
                 MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
             elif dist == 'poisson':

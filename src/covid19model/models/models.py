@@ -1459,7 +1459,7 @@ class COVID19_SEIQRD_discrete_spatial_vacc(BaseModel):
         R_C_new = R_C + l*dR_C
         R_ICU_new = R_ICU + l*dR_ICU
 
-        print(t, S_orig[np.where(S_orig<0)], S_post_vacc[np.where(S_post_vacc<0)], S_new[np.where(S_new<0)])
+        #print(t, S_orig[np.where(S_orig<0)], S_post_vacc[np.where(S_post_vacc<0)], S_new[np.where(S_new<0)])
 
         return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new, ICU_new, R_new, D_new, H_in_new, H_out_new, H_tot_new, R_C_new, R_ICU_new, S_v_new, E_v_new, I_v_new, A_v_new, M_v_new, C_v_new, C_icurec_v_new, ICU_v_new, R_v_new)
 
