@@ -300,13 +300,13 @@ params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_s
 params.pop('e_a')
 params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
 # Initiate model with initial states, defined parameters, and proper time dependent functions
-model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
+model = models.COVID19_SEIQRD_discrete_spatial_vacc(initial_states, params, spatial=agg,
                         time_dependent_parameters={'Nc' : policy_function,
                                                    'Nc_work' : policy_function_work,
                                                    'place' : mobility_function,
                                                    'N_vacc' : vaccination_function, 
                                                    'alpha' : VOC_function,
-                                                   'beta' : seasonality_function})
+                                                   'beta' : seasonality_function}, discrete=True)
 
 ## The code was applicable to both jobs until this point.
 ## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,

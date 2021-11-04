@@ -1238,6 +1238,231 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
+class COVID19_SEIQRD_discrete_spatial_vacc(BaseModel):
+    """ Tryout discrete model because of stiffness problems"""
+ 
+    # ...state variables and parameters
+    
+    # In parameter_names kan een naam staan van een parameter met eender welke size. Dat kan real_Nc zijn. En dan varieer je in de tijd real_Nc.
+    # Bij stratification = ... kan je iets insteken dat 9x9 is, want die checkt naar wat de dimensie is
+    # En verder moet je aan de start van je code Nc = real_Nc plaatsen
+
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'xi', 'Nc_work']
+    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
+
+    # ..transitions/equations
+    @staticmethod
+
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, xi, Nc_work,# SEIRD parameters
+                  area, sg, p,  # spatially stratified parameters. Might delete sg later.
+                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
+                  place, Nc): # stratified parameters that determine stratification dimensions
+
+        """
+        BIOMATH extended SEIRD model for COVID-19
+        """
+        
+        S_orig = S
+        R_orig = R
+        S_v_orig = S_v
+        R_v_orig = R_v
+
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
+
+        K_inf = np.array([1, K_inf1, K_inf2])
+
+        # sum of all (three) fractions of variants must be unity
+        # alpha is not stratified (nor by age, nor by region)
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+
+        # Redefine probability of hospitalisation from mild infection based
+        # on the fraction of every VOC and its increased hospitalisation probability
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        
+        # Take weighted average of vaccine efficiencies for all VOCs
+        e_i_eff = np.sum(alpha*e_i)
+        e_s_eff = np.sum(alpha*e_s)
+        e_h_eff = np.sum(alpha*e_h)
+
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
+
+        # Initialize transitionings
+        dS = np.zeros(S.shape)
+        dS_v = np.zeros(S.shape)
+        dR = np.zeros(R.shape)
+        dR_v = np.zeros(R.shape)
+
+        # Compute size of vaccine eligible population
+        VE = S + R
+        f_S = S/VE
+        f_R = R/VE
+
+        # Compute transitionings
+        dS = -N_vacc*f_S
+        dR = -N_vacc*f_R
+
+        # Update the S and R states
+        S_post_vacc = S + dS
+        R_post_vacc = R + dR
+
+        # Compute dS and dR that makes S and R equal to zero
+        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
+        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
+
+        # Set S and R equal to zero
+        S_post_vacc[np.where(S_post_vacc < 0)] = 0
+        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+
+        # Reset names
+        S = S_post_vacc
+        R = R_post_vacc
+
+        # Compute vaccine transitionings
+        dS_v = - dS
+        dR_v = - dR
+
+        # Update S_v and R_v states
+        S_v = S_v + dS_v
+        R_v = R_v + dR_v
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = S + E + I + A + M + C + C_icurec + ICU + R\
+            + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
+
+        ####################################
+        ## Compute the infection pressure ##
+        ####################################
+
+        # For total population and for the relevant compartments I and A
+        G = place.shape[0] # spatial stratification
+        N = Nc.shape[1] # age stratification
+        
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
+
+        # infer aggregation (prov, arr or mun)
+        agg = None
+        if G == 11:
+            agg = 'prov'
+        elif G == 43:
+            agg = 'arr'
+        elif G == 581:
+            agg = 'mun'
+        else:
+            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        
+        # Expand beta to size G
+        beta = np.ones(G)*beta*sum(alpha*K_inf)
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.matmul(np.transpose(place_eff), T)
+        S_work = np.matmul(np.transpose(place_eff), S)
+        I_work = np.matmul(np.transpose(place_eff), I)
+        A_work = np.matmul(np.transpose(place_eff), A)
+        S_v_work = np.matmul(np.transpose(place_eff), S_v)
+        I_v_work = np.matmul(np.transpose(place_eff), I_v)
+        A_v_work = np.matmul(np.transpose(place_eff), A_v)
+        # Apply work contacts to place modified populations
+        infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work
+        multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
+        multip_work *= beta[:,np.newaxis]
+        # Apply all other contacts to non-place modified populations
+        infpop = (I + A + (1-e_i_eff)*(I_v + A_v))/T
+        multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
+        multip_rest *= beta[:,np.newaxis]
+        # Compute rates of change
+        dS_inf = S_work * multip_work + S * multip_rest
+        dS_inf_v = S_v_work * multip_work + S_v * multip_rest
+
+        #############################
+        ## Compute rates of change ##
+        #############################
+        
+        ### non-vaccinated population
+        dS  = dS - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R 
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
+        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
+        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
+
+        ### vaccinated population
+        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v  - (1/d_vacc)*S_v
+        dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
+        dI_v = (1/sigma)*E_v - (1/omega)*I_v 
+        dA_v = (a/omega)*I_v - A_v/da      
+        dM_v = ((1-a)/omega)*I_v - M_v*((1-(1-e_h_eff)*h)/dm) - M_v*(1-e_h_eff)*h/dhospital
+        dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
+        dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
+        dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
+        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
+        
+        # Compute the hospital rates of changes
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        dH_in = M*(h/dhospital) + M_v*((1-e_h_eff)*h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
+            + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
+            + M_v*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
+        dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) - R_C
+        dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec)- R_ICU
+
+        ##################################
+        ## Compute new values of states ##
+        ##################################
+
+        l = 0.5
+
+        S_new = S_orig + l*dS
+        E_new = E + l*dE
+        I_new = I + l*dI
+        A_new = A + l*dA
+        M_new = M + l*dM
+        C_new = C + l*dC
+        C_icurec_new = C_icurec + l*dC_icurec
+        ICU_new = ICU + l*dICUstar
+        R_new = R_orig + l*dR
+        D_new = D + l*dD
+
+        S_v_new = S_v_orig + l*dS_v
+        E_v_new = E_v + l*dE_v
+        I_v_new = I_v + l*dI_v
+        A_v_new = A_v + l*dA_v
+        M_v_new = M_v + l*dM_v
+        C_v_new = C_v + l*dC_v
+        C_icurec_v_new = C_icurec_v + l*dC_icurec_v
+        ICU_v_new = ICU_v + l*dICUstar_v
+        R_v_new = R_v_orig + l*dR_v
+        #D_v_new = D_v + l*dD_v --> state is not used
+
+        H_in_new = H_in + l*dH_in
+        H_out_new = H_out + l*dH_out
+        H_tot_new = H_tot + l*dH_tot
+        R_C_new = R_C + l*dR_C
+        R_ICU_new = R_ICU + l*dR_ICU
+
+        print(t, S_orig[np.where(S_orig<0)], S_post_vacc[np.where(S_post_vacc<0)], S_new[np.where(S_new<0)])
+
+        return (S_new, E_new, I_new, A_new, M_new, C_new, C_icurec_new, ICU_new, R_new, D_new, H_in_new, H_out_new, H_tot_new, R_C_new, R_ICU_new, S_v_new, E_v_new, I_v_new, A_v_new, M_v_new, C_v_new, C_icurec_v_new, ICU_v_new, R_v_new)
 
 class COVID19_SEIQRD_spatial_fiddling(BaseModel):
     """
