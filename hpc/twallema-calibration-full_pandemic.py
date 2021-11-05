@@ -33,7 +33,7 @@ Note: this script has been largely copied from the Notebook MR_spatial-calibrati
 Example
 -------
 
->> python mrollier-calibration_full-pandemic.py -j R0 -n_pso 10 -n_mcmc 10 -n_ag 10 -s test_run -a prov -i bxl -p 3
+>> python twallema-calibration_full-pandemic.py -j R0 -n_pso 10 -n_mcmc 10 -n_ag 10 -s test_run -a prov -i bxl -p 3
 """
 
 __author__      = "Michiel Rollier, Tijs Alleman"
