@@ -50,7 +50,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     ##################################################
 
     # Time-dependent social contact matrix over all policies, updating Nc
-    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
+    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
     policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
 
     # Time-dependent mobility function, updating P (place)

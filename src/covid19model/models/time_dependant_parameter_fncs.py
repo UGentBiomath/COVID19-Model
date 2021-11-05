@@ -508,7 +508,7 @@ class make_contact_matrix_function():
             only school cannot be None!
 
         """
-        print(prev_rest)
+
         if school is None:
             raise ValueError(
                 "Please indicate to which extend schools are open")
@@ -550,11 +550,11 @@ class make_contact_matrix_function():
 
             # Construct contact matrix
             CM = (prev_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                    prev_schools*school[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                    prev_work*values_dict['work'][:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                    prev_rest*values_dict['transport'][:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
-                    prev_rest*values_dict['leisure'][:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
-                    prev_rest*values_dict['others'][:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+                    (prev_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                    (prev_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                    (prev_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                    (prev_rest*values_dict['leisure'])[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                    (prev_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
 
         else:
             if t < pd.Timestamp('2020-03-15'):
@@ -878,10 +878,11 @@ class make_contact_matrix_function():
             return self.ramp_fun(policy_old, policy_new, t, t2, l)
         # 2020            
         elif t3 < t <= t4:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
+            prev_rest = np.array([prev_rest_relaxation, prev_rest_relaxation, prev_rest_relaxation, prev_rest_relaxation] + 7*[prev_rest_relaxation])
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=tuple(prev_rest), school=0)
         elif t4 < t <= t5:
-            prev_rest = np.array([prev_rest_lockdown] + 10*[prev_rest_relaxation])
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)                                          
+            #prev_rest = np.array([prev_rest_lockdown] + 10*[prev_rest_relaxation])
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)                                          
         elif t5 < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
         # Second wave
