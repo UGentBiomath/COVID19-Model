@@ -226,8 +226,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     # Calibration of WAVE 2
     # ---------------------
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
@@ -238,6 +238,10 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
     param_dict['K_hosp'] = np.ones(3)
 
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+
+
     # Vaccination
     # -----------
     param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=120000)
@@ -247,7 +251,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
                                   np.random.uniform(low=0.4,high=0.6)])
     param_dict['e_s'] = np.array([np.random.uniform(low=0.70,high=0.90),
                                   np.random.uniform(low=0.70,high=0.90),
-                                  np.random.uniform(low=0.65,high=0.85)])                          
+                                  np.random.uniform(low=0.58,high=0.62)])   # Lower susceptibility to around 0.60                       
     param_dict['e_h'] = np.array([np.random.triangular(0.78,0.92,0.97),
                                   np.random.triangular(0.78,0.92,0.97),
                                   np.random.triangular(0.85,0.94,0.98)])
