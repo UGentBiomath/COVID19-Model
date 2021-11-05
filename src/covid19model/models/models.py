@@ -972,9 +972,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
 
         Non-stratified parameters
         -------------------------
-        beta_R : probability of infection when encountering an infected person in rural environment
-        beta_U : probability of infection when encountering an infected person in urban environment
-        beta_M : probability of infection when encountering an infected person in metropolitan environment
+        beta : probability of infection when encountering an infected person
         alpha : fraction of alternative COVID-19 variant
         K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
         K_inf2 : infectivity gain of Indian COVID-19 variant
@@ -992,7 +990,6 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        xi : factor controlling the contact dependence on density f
         e_i : vaccine effectiveness in reducing infectiousness (--> if vaccinated person becomes infectious, how infectious is he?)
         e_s : vaccine effectiveness in reducing susceptibility to SARS-CoV-2 infection
         e_h : vaccine effectivenes in reducing hospital admission propensity
@@ -1013,8 +1010,6 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         Spatially-stratified parameters
         -------------------------------
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
-        area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
-        sg : average size of a household per patch. Not used as of yet.
         p : mobility parameter (1 by default = no measures)
 
         Other parameters
@@ -1024,14 +1019,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     """
 
     # ...state variables and parameters
-    
-    # In parameter_names kan een naam staan van een parameter met eender welke size. Dat kan real_Nc zijn. En dan varieer je in de tijd real_Nc.
-    # Bij stratification = ... kan je iets insteken dat 9x9 is, want die checkt naar wat de dimensie is
-    # En verder moet je aan de start van je code Nc = real_Nc plaatsen
-
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'xi', 'Nc_work']
-    parameters_stratified_names = [['area', 'sg', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
+    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameters_stratified_names = [['p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
     coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
@@ -1040,16 +1030,14 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, xi, Nc_work,# SEIRD parameters
-                  area, sg, p,  # spatially stratified parameters. Might delete sg later.
+                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
         """
         BIOMATH extended SEIRD model for COVID-19
         """
-        
-        S_orig = S
 
         #################################################
         ## Compute variant weighted-average properties ##
@@ -1156,39 +1144,23 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         I_v_work = np.matmul(np.transpose(place_eff), I_v)
         A_v_work = np.matmul(np.transpose(place_eff), A_v)
         # Apply work contacts to place modified populations
-
-        #multip_work = np.matmul( (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work , Nc_work )
         infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work
         multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
         multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
-        
-        #multip_rest = np.matmul( (I + A + (1-e_i_eff)*(I_v + A_v))/T, Nc-Nc_work )
         infpop = (I + A + (1-e_i_eff)*(I_v + A_v))/T
         multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
         multip_rest *= beta[:,np.newaxis]
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
         dS_inf_v = S_v_work * multip_work + S_v * multip_rest
-        # Write protect the shit out of dS and dS_v to prevent this m*therfucker from blocking my mcmc
-        #dS_inf[np.where(S - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)] = 0 - S[np.where(S  - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R < 0)]
-        #dS_inf_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)] = 0 - S_v[np.where(S_v - (1-e_s_eff)*dS_inf_v - (1/d_vacc)*S_v < 0)]
-
-        
-        # Test for potential negative values of S due to vaccination
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        #dS  = -dS_inf + zeta*R - N_vacc*f_S + (1/d_vacc)*(S_v + R_v)
-        #N_vacc[np.where(S + dS <= 0)] = 0
-        #dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R - N_vacc*f_R
-        #N_vacc[np.where(R + dR <= 0)] = 0
-
 
         ############################
         ## Compute system of ODEs ##
         ############################
         
         ### non-vaccinated population
-        dS  = dS - dS_inf + (1/d_vacc)*(S_v + R_v) + zeta*R 
+        dS  = dS - dS_inf 
         dE  = dS_inf - E/sigma
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -1196,11 +1168,11 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R 
+        dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec)
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
         ### vaccinated population
-        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v  - (1/d_vacc)*S_v
+        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v 
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
@@ -1208,11 +1180,10 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
-        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - (1/d_vacc)*R_v
+        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) 
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
-        # Compute the hospital rates of changes
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ## Hospital rates of changes
         dH_in = M*(h/dhospital) + M_v*((1-e_h_eff)*h/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
             + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
@@ -1221,20 +1192,18 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) - R_C
         dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec)- R_ICU
 
-        #S_new = S_orig + dS
-        #print(t, S_orig[np.where(S_orig<0)], S_post_vacc[np.where(S_post_vacc<0)], S_new[np.where(S_new<0)])
 
-        #####################
-        ## Waning immunity ##
-        #####################
+        ########################
+        ## Waning of immunity ##
+        ########################
 
         # Natural immunity
-        #dS = dS + zeta*R
-        #dR = dR - zeta*R
+        dS = dS + zeta*R
+        dR = dR - zeta*R
         # Vaccines
-        #dS_v = dS_v - (1/d_vacc)*S_v
-        #dR_v = dR_v - (1/d_vacc)*R_v
-        #dS = dS + (1/d_vacc)*(S_v + R_v)
+        dS_v = dS_v - (1/d_vacc)*S_v
+        dR_v = dR_v - (1/d_vacc)*R_v
+        dS = dS + (1/d_vacc)*(S_v + R_v)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 
