@@ -48,7 +48,7 @@ args = parser.parse_args()
 # Load samples
 # ------------
 
-flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename))
+flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename))
 
 # ----------------
 # Build dictionary
@@ -64,5 +64,5 @@ for count,name in enumerate(args.additional_keys):
 # Save dictionary
 # ---------------
 
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)[:-4]+'.json', 'w') as fp:
+with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)[:-4]+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

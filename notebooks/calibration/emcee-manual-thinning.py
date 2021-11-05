@@ -77,7 +77,7 @@ for tpl in args.range:
 # Load samples dictionary
 # -----------------------
 
-samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
+samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)))
 
 # ------------------------------------------
 # Convert samples dictionary to emcee format
@@ -119,7 +119,7 @@ CORNER_KWARGS = dict(
 )
 
 # Path where figures should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
+fig_path = '../../results/calibrations/COVID19_SEIQRD/national/'
 # Cornerplots of samples
 fig = corner.corner(flat_samples, labels=args.labels, **CORNER_KWARGS)
 # for control of labelsize of x,y-ticks:
@@ -142,6 +142,6 @@ if args.save:
         if key not in args.keys:
             samples_dict_new[key] = samples_dict[key]
 
-    with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename), 'w') as fp:
+    with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename), 'w') as fp:
             json.dump(samples_dict_new, fp)
 
