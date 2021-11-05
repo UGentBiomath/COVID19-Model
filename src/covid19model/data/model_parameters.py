@@ -384,17 +384,38 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['beta_U'] = 0.03492 # urban
         pars_dict['beta_M'] = 0.03492 # metropolitan
 
+
+    #######################################################
+    ## Google community mobility social contact function ##
+    #######################################################
+
+    pars_dict.update({'l1' : 23.0,
+                'l2' : 5.72,
+                'prev_schools' : .333,
+                'prev_work' : .0771,
+                'prev_rest_lockdown' : .014,
+                'prev_rest_relaxation' : .444,
+                'prev_home' : .206})
+
     #################
     ## Vaccination ##
     #################
 
     if vaccination == True:
+        # Model parameters
         pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
         pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
         pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
         pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
         pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
         pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
+        # TDPF parameters
+        pars_dict.update({'initN' : initN,
+                          'daily_first_dose' : 60000, # copy default values from vaccination_function, which are curently not used I think
+                          'delay_immunity' : 14,
+                          'vacc_order' : [8, 7, 6, 5, 4, 3, 2, 1, 0],
+                          'stop_idx' : 9,
+                          'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
 
     ##########
     ## VOCs ##
@@ -405,6 +426,14 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
         pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain
         pars_dict['K_hosp'] = np.ones(3)
+
+    #################
+    ## Seasonality ##
+    #################
+
+    pars_dict.update({'amplitude' : 0.104,
+                'peak_shift' :22.2})
+
 
     ########################
     ## Spatial parameters ##
@@ -444,5 +473,9 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         # Define factor controlling the contact dependence on density f (hard-coded)
         #xi = 0.01 # km^-2
         #pars_dict['xi'] = xi
+
+        # TDPF parameters
+        pars_dict['default_mobility'] = None
+
 
     return initN, Nc_dict, pars_dict

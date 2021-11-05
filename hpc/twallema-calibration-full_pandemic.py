@@ -57,6 +57,9 @@ import argparse
 # Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
 from covid19model.models import models
 
+# Import the function to initialize the model
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc
+
 # Import function to easily define the spatially explicit initial condition
 from covid19model.models.utils import initial_state
 
@@ -208,24 +211,9 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# -------------------------------
-# Load data: dicts and DataFrames
-# -------------------------------
-
-# Population size, interaction matrices and the model parameters
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
-
-# Google Mobility data (for social contact Nc)
-df_google = mobility.get_google_mobility_data(update=False, provincial=False)
-
-# Load and format mobility dataframe (for mobility place)
-proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-
-# Load and format national VOC data (for time-dependent VOC fraction)
-df_VOC_abc = VOC.get_abc_data()
-
-# Load and format local vaccination data, which is also under the sciensano object
-public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg=agg)
+# --------------------------------------------
+# Load data not needed to initialize the model
+# --------------------------------------------
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
@@ -233,80 +221,11 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hos
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
-# ---------------------------------------------
-# Load data: time-dependent parameter functions
-# ---------------------------------------------
-
-# Time-dependent social contact matrix over all policies, updating Nc
-policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
-policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
-
-# Time-dependent mobility function, updating P (place)
-mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
-
-# Time-dependent VOC function, updating alpha
-VOC_function = make_VOC_function(df_VOC_abc)
-
-# Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
-
-# Time-dependent seasonality function, updating season_factor
-seasonality_function = make_seasonality_function()
-
-# ---------------------
-# Load model parameters
-# ---------------------
-
-# time-dependent social contact parameters in policies_function
-params.update({'l1' : 23.0,
-               'l2' : 5.72,
-               'prev_schools' : .333,
-               'prev_work' : .0771,
-               'prev_rest_lockdown' : .014,
-               'prev_rest_relaxation' : .444,
-               'prev_home' : .206})
-
-# time-dependent mobility parameters in mobility_function
-params.update({'default_mobility' : None})
-
-# time-dependent vaccination parameters in vaccination_function
-params.update({'initN' : initN,
-               'daily_first_dose' : 60000, # copy default values from vaccination_function, which are curently not used I think
-               'delay_immunity' : 14,
-               'vacc_order' : [8, 7, 6, 5, 4, 3, 2, 1, 0],
-               'stop_idx' : 9,
-               'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
-
-# time-dependent seasonality parameters in seasonality_function
-params.update({'amplitude' : 0.104,
-               'peak_shift' :22.2})
-
-
 # --------------------
-# Model initialisation
+# Initialize the model
 # --------------------
 
-# Define the matrix of exposed subjects that will be identified with compartment E
-age = -1 # hard-coded as following the demographic distribution
-initE = initial_state(dist='frac', agg=agg, age=age, number=init_number, age_stratification_size=age_stratification_size)
-
-# Add the susceptible and exposed population to the initial_states dict
-initial_states = {'S': initN-initE, 'E': initE}
-params.pop('beta_R')
-params.pop('beta_U')
-params.pop('beta_M')
-params.update({'beta': 0.0411})
-params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
-params.pop('e_a')
-params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
-# Initiate model with initial states, defined parameters, and proper time dependent functions
-model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
-                        time_dependent_parameters={'Nc' : policy_function,
-                                                   'Nc_work' : policy_function_work,
-                                                   'place' : mobility_function,
-                                                   'N_vacc' : vaccination_function, 
-                                                   'alpha' : VOC_function,
-                                                   'beta' : seasonality_function})
+model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=False)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
