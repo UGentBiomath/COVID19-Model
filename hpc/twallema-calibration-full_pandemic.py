@@ -225,7 +225,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=False)
+model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -260,7 +260,7 @@ if __name__ == '__main__':
         # Last datapoint used to calibrate warmup and beta.
         # Note: first measures in Belgium were taken on March 13, so let's take 5 days of delay regarding hospitalisations
         if not args.enddate:
-            end_calibration = '2020-03-20' # Final date at which no interventions were felt (before first inflection point)
+            end_calibration = '2020-03-18' # Final date at which no interventions were felt (before first inflection point)
         else:
             end_calibration = str(args.enddate)
         # Spatial unit: depends on aggregation and is basically simply a name (extension to signature)
