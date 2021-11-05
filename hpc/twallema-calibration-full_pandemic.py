@@ -93,7 +93,7 @@ public = True
 initial_time = datetime.datetime.now()
 
 # Choose to show progress bar. This cannot be shown on HPC
-progress = True
+progress = False
 
 # -----------------------
 # Handle script arguments
@@ -241,7 +241,6 @@ poisson_offset = 'auto'
 # Only necessary for local run in Windows environment
 if __name__ == '__main__':
 
-
     if job == 'R0':
         # Note: this job type is only needed to determine the warmup value
 
@@ -252,7 +251,7 @@ if __name__ == '__main__':
         # Use private data for R0, because PSO doesn't work well with limited public data
         public=False
         df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
-        
+
         # Start data of recalibration ramp
         start_calibration = '2020-03-02' # First available date in private data. Inspect df_sciensano.reset_index().DATE[0] if needed
         if public==True:
@@ -437,9 +436,12 @@ if __name__ == '__main__':
         # ------------------
         # Calibration set-up
         # ------------------
-        
+
         # Start of calibration
         start_calibration = '2020-03-02'
+
+        public = True
+
         if public==True:
             start_calibration = '2020-03-15' # First available date in public data.
         # Last datapoint used to calibrate infectivity, compliance and effectivity
@@ -461,24 +463,14 @@ if __name__ == '__main__':
         # Calibration set-up
         # ------------------
 
-        # Start of calibration
-        start_calibration = '2020-03-02'
-        # Last datapoint used to calibrate infectivity, compliance and effectivity
-        if not args.enddate:
-            end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depesnds on aggregation
-        spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
-
         # PSO settings
-        processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier_pso = 1 # 10
+        processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
+        multiplier_pso = 2 # 10
         maxiter = n_pso
         popsize = multiplier_pso*processes
 
         # MCMC settings
-        multiplier_mcmc = 2
+        multiplier_mcmc = 10
         max_n = n_mcmc # 500000
         print_n = 10
 
@@ -626,7 +618,7 @@ if __name__ == '__main__':
         print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
         sys.stdout.flush()
 
-        sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg)
+        sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg, progress=progress)
 
         # ---------------
         # Process results
