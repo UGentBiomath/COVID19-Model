@@ -9,6 +9,91 @@ import ujson as json
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
+def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
+
+    #####################################
+    ## Import necessary pieces of code ##
+    #####################################
+
+    # Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
+    from covid19model.models import models
+    # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
+    from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, \
+                                                              make_contact_matrix_function, \
+                                                              make_VOC_function, \
+                                                              make_vaccination_function, \
+                                                              make_seasonality_function
+    # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
+    from covid19model.data import mobility, sciensano, model_parameters, VOC
+
+    #########################
+    ## Load necessary data ##
+    #########################
+
+    # Population size, interaction matrices and the model parameters
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
+
+    # Google Mobility data (for social contact Nc)
+    df_google = mobility.get_google_mobility_data(update=update, provincial=provincial)
+
+    # Load and format mobility dataframe (for mobility place)
+    proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
+
+    # Load and format national VOC data (for time-dependent VOC fraction)
+    df_VOC_abc = VOC.get_abc_data()
+
+    # Load and format local vaccination data, which is also under the sciensano object
+    public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
+
+    ##################################################
+    ## Construct time-dependent parameter functions ##
+    ##################################################
+
+    # Time-dependent social contact matrix over all policies, updating Nc
+    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
+    policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
+
+    # Time-dependent mobility function, updating P (place)
+    mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
+
+    # Time-dependent VOC function, updating alpha
+    VOC_function = make_VOC_function(df_VOC_abc)
+
+    # Time-dependent (first) vaccination function, updating N_vacc
+    vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
+
+    # Time-dependent seasonality function, updating season_factor
+    seasonality_function = make_seasonality_function()
+
+
+    ##########################
+    ## Initialize the model ##
+    ##########################
+
+    # Define the matrix of exposed subjects that will be identified with compartment E
+    values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
+    initE = np.ones(initN.shape)
+    initE = values_initE[:, np.newaxis] * initE
+
+    # Add the susceptible and exposed population to the initial_states dict
+    initial_states = {'S': initN-initE, 'E': initE}
+    params.pop('beta_R')
+    params.pop('beta_U')
+    params.pop('beta_M')
+    params.update({'beta': 0.0411})
+    params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
+    params.pop('e_a')
+    params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
+    # Initiate model with initial states, defined parameters, and proper time dependent functions
+    model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
+                            time_dependent_parameters={'Nc' : policy_function,
+                                                       'Nc_work' : policy_function_work,
+                                                       'place' : mobility_function,
+                                                       'N_vacc' : vaccination_function, 
+                                                       'alpha' : VOC_function,
+                                                       'beta' : seasonality_function})
+    return model
+
 def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     """
     A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
@@ -141,8 +226,8 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     # Calibration of WAVE 2
     # ---------------------
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx]  
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
     param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
@@ -153,6 +238,10 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
     param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
     param_dict['K_hosp'] = np.ones(3)
 
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+
+
     # Vaccination
     # -----------
     param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=120000)
@@ -162,7 +251,7 @@ def draw_fcn_WAVE2(param_dict,samples_dict):
                                   np.random.uniform(low=0.4,high=0.6)])
     param_dict['e_s'] = np.array([np.random.uniform(low=0.70,high=0.90),
                                   np.random.uniform(low=0.70,high=0.90),
-                                  np.random.uniform(low=0.65,high=0.85)])                          
+                                  np.random.uniform(low=0.58,high=0.62)])   # Lower susceptibility to around 0.60                       
     param_dict['e_h'] = np.array([np.random.triangular(0.78,0.92,0.97),
                                   np.random.triangular(0.78,0.92,0.97),
                                   np.random.triangular(0.85,0.94,0.98)])
