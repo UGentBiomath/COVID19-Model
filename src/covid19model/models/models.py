@@ -1020,7 +1020,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot', 'R_C', 'R_ICU', 'S_v', 'E_v', 'I_v', 'A_v', 'M_v', 'C_v', 'C_icurec_v', 'ICU_v', 'R_v']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
     parameters_stratified_names = [['p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -1030,7 +1030,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, S_v, E_v, I_v, A_v, M_v, C_v, C_icurec_v, ICU_v, R_v, # time + SEIRD classes
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
                   p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
@@ -1134,7 +1134,8 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
             raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
         
         # Expand beta to size G
-        beta = np.ones(G)*beta*sum(alpha*K_inf)
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
+        #beta = np.ones(G)*beta*sum(alpha*K_inf)
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.matmul(np.transpose(place_eff), T)
         S_work = np.matmul(np.transpose(place_eff), S)

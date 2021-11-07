@@ -71,16 +71,16 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     ##########################
 
     # Define the matrix of exposed subjects that will be identified with compartment E
-    values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
+    values_initE = np.array([1.00000000e+00, 0. ,0. , 0.500000000e+00, 9.28515432e-01, 3.69489414e-01,8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,4.88528548e-01])
     initE = np.ones(initN.shape)
     initE = values_initE[:, np.newaxis] * initE
 
     # Add the susceptible and exposed population to the initial_states dict
     initial_states = {'S': initN-initE, 'E': initE}
-    params.pop('beta_R')
-    params.pop('beta_U')
-    params.pop('beta_M')
-    params.update({'beta': 0.0411})
+    #params.pop('beta_R')
+    #params.pop('beta_U')
+    #params.pop('beta_M')
+    #params.update({'beta': 0.0411})
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.pop('e_a')
     params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
@@ -91,7 +91,9 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
                                                        'place' : mobility_function,
                                                        'N_vacc' : vaccination_function, 
                                                        'alpha' : VOC_function,
-                                                       'beta' : seasonality_function})
+                                                       'beta_R' : seasonality_function,
+                                                       'beta_U': seasonality_function,
+                                                       'beta_M': seasonality_function})
     return model
 
 def load_samples_dict(filepath, wave=1, age_stratification_size=10):

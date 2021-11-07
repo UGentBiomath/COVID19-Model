@@ -546,7 +546,7 @@ if __name__ == '__main__':
         # -----------
 
         # transmission
-        pars1 = ['beta']
+        pars1 = ['beta_R', 'beta_U', 'beta_M']
         bounds1=((0.005,0.060),)
 
         # Social intertia
@@ -574,7 +574,7 @@ if __name__ == '__main__':
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
         #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
-        theta = [0.0205, 14.0, 5, 0.70, 0.05, 0.014, 0.80, 0.65, 1.42, 2.10, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
+        theta = [0.0205, 0.0205, 0.0205, 14.0, 5, 0.70, 0.05, 0.014, 0.80, 0.65, 1.42, 2.10, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
 
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -638,7 +638,7 @@ if __name__ == '__main__':
         # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
         # Generally, the less certain we are of a value, the higher the perturbation fraction
         # pars1 = ['beta_R', 'beta_U', 'beta_M']
-        pert1=[0.02]
+        pert1=[0.02, 0.02, 0.02]
     # pars2 = ['l1', 'l2']
         pert2=[0.05, 0.05]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
