@@ -225,7 +225,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=False)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -305,7 +306,7 @@ if __name__ == '__main__':
 
 
         # STEP 1: attach bounds of inital conditions
-        bounds += model.initial_states['S'].shape[0] * ((0,3),)
+        bounds += model.initial_states['S'].shape[0] * ((0,1),)
 
         # STEP 2: write a custom objective function
         def objective_fcn(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, poisson_offset='auto', agg=None):
@@ -363,14 +364,18 @@ if __name__ == '__main__':
             return -MLE
 
         # STEP 3: perform PSO
-        #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
-        #                                                                                            kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
-        #                                                                                            'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
-        #                                                                                            minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
-        #theta = p_hat
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
+                                                                                                    kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
+                                                                                                    'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
+                                                                                                    minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
+        theta = p_hat
         # Hard-code a good result:
-        theta = [2.37350132e+01, 2.12668195e-02, 1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01,
-                    2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00] #-3940.637836944141
+        #theta = [2.37350132e+01, 2.12668195e-02, 1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01,
+        #            2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00] #-3940.637836944141
+        theta = [3.08385795e+01, 1.83897388e-02, 1.00000000e+00, 8.95784078e-01,
+                9.98542283e-01, 1.00000000e+00, 9.28515432e-01, 3.69489414e-01,
+                8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,
+                4.88528548e-01] #-1921.775503695565
 
         # STEP 4: Visualize the national result
 
@@ -440,8 +445,8 @@ if __name__ == '__main__':
         
         # Start of calibration
         start_calibration = '2020-03-02'
-        if public==True:
-            start_calibration = '2020-03-15' # First available date in public data.
+        #if public==True:
+            #start_calibration = '2020-03-15' # First available date in public data.
         # Last datapoint used to calibrate infectivity, compliance and effectivity
         if not args.enddate:
             end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
@@ -451,25 +456,52 @@ if __name__ == '__main__':
         spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
         # From estimation of optimal initial condition in previous step
-        warmup = int(2.37350132e+01)
-        values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
+        #warmup = int(2.37350132e+01)
+        #values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
+        warmup = int(30.83)
+        values_initE = np.array([1.00000000e+00, 0. ,0. , 0.500000000e+00, 9.28515432e-01, 3.69489414e-01,8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,4.88528548e-01])
         new_initE = np.ones(model.initial_states['E'].shape)
         new_initE = values_initE[:, np.newaxis] * new_initE
         model.initial_states.update({'E': new_initE})    
 
-        # ------------------
-        # Calibration set-up
-        # ------------------
+        #df_sciensano_private = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
 
-        # Start of calibration
-        start_calibration = '2020-03-02'
-        # Last datapoint used to calibrate infectivity, compliance and effectivity
-        if not args.enddate:
-            end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depesnds on aggregation
-        spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
+        # init_date = pd.Timestamp('2020-03-03')
+        # dates = pd.date_range(start=init_date-pd.Timedelta(days=1), end=init_date+pd.Timedelta(days=1),freq='D')
+        
+        # M = np.zeros([11,10])
+        # H_in_age = np.zeros(M.shape)
+        # I = np.zeros(M.shape)
+        # A = np.zeros(M.shape)
+        # E = np.zeros(M.shape)
+
+        # for date in dates:
+
+        #     H_in = df_sciensano_private.loc[date,:].values
+
+        #     for i in range(H_in_age.shape[0]):
+        #         H_in_age[i,:] = H_in_age[i,:] + H_in[i]*model.parameters['h']/sum(model.parameters['h'])
+
+        #     for i in range(M.shape[0]):
+        #         M[i,:] = M[i,:] + H_in_age[i,:]*model.parameters['dhospital']/model.parameters['h']
+
+        #     for i in range(M.shape[0]):
+        #         I[i,:] = I[i,:] + (M[i,:]*(1-model.parameters['h'])/model.parameters['dm'] + M[i,:]*model.parameters['h']/model.parameters['dhospital'])/((1-model.parameters['a'])/model.parameters['omega'])
+
+        #     E = E + (model.parameters['sigma']/model.parameters['omega'])*I
+
+        #     for i in range(M.shape[0]):
+        #         A[i,:] = A[i,:] + (model.parameters['a']*model.parameters['da']/model.parameters['omega'])*I[i,:]
+
+        # H_in_age = H_in_age/len(dates)
+        # M = M/len(dates)
+        # I = I/len(dates)
+        # A = A/len(dates)
+        # E = E/len(dates)
+
+        # model.initial_states.update({'S': initN - E - I - A - M, 'E': E, 'I': I, 'A': A, 'M': M, 'H_in': H_in_age})    
+        # warmup = 0
+        # start_calibration = '2020-03-03'
 
         # PSO settings
         processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
@@ -497,7 +529,7 @@ if __name__ == '__main__':
         # --------------
 
         # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration], df_sciensano['2021-10-01':end_calibration]]
+        data=[df_sciensano[:end_calibration], df_sciensano['2021-10-01':end_calibration]]
         states = ["H_in", "H_in"]
         weights = [1,1]
 
@@ -542,8 +574,7 @@ if __name__ == '__main__':
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
         #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
-        theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.60, 0.65, 1.45, 2.0, 0.104, 22.2] #--> manual fit, provincial == False (without transpose of Nc)
-        #theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.55, 0.65, 1.35, 2.05, 0.104, 22.2] #--> manual fit, provincial == True
+        theta = [0.0205, 14.0, 5, 0.70, 0.05, 0.014, 0.80, 0.65, 1.42, 2.10, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
 
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -561,6 +592,27 @@ if __name__ == '__main__':
         for idx,NIS in enumerate(data[0].columns):
             ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
             ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        plt.show()
+        plt.close()
+
+        # STEP 6: Visualize the provincial immunity
+        fig,ax = plt.subplots(nrows=len(data[0].columns[:4]),ncols=1,figsize=(12,4))
+        for idx,NIS in enumerate(data[0].columns[:4]):
+            ax[idx].plot(out['time'],out['R'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='blue')
+            ax[idx].set_ylim([0,25])
+            #ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        plt.show()
+        plt.close()
+
+        # STEP 6: Visualize the provincial immunity
+        fig,ax = plt.subplots(nrows=len(data[0].columns[:4]),ncols=1,figsize=(12,4))
+        for idx,NIS in enumerate(data[0].columns[:4]):
+            ax[idx].plot(out['time'],out['E'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='green')
+            ax[idx].plot(out['time'],out['I'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='orange')
+            ax[idx].plot(out['time'],out['A'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='red')
+            ax[idx].plot(out['time'],out['M'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='black')
+            ax[idx].set_ylim([0,2])
+            #ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         plt.show()
         plt.close()
 
