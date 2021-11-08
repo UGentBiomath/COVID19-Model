@@ -828,7 +828,7 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -878,11 +878,10 @@ class make_contact_matrix_function():
             return self.ramp_fun(policy_old, policy_new, t, t2, l)
         # 2020            
         elif t3 < t <= t4:
-            prev_rest = np.array([prev_rest_relaxation, prev_rest_relaxation, prev_rest_relaxation, prev_rest_relaxation] + 7*[prev_rest_relaxation])
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=tuple(prev_rest), school=0)
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            #prev_rest = np.array([prev_rest_lockdown] + 10*[prev_rest_relaxation])
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)                                          
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.8*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
+            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), school=0)                                          
         elif t5 < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
         # Second wave

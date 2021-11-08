@@ -109,13 +109,13 @@ from covid19model.models.utils import draw_fcn_spatial as draw_fcn
 public=True
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=False, public=public)
-df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=True)
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 
 # --------------------
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=False)
+model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # -------------------
 # Perform simulations
@@ -138,7 +138,7 @@ fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 # National
 ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['blue'])
 ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.4, color=colorscale_okabe_ito['blue'])
-ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,950])
 ax[0].grid(False)
@@ -162,7 +162,7 @@ for idx,NIS_list in enumerate(NIS_lists):
 
     ax[idx+1].plot(out['time'].values,mean,'--', color=colorscale_okabe_ito[color_list[idx]])
     ax[idx+1].fill_between(out['time'].values, lower, upper, color=colorscale_okabe_ito[color_list[idx]], alpha=0.3)
-    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx+1].set_title(title_list[idx])
     ax[idx+1].set_ylim([0,420])
     ax[idx+1].grid(False)
