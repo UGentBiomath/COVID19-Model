@@ -100,7 +100,7 @@ end_calibration = samples_dict['end_calibration']
 # Load a draw function
 # --------------------
 
-from covid19model.models.utils import draw_fcn_WAVE2 as draw_fcn
+from covid19model.models.utils import draw_fcn_spatial as draw_fcn
 
 # --------------------------------------------
 # Load data not needed to initialize the model
@@ -109,7 +109,7 @@ from covid19model.models.utils import draw_fcn_WAVE2 as draw_fcn
 public=True
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=False, public=public)
-df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=True)
 
 # --------------------
 # Initialize the model
@@ -136,9 +136,9 @@ print('2) Visualizing regional fit')
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['red'])
-ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.3, color=colorscale_okabe_ito['yellow'])
-ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['blue'])
+ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.4, color=colorscale_okabe_ito['blue'])
+ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,950])
 ax[0].grid(False)
@@ -147,7 +147,7 @@ ax[0] = _apply_tick_locator(ax[0])
 
 NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
 title_list = ['Brussels', 'Flanders', 'Wallonia']
-color_list = ['black', 'yellow', 'red']
+color_list = ['blue', 'blue', 'blue']
 
 for idx,NIS_list in enumerate(NIS_lists):
     mean = 0
@@ -162,7 +162,7 @@ for idx,NIS_list in enumerate(NIS_lists):
 
     ax[idx+1].plot(out['time'].values,mean,'--', color=colorscale_okabe_ito[color_list[idx]])
     ax[idx+1].fill_between(out['time'].values, lower, upper, color=colorscale_okabe_ito[color_list[idx]], alpha=0.3)
-    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx+1].set_title(title_list[idx])
     ax[idx+1].set_ylim([0,420])
     ax[idx+1].grid(False)
