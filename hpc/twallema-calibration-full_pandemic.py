@@ -225,7 +225,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=False)
+model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
@@ -510,7 +510,7 @@ if __name__ == '__main__':
         popsize = multiplier_pso*processes
 
         # MCMC settings
-        multiplier_mcmc = 2
+        multiplier_mcmc = 3
         max_n = n_mcmc # 500000
         print_n = 10
 
@@ -547,11 +547,11 @@ if __name__ == '__main__':
 
         # transmission
         pars1 = ['beta_R', 'beta_U', 'beta_M']
-        bounds1=((0.005,0.060),)
+        bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
 
         # Social intertia
         pars2 = ['l1',   'l2']
-        bounds2=((1,31), (1,31))
+        bounds2=((1,21), (1,21))
 
         # Prevention parameters (effectivities)
         pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
@@ -563,7 +563,7 @@ if __name__ == '__main__':
 
         # Seasonality
         pars5 = ['amplitude','peak_shift']
-        bounds5 = ((0,0.25),(-45,45))
+        bounds5 = ((0,0.25),(-61,61))
 
         # Join them together
         pars = pars1 + pars2 + pars3 + pars4 + pars5
@@ -574,8 +574,16 @@ if __name__ == '__main__':
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
         #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
-        theta = [0.0205, 0.0205, 0.0205, 14.0, 5, 0.70, 0.05, 0.014, 0.80, 0.65, 1.42, 2.10, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
-
+        theta = [0.0195, 0.0195, 0.0215, 14.0, 7, 0.74, 0.05, 0.014, 0.80, 0.65, 1.44, 2.15, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
+        #theta = [0.0200, 0.0195, 0.0220, 14.0, 5, 0.74, 0.05, 0.014, 0.84, 0.65, 1.40, 1.95, 0.13, 62.] #--> manual fit, provincial == False (without transpose of Nc)
+        #from scipy.optimize import basinhopping
+        #from covid19model.optimization import objective_fcns
+        #minimizer_kwargs = {'args':  (model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg)}
+        #theta = basinhopping(objective_fcns.MLE, x0=theta, minimizer_kwargs=minimizer_kwargs, T=0.1, niter=10, disp=True)
+        #print(theta)
+        from scipy.optimize import minimize
+        theta = minimize(objective_fcns.MLE, x0=theta, maxiter=10, method='Nelder-Mead', options={'disp':True, 'adaptive': True}, args=(model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg))
+        print(theta)
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -631,22 +639,22 @@ if __name__ == '__main__':
         # ------------------
 
         # Define simple uniform priors based on the PSO bounds
-        log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
+        log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                             prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                             prior_uniform, prior_uniform, prior_uniform, prior_uniform]
         log_prior_fcn_args = bounds
         # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
         # Generally, the less certain we are of a value, the higher the perturbation fraction
         # pars1 = ['beta_R', 'beta_U', 'beta_M']
-        pert1=[0.02, 0.02, 0.02]
+        pert1=[0.10, 0.10, 0.10]
     # pars2 = ['l1', 'l2']
-        pert2=[0.05, 0.05]
+        pert2=[0.10, 0.10]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.05, 0.05, 0.05, 0.05, 0.05]
+        pert3=[0.20, 0.20, 0.20, 0.20, 0.20]
         # pars4 = ['K_inf1','K_inf2']
-        pert4=[0.05, 0.05]
+        pert4=[0.10, 0.10]
         # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.05, 0.05] 
+        pert5 = [0.10, 0.10] 
         # Add them together
         pert = pert1 + pert2 + pert3 + pert4 + pert5
 
@@ -660,7 +668,7 @@ if __name__ == '__main__':
             backend.reset(nwalkers, ndim)
 
         # Labels for traceplots
-        labels = ['$\\beta$',
+        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
                     '$l_1$', '$l_2$', \
                     '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
                     '$K_{inf,1}$', 'K_{inf,2}', \
