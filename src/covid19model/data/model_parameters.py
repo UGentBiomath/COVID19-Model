@@ -453,12 +453,12 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['place'] = NIS
 
         # Read areas per region, ordered in ascending NIS values
-        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
-        area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
+        #area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
+        #area_df=pd.read_csv(os.path.join(abs_dir, area_data), index_col='NIS')
         # Make sure the regions are ordered well
-        area_df=area_df.sort_index(axis=0)
-        area=area_df.values[:,0]
-        pars_dict['area'] = area * 1e-6 # in square kilometer
+        #area_df=area_df.sort_index(axis=0)
+        #area=area_df.values[:,0]
+        #pars_dict['area'] = area * 1e-6 # in square kilometer
 
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['place'].shape[0])
