@@ -288,13 +288,13 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
                     )
 
     if age_stratification_size == 3:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial).values
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial)
         age_path = '0_20_60/'
     elif age_stratification_size == 9:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial).values
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial)
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial).values
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial)
         age_path = '0_12_18_25_35_45_55_65_75_85/'
     else:
         raise ValueError(
@@ -410,7 +410,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
         pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
         # TDPF parameters
-        pars_dict.update({'initN' : initN,
+        pars_dict.update({'initN' : initN.values,
                           'daily_first_dose' : 60000, # copy default values from vaccination_function, which are curently not used I think
                           'delay_immunity' : 14,
                           'vacc_order' : [8, 7, 6, 5, 4, 3, 2, 1, 0],

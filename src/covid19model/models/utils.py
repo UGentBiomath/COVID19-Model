@@ -32,7 +32,8 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
-
+    initN = initN.values
+    
     # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
     df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
 
@@ -464,7 +465,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
         
     return param_dict
 
-def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
     A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
     and format the model output in a pandas dataframe for easy acces
@@ -479,9 +480,6 @@ def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05
     states : xarray
         Model states on which to add the a-posteriori poisson uncertainty
 
-    n_samples : int
-        Total number of model trajectories in the xarray output
-
     n_draws_per_sample : int
         Number of poisson experiments to be added to each simulated trajectory (default: 1)
 
@@ -493,9 +491,6 @@ def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05
 
     Returns
     -------
-
-    simtime : list
-        contains datetimes of simulation output
 
     df : pd.DataFrame
         contains for every model state the mean, median, lower- and upper quantiles
@@ -511,37 +506,49 @@ def output_to_visuals(output, states, n_samples, n_draws_per_sample=1, UL=1-0.05
     plt.fill_between(simtime, df_2plot['H_in', 'LL'], df_2plot['H_in', 'UL'])
 
     """
-    # Extract simulation timesteps
-    simtime = pd.to_datetime(output['time'].values)
+    # Check if dimension draws is present
+    if not 'draws' in list(output.dims):
+        raise ValueError(
+            "dimension 'draws' is not present in model output xarray"
+        )
+    # Check if the states are present
+    for state_name in states:
+        if not state_name in list(output.data_vars):
+            raise ValueError(
+                "variable state_name '{0}' is not a model state".format(state_name)
+            )
     # Initialize a pandas dataframe for results
     columns = [[],[]]
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["model state", "quantity"])
-    df = pd.DataFrame(index=simtime, columns=columns)
+    df = pd.DataFrame(index=pd.to_datetime(output['time'].values), columns=columns)
     df.index.name = 'simtime'
+    # Deepcopy xarray output (it is mutable like a dictionary!)
+    copy = output.copy(deep=True)
     # Loop over output states
     for state_name in states:
-        simtime, mean, median, LL_lst, UL_lst = add_poisson(state_name, output, n_samples, n_draws_per_sample, UL, LL)
+        # Automatically sum all dimensions except time and draws
+        for dimension in output.dims:
+            if ((dimension != 'time') & (dimension != 'draws')):
+                copy[state_name] = copy[state_name].sum(dim=dimension)
+        # Add Poisson draws
+        mean, median, lower, upper = add_poisson(copy[state_name].values, n_draws_per_sample, UL, LL)
+        # Add to dataframe
         df[state_name,'mean'] = mean
         df[state_name,'median'] = median
-        df[state_name,'LL'] = LL_lst
-        df[state_name,'UL'] = UL_lst
-    return simtime, df
+        df[state_name,'lower'] = lower
+        df[state_name,'upper'] = upper
+    return df
 
-def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+def add_poisson(output_array, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """ A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
 
     Parameters
     ----------
 
-    state_name : string
-        Must be a state of the epidemiological model used.
-
-    output : xarray
-        Simulation output xarray
-
-    n_samples : int
-        Total number of model trajectories in the xarray output
+    output : np.array
+        Simulation output vector to add a-posteriori poisson uncertainty to
+        Must be of shape: [n_samples, simtime]
 
     n_draws_per_sample : int
         Number of poisson experiments to be added to each simulated trajectory (default: 1)
@@ -555,52 +562,39 @@ def add_poisson(state_name, output, n_samples, n_draws_per_sample=1, UL=1-0.05*0
     Returns
     -------
 
-    simtime : list
-        contains datetimes of simulation output
-
     mean: np.array
         contains mean model prediction for 'state_name' at simulation times 'simtime'
 
     median : np.array
         contains median model prediction for 'state_name' at simulation times 'simtime'
 
-    LL_lst : np.array
+    lower : np.array
         contains lower quantile of model prediction for 'state_name' at simulation times 'simtime'
 
-    UL_lst : np.array
+    upper : np.array
         contains upper quantile of model prediction for 'state_name' at simulation times 'simtime'
 
     Example use
     -----------
-    simtime, mean, median, LL, UL = add_poisson('H_in', output, 100, 1)
+    simtime, mean, median, lower, upper = add_poisson('H_in', output, 100, 1)
 
     """
-    # Check on user-provided state name
-    if not state_name in list(output.data_vars):
-        raise ValueError(
-        "variable state_name '{0}' is not a model state".format(state_name)
-        )   
-    # Extract simulation timesteps
-    simtime = pd.to_datetime(output['time'].values)
-    # Extract output of correct state and sum over all ages
-    data = output.copy(deep=True)
-    for dimension in data.dims:
-        if ((dimension != 'time') & (dimension != 'draws')):
-            data[state_name] = data[state_name].sum(dim=dimension)
-    data = data[state_name].values
+
+    # Determine number of samples
+    n_samples = output_array.shape[0]
     # Initialize vectors
-    vector = np.zeros((data.shape[1],n_draws_per_sample*n_samples))
+    vector = np.zeros((output_array.shape[1],n_draws_per_sample*n_samples))
     # Loop over dimension draws
-    for n in range(data.shape[0]):
-        binomial_draw = np.random.poisson( np.expand_dims(data[n,:],axis=1),size = (data.shape[1],n_draws_per_sample))
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = binomial_draw
+    for n in range(output_array.shape[0]):
+        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = np.random.poisson( np.expand_dims(output_array[n,:],axis=1),size = (output_array.shape[1],n_draws_per_sample))
     # Compute mean and median
     mean = np.mean(vector,axis=1)
     median = np.median(vector,axis=1)    
     # Compute quantiles
-    LL_lst = np.quantile(vector, q = LL, axis = 1)
-    UL_lst = np.quantile(vector, q = UL, axis = 1)
-    return simtime, mean, median, LL_lst, UL_lst
+    lower = np.quantile(vector, q = LL, axis = 1)
+    upper = np.quantile(vector, q = UL, axis = 1)
+
+    return mean, median, lower, upper
 
 def name2nis(name):
     """

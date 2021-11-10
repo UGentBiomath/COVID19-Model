@@ -41,7 +41,7 @@ from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 # -----------------------
@@ -106,10 +106,8 @@ from covid19model.models.utils import draw_fcn_spatial as draw_fcn
 # Load data not needed to initialize the model
 # --------------------------------------------
 
-public=True
-# Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, moving_avg=False, public=public)
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # --------------------
 # Initialize the model
@@ -121,10 +119,10 @@ model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_strat
 # Perform simulations
 # -------------------
 
-print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
+print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-simtime, df_2plot = output_to_visuals(out, ['H_in', 'H_tot'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
+simtime = out['time'].values
 
 # -----------
 # Visualizing
@@ -136,35 +134,36 @@ print('2) Visualizing regional fit')
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['red'])
-ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.4, color=colorscale_okabe_ito['red'])
-ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+mean, median, lower, upper = add_poisson(out['H_in'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
+ax[0].plot(simtime, mean, '--', color='blue')
+ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
+ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
-ax[0].set_ylim([0,950])
+ax[0].set_ylim([0,12])
 ax[0].grid(False)
 ax[0].set_ylabel('$H_{in}$ (-)')
 ax[0] = _apply_tick_locator(ax[0])
 
 NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
 title_list = ['Brussels', 'Flanders', 'Wallonia']
-color_list = ['red', 'red', 'red']
+color_list = ['blue', 'blue', 'blue']
 
 for idx,NIS_list in enumerate(NIS_lists):
-    mean = 0
-    lower = 0
-    upper = 0
+    aggregate=0
     data = 0
+    pop = 0
     for NIS in NIS_list:
-        mean = mean + out['H_in'].sel(place=NIS).sum(dim='Nc').mean(dim='draws').values
-        lower = lower + out['H_in'].sel(place=NIS).sum(dim='Nc').quantile(dim='draws', q=conf_int/2).values
-        upper = upper + out['H_in'].sel(place=NIS).sum(dim='Nc').quantile(dim='draws', q=1-conf_int/2).values
+        aggregate = aggregate + out['H_in'].sel(place=NIS).sum(dim='Nc').values
         data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
+        pop = pop + sum(initN.loc[NIS].values)
 
-    ax[idx+1].plot(out['time'].values,mean,'--', color=colorscale_okabe_ito[color_list[idx]])
-    ax[idx+1].fill_between(out['time'].values, lower, upper, color=colorscale_okabe_ito[color_list[idx]], alpha=0.3)
-    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)/pop*100000
+
+    ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
+    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
+    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx+1].set_title(title_list[idx])
-    ax[idx+1].set_ylim([0,420])
+    ax[idx+1].set_ylim([0,12])
     ax[idx+1].grid(False)
     ax[idx+1].set_ylabel('$H_{in}$ (-)')
     ax[idx+1] = _apply_tick_locator(ax[idx+1])
@@ -173,17 +172,37 @@ plt.close()
 
 print('3) Visualizing provincial fit')
 
-# Visualize the provincial result
-fig,ax = plt.subplots(nrows=len(out.coords['place']),ncols=1,figsize=(12,4))
-for idx,NIS in enumerate(out.coords['place'].values):
-    ax[idx].plot(out['time'].values,out['H_in'].sel(place=NIS).sum(dim='Nc').mean(dim='draws'),'--', color='blue')
-    ax[idx].fill_between(out['time'].values,out['H_in'].sel(place=NIS).sum(dim='Nc').quantile(dim='draws', q=conf_int/2),out['H_in'].sel(place=NIS).sum(dim='Nc').quantile(dim='draws', q=1-conf_int/2), color='blue', alpha=0.2)
-    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in'], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax[idx].set_title('NIS: '+ str(NIS))
+# Visualize the provincial result (pt. I)
+fig,ax = plt.subplots(nrows=int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
+for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coords['place'])/2)+1)]):
+    pop = sum(initN.loc[NIS].values)/100000
+    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    ax[idx].plot(simtime, mean,'--', color='blue')
+    ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].legend(['NIS: '+ str(NIS)])
     ax[idx] = _apply_tick_locator(ax[idx])
     ax[idx].grid(False)
+    ax[idx].set_ylabel('$H_{in}$ (-)')
+    ax[idx].set_ylim([0,12])
+plt.suptitle('Provincial incidence per 100K inhabitants')
 plt.show()
 plt.close()
 
-
+# Visualize the provincial result (pt. II)
+fig,ax = plt.subplots(nrows=len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
+for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1)+1):]):
+    pop = sum(initN.loc[NIS].values)/100000
+    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    ax[idx].plot(simtime, mean,'--', color='blue')
+    ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].legend(['NIS: '+ str(NIS)])
+    ax[idx] = _apply_tick_locator(ax[idx])
+    ax[idx].grid(False)
+    ax[idx].set_ylabel('$H_{in}$ (-)')
+    ax[idx].set_ylim([0,12])
+plt.suptitle('Provincial incidence per 100K inhabitants')
+plt.show()
+plt.close()
 
