@@ -136,8 +136,8 @@ print('2) Visualizing regional fit')
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['blue'])
-ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.4, color=colorscale_okabe_ito['blue'])
+ax[0].plot(simtime,df_2plot['H_in','mean'], '--', color=colorscale_okabe_ito['red'])
+ax[0].fill_between(simtime,df_2plot['H_in','LL'],df_2plot['H_in','UL'], alpha=0.4, color=colorscale_okabe_ito['red'])
 ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum(),color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,950])
@@ -147,7 +147,7 @@ ax[0] = _apply_tick_locator(ax[0])
 
 NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
 title_list = ['Brussels', 'Flanders', 'Wallonia']
-color_list = ['blue', 'blue', 'blue']
+color_list = ['red', 'red', 'red']
 
 for idx,NIS_list in enumerate(NIS_lists):
     mean = 0

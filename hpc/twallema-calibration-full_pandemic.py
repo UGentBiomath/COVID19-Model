@@ -302,7 +302,7 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta']
-        bounds=((0.0,60),(0.005,0.060))
+        bounds=((0.0,60),(0.020,0.060))
 
 
         # STEP 1: attach bounds of inital conditions
@@ -455,54 +455,6 @@ if __name__ == '__main__':
         # Spatial unit: depesnds on aggregation
         spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
 
-        # From estimation of optimal initial condition in previous step
-        #warmup = int(2.37350132e+01)
-        #values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
-        warmup = int(30.83)
-        values_initE = np.array([1.00000000e+00, 0. ,0. , 0.500000000e+00, 9.28515432e-01, 3.69489414e-01,8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,4.88528548e-01])
-        new_initE = np.ones(model.initial_states['E'].shape)
-        new_initE = values_initE[:, np.newaxis] * new_initE
-        model.initial_states.update({'E': new_initE})    
-
-        #df_sciensano_private = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
-
-        # init_date = pd.Timestamp('2020-03-03')
-        # dates = pd.date_range(start=init_date-pd.Timedelta(days=1), end=init_date+pd.Timedelta(days=1),freq='D')
-        
-        # M = np.zeros([11,10])
-        # H_in_age = np.zeros(M.shape)
-        # I = np.zeros(M.shape)
-        # A = np.zeros(M.shape)
-        # E = np.zeros(M.shape)
-
-        # for date in dates:
-
-        #     H_in = df_sciensano_private.loc[date,:].values
-
-        #     for i in range(H_in_age.shape[0]):
-        #         H_in_age[i,:] = H_in_age[i,:] + H_in[i]*model.parameters['h']/sum(model.parameters['h'])
-
-        #     for i in range(M.shape[0]):
-        #         M[i,:] = M[i,:] + H_in_age[i,:]*model.parameters['dhospital']/model.parameters['h']
-
-        #     for i in range(M.shape[0]):
-        #         I[i,:] = I[i,:] + (M[i,:]*(1-model.parameters['h'])/model.parameters['dm'] + M[i,:]*model.parameters['h']/model.parameters['dhospital'])/((1-model.parameters['a'])/model.parameters['omega'])
-
-        #     E = E + (model.parameters['sigma']/model.parameters['omega'])*I
-
-        #     for i in range(M.shape[0]):
-        #         A[i,:] = A[i,:] + (model.parameters['a']*model.parameters['da']/model.parameters['omega'])*I[i,:]
-
-        # H_in_age = H_in_age/len(dates)
-        # M = M/len(dates)
-        # I = I/len(dates)
-        # A = A/len(dates)
-        # E = E/len(dates)
-
-        # model.initial_states.update({'S': initN - E - I - A - M, 'E': E, 'I': I, 'A': A, 'M': M, 'H_in': H_in_age})    
-        # warmup = 0
-        # start_calibration = '2020-03-03'
-
         # PSO settings
         processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
         multiplier_pso = 1 # 10
@@ -529,9 +481,9 @@ if __name__ == '__main__':
         # --------------
 
         # Only use hospitalisation data
-        data=[df_sciensano[:end_calibration], df_sciensano['2021-10-01':end_calibration]]
-        states = ["H_in", "H_in"]
-        weights = [1,1]
+        data=[df_sciensano[:end_calibration]]
+        states = ["H_in"]
+        weights = [1]
 
         # -----------
         # Perform PSO
@@ -573,17 +525,18 @@ if __name__ == '__main__':
         #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
 
-        #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
-        theta = [0.0195, 0.0195, 0.0215, 14.0, 7, 0.74, 0.05, 0.014, 0.80, 0.65, 1.44, 2.15, 0.13, 50.] #--> manual fit, provincial == False (without transpose of Nc)
-        #theta = [0.0200, 0.0195, 0.0220, 14.0, 5, 0.74, 0.05, 0.014, 0.84, 0.65, 1.40, 1.95, 0.13, 62.] #--> manual fit, provincial == False (without transpose of Nc)
+        # new initE
+        r = 0.87
+        theta = [r*0.0210, r*0.0215, r*0.0210, 7.0, 9, 0.73, 0.20, 0.014, 0.80, 0.65, 1.25, 2.12, 0.14, 60.] #--> manual fit, provincial == False (without transpose of Nc)
+
         #from scipy.optimize import basinhopping
         #from covid19model.optimization import objective_fcns
         #minimizer_kwargs = {'args':  (model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg)}
         #theta = basinhopping(objective_fcns.MLE, x0=theta, minimizer_kwargs=minimizer_kwargs, T=0.1, niter=10, disp=True)
         #print(theta)
-        from scipy.optimize import minimize
-        theta = minimize(objective_fcns.MLE, x0=theta, maxiter=10, method='Nelder-Mead', options={'disp':True, 'adaptive': True}, args=(model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg))
-        print(theta)
+        #from scipy.optimize import minimize
+        #theta = minimize(objective_fcns.MLE, x0=theta, maxiter=10, method='Nelder-Mead', options={'disp':True, 'adaptive': True}, args=(model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg))
+        #print(theta)
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -600,6 +553,29 @@ if __name__ == '__main__':
         for idx,NIS in enumerate(data[0].columns):
             ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
             ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        plt.show()
+        plt.close()
+
+        # STEP 6: Visualize the regional result
+        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12))
+
+        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+        title_list = ['Brussels', 'Flanders', 'Wallonia']
+        color_list = ['blue', 'blue', 'blue']
+
+        for idx,NIS_list in enumerate(NIS_lists):
+            model_vals = 0
+            data_vals= 0
+            for NIS in NIS_list:
+                model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+            ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
+            ax[idx].scatter(df_sciensano.index,data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_title(title_list[idx])
+            ax[idx].set_ylim([0,420])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
         plt.show()
         plt.close()
 
@@ -650,11 +626,11 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
         pert2=[0.10, 0.10]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.20, 0.20, 0.20, 0.20, 0.20]
+        pert3=[0.30, 0.30, 0.30, 0.30, 0.30]
         # pars4 = ['K_inf1','K_inf2']
-        pert4=[0.10, 0.10]
+        pert4=[0.30, 0.30]
         # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.10, 0.10] 
+        pert5 = [0.30, 0.30] 
         # Add them together
         pert = pert1 + pert2 + pert3 + pert4 + pert5
 
