@@ -172,19 +172,26 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
     df = df.rename(columns=variable_mapping)
 
     if provincial == True:
+        # Hardcode a dictionary to convert region name to NIS
+        regions = ['Brussels', 'Antwerp', 'East Flanders', 'Flemish Brabant', 'Limburg', 'West Flanders', 'Hainaut', 'Liege', 'Luxembourg', 'Province of Namur', 'Walloon Brabant']
+        corresponding_NIS = [21000, 10000, 40000, 20001, 70000, 30000, 50000, 60000, 80000, 90000, 20002]
+        region_to_NIS_dict = dict(zip(regions, corresponding_NIS))        
         # Extract region names and append Brussels
         regions = list(df['sub_region_2'].dropna().unique())
         regions.insert(0,'Brussels')
         # Build multiindex dataframe
-        iterables = [df['date'].unique(), regions]
-        index = pd.MultiIndex.from_product(iterables, names=["date", "region"])
+        iterables = [df['date'].unique(), corresponding_NIS]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS"])
         new_df = pd.DataFrame(index=index, columns=list(variable_mapping.values()))
         # Loop over regions
         for region in regions:
+            NIS = region_to_NIS_dict[region]
             if region == 'Brussels':
-                new_df.loc[(slice(None),region),:] = df.loc[(df['sub_region_1'] == 'Brussels')][list(variable_mapping.values())].values
+                new_df.loc[(slice(None),NIS),:] = df.loc[(df['sub_region_1'] == 'Brussels')][list(variable_mapping.values())].values
             else:
-                new_df.loc[(slice(None),region),:] = df[df['sub_region_2']==region][list(variable_mapping.values())].values
+                new_df.loc[(slice(None),NIS),:] = df[df['sub_region_2']==region][list(variable_mapping.values())].values
+            # Replace NaN with the last observed non-null value forward
+            new_df.loc[(slice(None),NIS),:] = new_df.loc[(slice(None),NIS),:].fillna(method='ffill')
         df = new_df
     else:
             

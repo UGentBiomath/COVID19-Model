@@ -188,7 +188,7 @@ def get_sciensano_COVID19_data(update=True):
     # --------
     
     # Format provinces to NIS codes
-    data_provinces = df_hosp['PROVINCE'].unique()
+    data_provinces = ['Antwerpen', 'Brussels', 'Hainaut', 'Limburg', 'Liège', 'Luxembourg', 'Namur', 'OostVlaanderen', 'VlaamsBrabant', 'BrabantWallon', 'WestVlaanderen'] #df_hosp['PROVINCE'].unique()
     data_provinces = [x for x in data_provinces if pd.notnull(x)]
     corresponding_NIS = [10000, 21000, 50000, 70000, 60000, 80000, 90000, 40000, 20001, 20002, 30000]
     for idx, province in enumerate(data_provinces):
@@ -201,7 +201,7 @@ def get_sciensano_COVID19_data(update=True):
     df_hosp = df_hosp.rename(columns=variable_mapping)
     # Group data by date and province
     df_hosp = df_hosp.groupby(by=['DATE', 'PROVINCE']).sum()
-    df_hosp.index.names = ['date','province']
+    df_hosp.index.names = ['date','NIS']
     # Retain only columns of interest
     df_hosp = df_hosp[list(variable_mapping.values())]
 
@@ -609,10 +609,10 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
         df = get_sciensano_COVID19_data(update=False)[0][[values]]
         
         # rename columns to fit the rest of the conventions
-        df = df.reset_index().rename(columns={'date':'DATE', 'province':'NIS_prov'})
+        df = df.reset_index().rename(columns={'date':'DATE'})
         
         # Put it in the same shape as the rest of the conventions
-        df = df.pivot_table(index='DATE', columns='NIS_prov')[values]
+        df = df.pivot_table(index='DATE', columns='NIS')[values]
         
         # moving average
         if moving_avg:
