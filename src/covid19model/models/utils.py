@@ -33,7 +33,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
     initN = initN.values
-    
+
     # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
     df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
 
@@ -249,7 +249,6 @@ def draw_fcn_spatial(param_dict,samples_dict):
  
     # Vaccination
     # -----------
-    param_dict['daily_first_dose'] = np.random.uniform(low=60000,high=120000)
     param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))
     param_dict['e_i'] = np.array([np.random.normal(loc=0.50, scale=0.03/3),
                                   np.random.normal(loc=0.50, scale=0.03/3),
@@ -260,9 +259,6 @@ def draw_fcn_spatial(param_dict,samples_dict):
     param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3)])
-    param_dict['refusal'] = [np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.10, 0.15, 0.30),np.random.triangular(0.15, 0.20, 0.40), # 30-
-                                np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.10, 0.20),np.random.triangular(0.05, 0.20, 0.30), # 30-60
-                                np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15), np.random.triangular(0.05, 0.10, 0.15)] # 60+
 
     # Hospitalization
     # ---------------

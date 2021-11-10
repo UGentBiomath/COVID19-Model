@@ -911,19 +911,19 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=1)
         elif t13 < t <= t14:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=0)    
         elif t14 < t <= t15:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t15 < t <= t16:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t16 < t <= t17:

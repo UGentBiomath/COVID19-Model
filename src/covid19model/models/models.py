@@ -1202,9 +1202,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dS = dS + zeta*R
         dR = dR - zeta*R
         # Vaccines
-        dS_v = dS_v - (1/d_vacc)*S_v
-        dR_v = dR_v - (1/d_vacc)*R_v
-        dS = dS + (1/d_vacc)*(S_v + R_v)
+        #dS_v = dS_v - (1/d_vacc)*S_v
+        #dR_v = dR_v - (1/d_vacc)*R_v
+        #dS = dS + (1/d_vacc)*(S_v + R_v)
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU, dS_v, dE_v, dI_v, dA_v, dM_v, dC_v, dC_icurec_v, dICUstar_v, dR_v)
 

@@ -524,19 +524,9 @@ if __name__ == '__main__':
         # run optimisation
         #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-
-        # new initE
         r = 0.87
         theta = [r*0.0210, r*0.0215, r*0.0210, 7.0, 9, 0.73, 0.20, 0.014, 0.80, 0.65, 1.25, 2.12, 0.14, 60.] #--> manual fit, provincial == False (without transpose of Nc)
 
-        #from scipy.optimize import basinhopping
-        #from covid19model.optimization import objective_fcns
-        #minimizer_kwargs = {'args':  (model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg)}
-        #theta = basinhopping(objective_fcns.MLE, x0=theta, minimizer_kwargs=minimizer_kwargs, T=0.1, niter=10, disp=True)
-        #print(theta)
-        #from scipy.optimize import minimize
-        #theta = minimize(objective_fcns.MLE, x0=theta, maxiter=10, method='Nelder-Mead', options={'disp':True, 'adaptive': True}, args=(model, data, states, pars, weights,None,None,start_calibration,warmup,'poisson',poisson_offset,agg))
-        #print(theta)
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -588,18 +578,6 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
 
-        # STEP 6: Visualize the provincial immunity
-        fig,ax = plt.subplots(nrows=len(data[0].columns[:4]),ncols=1,figsize=(12,4))
-        for idx,NIS in enumerate(data[0].columns[:4]):
-            ax[idx].plot(out['time'],out['E'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='green')
-            ax[idx].plot(out['time'],out['I'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='orange')
-            ax[idx].plot(out['time'],out['A'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='red')
-            ax[idx].plot(out['time'],out['M'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='black')
-            ax[idx].set_ylim([0,2])
-            #ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        plt.show()
-        plt.close()
-
         # Print statement to stdout once
         print(f'\nPSO RESULTS:')
         print(f'------------')
@@ -626,11 +604,11 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
         pert2=[0.10, 0.10]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.30, 0.30, 0.30, 0.30, 0.30]
+        pert3=[0.40, 0.40, 0.40, 0.40, 0.40]
         # pars4 = ['K_inf1','K_inf2']
         pert4=[0.30, 0.30]
         # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.30, 0.30] 
+        pert5 = [0.40, 0.40] 
         # Add them together
         pert = pert1 + pert2 + pert3 + pert4 + pert5
 

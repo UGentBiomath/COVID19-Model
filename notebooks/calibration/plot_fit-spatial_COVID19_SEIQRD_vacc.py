@@ -108,6 +108,7 @@ from covid19model.models.utils import draw_fcn_spatial as draw_fcn
 
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
+df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # --------------------
 # Initialize the model
@@ -167,6 +168,8 @@ for idx,NIS_list in enumerate(NIS_lists):
     ax[idx+1].grid(False)
     ax[idx+1].set_ylabel('$H_{in}$ (-)')
     ax[idx+1] = _apply_tick_locator(ax[idx+1])
+plt.suptitle('Regional incidence per 100K inhabitants')
+plt.tight_layout()
 plt.show()
 plt.close()
 
@@ -186,6 +189,7 @@ for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coord
     ax[idx].set_ylabel('$H_{in}$ (-)')
     ax[idx].set_ylim([0,12])
 plt.suptitle('Provincial incidence per 100K inhabitants')
+plt.tight_layout()
 plt.show()
 plt.close()
 
@@ -203,6 +207,67 @@ for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - 
     ax[idx].set_ylabel('$H_{in}$ (-)')
     ax[idx].set_ylim([0,12])
 plt.suptitle('Provincial incidence per 100K inhabitants')
+plt.tight_layout()
 plt.show()
 plt.close()
 
+print('4) Visualize the seroprevalence fit')
+
+# Plot fraction of immunes
+
+mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+
+fig,ax = plt.subplots(figsize=(12,4))
+ax.plot(simtime,mean,'--', color='blue')
+yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
+ax.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
+yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
+ax.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
+ax = _apply_tick_locator(ax)
+ax.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+ax.fill_between(simtime, lower, upper,alpha=0.20, color = 'blue')
+ax.set_xlim(start_sim,end_sim)
+ax.set_ylim(0,25)
+ax.set_ylabel('Seroprelevance (%)', fontsize=12)
+ax.get_yaxis().set_label_coords(-0.1,0.5)
+plt.tight_layout()
+plt.show()
+plt.close()
+
+print('5) Visualize the regional vaccination degree')
+
+# Visualize the regional fit
+fig,ax = plt.subplots(figsize=(12,4))
+
+# National
+mean, median, lower, upper = add_poisson((out['S_v'].sum(dim='Nc').sum(dim='place').values+out['R_v'].sum(dim='Nc').sum(dim='place').values), args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+ax.plot(simtime, mean, '--', color='blue')
+ax.fill_between(simtime, lower, upper, alpha=0.2, color='blue')
+
+
+NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+title_list = ['Brussels', 'Flanders', 'Wallonia']
+color_list = ['red', 'green', 'black']
+
+for idx,NIS_list in enumerate(NIS_lists):
+    aggregate=0
+    data = 0
+    pop = 0
+    for NIS in NIS_list:
+        aggregate = aggregate + out['S_v'].sel(place=NIS).sum(dim='Nc').values + out['R_v'].sel(place=NIS).sum(dim='Nc').values
+        data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
+        pop = pop + sum(initN.loc[NIS].values)
+
+    mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)/pop*100
+
+    ax.plot(simtime, mean,'--', color=color_list[idx])
+    ax.fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
+
+ax.legend(['Belgium', 'Brussels', 'Flanders', 'Wallonia'])
+ax.set_ylim([0,100])
+ax.grid(False)
+ax.set_ylabel('Vaccinated (%)')
+ax = _apply_tick_locator(ax)
+plt.tight_layout()
+plt.show()
+plt.close()
