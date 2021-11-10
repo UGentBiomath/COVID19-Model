@@ -33,6 +33,9 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
+    # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
+    df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
+
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
 
@@ -70,17 +73,14 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     ## Initialize the model ##
     ##########################
 
-    # Define the matrix of exposed subjects that will be identified with compartment E
-    values_initE = np.array([1.00000000e+00, 0. ,0. , 0.500000000e+00, 9.28515432e-01, 3.69489414e-01,8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,4.88528548e-01])
-    initE = np.ones(initN.shape)
-    initE = values_initE[:, np.newaxis] * initE
+    # Set initE based on relative new hospitalizations in the period 13-17 March 2020
+    # Disable all mobility in model before March 17th, 2020 --> proportions are retained until 2020-03-17
+    rel_incidence = (df_sciensano.loc['2020-03-13':'2020-03-17'].mean()/np.sum(initN, axis=1)*100000).values
+    initE = np.zeros(initN.shape)
+    initE[:,1:5] = rel_incidence[:,np.newaxis]
 
     # Add the susceptible and exposed population to the initial_states dict
     initial_states = {'S': initN-initE, 'E': initE}
-    #params.pop('beta_R')
-    #params.pop('beta_U')
-    #params.pop('beta_M')
-    #params.update({'beta': 0.0411})
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.pop('e_a')
     params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only

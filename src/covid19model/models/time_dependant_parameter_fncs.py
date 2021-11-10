@@ -153,7 +153,11 @@ class make_mobility_update_function():
 
     def mobility_wrapper_func(self, t, states, param, default_mobility=None):
         t = pd.Timestamp(t.date())
-        return self.__call__(t, default_mobility=default_mobility)
+        if t <= pd.Timestamp('2020-03-17'):
+            place = self.__call__(t, default_mobility=default_mobility)
+            return np.eye(place.shape[0])
+        else:
+            return self.__call__(t, default_mobility=default_mobility)
 
 ###################
 ## VOC functions ##
@@ -519,9 +523,9 @@ class make_contact_matrix_function():
         GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
 
         if self.provincial:
-            if t < pd.Timestamp('2020-03-15'):
+            if t < pd.Timestamp('2020-03-17'):
                 return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
-            elif pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
+            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
@@ -557,9 +561,9 @@ class make_contact_matrix_function():
                     (prev_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
 
         else:
-            if t < pd.Timestamp('2020-03-15'):
+            if t < pd.Timestamp('2020-03-17'):
                 return self.Nc_all['total']
-            elif pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
+            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
             else:
@@ -880,7 +884,7 @@ class make_contact_matrix_function():
         elif t3 < t <= t4:
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.8*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 3*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), school=0)                                          
         elif t5 < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
@@ -907,16 +911,20 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t16 < t <= t17:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
