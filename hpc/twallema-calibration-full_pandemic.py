@@ -226,6 +226,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # --------------------
 
 model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -301,11 +302,11 @@ if __name__ == '__main__':
 
         # set optimisation settings
         pars = ['warmup','beta']
-        bounds=((0.0,60),(0.005,0.060))
+        bounds=((0.0,60),(0.020,0.060))
 
 
         # STEP 1: attach bounds of inital conditions
-        bounds += model.initial_states['S'].shape[0] * ((0,3),)
+        bounds += model.initial_states['S'].shape[0] * ((0,1),)
 
         # STEP 2: write a custom objective function
         def objective_fcn(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, poisson_offset='auto', agg=None):
@@ -363,14 +364,18 @@ if __name__ == '__main__':
             return -MLE
 
         # STEP 3: perform PSO
-        #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
-        #                                                                                            kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
-        #                                                                                            'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
-        #                                                                                            minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
-        #theta = p_hat
+        p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcn, bounds, args=(model,data,states,pars),
+                                                                                                    kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
+                                                                                                    'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,
+                                                                                                    minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
+        theta = p_hat
         # Hard-code a good result:
-        theta = [2.37350132e+01, 2.12668195e-02, 1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01,
-                    2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00] #-3940.637836944141
+        #theta = [2.37350132e+01, 2.12668195e-02, 1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01,
+        #            2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00] #-3940.637836944141
+        theta = [3.08385795e+01, 1.83897388e-02, 1.00000000e+00, 8.95784078e-01,
+                9.98542283e-01, 1.00000000e+00, 9.28515432e-01, 3.69489414e-01,
+                8.58429496e-01, 6.49175536e-01, 6.61562906e-01, 1.87151186e-01,
+                4.88528548e-01] #-1921.775503695565
 
         # STEP 4: Visualize the national result
 
@@ -440,32 +445,11 @@ if __name__ == '__main__':
         
         # Start of calibration
         start_calibration = '2020-03-02'
-        if public==True:
-            start_calibration = '2020-03-15' # First available date in public data.
+        #if public==True:
+            #start_calibration = '2020-03-15' # First available date in public data.
         # Last datapoint used to calibrate infectivity, compliance and effectivity
         if not args.enddate:
             end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depesnds on aggregation
-        spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
-
-        # From estimation of optimal initial condition in previous step
-        warmup = int(2.37350132e+01)
-        values_initE = np.array([1.76281612e+00, 9.09745043e-01, 7.03225566e-03, 3.00000000e+00, 4.18386374e-01, 8.41595192e-01, 2.82896728e+00, 1.44243626e+00, 1.41313146e+00, 0.00000000e+00, 0.00000000e+00])
-        new_initE = np.ones(model.initial_states['E'].shape)
-        new_initE = values_initE[:, np.newaxis] * new_initE
-        model.initial_states.update({'E': new_initE})    
-
-        # ------------------
-        # Calibration set-up
-        # ------------------
-
-        # Start of calibration
-        start_calibration = '2020-03-02'
-        # Last datapoint used to calibrate infectivity, compliance and effectivity
-        if not args.enddate:
-            end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y")
         else:
             end_calibration = str(args.enddate)
         # Spatial unit: depesnds on aggregation
@@ -478,7 +462,7 @@ if __name__ == '__main__':
         popsize = multiplier_pso*processes
 
         # MCMC settings
-        multiplier_mcmc = 2
+        multiplier_mcmc = 3
         max_n = n_mcmc # 500000
         print_n = 10
 
@@ -497,9 +481,9 @@ if __name__ == '__main__':
         # --------------
 
         # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration], df_sciensano['2021-10-01':end_calibration]]
-        states = ["H_in", "H_in"]
-        weights = [1,1]
+        data=[df_sciensano[:end_calibration]]
+        states = ["H_in"]
+        weights = [1]
 
         # -----------
         # Perform PSO
@@ -514,12 +498,12 @@ if __name__ == '__main__':
         # -----------
 
         # transmission
-        pars1 = ['beta']
-        bounds1=((0.005,0.060),)
+        pars1 = ['beta_R', 'beta_U', 'beta_M']
+        bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
 
         # Social intertia
         pars2 = ['l1',   'l2']
-        bounds2=((1,31), (1,31))
+        bounds2=((1,21), (1,21))
 
         # Prevention parameters (effectivities)
         pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
@@ -531,7 +515,7 @@ if __name__ == '__main__':
 
         # Seasonality
         pars5 = ['amplitude','peak_shift']
-        bounds5 = ((0,0.25),(-45,45))
+        bounds5 = ((0,0.25),(-61,61))
 
         # Join them together
         pars = pars1 + pars2 + pars3 + pars4 + pars5
@@ -540,10 +524,8 @@ if __name__ == '__main__':
         # run optimisation
         #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-
-        #theta = [0.0228, 20.0, 14, 0.40, 0.05, 0.014, 0.52, 0.65, 1.32, 1.90, 0.104, 22.2] #--> manual fit, provincial == False (with transpose of Nc)
-        theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.60, 0.65, 1.45, 2.0, 0.104, 22.2] #--> manual fit, provincial == False (without transpose of Nc)
-        #theta = [0.0228, 20.0, 12, 0.40, 0.05, 0.014, 0.55, 0.65, 1.35, 2.05, 0.104, 22.2] #--> manual fit, provincial == True
+        r = 0.87
+        theta = [r*0.0210, r*0.0215, r*0.0210, 7.0, 9, 0.73, 0.20, 0.014, 0.80, 0.65, 1.25, 2.12, 0.14, 60.] #--> manual fit, provincial == False (without transpose of Nc)
 
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -564,6 +546,38 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
 
+        # STEP 6: Visualize the regional result
+        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12))
+
+        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+        title_list = ['Brussels', 'Flanders', 'Wallonia']
+        color_list = ['blue', 'blue', 'blue']
+
+        for idx,NIS_list in enumerate(NIS_lists):
+            model_vals = 0
+            data_vals= 0
+            for NIS in NIS_list:
+                model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+            ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
+            ax[idx].scatter(df_sciensano.index,data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_title(title_list[idx])
+            ax[idx].set_ylim([0,420])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
+        plt.show()
+        plt.close()
+
+        # STEP 6: Visualize the provincial immunity
+        fig,ax = plt.subplots(nrows=len(data[0].columns[:4]),ncols=1,figsize=(12,4))
+        for idx,NIS in enumerate(data[0].columns[:4]):
+            ax[idx].plot(out['time'],out['R'].sel(place=NIS).sum(dim='Nc')/sum(initN[idx,:])*100,'--', color='blue')
+            ax[idx].set_ylim([0,25])
+            #ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+        plt.show()
+        plt.close()
+
         # Print statement to stdout once
         print(f'\nPSO RESULTS:')
         print(f'------------')
@@ -579,22 +593,22 @@ if __name__ == '__main__':
         # ------------------
 
         # Define simple uniform priors based on the PSO bounds
-        log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
+        log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                             prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                             prior_uniform, prior_uniform, prior_uniform, prior_uniform]
         log_prior_fcn_args = bounds
         # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
         # Generally, the less certain we are of a value, the higher the perturbation fraction
         # pars1 = ['beta_R', 'beta_U', 'beta_M']
-        pert1=[0.02]
+        pert1=[0.10, 0.10, 0.10]
     # pars2 = ['l1', 'l2']
-        pert2=[0.05, 0.05]
+        pert2=[0.10, 0.10]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.05, 0.05, 0.05, 0.05, 0.05]
+        pert3=[0.40, 0.40, 0.40, 0.40, 0.40]
         # pars4 = ['K_inf1','K_inf2']
-        pert4=[0.05, 0.05]
+        pert4=[0.30, 0.30]
         # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.05, 0.05] 
+        pert5 = [0.40, 0.40] 
         # Add them together
         pert = pert1 + pert2 + pert3 + pert4 + pert5
 
@@ -608,7 +622,7 @@ if __name__ == '__main__':
             backend.reset(nwalkers, ndim)
 
         # Labels for traceplots
-        labels = ['$\\beta$',
+        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
                     '$l_1$', '$l_2$', \
                     '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
                     '$K_{inf,1}$', 'K_{inf,2}', \
