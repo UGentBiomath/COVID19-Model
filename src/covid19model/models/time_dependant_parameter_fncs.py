@@ -1,5 +1,6 @@
 import os
 import random
+import math
 import numpy as np
 import pandas as pd
 import itertools
@@ -832,7 +833,7 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-07') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -850,7 +851,7 @@ class make_contact_matrix_function():
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t18 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t19 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
-        t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t20 = pd.Timestamp('2021-09-10') # End of Summer holiday
         t21 = pd.Timestamp('2021-09-21') # Opening of universities
         t22 = pd.Timestamp('2021-11-01') # Start of autumn break
         t23 = pd.Timestamp('2021-11-07') # End of autumn break
@@ -884,7 +885,7 @@ class make_contact_matrix_function():
         elif t3 < t <= t4:
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 3*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, prev_rest_relaxation, prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), school=0)                                          
         elif t5 < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
@@ -911,19 +912,19 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=1)
         elif t13 < t <= t14:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
                                 school=0)    
         elif t14 < t <= t15:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t15 < t <= t16:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.7*prev_rest_relaxation] + 7*[prev_rest_lockdown])
+            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
             return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
                                 school=1)
         elif t16 < t <= t17:
@@ -1142,9 +1143,33 @@ class make_seasonality_function():
         """
         ref_date = pd.to_datetime('2021-01-01')
         # If peak_shift = 0, the max is on the first of January
-        maxdate = pd.Timedelta(days=peak_shift) + ref_date
+        maxdate = ref_date + pd.Timedelta(days=peak_shift)
         # One period is one year long (seasonality)
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
 
+    def square_wave(self,t, states, param, amplitude, peak_shift):
+
+        # End of maximum infectability
+        end_min_inf = pd.to_datetime('2020-10-01') + pd.Timedelta(days=peak_shift)
+        # Calculate relative time
+        t = (t - pd.to_datetime(end_min_inf))/pd.Timedelta(days=1)/365    
+        t = t - math.floor(t)
+        # Ramp time
+        l = 62
+
+        if (365/2-l/2)/365 <= t < (365/2 + l/2)/365 :
+            t_start = (365/2-l/2)/365
+            old = param*(1+amplitude)
+            new = param*(1-amplitude)
+            return old + (old-new)/l * (t-t_start)
+        elif (365/2+l/2)/365 <= t <  (365-l/2)/365:
+            return param*(1-amplitude)
+        elif (365-l/2)/365 <= t <  (365 + l/2)/365:
+            t_start = (365-l/2)/365
+            old = param*(1-amplitude)
+            new = param*(1+amplitude)
+            return old + (old-new)/l * (t-t_start)
+        else:
+            return param*(1+amplitude)
