@@ -5,6 +5,7 @@ import pandas as pd
 import xarray as xr
 import zarr
 import ujson as json
+import pickle
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -67,24 +68,25 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
 
     # Time-dependent seasonality function, updating season_factor
-    seasonality_function = make_seasonality_function()
+    seasonality_function = make_seasonality_function()#.square_wave
 
 
     ##########################
     ## Initialize the model ##
     ##########################
 
-    # Set initE based on relative new hospitalizations in the period 13-17 March 2020
-    # Disable all mobility in model before March 17th, 2020 --> proportions are retained until 2020-03-17
-    rel_incidence = (df_sciensano.loc['2020-03-13':'2020-03-17'].mean()/np.sum(initN, axis=1)*100000).values
-    initE = np.zeros(initN.shape)
-    initE[:,1:5] = rel_incidence[:,np.newaxis]
+    # Initial condition on 2020-03-17
+    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/')
+    with open(samples_path+'initial_states_2020-03-17.pickle', 'rb') as handle:
+        initial_states = pickle.load(handle)
 
     # Add the susceptible and exposed population to the initial_states dict
-    initial_states = {'S': initN-initE, 'E': initE}
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.pop('e_a')
-    params.update({'e_s': np.array([0.8, 0.8, 0.6])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
+    params.update({'e_s': np.array([0.8, 0.8, 0.30])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
+    params.update({'e_h': np.array([0.95, 0.95, 0.90])})
+    params.update({'K_hosp': np.array([1, 1.0, 1.0])})
+
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
@@ -255,7 +257,7 @@ def draw_fcn_spatial(param_dict,samples_dict):
                                   np.random.normal(loc=0.50, scale=0.03/3)])
     param_dict['e_s'] = np.array([np.random.normal(loc=0.80, scale=0.03/3),
                                   np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.60, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
+                                  np.random.normal(loc=0.30, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
     param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3)])
