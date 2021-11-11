@@ -1111,7 +1111,8 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         ################################
 
         T = S + E + I + A + M + C + C_icurec + ICU + R\
-            + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v
+            + S_v + E_v + I_v + A_v + M_v + C_v + C_icurec_v + ICU_v + R_v\
+            + S_vw + E_vw + I_vw + A_vw + M_vw + C_vw + C_icurec_vw + ICU_vw + R_vw
 
         ####################################
         ## Compute the infection pressure ##
@@ -1146,17 +1147,21 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         S_v_work = np.matmul(np.transpose(place_eff), S_v)
         I_v_work = np.matmul(np.transpose(place_eff), I_v)
         A_v_work = np.matmul(np.transpose(place_eff), A_v)
+        S_vw_work = np.matmul(np.transpose(place_eff), S_vw)
+        I_vw_work = np.matmul(np.transpose(place_eff), I_vw)
+        A_vw_work = np.matmul(np.transpose(place_eff), A_vw)
         # Apply work contacts to place modified populations
-        infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work))/T_work
+        infpop = (I_work + A_work + (1-e_i_eff)*(I_v_work + A_v_work) + (1-e_i_eff)*(I_vw_work + A_vw_work))/T_work
         multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
         multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
-        infpop = (I + A + (1-e_i_eff)*(I_v + A_v))/T
+        infpop = (I + A + (1-e_i_eff)*(I_v + A_v) + (1-e_i_eff)*(I_vw + A_vw))/T
         multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
         multip_rest *= beta[:,np.newaxis]
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
         dS_inf_v = S_v_work * multip_work + S_v * multip_rest
+        dS_inf_vw = S_vw_work * multip_work + S_vw * multip_rest
 
         ############################
         ## Compute system of ODEs ##
@@ -1174,8 +1179,9 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dR  = dR + A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec)
         dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C
 
+        r_waning_vacc = 1/((5/12)*365)
         ### vaccinated population
-        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v 
+        dS_v  = dS_v - (1-e_s_eff)*dS_inf_v - r_waning_vacc*S_v
         dE_v  = (1-e_s_eff)*dS_inf_v - E_v/sigma 
         dI_v = (1/sigma)*E_v - (1/omega)*I_v 
         dA_v = (a/omega)*I_v - A_v/da      
@@ -1183,17 +1189,33 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         dC_v = M_v*(1-e_h_eff)*(h/dhospital)*c - (1-m_C)*C_v*(1/(dc_R)) - m_C*C_v*(1/(dc_D))
         dICUstar_v = M_v*(1-e_h_eff)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_v/(dICU_R) - m_ICU*ICU_v/(dICU_D)
         dC_icurec_v = (1-m_ICU)*ICU_v/(dICU_R) - C_icurec_v*(1/dICUrec)
-        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) 
+        dR_v  = dR_v + A_v/da + ((1-(1-e_h_eff)*h)/dm)*M_v + (1-m_C)*C_v*(1/dc_R) + C_icurec_v*(1/dICUrec) - r_waning_vacc*R_v
         dD_v = (m_ICU/dICU_D)*ICU_v + (m_C/dc_D)*C_v
         
+        ### waned vaccine population
+        e_s_w = 0.4
+        e_h_w = 0.9
+        dS_vw  = - (1-e_s_w)*dS_inf_vw + r_waning_vacc*S_v
+        dE_vw  = (1-e_s_w)*dS_inf_vw - E_vw/sigma 
+        dI_vw = (1/sigma)*E_vw - (1/omega)*I_vw
+        dA_vw = (a/omega)*I_vw - A_vw/da      
+        dM_vw = ((1-a)/omega)*I_vw - M_vw*((1-(1-e_h_w)*h)/dm) - M_vw*(1-e_h_w)*h/dhospital
+        dC_vw = M_vw*(1-e_h_w)*(h/dhospital)*c - (1-m_C)*C_vw*(1/(dc_R)) - m_C*C_vw*(1/(dc_D))
+        dICUstar_vw = M_vw*(1-e_h_w)*(h/dhospital)*(1-c) - (1-m_ICU)*ICU_vw/(dICU_R) - m_ICU*ICU_vw/(dICU_D)
+        dC_icurec_vw = (1-m_ICU)*ICU_vw/(dICU_R) - C_icurec_vw*(1/dICUrec)
+        dR_vw  = A_vw/da + ((1-(1-e_h_w)*h)/dm)*M_vw + (1-m_C)*C_vw*(1/dc_R) + C_icurec_vw*(1/dICUrec) + r_waning_vacc*R_v
+        dD_vw = (m_ICU/dICU_D)*ICU_vw + (m_C/dc_D)*C_vw      
+
         ## Hospital rates of changes
-        dH_in = M*(h/dhospital) + M_v*((1-e_h_eff)*h/dhospital) - H_in
+        dH_in = M*(h/dhospital) + M_v*((1-e_h_eff)*h/dhospital) + M_vw*(1-e_h_w)*h/dhospital - H_in
         dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec)\
-            + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec) - H_out
+            + (1-m_C)*C_v*(1/dc_R) +  m_C*C_v*(1/dc_D) + (m_ICU/dICU_D)*ICU_v + C_icurec_v*(1/dICUrec)\
+            + (1-m_C)*C_vw*(1/dc_R) +  m_C*C_vw*(1/dc_D) + (m_ICU/dICU_D)*ICU_vw + C_icurec_vw*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
-            + M_v*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)
-        dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) - R_C
-        dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec)- R_ICU
+            + M_v*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)\
+            + M_vw*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_vw*(1/dc_R) -  m_C*C_vw*(1/dc_D) - (m_ICU/dICU_D)*ICU_vw - C_icurec_vw*(1/dICUrec)
+        dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) + + (1-m_C)*C_vw*(1/dc_R) - R_C
+        dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec) + C_icurec_vw*(1/dICUrec)- R_ICU
 
 
         ########################
