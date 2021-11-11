@@ -851,7 +851,7 @@ class make_contact_matrix_function():
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t18 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t19 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
-        t20 = pd.Timestamp('2021-09-10') # End of Summer holiday
+        t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
         t21 = pd.Timestamp('2021-09-21') # Opening of universities
         t22 = pd.Timestamp('2021-11-01') # Start of autumn break
         t23 = pd.Timestamp('2021-11-07') # End of autumn break

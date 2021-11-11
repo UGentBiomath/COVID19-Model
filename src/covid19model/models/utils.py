@@ -83,7 +83,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     # Add the susceptible and exposed population to the initial_states dict
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.pop('e_a')
-    params.update({'e_s': np.array([0.8, 0.8, 0.30])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
+    params.update({'e_s': np.array([0.8, 0.8, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
     params.update({'e_h': np.array([0.95, 0.95, 0.90])})
     params.update({'K_hosp': np.array([1, 1.0, 1.0])})
 
