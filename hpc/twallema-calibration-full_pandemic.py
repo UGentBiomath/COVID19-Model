@@ -538,10 +538,16 @@ if __name__ == '__main__':
         #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
         r = 0.87
-        theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.65, 0.14, 0.014, 0.77, 0.65, 1.25, 1.85, 0.14, 60.] # works with cosine seasonality
-        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.30, 0.24, 0.014, 0.80, 0.65, 1.50, 1.8, 0.14, 0] # works with square wave seasonality
+        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.65, 0.14, 0.014, 0.77, 0.65, 1.25, 1.85, 0.14, 60.] # works with cosine seasonality (no waning vacc)
+        theta = [r*0.0210, r*0.0215, r*0.0275, 14.0, 9, 0.38, 0.16, 0.015, 0.80, 0.65, 1.55, 2.0, 0.13, 5.] # works with cosine seasonality (waning vacc)
+        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.65, 0.14, 0.014, 0.77, 0.65, 1.25, 1.85, 0.14, 60.] # works with cosine seasonality (waning vacc)
+        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.30, 0.24, 0.014, 0.80, 0.65, 1.50, 1.8, 0.14, 0] # works with square wave seasonality (no waning vacc)
 
-        
+        from covid19model.optimization.nelder_mead import nelder_mead
+        step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.3, 0.3 ]
+        f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
+        sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
+
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
@@ -619,11 +625,11 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
         pert2=[0.10, 0.10]
         # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.40, 0.40, 0.40, 0.40, 0.40]
+        pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
         # pars4 = ['K_inf1','K_inf2']
         pert4=[0.30, 0.30]
         # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.40, 0.40] 
+        pert5 = [0.50, 0.50] 
         # Add them together
         pert = pert1 + pert2 + pert3 + pert4 + pert5
 
