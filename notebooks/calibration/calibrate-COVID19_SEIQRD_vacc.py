@@ -269,8 +269,8 @@ bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-#theta = np.array([0.0415, 20, 7, 0.25, 0.05,0.05,0.38,0.25,1.35,2.0,0.0987,28.1]) #--> from an earlier mcmc
-theta = np.array([0.018, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77]) # --> from calibration spatial model on 2021-11-13
+theta = np.array([0.0415, 20, 7, 0.25, 0.05,0.05,0.38,0.25,1.35,2.0,0.0987,28.1]) #--> from an earlier mcmc
+#theta = np.array([0.018, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77]) # --> from calibration spatial model on 2021-11-13
 # Nelder-mead optimization
 step = 14*[0.05,]
 f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
