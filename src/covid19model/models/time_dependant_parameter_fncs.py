@@ -849,8 +849,8 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-07-01') # Start of Summer holiday
-        t19 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
+        t18 = pd.Timestamp('2021-05-07') # Start of relaxations
+        t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
         t21 = pd.Timestamp('2021-09-21') # Opening of universities
         t22 = pd.Timestamp('2021-11-01') # Start of autumn break
@@ -866,6 +866,36 @@ class make_contact_matrix_function():
         t32 = pd.Timestamp('2022-09-21') # Opening of universities
         t33 = pd.Timestamp('2022-10-31') # Start of autumn break
         t34 = pd.Timestamp('2022-11-06') # End of autumn break
+
+        spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
+                                                prev_rest_lockdown, # W
+                                                prev_rest_lockdown, # Bxl
+                                                prev_rest_lockdown, prev_rest_lockdown, # F
+                                                prev_rest_relaxation, prev_rest_relaxation, # W
+                                                prev_rest_lockdown, # F
+                                                0.7*prev_rest_relaxation, 0.7*prev_rest_relaxation])) # W
+
+        co_F = 0.6
+        co_W = 0.50
+        co_Bxl = 0.50
+        spatial_summer_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, # W
+                                                co_Bxl*prev_rest_relaxation, # Bxl
+                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
+                                                co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+
+        co_F = 1.0
+        co_W = 0.5
+        co_Bxl = 0.5
+        relaxation_flanders_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, # W
+                                                co_Bxl*prev_rest_relaxation, # Bxl
+                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
+                                                co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
 
         if t <= t1:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
@@ -885,8 +915,7 @@ class make_contact_matrix_function():
         elif t3 < t <= t4:
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, 0.5*prev_rest_relaxation, prev_rest_lockdown, prev_rest_lockdown, prev_rest_relaxation, prev_rest_relaxation, prev_rest_lockdown, 0.5*prev_rest_relaxation, 0.5*prev_rest_relaxation])
-            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), school=0)                                          
+            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_lockdown_2020, school=0)                                          
         elif t5 < t <= t6:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
         # Second wave
@@ -912,20 +941,16 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
-            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=1)
         elif t13 < t <= t14:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
-            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest), 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
                                 school=0)    
         elif t14 < t <= t15:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
-            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
                                 school=1)
         elif t15 < t <= t16:
-            prev_rest = np.array([prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown, prev_rest_lockdown] + 7*[prev_rest_lockdown])
-            return self.__call__(t, prev_home, prev_schools, prev_work, tuple(prev_rest),
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
                                 school=1)
         elif t16 < t <= t17:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
@@ -936,34 +961,33 @@ class make_contact_matrix_function():
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)
+            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0.8)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)    
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)    
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                leisure=1.1, work=0.9, transport=1, others=1, school=0)
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0) 
         elif t25 < t <= t26:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t26 < t <= t27:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)  
         elif t27 < t <= t28:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)           
         elif t28 < t <= t29:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)
         elif t29 < t <= t30:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
