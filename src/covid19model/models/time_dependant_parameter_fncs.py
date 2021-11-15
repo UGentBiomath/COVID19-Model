@@ -1,5 +1,6 @@
 import os
 import random
+import math
 import numpy as np
 import pandas as pd
 import itertools
@@ -153,7 +154,11 @@ class make_mobility_update_function():
 
     def mobility_wrapper_func(self, t, states, param, default_mobility=None):
         t = pd.Timestamp(t.date())
-        return self.__call__(t, default_mobility=default_mobility)
+        if t <= pd.Timestamp('2020-03-17'):
+            place = self.__call__(t, default_mobility=default_mobility)
+            return np.eye(place.shape[0])
+        else:
+            return self.__call__(t, default_mobility=default_mobility)
 
 ###################
 ## VOC functions ##
@@ -514,17 +519,20 @@ class make_contact_matrix_function():
 
     """
     def __init__(self, df_google, Nc_all):
-        self.df_google = df_google
-        self.df_google_array = df_google.values
-        self.df_google_start = df_google.index[0]
-        self.df_google_end = df_google.index[-1]
+        self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
-
+        # Compute start and endtimes of dataframe
+        self.df_google_start = df_google.index.get_level_values('date')[0]
+        self.df_google_end = df_google.index.get_level_values('date')[-1]
+        # Check if provincial data is provided
+        self.provincial = None
+        if 'NIS' in self.df_google.index.names:
+            self.provincial = True
+            self.space_agg = len(self.df_google.index.get_level_values('NIS').unique().values)
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    # This is the default output, what was earlier contact_matrix_4prev
     def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1,
-                       school=None, work=None, transport=None, leisure=None, others=None, home=None, SB=False):
+                       school=None, work=None, transport=None, leisure=None, others=None, home=None):
 
         """
         t : timestamp
@@ -535,53 +543,80 @@ class make_contact_matrix_function():
             level of opening of these sectors
             if None, it is calculated from google mobility data
             only school cannot be None!
-        SB : str '2a', '2b' or '2c'
-            '2a': september behaviour overall
-            '2b': september behaviour, but work = lockdown behaviour
-            '2c': september behaviour, but leisure = lockdown behaviour
 
         """
 
-        if t < pd.Timestamp('2020-03-15'):
-            CM = self.Nc_all['total']
-        else:
-
-            if school is None:
-                raise ValueError(
+        if school is None:
+            raise ValueError(
                 "Please indicate to which extend schools are open")
 
-            if pd.Timestamp('2020-03-15') <= t <= self.df_google_end:
-                #take t.date() because t can be more than a date! (e.g. when tau_days is added)
-                idx = int((t - self.df_google_start) / pd.Timedelta("1 day"))
-                row = -self.df_google_array[idx]/100
+
+        places_var = [work, transport, leisure, others]
+        places_names = ['work', 'transport', 'leisure', 'others']
+        GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
+
+        if self.provincial:
+            if t < pd.Timestamp('2020-03-17'):
+                return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
+            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+                # Extract row at timestep t
+                row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
-                row = -self.df_google[-7:-1].mean()/100 # Extrapolate mean of last week
+                # Extract last 14 days and take the mean
+                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=14)): self.df_google_end, slice(None)].mean(level='NIS')/100
 
-            if SB == '2a':
-                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
-            elif SB == '2b':
-                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[4] = -self.df_google['2020-03-15':'2020-04-01'].mean()[4]/100
-            elif SB == '2c':
-                row = -self.df_google['2020-09-01':'2020-10-01'].mean()/100
-                row[0] = -self.df_google['2020-03-15':'2020-04-01'].mean()[0]/100
+            # Sort NIS codes from low to high
+            row.sort_index(level='NIS', ascending=True,inplace=True)
+            # Extract values
+            values_dict={}
+            for idx,place in enumerate(places_var):
+                if place is None:
+                    place = 1 - row[GCMR_names[idx]].values
+                else:
+                    try:
+                        test=len(place)
+                    except:
+                        place = place*np.ones(self.space_agg)     
+                values_dict.update({places_names[idx]: place})
 
-            # columns: retail_recreation grocery parks transport work residential
-            if work is None:
-                work= 1-row[4]
-            if transport is None:
-                transport=1-row[3]
-            if leisure is None:
-                leisure=1-row[0]
-            if others is None:
-                others=1-row[1]
+            # Schools:
+            try:
+                test=len(school)
+            except:
+                school = school*np.ones(self.space_agg)
 
+            # Construct contact matrix
+            CM = (prev_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                    (prev_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                    (prev_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                    (prev_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                    (prev_rest*values_dict['leisure'])[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                    (prev_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+
+        else:
+            if t < pd.Timestamp('2020-03-17'):
+                return self.Nc_all['total']
+            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+                # Extract row at timestep t
+                row = -self.df_google.loc[t]/100
+            else:
+                # Extract last 14 days and take the mean
+                row = -self.df_google[-14:-1].mean()/100
+            
+            # Extract values
+            values_dict={}
+            for idx,place in enumerate(places_var):
+                if place is None:
+                    place = 1 - row[GCMR_names[idx]]
+                values_dict.update({places_names[idx]: place})  
+
+            # Construct contact matrix
             CM = (prev_home*self.Nc_all['home'] +
-                  prev_schools*school*self.Nc_all['schools'] +
-                  prev_work*work*self.Nc_all['work'] +
-                  prev_rest*transport*self.Nc_all['transport'] +
-                  prev_rest*leisure*self.Nc_all['leisure'] +
-                  prev_rest*others*self.Nc_all['others'])
+                    prev_schools*school*self.Nc_all['schools'] +
+                    prev_work*values_dict['work']*self.Nc_all['work'] +
+                    prev_rest*values_dict['transport']*self.Nc_all['transport'] +
+                    prev_rest*values_dict['leisure']*self.Nc_all['leisure'] +
+                    prev_rest*values_dict['others']*self.Nc_all['others'])
 
         return CM
 
@@ -590,326 +625,6 @@ class make_contact_matrix_function():
 
     def all_contact_no_schools(self):
         return self.Nc_all['total'] - self.Nc_all['schools']
-
-    def policies_WAVE1(self, t, states, param, l , prev_schools, prev_work, prev_rest, prev_home):
-        '''
-        Function that returns the time-dependant social contact matrix Nc for the first 2020 COVID-19 wave. Includes a manual tweaking of the 2020 COVID-19 Antwerp summer wave.
-
-        Input
-        -----
-        t : Timestamp
-            simulation time
-        states : xarray
-            model states
-        param : dict
-            model parameter dictionary
-        l : float
-            Compliance parameter for ramp_fun
-        tau : float
-            Compliance parameter for ramp_fun
-        prev_{location} : float
-            Effectivity of contacts at {location}
-
-        Returns
-        -------
-        CM : np.array
-            Effective contact matrix (output of __call__ function)
-        '''
-        all_contact = self.Nc_all['total']
-        all_contact_no_schools = self.Nc_all['total'] - self.Nc_all['schools']
-
-        # Convert tau and l to dates
-        l_days = pd.Timedelta(l, unit='D')
-
-        # Define additional dates where intensity or school policy changes
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
-        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-07') # peak of 'second wave' in antwerp
-        t5 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-        if t <= t1:
-            return all_contact
-        elif t1 < t <= t1 + l_days:
-            t = pd.Timestamp(t.date())
-            policy_old = all_contact
-            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
-                                       school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t1, l)
-        elif t1 + l_days < t <= t2:
-            t = pd.Timestamp(t.date())
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
-                                  school=0)
-        elif t2 < t <= t3:
-            t = pd.Timestamp(t.date())
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest,
-                                  school=0)
-        ## WARNING: During the summer of 2020, highly localized clusters appeared in Antwerp city, and lockdown measures were taken locally
-        ## Do not forget this is a national-level model, you need a spatially explicit model to correctly model localized phenomena.
-        ## The following is an ad-hoc tweak to assure a fit on the data during summer in order to be as accurate as possible with the seroprelevance
-        elif t3 < t <= t3 + l_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t3, l)
-        elif t3 + l_days < t <= t4:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 0.75, school=0)
-        elif t4 < t <= t5:
-            return self.__call__(t, prev_home, prev_schools, 0.05, 0.05,
-                                school=0)
-        else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-
-    def policies_WAVE2_full_relaxation(self, t, states, param, l , l_relax, prev_schools, prev_work, prev_rest, prev_home, relaxdate):
-        '''
-        Function that returns the time-dependant social contact matrix Nc for the second 2020 COVID-19 wave. Includes a full relaxation of measures on relaxdate.
-
-        Input
-        -----
-        t : Timestamp
-            simulation time
-        states : xarray
-            model states
-        param : dict
-            model parameter dictionary
-        l : float
-            Compliance parameter for ramp_fun
-        l_relax : float
-            Additional days added after relaxdate
-        tau : float
-            Compliance parameter for ramp_fun
-        prev_{location} : float
-            Effectivity of contacts at {location}
-        relaxdate : str
-            String containing a date (YYYY-MM-DD) on which all measures are relaxed
-
-        Returns
-        -------
-        CM : np.array (9x9)
-            Effective contact matrix (output of __call__ function)
-        '''
-        t = pd.Timestamp(t.date())
-
-        # Convert compliance tau and l to dates
-        l_days = pd.Timedelta(l, unit='D')
-
-        # Convert relaxation l to dates
-        l_relax_days = pd.Timedelta(l_relax, unit='D')
-
-        # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
-        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-        # Define key dates of second wave
-        # Note that for days in the future, policies are estimated rather than observed
-        t5 = pd.Timestamp('2020-10-19') # lockdown (1)
-        t6 = pd.Timestamp('2020-11-02') # lockdown (2)
-        t7 = pd.Timestamp('2020-11-16') # schools re-open
-        t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-        t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-        t10 = pd.Timestamp('2021-02-15') # Spring break starts
-        t11 = pd.Timestamp('2021-02-21') # Spring break ends
-        t12 = pd.Timestamp('2021-02-28') # Contact increase in children
-        t13 = pd.Timestamp('2021-03-26') # Start of Easter holiday
-        t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t15 = pd.Timestamp(relaxdate) # Relaxation date
-        t16 = pd.Timestamp('2021-07-01') # Start of Summer holiday
-        t17 = pd.Timestamp('2021-09-01')
-
-        # First wave
-        if t <= t4:
-            return self.policies_WAVE1(t, states, param, l , prev_schools, prev_work, prev_rest, prev_home)
-        
-        # Second wave
-        elif t4 < t <= t5:
-            return self.__call__(t, school=1)
-        elif t5  < t <= t5 + l_days:
-            policy_old = self.__call__(t, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest,
-                                        school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t5, l)
-        elif t5 + l_days < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=0)
-        elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t8 < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=0)
-        elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=0)
-        elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                    school=0)
-        elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-        elif t15 < t <= t15 + l_relax_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-            return ramp_fun(policy_old, policy_new, t, t15, l_relax)
-        elif t15 + l_relax_days < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                work=0.8, leisure=1, transport=0.90, others=1, school=0)
-        else: # full relaxation
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-
-    def policies_WAVE2_no_relaxation(self, t, states, param, l , prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
-        '''
-        Function that returns the time-dependant social contact matrix Nc for the second 2020 COVID-19 wave. Includes a full relaxation of measures on relaxdate.
-
-        Input
-        -----
-        t : Timestamp
-            simulation time
-        states : xarray
-            model states
-        param : dict
-            model parameter dictionary
-        l : float
-            Compliance parameter for ramp_fun
-        tau : float
-            Compliance parameter for ramp_fun
-        prev_{location} : float
-            Effectivity of contacts at {location}
-
-        Returns
-        -------
-        CM : np.array (9x9)
-            Effective contact matrix (output of __call__ function)
-        '''
-        t = pd.Timestamp(t.date())
-
-        # Convert compliance tau and l to dates
-        l_days = pd.Timedelta(l, unit='D')
-
-        # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
-        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
-        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-09-01') # end of summer holidays
-
-        # Define key dates of second wave
-        t5 = pd.Timestamp('2020-10-19') # lockdown (1)
-        t6 = pd.Timestamp('2020-11-02') # lockdown (2)
-        t7 = pd.Timestamp('2020-11-16') # schools re-open
-        t8 = pd.Timestamp('2020-12-18') # Christmas holiday starts
-        t9 = pd.Timestamp('2021-01-04') # Christmas holiday ends
-        t10 = pd.Timestamp('2021-02-15') # Spring break starts
-        t11 = pd.Timestamp('2021-02-21') # Spring break ends
-        t12 = pd.Timestamp('2021-02-28') # Contact increase in children
-        t13 = pd.Timestamp('2021-03-26') # Start of Easter holiday
-        t14 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t15 = pd.Timestamp('2021-07-01') # Start of Summer holiday
-        t16 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
-        t17 = pd.Timestamp('2021-09-01') # End of Summer holiday
-        t18 = pd.Timestamp('2021-11-01') # Start of autumn break
-        t19 = pd.Timestamp('2021-11-07') # Start of autumn break
-        t20 = pd.Timestamp('2021-12-26') # Start of Christmass break
-        t21 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t22 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t23 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t24 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t25 = pd.Timestamp('2022-04-17') # End of Easter Break
-
-        # First wave
-        if t <= t4:
-            return self.policies_WAVE1(t, states, param, l , prev_schools, prev_work, prev_rest_lockdown, prev_home)
-        
-        # Second wave
-        if t4 < t <= t5:
-            return self.__call__(t, school=1)
-        elif t5  < t <= t5 + l_days:
-            policy_old = self.__call__(t, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown,
-                                        school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t5, l)
-        elif t5 + l_days < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=0)
-        elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t8 < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=0)
-        elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=0)
-        elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                    school=0)
-        elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
-                                school=1)
-        elif t15 < t <= t16:
-            l = (t16 - t15)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t15, l)
-        elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
-        elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t18 < t <= t19:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                leisure=1.1, work=0.9, transport=1, others=1, school=0)
-        elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
-        elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                leisure=1.1, work=0.9, transport=1, others=1, school=0)
-        elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
-        else: # full relaxation
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
-                                work=1, leisure=1, transport=1, others=1, school=1)
 
     def ramp_fun(self, Nc_old, Nc_new, t, t_start, l):
         """
@@ -920,7 +635,8 @@ class make_contact_matrix_function():
         l : int
             number of additional days after the time delay until full compliance is reached
         """
-        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+
+        return Nc_old + (Nc_new-Nc_old)/l * float( (t-t_start)/pd.Timedelta('1D') )
 
     def delayed_ramp_fun(self, Nc_old, Nc_new, t, tau_days, l, t_start):
         """
@@ -933,11 +649,11 @@ class make_contact_matrix_function():
         l : int
             number of additional days after the time delay until full compliance is reached
         """
-        return Nc_old + (Nc_new-Nc_old)/l * (t-t_start-tau_days)/pd.Timedelta('1D')
+        return Nc_old + (Nc_new-Nc_old)/l * float( (t-t_start-tau_days)/pd.Timedelta('1D') )
     
     def policies_all(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
         '''
-        Function that returns the time-dependant social contact matrix Nc for the second 2020 COVID-19 wave. Includes a full relaxation of measures on relaxdate.
+        Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
         Input
         -----
@@ -1115,6 +831,348 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)    
 
+    def policies_all_spatial(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
+        '''
+        Function that returns the time-dependant social contact matrix Nc for all COVID waves.
+        
+        Input
+        -----
+        t : Timestamp
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
+        l1 : float
+            Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
+        l2 : float
+            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+        prev_{location} : float
+            Effectivity of contacts at {location}
+
+        Returns
+        -------
+        CM : np.array (9x9)
+            Effective contact matrix (output of __call__ function)
+        '''
+        t = pd.Timestamp(t.date())
+
+        # Convert compliance l to dates
+        l1_days = pd.Timedelta(l1, unit='D')
+        l2_days = pd.Timedelta(l2, unit='D')
+
+        # Define key dates of first wave
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-08-07') # Summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+        t6 = pd.Timestamp('2020-09-01') # end of summer holidays
+        t7 = pd.Timestamp('2020-09-21') # Opening universities
+
+        # Define key dates of second wave
+        t8 = pd.Timestamp('2020-10-19') # lockdown (1)
+        t9 = pd.Timestamp('2020-11-02') # lockdown (2)
+        t10 = pd.Timestamp('2020-11-16') # schools re-open
+        t11 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+        t12 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+        t13 = pd.Timestamp('2021-02-15') # Spring break starts
+        t14 = pd.Timestamp('2021-02-21') # Spring break ends
+        t15 = pd.Timestamp('2021-02-28') # Contact increase in children
+        t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+        t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
+        t18 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+        t19 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
+        t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t21 = pd.Timestamp('2021-09-21') # Opening of universities
+        t22 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t23 = pd.Timestamp('2021-11-07') # End of autumn break
+        t24 = pd.Timestamp('2021-12-26') # Start of Christmass break
+        t25 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t26 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t27 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t28 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t29 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t30 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t31 = pd.Timestamp('2022-09-01') # End of summer holidays
+        t32 = pd.Timestamp('2022-09-21') # Opening of universities
+        t33 = pd.Timestamp('2022-10-31') # Start of autumn break
+        t34 = pd.Timestamp('2022-11-06') # End of autumn break
+
+        spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
+                                                prev_rest_lockdown, # W
+                                                prev_rest_lockdown, # Bxl
+                                                prev_rest_lockdown, prev_rest_lockdown, # F
+                                                prev_rest_relaxation, prev_rest_relaxation, # W
+                                                prev_rest_lockdown, # F
+                                                0.7*prev_rest_relaxation, 0.7*prev_rest_relaxation])) # W
+
+        co_F = 0.6
+        co_W = 0.50
+        co_Bxl = 0.50
+        spatial_summer_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, # W
+                                                co_Bxl*prev_rest_relaxation, # Bxl
+                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
+                                                co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+
+        co_F = 1.0
+        co_W = 0.5
+        co_Bxl = 0.5
+        relaxation_flanders_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, # W
+                                                co_Bxl*prev_rest_relaxation, # Bxl
+                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
+                                                co_F*prev_rest_relaxation, # F
+                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+
+        if t <= t1:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+        elif t1 < t <= t1 + l1_days:
+            t = pd.Timestamp(t.date())
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+        elif t1 + l1_days < t <= t2:
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+        elif t2 < t <= t3:
+            l = (t3 - t2)/pd.Timedelta(days=1)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+        elif t3 < t <= t4:
+            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
+        elif t4 < t <= t5:
+            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_lockdown_2020, school=0)                                          
+        elif t5 < t <= t6:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
+        # Second wave
+        elif t6 < t <= t7:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)  
+        elif t7 < t <= t8:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
+
+        elif t8  < t <= t8 + l2_days:
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
+            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t8, l2)
+        elif t8 + l2_days < t <= t9:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=1)
+        elif t9 < t <= t10:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=0)
+        elif t10 < t <= t11:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=1) 
+        elif t11 < t <= t12:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=0)
+        elif t12 < t <= t13:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=1)
+        elif t13 < t <= t14:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=0)    
+        elif t14 < t <= t15:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=1)
+        elif t15 < t <= t16:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+                                school=1)
+        elif t16 < t <= t17:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                    school=0)                           
+        elif t17 < t <= t18:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+                                school=1)
+        elif t18 < t <= t19:
+            l = (t19 - t18)/pd.Timedelta(days=1)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t18, l)
+        elif t19 < t <= t20:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+        elif t20 < t <= t21:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)
+        elif t21 < t <= t22:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)    
+        elif t22 < t <= t23:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation,
+                                leisure=1.1, work=0.9, transport=1, others=1, school=0)
+        elif t23 < t <= t24:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t24 < t <= t25:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
+        elif t25 < t <= t26:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t26 < t <= t27:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                leisure=1.1, work=0.9, transport=1, others=1, school=0)  
+        elif t27 < t <= t28:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)           
+        elif t28 < t <= t29:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+        elif t29 < t <= t30:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+        elif t30 < t <= t31:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+        elif t31 < t <= t32:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=0.8) 
+        elif t32 < t <= t33:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)                            
+        elif t33 < t <= t34:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=0.9, leisure=1.1, transport=1, others=1, school=0)
+                                                                                                                                                                                                                                 
+        else:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
+
+    def policies_all_work_only(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
+            '''
+            Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
+            
+            Input
+            -----
+            t : Timestamp
+                simulation time
+            states : xarray
+                model states
+            param : dict
+                model parameter dictionary
+            l1 : float
+                Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
+            l2 : float
+                Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+            prev_{location} : float
+                Effectivity of contacts at {location}
+
+            Returns
+            -------
+            CM : np.array (9x9)
+                Effective contact matrix (output of __call__ function)
+            '''
+            t = pd.Timestamp(t.date())
+
+            # Convert compliance l to dates
+            l1_days = pd.Timedelta(l1, unit='D')
+            l2_days = pd.Timedelta(l2, unit='D')
+
+            # Define key dates of first wave
+            t1 = pd.Timestamp('2020-03-15') # start of lockdown
+            t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+            t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+            t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
+            t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+            t6 = pd.Timestamp('2020-09-01') # end of summer holidays
+            # Define key dates of second wave
+            t7 = pd.Timestamp('2020-10-19') # lockdown (1)
+            t8 = pd.Timestamp('2020-11-02') # lockdown (2)
+            t9 = pd.Timestamp('2020-11-16') # schools re-open
+            t10 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+            t11 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+            t12 = pd.Timestamp('2021-02-15') # Spring break starts
+            t13 = pd.Timestamp('2021-02-21') # Spring break ends
+            t14 = pd.Timestamp('2021-02-28') # Contact increase in children
+            t15 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+            t16 = pd.Timestamp('2021-04-18') # End of Easter holiday
+            t17 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+            t18 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
+            t19 = pd.Timestamp('2021-09-01') # End of Summer holiday
+            t20 = pd.Timestamp('2021-11-01') # Start of autumn break
+            t21 = pd.Timestamp('2021-11-07') # Start of autumn break
+            t22 = pd.Timestamp('2021-12-26') # Start of Christmass break
+            t23 = pd.Timestamp('2022-01-06') # End of Christmass break
+            t24 = pd.Timestamp('2022-02-28') # Start of Spring Break
+            t25 = pd.Timestamp('2022-03-06') # End of Spring Break
+            t26 = pd.Timestamp('2022-04-04') # Start of Easter Break
+            t27 = pd.Timestamp('2022-04-17') # End of Easter Break
+
+            if t <= t1:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=1) 
+            elif t1 < t <= t1 + l1_days:
+                t = pd.Timestamp(t.date())
+                policy_old = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=1) 
+                policy_new = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+            elif t1 + l1_days < t <= t2:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t2 < t <= t3:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)                  
+            elif t3 < t <= t4:
+                l = (t4 - t3)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                policy_new = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t3, l)
+            elif t4 < t <= t5:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)                                          
+            elif t5 < t <= t6:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)      
+            # Second wave
+            if t6 < t <= t7:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
+            elif t7  < t <= t7 + l2_days:
+                policy_old = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                policy_new = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t7, l2)
+            elif t7 + l2_days < t <= t8:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t8 < t <= t9:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t9 < t <= t10:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+            elif t10 < t <= t11:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t11 < t <= t12:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t12 < t <= t13:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)    
+            elif t13 < t <= t14:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t14 < t <= t15:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t15 < t <= t16:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)                           
+            elif t16 < t <= t17:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t17 < t <= t18:
+                l = (t18 - t17)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                policy_new = self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=00)
+                return self.ramp_fun(policy_old, policy_new, t, t17, l)
+            elif t18 < t <= t19:
+                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t19 < t <= t20:
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t20 < t <= t21:
+                return self.__call__(t, work = 0.9, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t21 < t <= t22:
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t22 < t <= t23:
+                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+            elif t23 < t <= t24:
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+            elif t24 < t <= t25:
+                return self.__call__(t, work = 0.9, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
+            elif t25 < t <= t26:
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)           
+            elif t26 < t <= t27:
+                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)                                                                                                   
+            else:
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
 
 ##########################
 ## Seasonality function ##
@@ -1141,9 +1199,33 @@ class make_seasonality_function():
         """
         ref_date = pd.to_datetime('2021-01-01')
         # If peak_shift = 0, the max is on the first of January
-        maxdate = pd.Timedelta(days=peak_shift) + ref_date
+        maxdate = ref_date + pd.Timedelta(days=peak_shift)
         # One period is one year long (seasonality)
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
 
+    def square_wave(self,t, states, param, amplitude, peak_shift):
+
+        # End of maximum infectability
+        end_min_inf = pd.to_datetime('2020-10-01') + pd.Timedelta(days=peak_shift)
+        # Calculate relative time
+        t = (t - pd.to_datetime(end_min_inf))/pd.Timedelta(days=1)/365    
+        t = t - math.floor(t)
+        # Ramp time
+        l = 62
+
+        if (365/2-l/2)/365 <= t < (365/2 + l/2)/365 :
+            t_start = (365/2-l/2)/365
+            old = param*(1+amplitude)
+            new = param*(1-amplitude)
+            return old + (old-new)/l * (t-t_start)
+        elif (365/2+l/2)/365 <= t <  (365-l/2)/365:
+            return param*(1-amplitude)
+        elif (365-l/2)/365 <= t <  (365 + l/2)/365:
+            t_start = (365-l/2)/365
+            old = param*(1-amplitude)
+            new = param*(1+amplitude)
+            return old + (old-new)/l * (t-t_start)
+        else:
+            return param*(1+amplitude)
