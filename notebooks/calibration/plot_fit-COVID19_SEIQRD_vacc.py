@@ -105,6 +105,9 @@ df_hosp = df_hosp.groupby(by=['date']).sum()
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
+# Deaths in hospitals
+df_sciensano_mortality = sciensano.get_mortality_data()
+
 # --------------------
 # Initialize the model
 # --------------------
@@ -127,6 +130,8 @@ elif args.vaccination_model == 'stratified':
 print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+simtime = out['time'].values
 
 # -----------
 # Visualizing
@@ -137,7 +142,7 @@ print('2) Visualizing fit')
 # Plot hospitalizations
 fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
 ax1.plot(df_2plot['H_in','mean'],'--', color='blue')
-ax1.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
+ax1.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.20, color = 'blue')
 ax1.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax1.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax1 = _apply_tick_locator(ax1)
@@ -146,7 +151,7 @@ ax1.set_ylabel('Daily hospitalizations (-)', fontsize=12)
 ax1.get_yaxis().set_label_coords(-0.1,0.5)
 # Plot hospital total
 ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue')
-ax2.fill_between(simtime, df_2plot['H_tot', 'LL'], df_2plot['H_tot', 'UL'], alpha=0.20, color = 'blue')
+ax2.fill_between(simtime, df_2plot['H_tot', 'lower'], df_2plot['H_tot', 'upper'], alpha=0.20, color = 'blue')
 ax2.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['H_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
@@ -154,7 +159,7 @@ ax2.get_yaxis().set_label_coords(-0.1,0.5)
 # Deaths
 ax3.plot(simtime, df_2plot['D', 'mean'],'--', color='blue')
 ax3.scatter(deaths_hospital[start_calibration:end_sim].index,deaths_hospital[start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax3.fill_between(simtime, df_2plot['D', 'LL'], df_2plot['D', 'UL'], alpha=0.20, color = 'blue')
+ax3.fill_between(simtime, df_2plot['D', 'lower'], df_2plot['D', 'upper'], alpha=0.20, color = 'blue')
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 ax3 = _apply_tick_locator(ax3)
 ax3.set_xlim('2020-03-01',end_sim)
@@ -168,7 +173,7 @@ yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','
 ax4.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
 ax4 = _apply_tick_locator(ax4)
 ax4.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax4.fill_between(df_2plot['R','LL']/sum(initN)*100, df_2plot['R','UL']/sum(initN)*100,alpha=0.20, color = 'blue')
+ax4.fill_between(df_2plot['R','lower']/sum(initN)*100, df_2plot['R','upper']/sum(initN)*100,alpha=0.20, color = 'blue')
 ax4.set_xlim(start_sim,end_sim)
 ax4.set_ylim(0,25)
 ax4.set_ylabel('Seroprelevance (%)', fontsize=12)
