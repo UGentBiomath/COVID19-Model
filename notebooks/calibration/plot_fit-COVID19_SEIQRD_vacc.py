@@ -107,6 +107,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # Deaths in hospitals
 df_sciensano_mortality = sciensano.get_mortality_data()
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
 # --------------------
 # Initialize the model
