@@ -10,6 +10,19 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
+def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination='stratified', update=False):
+
+    #####################################
+    ## Import necessary pieces of code ##
+    #####################################
+
+    #########################
+    ## Load necessary data ##
+    #########################
+
+
+    return model
+
 def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
 
     #####################################
