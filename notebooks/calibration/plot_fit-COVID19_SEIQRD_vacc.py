@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.models import models
+from covid19model.models.utils import initialize_COVID19_SEIQRD_vacc
 from covid19model.data import mobility, sciensano, model_parameters, VOC
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
@@ -63,7 +64,6 @@ age_stratification_size=int(args.n_age_groups)
 # --------------------------
 
 # Start and end of simulation
-start_sim = '2020-09-01'
 end_sim = '2022-09-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
@@ -87,9 +87,10 @@ for directory in [fig_path, samples_path]:
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2, age_stratification_size=age_stratification_size)
-warmup = int(samples_dict['warmup'])
+warmup = 0#int(samples_dict['warmup'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
+start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
@@ -127,48 +128,11 @@ print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
 
-# Plot hospitalizations
-fig,ax= plt.subplots(figsize=(12,4))
-ax.plot(out['time'].values, out['H_in'].mean(dim='draws').sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-ax.fill_between(out['time'].values, out['H_in'].quantile(dim='draws', q=1-conf_int/2).sum(dim='Nc').sum(dim='doses'), out['H_in'].quantile(dim='draws', q=conf_int/2).sum(dim='Nc').sum(dim='doses'),alpha=0.20, color = 'blue')
-ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_sim,end_sim)
-ax.set_ylim(-100,950)
-ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
-ax.get_yaxis().set_label_coords(-0.1,0.5)
-plt.show()
-
-simtime, df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU', 'D', 'R'], args.n_samples, args.n_draws_per_sample, LL = conf_int/2, UL = 1 - conf_int/2)
-deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
-
 # -----------
 # Visualizing
 # -----------
 
-print('2) Hammer/Dance/Tipping Point figure')
-
-fig,ax = plt.subplots(figsize=(15,4))
-ax.plot(df_2plot['H_in','mean'],'--', color='blue')
-ax.fill_between(simtime, df_2plot['H_in','LL'], df_2plot['H_in','UL'],alpha=0.20, color = 'blue')
-ax.scatter(df_hosp[start_calibration:].index,df_hosp['H_in'][start_calibration:], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-plt.axvline(x='2020-12-01', linestyle = '--', color='black', linewidth=1.5)
-plt.axvline(x='2021-05-24', linestyle = '--', color='black', linewidth=1.5)
-ax.text(x='2020-09-01',y=800,s='The Hammer', fontsize=16)
-ax.text(x='2020-12-07',y=800,s='The Dance', fontsize=16)
-ax.text(x='2021-06-01',y=800,s='The Tipping Point', fontsize=16)
-ax = _apply_tick_locator(ax)
-ax.grid(False)
-ax.spines['left'].set_visible(False)
-ax.set_yticks([])
-ax.set_xlim('2020-09-01','2021-06-14')
-plt.show()
-if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.pdf', dpi=300, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_HAMMER_DANCE_TIPPING_POINT.png', dpi=300, bbox_inches='tight')
-
-print('3) Visualizing fit')
+print('2) Visualizing fit')
 
 # Plot hospitalizations
 fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
@@ -216,7 +180,7 @@ if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 
-print('4) Visualizing fit on deaths')
+print('3) Visualizing fit on deaths')
 
 dates = ['2021-02-01']
 

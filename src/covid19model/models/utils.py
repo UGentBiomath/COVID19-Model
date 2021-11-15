@@ -64,10 +64,34 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
+    ####################
+    ## Initial states ##
+    ####################
+
+    #if vaccination_model == 'stratified':
+    #    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
+    #    initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
+    #                    "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
+    #else:
+    #    initial_states = {"S": initN, "E": np.ones(age_stratification_size), "S_v": np.ones(age_stratification_size)}
+
+    # Initial_states
+    date = '2020-03-15'
+    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/calibrations/national/')
+    if vaccination_model == 'stratified':
+        with open(samples_path+'initial_states_stratified.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[date]
+    else:
+        with open(samples_path+'initial_states_non-stratified.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[date]
+
     ##########################
     ## Initialize the model ##
     ##########################
  
+    # Vaccination parameters when using the stratified vaccination model
     if vaccination_model == 'stratified':
         dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
         # Add "size dummy" for vaccination stratification
@@ -79,10 +103,6 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
         params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
         params.update({'d_vacc': 100*365})
         params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
-
-    # Initial_states
-    initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
-                    "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
 
     # Initialize model
     if vaccination_model == 'stratified':
@@ -505,9 +525,7 @@ def draw_fcn_WAVE2_stratified_vacc(param_dict,samples_dict):
 
     # Vaccination
     # -----------
-    param_dict['daily_doses'] = 50000#np.random.uniform(low=95000,high=105000)
-    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 14, 14, size=30))   
-    #param_dict['refusal'] = np.zeros(len(param_dict['c'])) #np.ones(len(param_dict['c']))*np.random.normal(loc=0.66, scale=0.033)
+
     # Reduction of infectiousness
     #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
     param_dict['e_i'] = np.zeros([3,5])

@@ -99,11 +99,11 @@ initial_time = datetime.datetime.now()
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIQRD/national/'
+fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIQRD/national/backends/'
+backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -178,44 +178,40 @@ if job == 'R0':
     # -----------
 
     # set optimisation settings
-    pars = ['warmup','beta']
-    bounds=((5,60),(0.010,0.050))
+    warmup = 31
+    pars = ['beta']
+    bounds=((0.010,0.050),)
     # run optimisation
-    theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
-                        start_date=start_calibration, processes=processes)
+    #theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
+    #                    start_date=start_calibration, processes=processes, warmup=warmup)
+    theta = [0.03474601,]
     # Assign estimate
-    warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
+    pars_PSO = assign_PSO(model.parameters, pars, theta)
+    model.parameters = pars_PSO
     # Perform simulation
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
     # Visualize fit
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
     plt.show()
     plt.close()
-
-    # -----------
-    # Print stats
-    # -----------
-
-    # Print statement to stdout once
-    print(f'\nPSO RESULTS:')
-    print(f'------------')
-    print(f'warmup : {int(theta[0])}.')
-    print(f'infectivity : {round(theta[1], 3)}.')
-
-    # Print runtime in hours
-    intermediate_time = datetime.datetime.now()
-    runtime = (intermediate_time - initial_time)
-    totalMinute, second = divmod(runtime.seconds, 60)
-    hour, minute = divmod(totalMinute, 60)
-    day = runtime.days
-    if day == 0:
-        print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
+    # Save initial states
+    dates = ['2020-03-15', '2020-03-16', '2020-03-17']
+    initial_states={}
+    for date in dates:
+        initial_states_per_date = {}
+        for state in out.data_vars:
+            initial_states_per_date.update({state: out[state].sel(time=pd.to_datetime(date)).values})
+        initial_states.update({date: initial_states_per_date})
+    import pickle
+    if args.vaccination_model == 'stratified':
+        with open(samples_path+'initial_states_' + 'stratified' +'.pickle', 'wb') as fp:
+            pickle.dump(initial_states, fp)
     else:
-        print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
-
-    sys.stdout.flush()
+        with open(samples_path+'initial_states_' + 'non-stratified' +'.pickle', 'wb') as fp:
+            pickle.dump(initial_states, fp)
 
     # Work is done
+    sys.stdout.flush()
     sys.exit()
 
 ############################################
@@ -230,6 +226,8 @@ if job == 'R0':
 start_data = '2020-03-15'
 # Start of calibration
 start_calibration = '2020-03-15'
+# Initial condition currently implemented are states on 2020-03-15 so warmup must be 0!
+warmup = 0
 # Last datapoint used to calibrate compliance and prevention
 if not args.enddate:
     end_calibration = df_hosp.index.get_level_values('date').max().strftime("%m-%d-%Y")
@@ -245,9 +243,9 @@ multiplier_mcmc = 3
 max_n = n_mcmc
 print_n = 50
 
-print('\n---------------------------------------------------------------------')
-print('PERFORMING CALIBRATION OF BETA, OMEGA, DA, COMPLIANCE AND EFFECTIVITY')
-print('---------------------------------------------------------------------\n')
+print('\n--------------------------------------------------------------------------------------')
+print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
+print('--------------------------------------------------------------------------------------\n')
 print('Using data from '+start_calibration+' until '+end_calibration+'\n')
 print('\n1) Particle swarm optimization\n')
 print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
@@ -257,9 +255,9 @@ sys.stdout.flush()
 # Define dataset
 # --------------
 
-data=[df_hosp['H_in'][start_calibration:end_calibration], df_hosp['H_in']['2021-09-30':end_calibration]]
-states = ["H_in","H_in"]
-weights = [1,1]
+data=[df_hosp['H_in'][start_calibration:end_calibration]]
+states = ["H_in"]
+weights = [1]
 
 # -----------
 # Perform PSO
@@ -271,27 +269,21 @@ bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0
 # run optimization
 #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
 #                    start_date=start_calibration, warmup=warmup, processes=processes)
-
-theta = np.array([0.0415, 20, 7, 0.25, 0.05,0.05,0.38,0.25,1.35,2.0,0.0987,28.1]) #--> from mcmc
-
+#theta = np.array([0.0415, 20, 7, 0.25, 0.05,0.05,0.38,0.25,1.35,2.0,0.0987,28.1]) #--> from an earlier mcmc
+theta = np.array([0.018, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77]) # --> from calibration spatial model on 2021-11-13
+# Nelder-mead optimization
+step = 14*[0.05,]
+f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
+#sol = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
 # Assign estimate
 model.parameters = assign_PSO(model.parameters, pars, theta)
 # Perform simulation
-print('simulating')
+end_calibration = '2022-09-01'
 out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
 # Visualize fit
 ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
 plt.show()
 plt.close()
-
-#fig,ax = plt.subplots()
-#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=0) + out['R'].sum(dim='Nc').isel(doses=0), color='red')
-#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=1) + out['R'].sum(dim='Nc').isel(doses=1), color='orange')
-#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=2) + out['R'].sum(dim='Nc').isel(doses=2), color='green')
-#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=3) + out['R'].sum(dim='Nc').isel(doses=3), '--', color='orange')
-#ax.plot(out['time'].values, out['S'].sum(dim='Nc').isel(doses=4) + out['R'].sum(dim='Nc').isel(doses=4), '--', color='green')
-#plt.show()
-#plt.close()
 
 # ------------------
 # Setup MCMC sampler
