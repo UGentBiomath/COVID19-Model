@@ -411,7 +411,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
         # TDPF parameters
         pars_dict.update({'initN' : initN.values,
-                          'daily_first_dose' : 60000, # copy default values from vaccination_function, which are curently not used I think
+                          'daily_doses' : 60000, # copy default values from vaccination_function, which are curently not used I think
                           'delay_immunity' : 14,
                           'vacc_order' : [8, 7, 6, 5, 4, 3, 2, 1, 0],
                           'stop_idx' : 9,
