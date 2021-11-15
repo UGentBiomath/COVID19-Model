@@ -534,19 +534,18 @@ if __name__ == '__main__':
         pars = pars1 + pars2 + pars3 + pars4 + pars5
         bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
-        # run optimisation
+        # PSO optimization
         #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
         #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-        r = 0.87
-        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.65, 0.14, 0.014, 0.77, 0.65, 1.25, 1.85, 0.14, 60.] # works with cosine seasonality (no waning vacc)
-        theta = [r*0.0210, r*0.0215, r*0.0275, 14.0, 9, 0.38, 0.16, 0.015, 0.80, 0.65, 1.55, 2.0, 0.13, 5.] # works with cosine seasonality (waning vacc)
-        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.65, 0.14, 0.014, 0.77, 0.65, 1.25, 1.85, 0.14, 60.] # works with cosine seasonality (waning vacc)
-        #theta = [r*0.0210, r*0.0215, r*0.0270, 7.0, 9, 0.30, 0.24, 0.014, 0.80, 0.65, 1.50, 1.8, 0.14, 0] # works with square wave seasonality (no waning vacc)
 
+        theta = [ 0.01853192,  0.0190604,   0.02420068, 14.78702555,  9.50603255,  0.40208023, 0.16602563,  0.0169907,   0.78060042,  0.66435039,  1.55329592,  2.25188278, 0.14336164, 10.05197898]
+
+        # Nelder-mead optimization
         from covid19model.optimization.nelder_mead import nelder_mead
-        step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.3, 0.3 ]
+        step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1, 0.1 ]
+        step = 14*[0.05,]
         f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
-        sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
+        #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
         # Assign estimate.
         pars_PSO = assign_PSO(model.parameters, pars, theta)
