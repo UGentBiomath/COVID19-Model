@@ -701,11 +701,15 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-07-01') # Start of Summer holiday
-        t19 = pd.Timestamp('2021-08-01') # End of gradual introduction mentality change
+
+        t18 = pd.Timestamp('2021-05-07') # Start of lockdown relaxation
+
+        t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+
         t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
+
         t21 = pd.Timestamp('2021-09-21') # Opening of universities
-        t22 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t22 = pd.Timestamp('2021-10-29') # Start of autumn break
         t23 = pd.Timestamp('2021-11-07') # End of autumn break
         t24 = pd.Timestamp('2021-12-26') # Start of Christmass break
         t25 = pd.Timestamp('2022-01-06') # End of Christmass break
@@ -730,11 +734,16 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
             policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)            
         elif t3 < t <= t4:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
+            l = (t4 - t3)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)                                          
         elif t5 < t <= t6:
@@ -781,11 +790,16 @@ class make_contact_matrix_function():
                                 school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            r = (pd.Timestamp('2021-07-01') - pd.Timestamp('2021-05-07'))/(pd.Timestamp('2021-09-01') - pd.Timestamp('2021-05-07'))
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=1)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            l = (t20 - t19)/pd.Timedelta(days=1)
+            r = (pd.Timestamp('2021-07-01') - pd.Timestamp('2021-05-07'))/(pd.Timestamp('2021-09-01') - pd.Timestamp('2021-05-07'))
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t19, l)
         elif t20 < t <= t21:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)
         elif t21 < t <= t22:
