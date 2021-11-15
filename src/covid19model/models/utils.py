@@ -68,7 +68,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
 
     # Time-dependent seasonality function, updating season_factor
-    seasonality_function = make_seasonality_function()#.square_wave
+    seasonality_function = make_seasonality_function()
 
 
     ##########################
@@ -83,9 +83,9 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     # Add the susceptible and exposed population to the initial_states dict
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.pop('e_a')
-    params.update({'e_s': np.array([0.8, 0.8, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
-    params.update({'e_h': np.array([0.95, 0.95, 0.90])})
-    params.update({'K_hosp': np.array([1, 1.0, 1.0])})
+    params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
+    params.update({'e_h': np.array([0.95, 0.95, 0.95])})
+    params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
 
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
@@ -257,7 +257,7 @@ def draw_fcn_spatial(param_dict,samples_dict):
                                   np.random.normal(loc=0.50, scale=0.03/3)])
     param_dict['e_s'] = np.array([np.random.normal(loc=0.80, scale=0.03/3),
                                   np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.30, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
+                                  np.random.normal(loc=0.80, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
     param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3),
                                   np.random.normal(loc=0.95, scale=0.03/3)])
