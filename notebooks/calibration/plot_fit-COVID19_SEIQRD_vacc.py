@@ -109,6 +109,10 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 df_sciensano_mortality = sciensano.get_mortality_data()
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
+# Initial condition
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size)
+initN = initN.values
+
 # --------------------
 # Initialize the model
 # --------------------
