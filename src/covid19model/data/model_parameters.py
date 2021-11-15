@@ -432,7 +432,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     #################
 
     pars_dict.update({'amplitude' : 0.104,
-                    'peak_shift' :22.2})
+                    'peak_shift' : 22.2})
 
     ########################
     ## Spatial parameters ##
