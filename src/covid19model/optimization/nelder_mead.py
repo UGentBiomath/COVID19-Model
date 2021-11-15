@@ -5,9 +5,8 @@ import multiprocessing as mp
     Reference: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 '''
 
-
 def nelder_mead(f, x_start,
-                step, f_args, processes=mp.cpu_count(), no_improve_thr=10e-6,
+                step, f_args, processes=1, no_improve_thr=10e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
     '''
@@ -24,6 +23,10 @@ def nelder_mead(f, x_start,
 
         return: tuple (best parameter array, best score)
     '''
+
+    # Convert x_start to a numpy array
+    if isinstance(x_start,list):
+        x_start = np.array(x_start)
 
     # Compute score of initial estimate
 
