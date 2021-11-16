@@ -53,6 +53,9 @@ parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratif
 
 args = parser.parse_args()
 
+# Choose to show progress bar. This cannot be shown on HPC
+progress = False
+
 # Backend
 if args.backend == False:
     backend = None
@@ -149,11 +152,11 @@ if __name__ == '__main__':
     else:
         end_calibration = str(args.enddate)
     if args.vaccination_model == 'non-stratified':
-        spatial_unit = 'BE_WAVE2'
+        spatial_unit = 'BE_all-waves'
     elif args.vaccination_model == 'stratified':
-        spatial_unit = 'BE_WAVE2_stratified_vacc'
+        spatial_unit = 'BE_all-waves_stratified_vacc'
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     multiplier_pso = 30
     maxiter = n_pso
     popsize = multiplier_pso*processes
@@ -236,14 +239,14 @@ if __name__ == '__main__':
     else:
         end_calibration = str(args.enddate)
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
     multiplier_pso = 4
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
     multiplier_mcmc = 2
     max_n = n_mcmc
-    print_n = 20
+    print_n = 5
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -337,7 +340,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, progress=progress)
 
     # ---------------
     # Process results
@@ -358,13 +361,13 @@ if __name__ == '__main__':
     for count,name in enumerate(pars):
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
-    samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
+    samples_dict.update({'n_chains_FULL': nwalkers,
                         'start_calibration': start_calibration,
                         'end_calibration': end_calibration})
 
-    with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(spatial_unit)+'_FULL_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_FULL_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
