@@ -747,7 +747,7 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
         # Second wave
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)  
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.7)  
         elif t7 < t <= t8:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
 
@@ -795,12 +795,12 @@ class make_contact_matrix_function():
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
             policy_old = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, 0.90*prev_rest_relaxation, school=0)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, 0.75*prev_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 0.90*prev_rest_relaxation, school=0.8)
+            return self.__call__(t, prev_home, prev_schools, prev_work, 0.75*prev_rest_relaxation, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 0.90*prev_rest_relaxation, school=1)    
+            return self.__call__(t, prev_home, prev_schools, prev_work, 0.70*prev_rest_relaxation, school=1)    
         elif t22 < t <= t23:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
         elif t23 < t <= t24:

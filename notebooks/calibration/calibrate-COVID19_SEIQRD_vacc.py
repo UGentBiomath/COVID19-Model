@@ -284,6 +284,7 @@ if __name__ == '__main__':
     # Assign estimate
     model.parameters = assign_PSO(model.parameters, pars, theta)
     # Perform simulation
+    end_calibration = '2022-01-01'
     out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
     # Visualize fit
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
