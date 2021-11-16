@@ -48,7 +48,8 @@ args = parser.parse_args()
 # Load samples
 # ------------
 
-flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename))
+#flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename))
+flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'+str(args.filename))
 
 # ----------------
 # Build dictionary
