@@ -1241,7 +1241,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
             + (1-m_C)*C_vw*(1/dc_R) +  m_C*C_vw*(1/dc_D) + (m_ICU/dICU_D)*ICU_vw + C_icurec_vw*(1/dICUrec) - H_out
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)\
             + M_v*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_v*(1/dc_R) -  m_C*C_v*(1/dc_D) - (m_ICU/dICU_D)*ICU_v - C_icurec_v*(1/dICUrec)\
-            + M_vw*((1-e_h_eff)*h/dhospital) - (1-m_C)*C_vw*(1/dc_R) -  m_C*C_vw*(1/dc_D) - (m_ICU/dICU_D)*ICU_vw - C_icurec_vw*(1/dICUrec)
+            + M_vw*((1-e_h_w)*h/dhospital) - (1-m_C)*C_vw*(1/dc_R) -  m_C*C_vw*(1/dc_D) - (m_ICU/dICU_D)*ICU_vw - C_icurec_vw*(1/dICUrec)
         dR_C = (1-m_C)*C*(1/(dc_R)) + (1-m_C)*C_v*(1/dc_R) + + (1-m_C)*C_vw*(1/dc_R) - R_C
         dR_ICU = C_icurec*(1/dICUrec) + C_icurec_v*(1/dICUrec) + C_icurec_vw*(1/dICUrec)- R_ICU
 
