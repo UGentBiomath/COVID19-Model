@@ -918,9 +918,9 @@ class make_contact_matrix_function():
         t35 = pd.Timestamp('2022-10-31') # Start of autumn break
         t36 = pd.Timestamp('2022-11-06') # End of autumn break
 
-        scenarios_work = [1, 0.7, 1, 1]
-        scenarios_schools = [1, 1, 0, 1] 
-        scenarios_leisure = [1, 1, 1, 0.5]
+        scenarios_work = [1, 0.7, 1, 1, 0.7]
+        scenarios_schools = [1, 1, 0, 1, 0] 
+        scenarios_leisure = [1, 1, 1, 0.5, 0.5]
 
         if t <= t1:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
@@ -1334,9 +1334,9 @@ class make_contact_matrix_function():
         t34 = pd.Timestamp('2022-10-31') # Start of autumn break
         t35 = pd.Timestamp('2022-11-06') # End of autumn break
 
-        scenarios_work = [1, 0.7, 1, 1]
-        scenarios_schools = [1, 1, 0, 1] 
-        scenarios_leisure = [1, 1, 1, 0.5]
+        scenarios_work = [1, 0.7, 1, 1, 0.7]
+        scenarios_schools = [1, 1, 0, 1, 0] 
+        scenarios_leisure = [1, 1, 1, 0.5, 0.5]
 
         spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
                                                 prev_rest_lockdown, # W
@@ -1348,7 +1348,7 @@ class make_contact_matrix_function():
 
         co_F = 0.6
         co_W = 0.50
-        co_Bxl = 0.50
+        co_Bxl = 0.45
         spatial_summer_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
                                                 co_W*prev_rest_relaxation, # W
                                                 co_Bxl*prev_rest_relaxation, # Bxl
@@ -1359,7 +1359,7 @@ class make_contact_matrix_function():
 
         co_F = 1.0
         co_W = 0.5
-        co_Bxl = 0.5
+        co_Bxl = 0.45
         relaxation_flanders_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
                                                 co_W*prev_rest_relaxation, # W
                                                 co_Bxl*prev_rest_relaxation, # Bxl
@@ -1681,7 +1681,7 @@ class make_contact_matrix_function():
             t27 = pd.Timestamp('2022-04-04') # Start of Easter Break
             t28 = pd.Timestamp('2022-04-17') # End of Easter Break
 
-            scenarios_work = [1, 0.7, 1, 1]
+            scenarios_work = [1, 0.7, 1, 1, 0.7]
 
             if t <= t1:
                 return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=1) 
