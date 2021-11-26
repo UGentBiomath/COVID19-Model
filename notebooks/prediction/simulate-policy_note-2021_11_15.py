@@ -59,9 +59,9 @@ print('\n1) Setting up script')
 ###########################
 
 update = False
-date_measures = '2021-11-22'
-scenario_names = ['no_NPI', 'telework', 'schools', 'leisure']
-end_sim = '2022-02-02'
+date_measures = '2021-11-17'
+scenario_names = ['no_NPI', 'telework', 'schools', 'leisure', 'all']
+end_sim = '2022-04-02'
 conf_int = 0.05
 
 ######################
@@ -237,10 +237,13 @@ model_list.append(models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spa
 # Initialize results dataframe
 # ----------------------------
 
+# Aggregation of provincial NIS codes to FL, W
 NIS_prov_regions = [[10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+# Corresponding NIS codes of FL, W
 NIS_regions = [2000, 3000]  
-NIS_list = [1000, 2000, 3000, 10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
-iterables = [pd.date_range(start=start_sim[0], end=end_sim), NIS_list, scenario_names]
+# Full provincial NIS code list
+NIS_prov = [10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
+iterables = [pd.date_range(start=start_sim[0], end=end_sim), [1000,] + NIS_regions + NIS_prov, scenario_names]
 index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "scenario"])
 states = ['H_in', 'H_tot', 'D']
 statistics = ['mean', 'median', 'lower', 'upper']
@@ -253,14 +256,13 @@ df = pd.DataFrame(index=index, columns=columns)
 # Perform simulations
 # -------------------
 
-
 print('3) Starting scenario loop\n')
 
 for idx, model in enumerate(model_list):
-    print('\t# Model: '+model_names[idx])
+    print('\t# Model: ' + model_names[idx])
 
     for jdx, scenario in enumerate(scenario_names):
-        print('\t## NPI scenario: '+ scenario)
+        print('\t## NPI scenario: ' + scenario)
         model.parameters.update({'scenario': jdx})
 
         print('\t### Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
@@ -273,16 +275,14 @@ for idx, model in enumerate(model_list):
             for state in states:
                 for statistic in statistics:
                     df.loc[(slice(None), 1000, scenario), (model_names[idx], state, statistic)] = df_2plot.loc[start_sim[idx]:end_sim][state, statistic].values
-
         else:
+            new_index = pd.IndexSlice
             # Spatial results
             df_2plot = output_to_visuals(out, states, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
             for state in states:
                 # National
                 for statistic in statistics:
-                    df.loc[(slice(None), 1000, scenario), (model_names[idx], state, statistic)] = df_2plot.loc[start_sim[idx]:end_sim][state, statistic].values      
-                print(df)
-
+                    df.loc[new_index[start_sim[idx]:end_sim, 1000, scenario], (model_names[idx], state, statistic)] = df_2plot.loc[start_sim[idx]:end_sim][state, statistic].values      
                 # Regional        
                 for kdx, NIS_list in enumerate(NIS_prov_regions):
                     # Regional
@@ -290,13 +290,17 @@ for idx, model in enumerate(model_list):
                     for NIS in NIS_list:
                         aggregate = aggregate + out[state].sel(place=NIS).sum(dim='Nc').values
                     mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)
-                    
-                    df.loc[(slice(None), NIS_regions[kdx], scenario), (model_names[idx], state, 'mean')] = mean
-                    df.loc[(slice(None), NIS_regions[kdx], scenario), (model_names[idx], state, 'median')] = median
-                    df.loc[(slice(None), NIS_regions[kdx], scenario), (model_names[idx], state, 'lower')] = lower
-                    df.loc[(slice(None), NIS_regions[kdx], scenario), (model_names[idx], state, 'upper')] = upper
-
-                    # Provincial
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS_regions[kdx], scenario], (model_names[idx], state, 'mean')] = mean
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS_regions[kdx], scenario], (model_names[idx], state, 'median')] = median
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS_regions[kdx], scenario], (model_names[idx], state, 'lower')] = lower
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS_regions[kdx], scenario], (model_names[idx], state, 'upper')] = upper
+                # Provincial
+                for kdx, NIS in enumerate(NIS_prov):
+                    mean, median, lower, upper = add_poisson(out[state].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS, scenario], (model_names[idx], state, 'mean')] = mean
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS, scenario], (model_names[idx], state, 'median')] = median
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS, scenario], (model_names[idx], state, 'lower')] = lower
+                    df.loc[new_index[start_sim[idx]:end_sim, NIS, scenario], (model_names[idx], state, 'upper')] = upper
 
 #################
 ## Save result ##
