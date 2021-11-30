@@ -7,13 +7,15 @@ from covid19model.visualization.output import _apply_tick_locator
 ## Load simulations ##
 ######################
 
-report_version = 'policy_note-2021_11_15'
+report_version = 'v1.2'
+report_name = 'policy_note-fourth_wave-nonpharmaceutical'
 # Path where figures and results should be stored
-results_path = '../../results/predictions/prov/' + report_version
-df = pd.read_csv(results_path+'/simulations.csv', index_col = [0,1,2], header=[0,1,2], parse_dates=True)
+results_path = '../../results/predictions/prov/' + report_name
+df = pd.read_csv(results_path+'/simulations'+'-'+report_version+'.csv', index_col = [0,1,2], header=[0,1,2], parse_dates=True)
 dates = df.index.get_level_values('date').unique()
 scenarios = df.index.get_level_values('scenario').unique()
-scenario_names = ['S0: No intervention', 'S1: Mandatory telework', 'S2: School closure', 'S3: -50% leisure contacts', 'S4: S1 + S2 + S3']
+#scenario_names = ['S0: No intervention', 'S1: Mandatory telework', 'S2: School closure', 'S3: -50% leisure contacts', 'S4: S1 + S2 + S3']
+scenario_names = ['S0: Mandatory telework only', 'S1: S0 - 30% leisure contacts', 'S2: S0 - 60% leisure contacts', 'S3: S0 - 90% leisure contacts']
 models = df.columns.get_level_values('model').unique()
 end_calibration = '2021-11-12'
 

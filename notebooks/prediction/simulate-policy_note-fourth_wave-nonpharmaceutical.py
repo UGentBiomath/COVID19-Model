@@ -59,8 +59,8 @@ print('\n1) Setting up script')
 ###########################
 
 update = False
-date_measures = '2021-11-17'
-scenario_names = ['no_NPI', 'telework', 'schools', 'leisure', 'all']
+date_measures = '2021-11-27'
+scenario_names = ['telework', 'telework_leisure_30', 'telework_leisure_60', 'telework_leisure_90']
 end_sim = '2022-04-02'
 conf_int = 0.05
 
@@ -88,9 +88,10 @@ age_stratification_size=int(args.n_age_groups)
 # Define results locations
 # ------------------------
 
-report_version = 'policy_note-2021_11_15'
+report_version = 'v1.2'
+report_name = 'policy_note-fourth_wave-nonpharmaceutical'
 # Path where figures and results should be stored
-results_path = '../../results/predictions/prov/' + report_version
+results_path = '../../results/predictions/prov/' + report_name
 # Verify that the paths exist and if not, generate them
 for directory in [results_path,]:
     if not os.path.exists(directory):
@@ -174,7 +175,7 @@ params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,
 params.update({'d_vacc': 100*365})
 params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 # WAVE 4 specific parameters
-params.update({'scenario': 0, 'date_measures': '2021-11-22'})
+params.update({'scenario': 0, 'date_measures': date_measures})
 # Initialize model
 model_list.append(models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                     time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function}))
@@ -217,7 +218,7 @@ params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against 
 params.update({'e_h': np.array([0.95, 0.95, 0.95])})
 params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
 # WAVE 4 specific parameters
-params.update({'scenario': 0, 'date_measures': '2021-11-22'})
+params.update({'scenario': 0, 'date_measures': date_measures})
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model_list.append(models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=args.agg,
                         time_dependent_parameters={'Nc' : policy_function,
@@ -245,7 +246,7 @@ NIS_regions = [2000, 3000]
 NIS_prov = [10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
 iterables = [pd.date_range(start=start_sim[0], end=end_sim), [1000,] + NIS_regions + NIS_prov, scenario_names]
 index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "scenario"])
-states = ['H_in', 'H_tot', 'D']
+states = ['H_in', 'H_tot', 'D', 'R']
 statistics = ['mean', 'median', 'lower', 'upper']
 model_names = ['national', 'spatial']
 iterables = [model_names, states, statistics]
@@ -307,4 +308,4 @@ for idx, model in enumerate(model_list):
 #################
 
 if args.save:
-    df.to_csv(results_path+'/simulations.csv')
+    df.to_csv(results_path+'/simulations'+'-'+report_version+'.csv')
