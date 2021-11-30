@@ -77,7 +77,7 @@ for tpl in args.range:
 # Load samples dictionary
 # -----------------------
 
-samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
+samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)))
 
 # ------------------------------------------
 # Convert samples dictionary to emcee format
@@ -89,8 +89,8 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # Optional: remove chains stuck in undesired local minima
 # -------------------------------------------------------
 
-# Chains beta
-#idx = np.mean(samples[:,:,0],axis=0) > 0.030
+# Chains l2
+#idx = np.mean(samples[:,:,2],axis=0) < 6.00
 #print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
 #samples=samples[:,idx,:]
 
@@ -119,7 +119,7 @@ CORNER_KWARGS = dict(
 )
 
 # Path where figures should be stored
-fig_path = '../../results/calibrations/COVID19_SEIRD/national/'
+fig_path = '../../results/calibrations/COVID19_SEIQRD/national/'
 # Cornerplots of samples
 fig = corner.corner(flat_samples, labels=args.labels, **CORNER_KWARGS)
 # for control of labelsize of x,y-ticks:
@@ -142,6 +142,6 @@ if args.save:
         if key not in args.keys:
             samples_dict_new[key] = samples_dict[key]
 
-    with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename), 'w') as fp:
+    with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename), 'w') as fp:
             json.dump(samples_dict_new, fp)
 

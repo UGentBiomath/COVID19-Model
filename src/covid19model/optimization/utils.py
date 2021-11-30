@@ -4,15 +4,15 @@ import sys
 import emcee
 import numpy as np
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+from multiprocessing import Pool, get_context
 from covid19model.visualization.optimization import traceplot
 from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
 # Path to figures and samples --> used by run_MCMC
-fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/')
-samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/')
+fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
+samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
 def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
     # Determine save path
@@ -35,10 +35,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
 
-    with Pool() as pool:
+    with get_context("spawn").Pool() as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
-                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
-        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True):
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs,
+                        moves=[(emcee.moves.DEMove(), 0.8),(emcee.moves.DESnookerMove(), 0.2)])
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
@@ -111,12 +112,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 
             flat_samples = sampler.get_chain(flat=True)
             if job == 'FULL':
-                with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
+                with open(samples_path_agg+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
                     np.save(f,flat_samples)
                     f.close()
                     gc.collect()
             elif job == 'R0':
-                with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
+                with open(samples_path_agg+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
                     np.save(f,flat_samples)
                     f.close()
                     gc.collect()
@@ -136,14 +137,14 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         Relative perturbation factors (plus-minus) on PSO estimate
 
     multiplier : int
-        Multiplier determining the total numer of markov chains that will be run by emcee.
-        Total nr. chains = multiplier * nr. parameters
-        Default (minimum): 2
+        Multiplier determining the total number of markov chains that will be run by emcee.
+        Typically, total nr. chains = multiplier * nr. parameters
+        Default (minimum): 2 (one chain will result in an error in emcee)
         
     bounds : array of tuples of floats
         Ordered boundaries for the parameter values, e.g. ((0.1, 1.0), (1.0, 10.0)) if there are two parameters.
         Note: bounds must not be zero, because the perturbation is based on a percentage of the value,
-        and any percentage of zero returns zero, causing a 
+        and any percentage of zero returns zero, causing an error regarding linear dependence of walkers
         
     verbose : boolean
         Print user feedback to stdout
@@ -290,23 +291,32 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
     if len(states) == 1:
         idx = 0
         fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        try: # spatial case
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
+        # Reduce dimensions
+        new_xarray = output[states[idx]].copy(deep=True)
+        for dimension in output.dims:
+            if (dimension != 'time') :
+                new_xarray = new_xarray.sum(dim=dimension)
+        # Plot data
+        ax.plot(output['time'],new_xarray,'--', color='blue')
+        try: 
             ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         except:
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
             ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax.set_xlim([start_calibration,end_calibration])
     else:
         fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
         for idx,ax in enumerate(axes):
-            try: # spatial
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx].sum(axis=1), \
-                           color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            # Reduce dimensions
+            new_xarray = output[states[idx]].copy(deep=True)
+            for dimension in output.dims:
+                if (dimension != 'time') :
+                    new_xarray = new_xarray.sum(dim=dimension)
+            # Plot data
+            ax.plot(output['time'],new_xarray,'--', color='blue')
+            try:
+                ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             except:
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)   
             ax.set_xlim([start_calibration,end_calibration])
     ax = _apply_tick_locator(ax)
     return ax

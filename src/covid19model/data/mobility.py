@@ -83,7 +83,7 @@ def get_apple_mobility_data(update=True):
 
     return df_apple
 
-def get_google_mobility_data(update=True, plot=False, filename_plot=None):
+def get_google_mobility_data(update=True, provincial=False, plot=False, filename_plot=None):
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
@@ -94,6 +94,8 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     update : boolean (default True)
         True if you want to update the data,
         False if you want to read only previously saved data
+    provincial : boolean (default False)
+        True to return the google mobility data per province (10 provinces + Brussels)
     plot : boolean (default False)
         If True, return a preformatted plot of the data
     filename_viz: string
@@ -103,8 +105,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     Returns
     -----------
     data : pandas.DataFrame
-        DataFrame with the google mobility data on daily basis. The following columns
-        are returned:
+        DataFrame with the google mobility data on daily basis. The following columns are returned:
 
         - retail_recreation : Mobility trends for places such as restaurants, cafés, shopping centres, theme parks, museums, libraries and cinemas.
         - grocery : Mobility trends for places such as grocery shops, food warehouses, farmers markets, specialty food shops and pharmacies.
@@ -112,6 +113,12 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         - transport: Mobility trends for places that are public transport hubs, such as underground, bus and train stations.
         - work: Mobility trends for places of work.
         - residential: Mobility trends for places of residence.
+    
+        If provincial data is requested the resulting dataframe has a pandas multiindex containing two levels: 1) date and 2) region.
+        To access multi-indexed data, use the 'loc' method: df.loc[(index_val_1, index_val_2), column_name].
+        F.i. df[('2020-03-15', 'Brussels'), :] returns the mobility reductions on March 15th, 2020 in Brussels.
+        To access the entries corresponding to an entire index level (f.i. all dates), use the slice method.
+        F.i. df[(slice(None), 'Brussels'),:] returns the mobility reductions in Brussels on all possible dates
 
     Notes
     ----------
@@ -137,6 +144,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     abs_dir = os.path.dirname(__file__)
     dtypes = {'sub_region_1': str, 'sub_region_2': str}
 
+    # Update data if necessary
     if update:
         # download raw data
         df = pd.read_csv(url, parse_dates=['date'], dtype=dtypes)
@@ -152,28 +160,57 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
             '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv'),
             parse_dates=['date'], dtype=dtypes)
 
-    # Extract values
-    data=df[df['sub_region_1'].isnull().values]
-
-    # Assign data to output variables
+    # Map column names
     variable_mapping = {
-        'retail_and_recreation_percent_change_from_baseline': 'retail_recreation',
-        'grocery_and_pharmacy_percent_change_from_baseline': 'grocery',
-        'parks_percent_change_from_baseline': 'parks',
-        'transit_stations_percent_change_from_baseline': 'transport',
-        'workplaces_percent_change_from_baseline': 'work',
-        'residential_percent_change_from_baseline': 'residential'
+    'retail_and_recreation_percent_change_from_baseline': 'retail_recreation',
+    'grocery_and_pharmacy_percent_change_from_baseline': 'grocery',
+    'parks_percent_change_from_baseline': 'parks',
+    'transit_stations_percent_change_from_baseline': 'transport',
+    'workplaces_percent_change_from_baseline': 'work',
+    'residential_percent_change_from_baseline': 'residential'
     }
-    data = data.rename(columns=variable_mapping)
-    data = data.set_index("date")
-    data.index.freq = 'D'
-    data = data[list(variable_mapping.values())]
+    df = df.rename(columns=variable_mapping)
+
+    if provincial == True:
+        # Hardcode a dictionary to convert region name to NIS
+        regions = ['Brussels', 'Antwerp', 'East Flanders', 'Flemish Brabant', 'Limburg', 'West Flanders', 'Hainaut', 'Liege', 'Luxembourg', 'Province of Namur', 'Walloon Brabant']
+        corresponding_NIS = [21000, 10000, 40000, 20001, 70000, 30000, 50000, 60000, 80000, 90000, 20002]
+        region_to_NIS_dict = dict(zip(regions, corresponding_NIS))        
+        # Extract region names and append Brussels
+        regions = list(df['sub_region_2'].dropna().unique())
+        regions.insert(0,'Brussels')
+        # Build multiindex dataframe
+        iterables = [df['date'].unique(), corresponding_NIS]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS"])
+        new_df = pd.DataFrame(index=index, columns=list(variable_mapping.values()))
+        # Loop over regions
+        for region in regions:
+            NIS = region_to_NIS_dict[region]
+            if region == 'Brussels':
+                new_df.loc[(slice(None),NIS),:] = df.loc[(df['sub_region_1'] == 'Brussels')][list(variable_mapping.values())].values
+            else:
+                new_df.loc[(slice(None),NIS),:] = df[df['sub_region_2']==region][list(variable_mapping.values())].values
+            # Replace NaN with the last observed non-null value forward
+            new_df.loc[(slice(None),NIS),:] = new_df.loc[(slice(None),NIS),:].fillna(method='ffill')
+        df = new_df
+    else:
+            
+        # Extract national values
+        df=df[df['sub_region_1'].isnull().values]
+        df = df.set_index("date")
+        df.index.freq = 'D'
+        df = df[list(variable_mapping.values())]
 
     if filename_plot and not plot:
         print("Filename plot has no effect, plot is not activated. Set `plot=True` to create plot.")
 
     if plot:
-        fig, ax = google_mobility(data)
+        if provincial:
+            print("\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            print("Plotting of provincial-level google community mobility data is not implemented (yet).")
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n")
+
+        fig, ax = google_mobility(df)
         
         if filename_plot:
             plt.savefig(filename_plot, dpi=600, bbox_inches='tight',
@@ -181,7 +218,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         else:
             plt.show()
 
-    return data
+    return df
 
 
 

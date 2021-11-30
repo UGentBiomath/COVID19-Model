@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 def google_mobility(data):
-    """Create plot of google mobility data
+    """Create plot of national-level google mobility data
 
     Parameters
     ----------

@@ -3,7 +3,7 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
-def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset=0, agg=None):
+def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset='auto', agg=None):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset.
@@ -24,7 +24,7 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     poisson_offset : float
-        Offset to avoid infinities for Poisson loglikelihood around 0. Default is poisson_offset=0.
+        Offset to avoid infinities for Poisson loglikelihood around 0. Default poisson_offset='auto', which automatically computes the offset to avoid infinities and presents the user with a warning.
     agg : str or None
         Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
         None (default) if non-spatial model is used
@@ -96,16 +96,20 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # -------------
     # calculate MLE
     # -------------
-    
+
     if not agg: # keep existing code for non-spatial case (aggregation level = None)
         MLE = 0
+        
         for idx,state in enumerate(states):
-            ymodel = out[state].sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+            new_xarray = out[state]
+            for dimension in out.dims:
+                if dimension != 'time':
+                    new_xarray = new_xarray.sum(dim=dimension)
+            ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
             if dist == 'gaussian':            
                 MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
             elif dist == 'poisson':
                 MLE = MLE + weights[idx]*ll_poisson(ymodel, data[idx].values, offset=poisson_offset)
-
     else: # add code for spatial case
         # Create list of all NIS codes
         NIS_list = list(data[0].columns)
@@ -127,13 +131,14 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
             MLE = 0
             for NIS in NIS_list:
                 for idx,state in enumerate(states):
-                    # Note: only works with single state [state]
-                    # calculate loglikelihood function based on Poisson distribution for only H_in
-                    ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+                    new_xarray = out[state].sel(place=NIS)
+                    for dimension in out.dims:
+                        if ((dimension != 'time') & (dimension != 'place')):
+                            new_xarray = new_xarray.sum(dim=dimension)
+                    ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
                     MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
-                    MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
-    
-    return -MLE # must be positive for pso, which attempts to minimises MLE
+                    MLE += MLE_add
+    return -MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
     """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
@@ -161,7 +166,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     ll = - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
     return ll
 
-def ll_poisson(ymodel, ydata, offset=0, complete=False):
+def ll_poisson(ymodel, ydata, offset='auto', complete=False):
     """Loglikelihood of Poisson distribution
     
     Parameters
@@ -183,13 +188,20 @@ def ll_poisson(ymodel, ydata, offset=0, complete=False):
     
     if len(ymodel) != len(ydata):
         raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
+    
+    if offset == 'auto':
+        if min(ymodel) <= 0:
+            offset_value = - min(ymodel) + 1e-3 
+            warnings.warn(f"I automatically set the ofset to {offset_value} to prevent the probability function from returning NaN")
+        else:
+            offset_value = 0
+    else:
+        offset_value = offset
         
-    if min(ymodel+offset) <= 0:
-        warnings.warn("Some values in the 'ymodel' list are not strictly positive. Consider increasing the 'offset' parameter value")
-        
-    ll = - np.sum(ymodel+offset) + np.sum(np.log(ymodel+offset)*(ydata+offset))
+    ll = - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value))
+
     if complete == True:
-        ll -= np.sum(gammaln(ydata+offset))
+        ll -= np.sum(gammaln(ydata+offset_value))
     return ll
 
 def prior_uniform(x, bounds):
@@ -318,7 +330,7 @@ def prior_weibull(x,weibull_params):
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
 
-def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset=0, agg=None):
+def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset='auto', agg=None):
 
     """
     A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
@@ -340,7 +352,7 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
     dist : str
         Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
     poisson_offset : float
-        Offset to avoid infinities for Poisson loglikelihood around 0. Default is poisson_offset=0.
+        Offset to avoid infinities for Poisson loglikelihood around 0. Default poisson_offset='auto', which automatically computes the offset to avoid infinities and presents the user with a warning.
     agg : str or None
         Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
         None (default) if non-spatial model is used
