@@ -1668,3 +1668,183 @@ class make_seasonality_function():
             return old + (old-new)/l * (t-t_start)
         else:
             return param*(1+amplitude)
+
+####################
+## Economic model ##
+####################
+
+def household_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end_pandemic, c_s, on_site):
+    """
+    A time-dependent function to return the household demand shock.
+
+    Parameters
+    ----------
+    t : pd.timestamp
+        current date
+    param: np.array
+        initialised value of epsilon_S
+    states : dict
+        Dictionary containing all states of the economic model
+    t_start_lockdown : pd.timestamp
+        start of lockdown
+    t_end_lockdown : pd.timestamp
+        end of lockdown
+    t_end_pandemic : pd.timestamp
+        expected end date of the pandemic
+    c_s : np.array
+        shock vector
+    on_site : np.array
+        vector containing 1 if sector output is consumed on-site and 0 if sector output is not consumed on-site
+
+    Returns
+    -------
+    epsilon_D : np.array
+        sectoral household demand shock
+    """
+
+    if t < t_start_lockdown:
+        return param
+    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+        return c_s
+    elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
+        epsilon = c_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown)/(t_end_pandemic-t_end_lockdown))
+        epsilon[np.where(on_site == 0)] = 0
+        return epsilon
+    else:
+        return param
+
+def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
+    """
+    A function returning the labor reduction due to lockdown measures.
+
+    Parameters
+    ----------
+    t : pd.timestamp
+        current date
+    param: np.array
+        initialised value of epsilon_S
+    states : dict
+        Dictionary containing all states of the economic model
+    t_start_lockdown : pd.timestamp
+        start of economic lockdown
+    t_end_lockdown : pd.timestamp
+        end of economic lockdown
+    l_s : np.array
+        number of unactive workers under lockdown measures (obtained from survey 25-04-2020)
+   
+    Returns
+    -------
+    epsilon_S : np.array
+        reduction in labor force
+        
+    """
+    if t < t_start_lockdown:
+        return param
+    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+        return l_s
+    else:
+        return param
+
+def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end_pandemic, f_s):
+    """
+    A time-dependent function to return the exogeneous demand shock.
+
+    Parameters
+    ----------
+    t : pd.timestamp
+        current date
+    param: np.array
+        initialised value of epsilon_F
+    states : dict
+        Dictionary containing all states of the economic model
+    t_start_lockdown : pd.timestamp
+        start of lockdown
+    t_end_lockdown : pd.timestamp
+        end of lockdown
+    t_end_pandemic : pd.timestamp
+        expected end of the pandemic
+    f_s : np.array
+        exogeneous shock vector
+
+    Returns
+    -------
+    epsilon_F : np.array
+        exogeneous demand shock
+    """
+    if t < t_start_lockdown:
+        return param
+    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+        return f_s
+    else:
+        return param
+
+def compute_income_expectations(t, states, param, t_start_lockdown, t_end_lockdown, l_0, l_start_lockdown, rho, L):
+    """
+    A function to return the expected retained income in the long term of households.
+
+    Parameters
+    ----------
+    t : pd.timestamp
+        current date
+    states : dict
+        Dictionary containing all states of the economic model
+    param : float
+        current expected fraction of long term income
+    t_start_lockdown : pd.timestamp
+        startdate of lockdown
+    t_end_lockdown : pd.timestamp
+        enddate of lockdown
+    l_0 : np.array
+        sectoral labour expenditure under business-as-usual
+    l_start_lockdown : np.array
+        sectoral labour expenditure at start of lockdown
+    rho : float
+        first order economic recovery time constant
+    L : float
+        fraction of households believing in an L-shaped economic recovery
+
+    Returns
+    -------
+    zeta : float
+        fraction (0-1) of pre-pandemic income households expect to retain in the long run
+    """
+
+    if t < t_start_lockdown:
+        zeta = 1
+    else:
+        zeta_L = 1 - 0.5*(sum(l_0)-l_start_lockdown)/sum(l_0)
+        if ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+            zeta = zeta_L
+        else:
+            # first order system
+            zeta = zeta_L + (1 - np.exp(-(1-rho)*(t-t_end_lockdown).days))*(1-zeta_L)*L
+    return zeta
+
+def government_furloughing(t, states, param, t_start_compensation, t_end_compensation, b_s):
+    """
+    A function to simulate reimbursement of a fraction b of the income loss by policymakers (f.i. as social benefits, or "tijdelijke werkloosheid")
+
+    Parameters
+    ----------
+    t : pd.timestamp
+        current date
+    param: float
+        initialised value of b
+    t_start_compensation : pd.timestamp
+        startdate of compensation
+    t_end_lockdown : pd.timestamp
+        enddate of compensation
+    b_s: float
+        fraction of lost labor income furloughed to consumers under 'shock'
+
+    Returns
+    -------
+    b: float
+        fraction of lost labor income compensated
+    """
+    if t < t_start_compensation:
+        return param
+    elif ((t >= t_start_compensation) & (t < t_end_compensation)):
+        return b_s
+    else:
+        return param
