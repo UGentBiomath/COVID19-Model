@@ -277,8 +277,8 @@ class make_vaccination_function():
             self.dose_agg = len(self.df.index.get_level_values('dose').unique().values)
 
         # Define start- and enddate
-        self.df_start = self.df.index.get_level_values('date').min()
-        self.df_end = self.df.index.get_level_values('date').max()
+        self.df_start = pd.Timestamp(self.df.index.get_level_values('date').min())
+        self.df_end = pd.Timestamp(self.df.index.get_level_values('date').max())
 
         # Define age groups
         if age_stratification_size == 3:
@@ -1329,7 +1329,7 @@ class make_contact_matrix_function():
         t22 = pd.Timestamp('2021-11-01') # Start of autumn break
         t23 = pd.Timestamp('2021-11-07') # End of autumn break
         # Fourth WAVE
-        t24 = pd.Timstamp('2021-11-22') # Start mandatory telework
+        t24 = pd.Timestamp('2021-11-22') # Start mandatory telework
         t25 = pd.Timestamp(date_measures) 
         t26 = pd.Timestamp('2021-12-26') # Start of Christmass break
         t27 = pd.Timestamp('2022-01-06') # End of Christmass break
