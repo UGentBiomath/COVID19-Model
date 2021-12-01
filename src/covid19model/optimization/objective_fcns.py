@@ -106,7 +106,6 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                 if dimension != 'time':
                     new_xarray = new_xarray.sum(dim=dimension)
             ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-            #ymodel = np.where(ymodel<=0, 0.01, ymodel) #TODO: Multidose model can sometimes glitch and return negative hospitalizations (susceptibles become negative) --> manual fix
             if dist == 'gaussian':            
                 MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
             elif dist == 'poisson':
@@ -132,12 +131,14 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
             MLE = 0
             for NIS in NIS_list:
                 for idx,state in enumerate(states):
-                    # Note: only works with single state [state]
-                    # calculate loglikelihood function based on Poisson distribution for only H_in
-                    ymodel = out[state].sel(place=NIS).sum(dim="Nc").sel(time=data[idx].index.values, method='nearest').values
+                    new_xarray = out[state].sel(place=NIS)
+                    for dimension in out.dims:
+                        if ((dimension != 'time') & (dimension != 'place')):
+                            new_xarray = new_xarray.sum(dim=dimension)
+                    ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
                     MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
-                    MLE += MLE_add # multiplication of likelihood is sum of loglikelihoods
-    return -MLE # must be positive for pso, which attempts to minimises MLE
+                    MLE += MLE_add
+    return -MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
     """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
