@@ -19,7 +19,10 @@ setup(
 	    'openpyxl',
         'zarr',
         'emcee',
-        'xarray'
+        'xarray',
+        'rbfopt',
+        'pyomo',
+        'benderopt'
     ],
     extras_require={
         "develop":  ["pytest",

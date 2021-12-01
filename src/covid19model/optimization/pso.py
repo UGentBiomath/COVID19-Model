@@ -319,8 +319,6 @@ def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
-#     print('CHECKPOINT: start of fit_pso function')
-    
     # Exceptions
     if processes > mp.cpu_count():
         raise ValueError(
