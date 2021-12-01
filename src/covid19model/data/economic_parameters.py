@@ -40,22 +40,42 @@ def get_economic_parameters():
 
     # IO_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"IO_NACE64.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['IO'] = df.values
+    pars_dict['IO'] = df.values/365
 
     # Others.csv
     df = pd.read_csv(os.path.join(par_interim_path,"others.csv"), sep=',',header=[1],index_col=[0])
-    pars_dict['x_0'] = np.expand_dims(np.array(df['Sectoral output (M€)'].values), axis=1)
-    pars_dict['c_0'] = np.expand_dims(np.array(df['Household demand (M€)'].values), axis=1)
-    pars_dict['f_0'] = np.expand_dims(np.array(df['Other demand (M€)'].values), axis=1)
+    pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
+    pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
+    pars_dict['l_0'] = np.array(df['Labor compensation (M€/y)'].values)/365
+    pars_dict['c_0'] = np.array(df['Household demand (M€/y)'].values)/365
+    pars_dict['f_0'] = np.array(df['Total other demand (M€/y)'].values)/365
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
-    pars_dict['c_s'] = np.expand_dims(np.array(df['Consumer demand shock (%)'].values), axis=1)
-    pars_dict['f_s'] = np.expand_dims(np.array(df['Other demand shock (%)'].values), axis=1)
-    pars_dict['l_0'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000
-    pars_dict['l_s'] = np.expand_dims(np.array(df['Employees (x1000)'].values), axis=1)*1000*np.expand_dims(np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100), axis = 1)
+    # shock vectors
+    pars_dict['l_s'] = 1-np.array((df['Telework (%)'].values+df['Mix (%)'].values+df['Workplace (%)'].values)/100)
+    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
+    pars_dict['on_site'] = np.array(df['On-site consumption (-)'].values)
 
     # IHS_critical_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"IHS_critical_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['C'] = df.values
+
+    # Derived variables
+    # ~~~~~~~~~~~~~~~~~
+
+    # Matrix of technical coefficients
+    A = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
+    for i in range(pars_dict['IO'].shape[0]):
+        for j in range(pars_dict['IO'].shape[0]):
+            A[i,j] = pars_dict['IO'][i,j]/pars_dict['x_0'][j]
+    pars_dict['A'] = A
+
+    # Stock matrix under business as usual
+    S_0 = np.zeros([pars_dict['IO'].shape[0],pars_dict['IO'].shape[0]])
+    for i in range(pars_dict['IO'].shape[0]):
+        for j in range(pars_dict['IO'].shape[0]):
+            S_0[i,j] = pars_dict['IO'][i,j]*pars_dict['n'][j]
+    pars_dict['S_0'] = S_0
 
     return pars_dict
 
@@ -83,15 +103,54 @@ def get_conversion_matrix(from_to):
 
     # Load dataframe containing matrices
     if from_to == 'NACE21_NACE10':
-        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), shee_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).values)
+        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).values)
     elif from_to == 'NACE38_NACE21':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 38 to NACE 21', header=[0], index_col=[0]).values)
     elif from_to == 'NACE64_NACE38':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).values)
     elif from_to == 'WIOD55_NACE64':
-        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).values)
+        return np.array(pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to WIOD 55', header=[0], index_col=[0]).values)
     else:
         raise ValueError(
                         "conversion matrix '{0}' not recognized \n"
                         "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
+                    )
+
+def read_economic_labels(classification_name):
+    """
+    Returns the sector labels of the desired classification.
+
+    Parameters
+    ----------
+    classification_name : string
+        Desired classification. Valid options are: NACE64, NACE38, NACE21, NACE10, WIOD55
+
+    Returns
+    -------
+    labels : list
+
+    Example use
+    -----------
+    labels = read_economic_labels('WIOD55')
+    """
+    
+     # Define path to conversion matrices
+    abs_dir = os.path.dirname(__file__)
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+
+    # Load dataframe containing matrices
+    if classification_name == 'NACE64':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).columns.values
+    elif classification_name == 'NACE38':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).index.values
+    elif classification_name == 'NACE21':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).columns.values
+    elif classification_name == 'NACE10':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).index.values
+    elif classification_name == 'WIOD55':
+        return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).columns.values
+    else:
+        raise ValueError(
+                        "conversion matrix '{0}' not recognized \n"
+                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10', 'WIOD55".format(from_to)
                     )

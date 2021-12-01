@@ -16,9 +16,9 @@ import shutil
 import numpy as np
 import pandas as pd
 
-# ----------------------------
-# Download all necessary files
-# ----------------------------
+##################################
+## Download all necessary files ##
+##################################
 
 print('1) Downloading data ')
 
@@ -69,9 +69,9 @@ print('done\n')
 
 print('2) Formatting data ')
 
-# ----------------------------------
-# Construct NACE Conversion matrices
-# ----------------------------------
+########################################
+## Construct NACE Conversion matrices ##
+########################################
 
 # NACE 21 to NACE 10
 
@@ -209,9 +209,9 @@ with pd.ExcelWriter('../../data/interim/economical/conversion_matrices.xlsx') as
     NACE64to38.to_excel(writer, sheet_name='NACE 64 to NACE 38')
     WIOD55toNACE64.to_excel(writer, sheet_name='NACE 64 to WIOD 55')
 
-# ---------------------------------------------
-# Input-output matrix: Federaal Planning Bureau
-# ---------------------------------------------
+###################################################
+## Input-output matrix: Federaal Planning Bureau ##
+###################################################
 
 # Extract IO table
 IO = IO_df.values[1:-19,1:-10]
@@ -240,9 +240,9 @@ f_0 = np.sum(IO_df.values[1:-19,-8:-1],axis=1)
 f_0[43] = f_0[43] + f_0[44] # Confirm with Koen or Gert that this needs to be added togheter
 f_0 = np.delete(f_0,44)
 
-# -------------
-# Desired stock
-# -------------
+###################
+## Desired stock ##
+###################
 
 # Read
 nj_df = pd.read_csv("../../data/raw/economical/table_ratio_inv_go.csv", index_col=[0], header=[0])
@@ -252,9 +252,9 @@ nj64 = np.zeros(63)
 for i in range(nj55.size):
     nj64[WIOD55toNACE64_mat[i,:] == 1] = nj55[i]
 
-# ---------------
-# Critical inputs
-# ---------------
+#####################
+## Critical inputs ##
+#####################
 
 # Read and format
 abs_dir = os.getcwd()
@@ -342,9 +342,9 @@ index = codes64
 IHS_critical = pd.DataFrame(data = new64_mat, index=index, columns=columns)
 IHS_critical.to_csv('../../data/interim/economical/IHS_critical_NACE64.csv', index=True)
 
-# ---------------------
-# Consumer demand shock
-# ---------------------
+###########################
+## Consumer demand shock ##
+###########################
 
 # Read 
 ed_df = pd.read_csv("../../data/raw/economical/WIOD_shockdata.csv", index_col=[0], header=[0])
@@ -354,9 +354,10 @@ ed64 = np.zeros(63)
 for i in range(nj55.size):
     ed64[WIOD55toNACE64_mat[i,:] == 1] = ed55[i]
 
-# ------------------
-# Other demand shock
-# ------------------
+########################
+## Other demand shock ##
+########################
+
 # Read and compute
 no_shock = ed_df['fdemand.other'].values
 shocked = ed_df['fdemand.other.shocked'].values
@@ -366,9 +367,9 @@ fd64 = np.zeros(63)
 for i in range(fd55.size):
     fd64[WIOD55toNACE64_mat[i,:] == 1] = fd55[i]
 
-# -----------------
-# Labor income: NBB
-# -----------------
+#######################
+## Labor income: NBB ##
+#######################
 
 # Business-as-usual
 # ~~~~~~~~~~~~~~~~~
@@ -407,9 +408,9 @@ absent64 = np.zeros(63)
 for i in range(l_lockdown38.size):
     absent64[NACE_64to38_mat[i,:] == 1] = absent38[i]
 
-# ------------------
-# Group in dataframe
-# ------------------
+########################
+## Group in dataframe ##
+########################
 
 tuples = [('Business-as-usual', 'Sectoral output (M€)'),
             ('Business-as-usual', 'Household demand (M€)'),
@@ -443,9 +444,9 @@ df.head()
 
 df.to_csv('../../data/interim/economical/others.csv', index=True)
 
-# -----------
-# Census 2011
-# -----------
+#################
+## Census 2011 ##
+#################
 
 codes=census_df['00.55 - Werkende bevolking van belgische en vreemde nationaliteit naar geslacht en economische sector'].loc[5:1943].dropna().values
 codes_int = [int(i) for i in codes]
@@ -474,5 +475,10 @@ for idx in economic_df.index:
         idx_arrondisement.append(idx)
 
 economic_df.loc[idx_arrondisement,:].to_csv('../../data/interim/economical/census2011_NACE21.csv', index=True)
+
+############################################
+## Economic Risk Management Group Surveys ##
+############################################
+
 
 print('done\n')
