@@ -116,22 +116,22 @@ def get_conversion_matrix(from_to):
                         "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
                     )
 
-def read_economic_labels(class_name):
+def read_economic_labels(classification_name):
     """
-    Returns conversion matrices to more easily aggregate data from different sector classifications. F.i. converting from NACE 64 to WIOD 55 classification.
+    Returns the sector labels of the desired classification.
 
     Parameters
     ----------
-    from_to : string
-        Desired conversion matrix. Valid options are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'
+    classification_name : string
+        Desired classification. Valid options are: NACE64, NACE38, NACE21, NACE10, WIOD55
 
     Returns
     -------
-    conversion matrix : np.array
+    labels : list
 
     Example use
     -----------
-    mat = get_conversion_matrix('WIOD55_NACE64')
+    labels = read_economic_labels('WIOD55')
     """
     
      # Define path to conversion matrices
@@ -139,15 +139,15 @@ def read_economic_labels(class_name):
     par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
 
     # Load dataframe containing matrices
-    if class_name == 'NACE64':
+    if classification_name == 'NACE64':
         return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).columns.values
-    elif class_name == 'NACE38':
+    elif classification_name == 'NACE38':
         return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).index.values
-    elif class_name == 'NACE21':
+    elif classification_name == 'NACE21':
         return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).columns.values
-    elif class_name == 'NACE10':
+    elif classification_name == 'NACE10':
         return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).index.values
-    elif class_name == 'WIOD55':
+    elif classification_name == 'WIOD55':
         return pd.read_excel(os.path.join(par_interim_path,"conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).columns.values
     else:
         raise ValueError(
