@@ -12,7 +12,7 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 
 #### Economic data
 
-+ `input-output.xlsx` contains sectoral input-ouput tables for Belgium. Belgian data, NACE 64 classification. Received from prof. Gert Peersman.
++ `input-output.xlsx` contains sectoral input-ouput tables for Belgium. Belgian data, NACE 64 classification. Retrieved from https://www.plan.be/databases/data-63-en-input_output_tables_2015
 + `Employees_25-04-2020_NACE38.xlsx` contains the fraction of employees who worked at the workplace, at home, in a mix of both, those temporarely unemployed and those abscent during the Belgian lockdown of March 17th, 2020 to March 4th, 2020. Belgian data, NACE 38 classification. Received from prof. Gert Peersman. Survey performed by the Belgian national bank.
 + `Employees_NACE38.xlsx` contains the number of employees per sector from 2014 to 2018. Belgian data, NACE 38 classification. Retrieved from http://stat.nbb.be/?lang=nl, 'Bevolking en arbeidsmarkt' > 'Werkgelegenheid' > 'Binnenlands concept A38'.
 + `Employees_NACE64.xlsx` contains the number of employees per sector from 2014 to 2018. Belgian data, NACE 38 classification. Retrieved from http://stat.nbb.be/?lang=nl, 'Bevolking en arbeidsmarkt' > 'Werkgelegenheid' > 'Binnenlands concept A64'.
@@ -21,6 +21,7 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 + `IHS_Markit_results_compact.csv` Criticality scores of IHS Markit analysts. The exact formulation of the question was as follows: “For each industry in WIOD 55, please rate whether each of its inputs are essential. We will present you with an industry X and ask you to rate each input Y. The key question is: Can production continue in industry X if input Y is not available for two months?” UK data, WIOD 55 classification. Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
 + `WoW Growths.xlsx` Contains on the datasheet `SECTORAL_WOW_GROWTHS` the week-over-week growth rate of B2B demand (or consumption) per NACE 21 sector (sectors A-U) from 2008 to 2021. Obtained by prof. Koen Schoors from an (to us) anonymuous bank.
 + `playing with shifts.xlsx` Contains the growth rate of B2B demand (or consumption) in number of weeks relative to the start of the second 2020 quarter. Here, -24 weeks means 24 weeks before the start of 2020Q2. This datasheet is a smoothed variant of the data in `WoW Growths.xlsx` using several filters. The data were made by Feliciaan De Palmenaer(feliciaan.depalmenaer@ugent.be or feliciaan.de.palmenaer@vub.be). Raw data obtained by prof. Koen Schoors from an (to us) anonymuous bank.
++ `ermg-tables.xlsx` Ecomical Risk Management Group (ERMG) business survey indicators. Series of surveys conducted by the ERMG to assess the economic impact of COVID-19. Retrieved from https://www.nbb.be/en/articles/ermg-business-survey-indicators-point-sustained-yet-slow-recovery-belgian-economy
 
 #### GIS
 
