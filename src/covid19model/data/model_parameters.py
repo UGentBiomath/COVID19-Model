@@ -406,7 +406,6 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
         pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
         pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
-        pars_dict['e_a'] = 1.00*np.ones(3) # Default: vaccination works in 100% of people
         pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
         pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
         # TDPF parameters
@@ -463,15 +462,6 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['place'].shape[0])
         pars_dict['p'] = p
-
-        # Load average household size sigma_g (sg) per region. Set default to average 2.3 for now.
-        # NB Currently not used
-        #sg = np.ones(pars_dict['place'].shape[0]) * 2.3
-        #pars_dict['sg'] = sg
-
-        # Define factor controlling the contact dependence on density f (hard-coded)
-        #xi = 0.01 # km^-2
-        #pars_dict['xi'] = xi
 
         # TDPF parameters
         pars_dict['default_mobility'] = None
