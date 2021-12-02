@@ -77,9 +77,9 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
 
     # Initial_states
     date = '2020-03-15'
-    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/calibrations/national/')
+    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
     if vaccination_model == 'stratified':
-        with open(samples_path+'initial_states_stratified.pickle', 'rb') as handle:
+        with open(samples_path+'initial_states.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[date]
     else:
