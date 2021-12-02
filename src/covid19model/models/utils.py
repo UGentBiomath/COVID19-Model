@@ -10,7 +10,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model='stratified', update=False):
+def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
 
     #####################################
     ## Import necessary pieces of code ##
@@ -19,11 +19,10 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
     from covid19model.models import models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-    from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, \
-                                                              make_contact_matrix_function, \
-                                                              make_VOC_function, \
-                                                              make_vaccination_function, \
-                                                              make_seasonality_function
+    from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
+                                                                    make_VOC_function, \
+                                                                    make_vaccination_function, \
+                                                                    make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
 
@@ -37,11 +36,7 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
-    if vaccination_model == 'non-stratified':
-        df_vacc = df_vacc.loc[(slice(None), slice(None), slice(None), 'A')].groupby(by=['date','age']).sum() + \
-                    df_vacc.loc[(slice(None), slice(None), slice(None), 'C')].groupby(by=['date','age']).sum()
-    elif vaccination_model == 'stratified':
-        df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
+    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update)
     # Load and format national VOC data (for time-dependent VOC fraction)
@@ -58,7 +53,6 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
     vaccination_function = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
 
     # Time-dependent social contact matrix over all policies, updating Nc
-    contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 
     # Time-dependent seasonality function, updating season_factor
@@ -68,49 +62,33 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, vaccination_model
     ## Initial states ##
     ####################
 
-    #if vaccination_model == 'stratified':
-    #    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
-    #    initial_states = {"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
-    #                    "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)}
-    #else:
-    #    initial_states = {"S": initN, "E": np.ones(age_stratification_size), "S_v": np.ones(age_stratification_size)}
-
-    # Initial_states
+    # Load initial states
     date = '2020-03-15'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    if vaccination_model == 'stratified':
-        with open(samples_path+'initial_states.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[date]
-    else:
-        with open(samples_path+'initial_states_non-stratified.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[date]
+    with open(samples_path+'initial_states.pickle', 'rb') as handle:
+        load = pickle.load(handle)
+        initial_states = load[date]
+    # Convert to right age groups using demographic wheiging
+    ...
 
     ##########################
     ## Initialize the model ##
     ##########################
  
     # Vaccination parameters when using the stratified vaccination model
-    if vaccination_model == 'stratified':
-        dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
-        # Add "size dummy" for vaccination stratification
-        params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
-        # Correct size of other parameters
-        params.pop('e_a')
-        params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
-        params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
-        params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
-        params.update({'d_vacc': 100*365})
-        params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
+    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
+    # Add "size dummy" for vaccination stratification
+    params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
+    # Correct size of other parameters
+    params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
+    params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
+    params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
+    params.update({'d_vacc': 100*365})
+    params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 
     # Initialize model
-    if vaccination_model == 'stratified':
-        model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
-                            time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
-    else:
-        model = models.COVID19_SEIQRD_vacc(initial_states, params,
-                            time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
+    model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
 
     return model
 
