@@ -12,6 +12,21 @@ data_path = os.path.join(abs_dir, "../../../data/")
 
 def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
 
+    ###########################################################
+    ## Convert age_stratification_size to desired age groups ##
+    ###########################################################
+
+    if age_stratification_size == 3:
+        age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+    elif age_stratification_size == 9:
+        age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+    elif age_stratification_size == 10:
+        age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )
+
     #####################################
     ## Import necessary pieces of code ##
     #####################################
@@ -25,14 +40,14 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
                                                                     make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
+    from covid19model.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
-    levels = initN.size
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=True, VOC=True)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -50,7 +65,7 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
     VOC_function = make_VOC_function(df_VOC_abc)
 
     # Time-dependent (first) vaccination function, updating N_vacc
-    vaccination_function = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
+    vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
 
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
@@ -69,7 +84,13 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
         load = pickle.load(handle)
         initial_states = load[date]
     # Convert to right age groups using demographic wheiging
-    ...
+    for key,value in initial_states.items():
+        converted_value = np.zeros([len(age_classes),value.shape[1]])
+        for i in range(value.shape[1]):
+            column = value[:,i]
+            data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
+            converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
+        initial_states.update({key: converted_value})
 
     ##########################
     ## Initialize the model ##
@@ -90,7 +111,7 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
 
-    return model
+    return initN, model
 
 def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
 

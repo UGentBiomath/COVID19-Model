@@ -5,8 +5,6 @@ Arguments:
 ----------
 -f:
     Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--v:
-    Vaccination model, either 'stratified' or 'non-stratified' 
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -16,61 +14,56 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f -v stratified BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+python plot_fit_R0_COMP_EFF_WAVE2.py -f BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
 
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# ----------------------
-# Load required packages
-# ----------------------
+############################
+## Load required packages ##
+############################
 
 import os
-import sys, getopt
-import ujson as json
-import random
 import datetime
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models import models
 from covid19model.models.utils import initialize_COVID19_SEIQRD_vacc
-from covid19model.data import mobility, sciensano, model_parameters, VOC
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.data import sciensano, model_parameters
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
+from covid19model.models.utils import load_samples_dict
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--filename", help="Samples dictionary name")
-parser.add_argument("-v", "--vaccination_model", help="Stratified or non-stratified vaccination model", default='non-stratified', type=str)
+parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
-parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 args = parser.parse_args()
 
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 
-# --------------------------
-# Define simulation settings
-# --------------------------
+################################
+## Define simulation settings ##
+################################
 
 # Start and end of simulation
 end_sim = '2022-09-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
-# ------------------------
-# Define results locations
-# ------------------------
+##############################
+## Define results locations ##
+##############################
 
 # Path where figures and results should be stored
 fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
@@ -81,22 +74,21 @@ for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# -----------------------
-# Load samples dictionary
-# -----------------------
+#############################
+## Load samples dictionary ##
+#############################
 
-from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2, age_stratification_size=age_stratification_size)
-warmup = 0#int(samples_dict['warmup'])
+warmup = 0
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
-# --------------------------------------------
-# Load data not needed to initialize the model
-# --------------------------------------------
+##################################################
+## Load data not needed to initialize the model ##
+##################################################
 
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
@@ -109,28 +101,21 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 df_sciensano_mortality = sciensano.get_mortality_data()
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
-# Initial condition
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size)
-initN = initN.values
+##########################
+## Initialize the model ##
+##########################
 
-# --------------------
-# Initialize the model
-# --------------------
+initN, model = initialize_COVID19_SEIQRD_vacc(age_stratification_size=age_stratification_size, update=False)
 
-model = initialize_COVID19_SEIQRD_vacc(age_stratification_size=age_stratification_size, vaccination_model=args.vaccination_model, update=False)
+#######################
+## Sampling function ##
+#######################
 
-# -----------------
-# Sampling function
-# -----------------
+from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
 
-if args.vaccination_model == 'non-stratified':
-    from covid19model.models.utils import draw_fcn_WAVE2
-elif args.vaccination_model == 'stratified':
-    from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
-
-# -------------------
-# Perform simulations
-# -------------------
+#########################
+## Perform simulations ##
+#########################
 
 print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
@@ -138,9 +123,9 @@ out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
-# -----------
-# Visualizing
-# -----------
+#######################
+## Visualize results ##
+#######################
 
 print('2) Visualizing fit')
 

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.optimize import minimize
 from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
-def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', age_stratification_size=10):
+def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', age_path='0_12_18_25_35_45_55_65_75_85/'):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
 
@@ -85,18 +85,6 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', a
     if dataset == 'willem_2012':
         # Define data path
         matrix_path = "../../../data/raw/interaction_matrices/willem_2012/"
-        # Define age path
-        if age_stratification_size == 3:
-            age_path = "0_20_60"
-        elif age_stratification_size == 9:
-            age_path = "0_10_20_30_40_50_60_70_80"
-        elif age_stratification_size == 10:
-            age_path = "0_12_18_25_35_45_55_65_75_85"
-        else:
-            raise ValueError(
-            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
-        )
-
         path = os.path.join(abs_dir, matrix_path+age_path)
 
         # Input check on user-defined intensity
@@ -143,7 +131,7 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', a
         raise ValueError(
             "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
 
-def get_integrated_willem2012_interaction_matrices(age_stratification_size=10):
+def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55_65_75_85/'):
     """
     Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the duration of the contact.
     The relative share of contacts changes as follows by integrating with the duration of the contact (absolute number vs. time integrated):
@@ -180,7 +168,7 @@ def get_integrated_willem2012_interaction_matrices(age_stratification_size=10):
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
-        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, age_stratification_size=age_stratification_size)
+        Nc_dict = get_interaction_matrices(dataset='willem_2012', intensity = intensity, age_path=age_path)
         matrices_raw.update({intensities[idx]: Nc_dict})
     # Integrate matrices at defined intensities
     Nc_dict = {}
@@ -190,7 +178,8 @@ def get_integrated_willem2012_interaction_matrices(age_stratification_size=10):
 
     return Nc_dict
 
-def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vaccination=False, VOC=True):
+def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
+                                    spatial=None, vaccination=False, VOC=True):
     """
     Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
@@ -270,7 +259,6 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     """
 
     abs_dir = os.path.dirname(__file__)
-    par_raw_path = os.path.join(abs_dir, "../../../data/raw/model_parameters/")
     par_interim_path = os.path.join(abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD")
     
     # Initialize parameters dictionary
@@ -287,14 +275,13 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
                         "stratifications are 'mun', 'arr', 'prov' or 'test'".format(spatial)
                     )
 
+    initN = construct_initN(age_classes, spatial)
+    age_stratification_size = len(age_classes)
     if age_stratification_size == 3:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), spatial)
         age_path = '0_20_60/'
     elif age_stratification_size == 9:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), spatial)
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
-        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), spatial)
         age_path = '0_12_18_25_35_45_55_65_75_85/'
     else:
         raise ValueError(
@@ -307,7 +294,7 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
     ##########################
 
     # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary (integrated version)
-    Nc_dict = get_integrated_willem2012_interaction_matrices(age_stratification_size)
+    Nc_dict = get_integrated_willem2012_interaction_matrices(age_path)
     pars_dict['Nc'] = Nc_dict['total']
 
     ##########################################################################
@@ -337,16 +324,8 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         return minimize(errorfcn, 0, args=(n, n_desired))['x'] * relative_data
     
     rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
-
-    if age_stratification_size == 3:
-        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')).values
-    elif age_stratification_size == 9:
-        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')).values
-    elif age_stratification_size == 10:
-        pars_dict['h'] = convert_age_stratified_property(hosp_prop, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
-        pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')).values
+    pars_dict['h'] = convert_age_stratified_property(hosp_prop, age_classes).values
+    pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, age_classes).values
 
     #########################
     ## Hospital parameters ##
@@ -412,9 +391,9 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
         pars_dict.update({'initN' : initN.values,
                           'daily_doses' : 60000, # copy default values from vaccination_function, which are curently not used I think
                           'delay_immunity' : 14,
-                          'vacc_order' : [8, 7, 6, 5, 4, 3, 2, 1, 0],
-                          'stop_idx' : 9,
-                          'refusal' : [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]})
+                          'vacc_order' : list(range(age_stratification_size))[::-1],
+                          'stop_idx' : 0,
+                          'refusal' : 0.3*np.ones(age_stratification_size)})
 
     ##########
     ## VOCs ##
@@ -465,6 +444,5 @@ def get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial=None, vacc
 
         # TDPF parameters
         pars_dict['default_mobility'] = None
-
 
     return initN, Nc_dict, pars_dict

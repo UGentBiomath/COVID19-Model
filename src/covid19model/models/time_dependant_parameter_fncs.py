@@ -258,7 +258,8 @@ class make_vaccination_function():
         Default vaccination function
 
     """
-    def __init__(self, df, age_stratification_size=10):
+    def __init__(self, df, age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')):
+        age_stratification_size = len(age_classes)
         # Assign inputs to object
         self.df = df
         self.age_agg = age_stratification_size
@@ -278,14 +279,6 @@ class make_vaccination_function():
         # Define start- and enddate
         self.df_start = pd.Timestamp(self.df.index.get_level_values('date').min())
         self.df_end = pd.Timestamp(self.df.index.get_level_values('date').max())
-
-        # Define age groups
-        if age_stratification_size == 3:
-            age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
-        elif age_stratification_size == 9:
-            age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
-        elif age_stratification_size == 10:
-            age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
 
         # Perform age conversion
         # Define dataframe with desired format

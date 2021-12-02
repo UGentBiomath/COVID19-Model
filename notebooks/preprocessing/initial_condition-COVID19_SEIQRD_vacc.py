@@ -1,7 +1,7 @@
 """
 This script contains code to estimate an appropriate initial condition of the national COVID-19 SEIQRD model on March 15th-17th, 2020.
 
-The model is initialized 31 days prior to March 15th, 2020 with one exposed individual in every age group.
+The model is initialized 31 days prior to March 15th, 2020 with one exposed individual in every of the 10 (!) age groups.
 The infectivity that results in the best fit to the hospitalization data is determined using PSO.
 Next, the fit is visualized to allow for further manual tweaking of the PSO result.
 Finally, the model states on March 15,16 and 17 are pickled.
@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.models.utils import initialize_COVID19_SEIQRD_vacc
-from covid19model.data import sciensano, model_parameters
+from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import assign_PSO, plot_PSO
 
@@ -57,14 +57,13 @@ if not os.path.exists(results_path):
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
 dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
 
 ##########################
 ## Initialize the model ##
 ##########################
 
 # Use predefined initialization 
-model = initialize_COVID19_SEIQRD_vacc(age_stratification_size=age_stratification_size, vaccination_model='stratified', update=False)
+initN, model = initialize_COVID19_SEIQRD_vacc(age_stratification_size=age_stratification_size, update=False)
 # Ajust initial condition
 model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
                              "E": np.concatenate( (np.ones([age_stratification_size, 1]), np.zeros([age_stratification_size, dose_stratification_size-1])), axis=1)})
