@@ -542,9 +542,9 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    #if (self.coordinates[i] == 'place') and self.spatial:
-                    #    coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
-                    if self.coordinates[i] is not None:
+                    if (self.coordinates[i] == 'place') and self.spatial:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    elif self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})

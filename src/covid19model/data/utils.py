@@ -88,3 +88,49 @@ def convert_age_stratified_property(data, age_classes):
                 result.append(0/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
         out.iloc[idx] = sum(result)
     return out
+
+def convert_age_stratified_quantity(data, age_classes, spatial=None, NIS=None):
+        """ 
+        Given an age-stratified series of some quantity: [age_group_lower, age_group_upper] : quantity,
+        this function can convert the data into another user-defined age-stratification using demographic weighing
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified vaccination incidences. Index must be of type pd.Intervalindex.
+        
+        age_classes : pd.IntervalIndex
+            Desired age groups of the vaccination dataframe.
+
+        spatial: str
+            Spatial aggregation: prov, arr or mun
+        
+        NIS : str
+            NIS code of consired spatial element
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+
+        # Pre-allocate new series
+        out = pd.Series(index = age_classes, dtype=float)
+        # Extract demographics
+        if spatial: 
+            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
+            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        else:
+            data_n_individuals = construct_initN(data.index, spatial).values
+            demographics = construct_initN(None, spatial).values
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
