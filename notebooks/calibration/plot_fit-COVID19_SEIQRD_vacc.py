@@ -32,7 +32,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
-from covid19model.data import sciensano, model_parameters
+from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
 from covid19model.models.utils import load_samples_dict
@@ -78,7 +78,7 @@ for directory in [fig_path, samples_path]:
 ## Load samples dictionary ##
 #############################
 
-samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2, age_stratification_size=age_stratification_size)
+samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
 warmup = 0
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
@@ -111,7 +111,7 @@ initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc as draw_fcn_WAVE2
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as draw_fcn_WAVE2
 
 #########################
 ## Perform simulations ##

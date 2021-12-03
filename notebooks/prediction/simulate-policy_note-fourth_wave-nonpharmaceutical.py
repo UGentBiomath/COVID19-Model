@@ -45,6 +45,7 @@ from covid19model.models.time_dependant_parameter_fncs import make_mobility_upda
 from covid19model.data import mobility, sciensano, model_parameters, VOC
 # Import model utilities
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
+from covid19model.data.utils import convert_age_stratified_quantity
 
 print('\n1) Setting up script')
 
@@ -78,6 +79,21 @@ args = parser.parse_args()
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 
+###########################################################
+## Convert age_stratification_size to desired age groups ##
+###########################################################
+
+if age_stratification_size == 3:
+    age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+elif age_stratification_size == 9:
+    age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+elif age_stratification_size == 10:
+    age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+else:
+    raise ValueError(
+        "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+    )
+
 # ------------------------
 # Define results locations
 # ------------------------
@@ -100,15 +116,15 @@ samples_path_spatial = '../../data/interim/model_parameters/COVID19_SEIQRD/calib
 
 from covid19model.models.utils import load_samples_dict
 warmup = 0
-samples_dict = [load_samples_dict(samples_path_national, wave=2, age_stratification_size=age_stratification_size),
-                load_samples_dict(samples_path_spatial, wave=2, age_stratification_size=age_stratification_size)]
+samples_dict = [load_samples_dict(samples_path_national, age_stratification_size=age_stratification_size),
+                load_samples_dict(samples_path_spatial, age_stratification_size=age_stratification_size)]
 start_calibration = [samples_dict[0]['start_calibration'], samples_dict[1]['start_calibration']]
 end_calibration = [samples_dict[0]['end_calibration'], samples_dict[1]['end_calibration']]
 start_sim = start_calibration
 
 from covid19model.models.utils import draw_fcn_spatial
-from covid19model.models.utils import draw_fcn_WAVE2_stratified_vacc
-draw_fcn = [draw_fcn_WAVE2_stratified_vacc, draw_fcn_spatial]
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc
+draw_fcn = [draw_fcn_COVID19_SEIQRD_stratified_vacc, draw_fcn_spatial]
 
 ##################
 ## Setup models ##
@@ -134,7 +150,6 @@ model_list = []
 
 # Population size, interaction matrices and the model parameters
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
-levels = initN.size
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
 df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -152,17 +167,24 @@ contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
 policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_WAVE4
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
-# Initial_states
+# Load initial states
 date = '2020-03-15'
-with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/initial_states_stratified.pickle', 'rb') as handle:
+with open('../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
     load = pickle.load(handle)
     initial_states = load[date]
+# Convert to right age groups using demographic wheiging
+for key,value in initial_states.items():
+    converted_value = np.zeros([len(age_classes),value.shape[1]])
+    for i in range(value.shape[1]):
+        column = value[:,i]
+        data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
+        converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
+    initial_states.update({key: converted_value})
 # Vaccination parameters when using the stratified vaccination model
 dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
 # Add "size dummy" for vaccination stratification
 params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
 # Correct size of other parameters
-params.pop('e_a')
 params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
 params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
 params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
