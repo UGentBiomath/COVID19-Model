@@ -225,8 +225,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
+initN, model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'

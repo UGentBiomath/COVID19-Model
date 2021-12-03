@@ -193,6 +193,21 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
 
 def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
 
+    ###########################################################
+    ## Convert age_stratification_size to desired age groups ##
+    ###########################################################
+
+    if age_stratification_size == 3:
+        age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+    elif age_stratification_size == 9:
+        age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+    elif age_stratification_size == 10:
+        age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )
+
     #####################################
     ## Import necessary pieces of code ##
     #####################################
@@ -213,7 +228,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
     initN = initN.values
 
     # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
@@ -246,7 +261,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     VOC_function = make_VOC_function(df_VOC_abc)
 
     # Time-dependent (first) vaccination function, updating N_vacc
-    vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
+    vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
 
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
@@ -263,7 +278,6 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
 
     # Add the susceptible and exposed population to the initial_states dict
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
-    params.pop('e_a')
     params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
     params.update({'e_h': np.array([0.95, 0.95, 0.95])})
     params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
@@ -278,7 +292,7 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
                                                        'beta_R' : seasonality_function,
                                                        'beta_U': seasonality_function,
                                                        'beta_M': seasonality_function})
-    return model
+    return initN, model
 
 def load_samples_dict(filepath, age_stratification_size=10):
     """
