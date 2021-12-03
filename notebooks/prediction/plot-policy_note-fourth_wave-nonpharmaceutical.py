@@ -25,7 +25,7 @@ end_calibration = '2021-11-12'
 
 from covid19model.data import sciensano, model_parameters
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=10, spatial='prov', vaccination=True, VOC=True)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov', vaccination=True, VOC=True)
 
 start_visualization = '2020-09-01'
 end_visualization = '2022-01-01'
