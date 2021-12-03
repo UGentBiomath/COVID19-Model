@@ -177,9 +177,9 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIRD(BaseModel):
+class COVID19_SEIQRD(BaseModel):
     """
-    Biomath extended SEIRD model for COVID-19, Deterministic implementation
+    Biomath extended SEIQRD model for COVID-19, Deterministic implementation
     Can account for re-infection and co-infection with a new COVID-19 variant.
 
     Parameters
@@ -258,7 +258,7 @@ class COVID19_SEIRD(BaseModel):
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
-        Biomath extended SEIRD model for COVID-19
+        Biomath extended SEIQRD model for COVID-19
 
         *Deterministic implementation*
         """

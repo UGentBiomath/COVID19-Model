@@ -10,6 +10,87 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
+def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
+
+    ###########################################################
+    ## Convert age_stratification_size to desired age groups ##
+    ###########################################################
+
+    if age_stratification_size == 3:
+        age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+    elif age_stratification_size == 9:
+        age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+    elif age_stratification_size == 10:
+        age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )
+
+    #####################################
+    ## Import necessary pieces of code ##
+    #####################################
+
+    # Import the SEIQRD model with VOCs, vaccinations, seasonality
+    from covid19model.models import models
+    # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
+    from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
+                                                                    make_seasonality_function
+    # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
+    from covid19model.data import mobility, sciensano, model_parameters
+    from covid19model.data.utils import convert_age_stratified_quantity
+
+    #########################
+    ## Load necessary data ##
+    #########################
+
+    # Population size, interaction matrices and the model parameters
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=False, VOC=False)
+    # Sciensano hospital and vaccination data
+    df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
+    df_hosp = df_hosp.groupby(by=['date']).sum()
+    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
+    # Google Mobility data
+    df_google = mobility.get_google_mobility_data(update=update)
+
+    ##################################################
+    ## Construct time-dependent parameter functions ##
+    ##################################################
+
+    # Time-dependent social contact matrix over all policies, updating Nc
+    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
+
+    # Time-dependent seasonality function, updating season_factor
+    seasonality_function = make_seasonality_function()
+
+    ####################
+    ## Initial states ##
+    ####################
+
+    # Load initial states
+    date = '2020-03-15'
+    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
+    with open(samples_path+'initial_states-COVID19_SEIQRD.pickle', 'rb') as handle:
+        load = pickle.load(handle)
+        initial_states = load[date]
+    # Convert to right age groups using demographic wheiging
+    for key,value in initial_states.items():
+        converted_value = np.zeros([len(age_classes),value.shape[1]])
+        for i in range(value.shape[1]):
+            column = value[:,i]
+            data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
+            converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
+        initial_states.update({key: converted_value})
+
+    ##########################
+    ## Initialize the model ##
+    ##########################
+ 
+    model = models.COVID19_SEIQRD(initial_states, params,
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function})
+
+    return initN, model
+
 def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update=False):
 
     ###########################################################
@@ -202,9 +283,9 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
                                                        'beta_M': seasonality_function})
     return model
 
-def load_samples_dict(filepath, wave=1, age_stratification_size=10):
+def load_samples_dict(filepath, age_stratification_size=10):
     """
-    A function to load the samples dictionary from the model calibration (national SEIQRD only), and append the hospitalization bootstrapped samles and residence time distribution parameters
+    A function to load the samples dictionary from the model calibration, and append the hospitalization parameters bootstrapped samples and resusceptibility to them.
 
     Parameters
     ----------
@@ -212,16 +293,12 @@ def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     filepath : str
         Path to samples dictionary
     
-    wave : int (1 or 2)
-        2020 COVID-19 wave
-        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
-    
     Returns
     -------
 
     samples_dict: dict
         Original samples dict plus bootstrapped samples of hospitalization mortalities ('samples_fractions') and parameters of distributions of residence times in hospital ('residence_times')
-        For WAVE 2, the re-susceptibility samples of WAVE 1 must be appended to the dictionary
+        The natural re-susceptibility samples (parameter 'zeta'), calibrated to the first 2020 COVID-19 wave serodata are also appended to the dictionary
     """
     
     # Set correct age_paths to find the hospital data
@@ -242,17 +319,18 @@ def load_samples_dict(filepath, wave=1, age_stratification_size=10):
     samples_dict.update({'residence_times': residence_time_distributions})
     bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
-    if wave == 2:
-        # Append samples of re-susceptibility estimated from WAVE 1
-        samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
-        samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
+    # Append the samples of zeta
+    samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
+    samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
+
     return samples_dict
 
 
-def draw_fcn_WAVE1(param_dict,samples_dict):
+def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
     """
-    A function to draw samples from the posterior distributions of the model parameters calibrated to WAVE 1
-    Tailored for use with the national COVID-19 SEIQRD
+    A function to draw samples from the estimated posterior distributions of the model parameters.
+    Tailored for use with the national COVID-19 SEIQRD model without vaccine stratification ("virgin model").
+    Includes seasonality.
 
     Parameters
     ----------
@@ -270,15 +348,17 @@ def draw_fcn_WAVE1(param_dict,samples_dict):
 
     """
 
-    # Calibration of WAVE 1
-    # ---------------------
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['da'] = samples_dict['da'][idx]
-    param_dict['l'] = samples_dict['l'][idx] 
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
     param_dict['prev_home'] = samples_dict['prev_home'][idx]      
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest'] = samples_dict['prev_rest'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
 
     # Hospitalization
     # ---------------
