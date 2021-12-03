@@ -80,8 +80,8 @@ warmup = 31
 
 # Define dataset
 start_calibration=df_hosp.index.min()
-end_calibration= '2020-03-20'
-end_visualization = '2020-04-01'
+end_calibration='2020-03-21'
+end_visualization=end_calibration
 data=[df_hosp['H_in'][start_calibration:end_calibration]]
 # Define state to calibrate to
 states = ["H_in"]

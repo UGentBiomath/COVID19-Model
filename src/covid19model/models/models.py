@@ -10,6 +10,9 @@ from .base import BaseModel
 from .utils import stratify_beta
 from .economic_utils import *
 from ..data.economic_parameters import read_economic_labels
+# Register pandas formatters and converters with matplotlib
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 class simple_stochastic_SIR(BaseModel):
     """
