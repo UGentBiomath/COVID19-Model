@@ -75,11 +75,8 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
         initial_states = load[date]
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
-        converted_value = np.zeros([len(age_classes),value.shape[1]])
-        for i in range(value.shape[1]):
-            column = value[:,i]
-            data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
-            converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
+        data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=value)
+        converted_value = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
     ##########################
@@ -325,7 +322,6 @@ def load_samples_dict(filepath, age_stratification_size=10):
 
     return samples_dict
 
-
 def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
     """
     A function to draw samples from the estimated posterior distributions of the model parameters.
@@ -384,92 +380,6 @@ def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
             draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
-    return param_dict
-
-def draw_fcn_spatial(param_dict,samples_dict):
-    """
-    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
-    For use with the model `COVID19_SEIRD` in `~src/models/models.py`
-
-    Parameters
-    ----------
-
-    samples_dict : dict
-        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
-
-    param_dict : dict
-        Model parameters dictionary
-
-    Returns
-    -------
-    param_dict : dict
-        Modified model parameters dictionary
-
-    """
-
-    # Calibration of WAVE 1
-    # ---------------------
-    param_dict['zeta'] = np.mean(random.choices(samples_dict['zeta'], k=30))
-
-    # Calibration of WAVE 2
-    # ---------------------
-    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]  
-    param_dict['l1'] = samples_dict['l1'][idx]  
-    param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
-    param_dict['K_hosp'] = np.ones(3)
-
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
-    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
-
- 
-    # Vaccination
-    # -----------
-    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))
-    param_dict['e_i'] = np.array([np.random.normal(loc=0.50, scale=0.03/3),
-                                  np.random.normal(loc=0.50, scale=0.03/3),
-                                  np.random.normal(loc=0.50, scale=0.03/3)])
-    param_dict['e_s'] = np.array([np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.80, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
-    param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
-                                  np.random.normal(loc=0.95, scale=0.03/3),
-                                  np.random.normal(loc=0.95, scale=0.03/3)])
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(len(param_dict['c'])):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=20
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D'],
-                     samples_dict['residence_times']['dICUrec']]
-
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-
     return param_dict
 
 def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
@@ -562,6 +472,92 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
         
+    return param_dict
+
+def draw_fcn_spatial(param_dict,samples_dict):
+    """
+    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
+    For use with the model `COVID19_SEIRD` in `~src/models/models.py`
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    # Calibration of WAVE 1
+    # ---------------------
+    param_dict['zeta'] = np.mean(random.choices(samples_dict['zeta'], k=30))
+
+    # Calibration of WAVE 2
+    # ---------------------
+    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
+    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
+    param_dict['beta_M'] = samples_dict['beta_M'][idx]  
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
+
+    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
+    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
+    param_dict['K_hosp'] = np.ones(3)
+
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+
+ 
+    # Vaccination
+    # -----------
+    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))
+    param_dict['e_i'] = np.array([np.random.normal(loc=0.50, scale=0.03/3),
+                                  np.random.normal(loc=0.50, scale=0.03/3),
+                                  np.random.normal(loc=0.50, scale=0.03/3)])
+    param_dict['e_s'] = np.array([np.random.normal(loc=0.80, scale=0.03/3),
+                                  np.random.normal(loc=0.80, scale=0.03/3),
+                                  np.random.normal(loc=0.80, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
+    param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
+                                  np.random.normal(loc=0.95, scale=0.03/3),
+                                  np.random.normal(loc=0.95, scale=0.03/3)])
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(len(param_dict['c'])):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=20
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
     return param_dict
 
 def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):

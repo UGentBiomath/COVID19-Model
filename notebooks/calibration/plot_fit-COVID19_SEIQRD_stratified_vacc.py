@@ -1,10 +1,12 @@
 """
-This script can be used to plot the model fit to the data of the second COVID-19 wave
+This script can be used to plot the model fit of the vaccine-stratified COVID-19 SEIQRD model to the hospitalization data
 
 Arguments:
 ----------
 -f:
     Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
+-n_ag : int
+    Number of age groups used in the model
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -14,7 +16,7 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+python plot_fit_COVID19_SEIQRD_stratified_vacc.py -f BE_WAVE2_stratified_vacc_R0_COMP_EFF_2021-11-15.json -n_ag 10 -n 5 -k 1 
 
 """
 
@@ -117,7 +119,7 @@ from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as
 ## Perform simulations ##
 #########################
 
-print('\n1) Simulating COVID-19 SEIRD '+str(args.n_samples)+' times')
+print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
