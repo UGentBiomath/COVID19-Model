@@ -29,16 +29,10 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 
 import os
 import pickle
-import sys, getopt
-import ujson as json
-import random
-import datetime
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
-from covid19model.visualization.output import _apply_tick_locator 
 # Import the SEIQRD model with VOCs, vaccinations, seasonality
 from covid19model.models import models
 # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor

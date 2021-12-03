@@ -10,7 +10,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
+def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -80,7 +80,7 @@ def initialize_COVID19_SEIQRD_vacc(age_stratification_size=10, update=False):
     # Load initial states
     date = '2020-03-15'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    with open(samples_path+'initial_states.pickle', 'rb') as handle:
+    with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
         load = pickle.load(handle)
         initial_states = load[date]
     # Convert to right age groups using demographic wheiging
