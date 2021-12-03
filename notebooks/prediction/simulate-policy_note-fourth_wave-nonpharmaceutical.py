@@ -141,7 +141,7 @@ df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(updat
 # Google Mobility data
 df_google = mobility.get_google_mobility_data(update=update)
 # Initial condition
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=args.agg, vaccination=True, VOC=True)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=args.agg, vaccination=True, VOC=True)
 
 model_list = []
 # -----------------------------
@@ -149,7 +149,7 @@ model_list = []
 # -----------------------------
 
 # Population size, interaction matrices and the model parameters
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, vaccination=True, VOC=True)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=True, VOC=True)
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
 df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -161,7 +161,7 @@ df_VOC_abc = VOC.get_abc_data()
 # Time-dependent VOC function, updating alpha
 VOC_function = make_VOC_function(df_VOC_abc)
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(df_vacc, age_stratification_size=age_stratification_size)
+vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
 # Time-dependent social contact matrix over all policies, updating Nc
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_dict)
 policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_WAVE4
@@ -201,7 +201,7 @@ model_list.append(models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
 # ----------------------------
 
 # Population size, interaction matrices and the model parameters
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=args.agg, vaccination=True, VOC=True)
+initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=args.agg, vaccination=True, VOC=True)
 initN = initN.values
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, values='hospitalised_IN', moving_avg=False, public=False)
@@ -221,7 +221,7 @@ mobility_function = make_mobility_update_function(proximus_mobility_data, proxim
 # Time-dependent VOC function, updating alpha
 VOC_function = make_VOC_function(df_VOC_abc)
 # Time-dependent (first) vaccination function, updating N_vacc
-vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
+vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
 # Initial condition on 2020-03-17
@@ -229,7 +229,6 @@ with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/
     initial_states = pickle.load(handle)
 # Add the susceptible and exposed population to the initial_states dict
 params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
-params.pop('e_a')
 params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
 params.update({'e_h': np.array([0.95, 0.95, 0.95])})
 params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
