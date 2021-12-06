@@ -1580,10 +1580,11 @@ class make_contact_matrix_function():
             t2 = pd.Timestamp(date_measures)
             t3 = pd.Timestamp('2021-12-26') # Start of Christmas break
             t4 = pd.Timestamp('2022-01-06') # End of Christmas break
-            t5 = pd.Timestamp('2022-02-28') # Start of Spring Break
-            t6 = pd.Timestamp('2022-03-06') # End of Spring Break
-            t7 = pd.Timestamp('2022-04-04') # Start of Easter Break
-            t8 = pd.Timestamp('2022-04-17') # End of Easter Break
+            t5 = pd.Timestamp('2022-01-28') # End of measures
+            t6 = pd.Timestamp('2022-02-28') # Start of Spring Break
+            t7 = pd.Timestamp('2022-03-06') # End of Spring Break
+            t8 = pd.Timestamp('2022-04-04') # Start of Easter Break
+            t9 = pd.Timestamp('2022-04-17') # End of Easter Break
 
             scenarios_work = [0.7, 0.7, 0.7, 0.7]
 
@@ -1598,17 +1599,20 @@ class make_contact_matrix_function():
                 return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
             elif t3 < t <= t4:
                 # Christmas break
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = scenarios_work[scenario] - 0.2 , prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
             elif t4 < t <= t5:
-                # Christmas break --> Spring break
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
+                # Christmas break --> End measures
+                return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
             elif t5 < t <= t6:
+                # End of measures --> Spring break
+                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+            elif t6 < t <= t7:
                 # Spring break
                 return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)           
-            elif t6 < t <= t7:
+            elif t7 < t <= t8:
                 # Spring break --> Easter
                 return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
-            elif t7 < t <= t8:
+            elif t8 < t <= t9:
                 # Easter break
                 return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
             else:
