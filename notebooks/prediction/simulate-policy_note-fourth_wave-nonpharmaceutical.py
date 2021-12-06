@@ -191,7 +191,11 @@ params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,
 params.update({'d_vacc': 100*365})
 params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 # WAVE 4 specific parameters
+# Social scenarios
 params.update({'scenario': 0, 'date_measures': date_measures})
+# Booster campaign
+params.update({'daily_doses': 80000, 'refusal': 0.12*np.ones(age_stratification_size), 'stop_idx': age_stratification_size-2})
+
 # Initialize model
 model_list.append(models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                     time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function}))
