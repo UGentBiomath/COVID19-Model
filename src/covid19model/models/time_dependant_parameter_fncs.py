@@ -897,21 +897,20 @@ class make_contact_matrix_function():
         t23 = pd.Timestamp('2021-11-01') # Start of autumn break
         t24 = pd.Timestamp('2021-11-07') # End of autumn break
         # Fourth WAVE
-        t25 = pd.Timestamp('2021-11-22') # Start of mandatory telework
-        t26 = pd.Timestamp(date_measures) # Measures to counter fourth wave
-        t27 = pd.Timestamp('2021-12-18') # Start of Christmass break for schools
-        t28 = pd.Timestamp('2021-12-26') # Start of Christmass break for general population
-        t29 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t30 = pd.Timestamp('2022-01-28') # End of measures
-        t31 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t32 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t33 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t34 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t35 = pd.Timestamp('2022-07-01') # Start of summer holidays
-        t36 = pd.Timestamp('2022-09-01') # End of summer holidays
-        t37 = pd.Timestamp('2022-09-21') # Opening of universities
-        t38 = pd.Timestamp('2022-10-31') # Start of autumn break
-        t39 = pd.Timestamp('2022-11-06') # End of autumn break
+        t25 = pd.Timestamp('2021-11-22') # Start of mandatory telework + start easing in leisure restrictions
+        t26 = pd.Timestamp('2021-12-18') # Start of Christmass break for schools
+        t27 = pd.Timestamp('2021-12-26') # Start of Christmass break for general population
+        t28 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t29 = pd.Timestamp('2022-01-28') # End of measures
+        t30 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t31 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t32 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t33 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t34 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t35 = pd.Timestamp('2022-09-01') # End of summer holidays
+        t36 = pd.Timestamp('2022-09-21') # Opening of universities
+        t37 = pd.Timestamp('2022-10-31') # Start of autumn break
+        t38 = pd.Timestamp('2022-11-06') # End of autumn break
 
         scenarios_work = [0.7, 0.7, 0.7, 0.7]
         scenarios_schools = [1, 1, 1, 1] 
@@ -1003,58 +1002,59 @@ class make_contact_matrix_function():
         elif t23 < t <= t24:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)    
         elif t24 < t <= t25:
-            # End of autumn break --> Mandatory telework
+            # End of autumn break --> Date of measures
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)   
-        elif t25 < t <= t26:
-            # Mandatory telework
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=0.7, school=1)
+        elif t25 < t <= t25 + pd.Timedelta(7, unit='D'):
+            # Date of measures --> End easing in leisure restrictions
+            t = pd.Timestamp(t.date())
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=0.7, school=1)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
+            return self.ramp_fun(policy_old, policy_new, t, t25, 7)
+        elif t25 + pd.Timedelta(7, unit='D') < t <= t26:
+            # End easing in leisure restrictions --> Early schools closure before Christmas holiday
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
         elif t26 < t <= t27:
-            # Date of measures --> Early schools closure before Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
-        elif t27 < t <= t28:
             # Early schools closure before Christmas holiday --> Christmas holiday
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=0)
-        elif t28 < t <= t29:
+        elif t27 < t <= t28:
             # Christmas holiday
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=scenarios_work[scenario]-0.2, leisure=scenarios_leisure[scenario], transport=scenarios_work[scenario]-0.2, school=0) 
-        elif t29 < t <= t30:
+        elif t28 < t <= t29:
             # Christmass holiday --> End of measures
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario], school=1) 
-        elif t30 < t <= t31:
+        elif t29 < t <= t30:
             # End of Measures --> Spring break
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 leisure=1, work=1, transport=1, others=1, school=1)  
-        elif t31 < t <= t32:
+        elif t30 < t <= t31:
             # Spring Break
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)     
-        elif t32 < t <= t33:
+        elif t31 < t <= t32:
             # Spring Break --> Easter
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
-        elif t33 < t <= t34:
+        elif t32 < t <= t33:
             # Easter
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0)
-        elif t34 < t <= t35:
+        elif t33 < t <= t34:
             # Easter --> Summer
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
-        elif t35 < t <= t36:
+        elif t34 < t <= t35:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0) 
-        elif t36 < t <= t37:
+        elif t35 < t <= t36:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=0.7)                            
-        elif t37 < t <= t38:
+        elif t36 < t <= t37:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
-        elif t38 < t <= t39:
+        elif t37 < t <= t38:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0)                                                                                                                                                                                                                                                           
         else:
@@ -1332,20 +1332,19 @@ class make_contact_matrix_function():
         t23 = pd.Timestamp('2021-11-07') # End of autumn break
         # Fourth WAVE
         t24 = pd.Timestamp('2021-11-22') # Start mandatory telework
-        t25 = pd.Timestamp(date_measures) 
-        t26 = pd.Timestamp('2021-12-18') # Early closing of schools
-        t27 = pd.Timestamp('2021-12-26') # Start of Christmass break
-        t28 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t29 = pd.Timestamp('2022-01-28') # End of measures
-        t30 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t31 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t32 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t33 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t34 = pd.Timestamp('2022-07-01') # Start of summer holidays
-        t35 = pd.Timestamp('2022-09-01') # End of summer holidays
-        t36 = pd.Timestamp('2022-09-21') # Opening of universities
-        t37 = pd.Timestamp('2022-10-31') # Start of autumn break
-        t38 = pd.Timestamp('2022-11-06') # End of autumn break
+        t25 = pd.Timestamp('2021-12-18') # Early closing of schools
+        t26 = pd.Timestamp('2021-12-26') # Start of Christmass break
+        t27 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t28 = pd.Timestamp('2022-01-28') # End of measures
+        t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t30 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t32 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t34 = pd.Timestamp('2022-09-01') # End of summer holidays
+        t35 = pd.Timestamp('2022-09-21') # Opening of universities
+        t36 = pd.Timestamp('2022-10-31') # Start of autumn break
+        t37 = pd.Timestamp('2022-11-06') # End of autumn break
 
         scenarios_work = [0.7, 0.7, 0.7, 0.7]
         scenarios_schools = [1, 1, 1, 1] 
@@ -1457,53 +1456,54 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
         elif t23 < t <= t24:
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)  
-        elif t24 < t <= t25:
-            # Telework
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
-                                work=0.7, school=1)
+        elif t24 < t <= t24 + pd.Timedelta(7, unit='D'):
+            # Date of measures --> End easing in leisure restrictions
+            t = pd.Timestamp(t.date())
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=0.7, school=1)
+            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
+            return self.ramp_fun(policy_old, policy_new, t, t24, 7)
+        elif t24 + pd.Timedelta(7, unit='D') < t <= t25:
+            # End easing in leisure restrictions --> Early school closing before Christmas holiday
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
         elif t25 < t <= t26:
-            # Start measures --> Early school closing before Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
-                                work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
-        elif t26 < t <= t27:
             # Early school closing --> Christmas holiday
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=0)
-        elif t27 < t <= t28:
+        elif t26 < t <= t27:
             # Christmass break
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario] - 0.2, transport=scenarios_work[scenario] - 0.2, school=0)
-        elif t28 < t <= t29:   
+        elif t27 < t <= t28:   
             # Christmass --> End of measures
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario], school=1)
-        elif t29 < t <= t30:
+        elif t28 < t <= t29:
             # End of measures --> Spring break
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021,
                                 work=1, leisure=1, transport=1, others=1, school=1)           
-        elif t30 < t <= t31:
+        elif t29 < t <= t30:
             # Spring Break
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)      
+        elif t30 < t <= t31:
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t31 < t <= t32:
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
-        elif t32 < t <= t33:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)
+        elif t32 < t <= t33:
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+                                work=1, leisure=1, transport=1, others=1, school=1)
         elif t33 < t <= t34:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+                                work=0.7, leisure=1, transport=0.7, others=1, school=0) 
         elif t34 < t <= t35:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=0.7, leisure=1, transport=0.7, others=1, school=0) 
+                                work=1, leisure=1, transport=1, others=1, school=0.7)                            
         elif t35 < t <= t36:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=0.7)                            
-        elif t36 < t <= t37:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
-        elif t37 < t <= t38:
+        elif t36 < t <= t37:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)                                                                                                                                                                                                                                 
         else:
@@ -1586,15 +1586,14 @@ class make_contact_matrix_function():
             t = pd.Timestamp(t.date())
 
             # Fourth WAVE
-            t1 = pd.Timestamp('2021-11-22') # Mandatory telework
-            t2 = pd.Timestamp(date_measures)
-            t3 = pd.Timestamp('2021-12-26') # Start of Christmas break
-            t4 = pd.Timestamp('2022-01-06') # End of Christmas break
-            t5 = pd.Timestamp('2022-01-28') # End of measures
-            t6 = pd.Timestamp('2022-02-28') # Start of Spring Break
-            t7 = pd.Timestamp('2022-03-06') # End of Spring Break
-            t8 = pd.Timestamp('2022-04-04') # Start of Easter Break
-            t9 = pd.Timestamp('2022-04-17') # End of Easter Break
+            t1 = pd.Timestamp('2021-11-22') # Mandatory telework + Start easing of leisure restrictions
+            t2 = pd.Timestamp('2021-12-26') # Start of Christmas break
+            t3 = pd.Timestamp('2022-01-06') # End of Christmas break
+            t4 = pd.Timestamp('2022-01-28') # End of measures
+            t5 = pd.Timestamp('2022-02-28') # Start of Spring Break
+            t6 = pd.Timestamp('2022-03-06') # End of Spring Break
+            t7 = pd.Timestamp('2022-04-04') # Start of Easter Break
+            t8 = pd.Timestamp('2022-04-17') # End of Easter Break
 
             scenarios_work = [0.7, 0.7, 0.7, 0.7]
 
@@ -1602,27 +1601,24 @@ class make_contact_matrix_function():
                 # Before mandatory telework --> Google data
                 return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
             elif t1 < t <= t2:
-                # Mandatory telework --> Measures 
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                # Mandatory telework --> Christmas
+                return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
             elif t2 < t <= t3:
-                # Start of measures --> Christmas break
-                return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
-            elif t3 < t <= t4:
                 # Christmas break
                 return self.__call__(t, work = scenarios_work[scenario] - 0.2 , prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
-            elif t4 < t <= t5:
+            elif t3 < t <= t4:
                 # Christmas break --> End measures
                 return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
-            elif t5 < t <= t6:
+            elif t4 < t <= t5:
                 # End of measures --> Spring break
                 return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
-            elif t6 < t <= t7:
+            elif t5 < t <= t6:
                 # Spring break
                 return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)           
-            elif t7 < t <= t8:
+            elif t6 < t <= t7:
                 # Spring break --> Easter
                 return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
-            elif t8 < t <= t9:
+            elif t7 < t <= t8:
                 # Easter break
                 return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
             else:
