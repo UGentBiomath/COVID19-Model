@@ -15,7 +15,7 @@ df = pd.read_csv(results_path+'/simulations'+'-'+report_version+'.csv', index_co
 dates = df.index.get_level_values('date').unique()
 scenarios = df.index.get_level_values('scenario').unique()
 #scenario_names = ['S0: No intervention', 'S1: Mandatory telework', 'S2: School closure', 'S3: -50% leisure contacts', 'S4: S1 + S2 + S3']
-scenario_names = ['S0: Mandatory telework only', 'S1: S0 - 30% leisure contacts', 'S2: S0 - 60% leisure contacts', 'S3: S0 - 90% leisure contacts']
+scenario_names = ['S0: Mandatory telework only', 'S1: S0 - 25% leisure contacts', 'S2: S0 - 50% leisure contacts', 'S3: S0 - 75% leisure contacts']
 models = df.columns.get_level_values('model').unique()
 end_calibration = '2021-11-12'
 
@@ -34,7 +34,7 @@ fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True,figsize=(12,6))
 # Hospitalizations
 rolling_windows = df_hosp.groupby(level='date').sum()['H_in'].rolling(7, min_periods=7)
 rolling_mean = rolling_windows.mean()
-ax[0].plot(df_hosp.index.get_level_values('date').unique().values, rolling_mean, color='red', alpha=1, linewidth=2)
+ax[0].plot(df_hosp.index.get_level_values('date').unique().values[:-3], rolling_mean[:-3], color='red', alpha=1, linewidth=2)
 ax[0].scatter(df_hosp['H_in'].groupby(level='date').sum()[:end_calibration].index, df_hosp['H_in'].groupby(level='date').sum()[:end_calibration],color='black', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].scatter(df_hosp['H_in'].groupby(level='date').sum()[end_calibration:].index, df_hosp['H_in'].groupby(level='date').sum()[end_calibration:],color='red', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0] = _apply_tick_locator(ax[0])
@@ -45,7 +45,7 @@ ax[0].set_ylabel('New hospitalizations')
 df_cases = df_cases.groupby(level='date').sum().iloc[:-1]
 rolling_windows = df_cases.groupby(level='date').sum().rolling(7, min_periods=7)
 rolling_mean = rolling_windows.mean()
-ax[1].plot(df_cases.index.get_level_values('date').unique().values, rolling_mean, color='red', alpha=1, linewidth=2)
+ax[1].plot(df_cases.index.get_level_values('date').unique().values[:-3], rolling_mean[:-3], color='red', alpha=1, linewidth=2)
 ax[1].scatter(df_cases.groupby(level='date').sum()[:end_calibration].index, df_cases.groupby(level='date').sum()[:end_calibration],color='black', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[1].scatter(df_cases.groupby(level='date').sum()[end_calibration:].index, df_cases.groupby(level='date').sum()[end_calibration:],color='red', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[1] = _apply_tick_locator(ax[1])
@@ -66,8 +66,8 @@ new_index = pd.IndexSlice
 for idx, scenario in enumerate(scenarios):
     for jdx, model in enumerate(models):
         if idx == 0:
-            baseline.append(df.loc[new_index['2021-11-17':'2022-02-01',1000,scenario], (model, 'H_tot', 'mean')].cumsum()[-1])
-        val = (df.loc[new_index['2021-11-17':'2022-02-01',1000,scenario], (model, 'H_tot', 'mean')].cumsum()[-1]/baseline[jdx])*100
+            baseline.append(df.loc[new_index['2021-11-22':'2022-02-01',1000,scenario], (model, 'H_in', 'mean')].cumsum()[-1])
+        val = (df.loc[new_index['2021-11-22':'2022-02-01',1000,scenario], (model, 'H_in', 'mean')].cumsum()[-1]/baseline[jdx])*100
         print('\nCumulative hospitalizations under scenario S' + str(idx) + ' and model "' + model + '":' + str(round(val,2)))
 
 ##############
@@ -76,7 +76,7 @@ for idx, scenario in enumerate(scenarios):
 
 ICU_ratio = 0.20
 start_visualization = '2020-03-15'
-end_visualization = '2022-04-01'
+end_visualization = '2022-03-01'
 maxy = [950, 8500]
 states = ['H_in', 'H_tot']
 state_labels = ['$H_{in}$ (-)', '$H_{tot}$ (-)']
@@ -120,13 +120,17 @@ for kdx, state in enumerate(states):
     plt.show()
     plt.close()
 
+for scenario in enumerate(scenarios):
+    for model in enumerate(models):
+        print(df.loc[(pd.Timestamp('2022-01-01'), 1000, scenario), (model, 'H_tot', 'mean')].values/5)
+
 ##############
 ## Regional ##
 ##############
 
 # Settings
 start_visualization = '2020-03-15'
-end_visualization = '2022-04-01'
+end_visualization = '2022-03-01'
 maxy = [12, 65]
 
 for kdx, state in enumerate(states):
@@ -193,7 +197,7 @@ for kdx, state in enumerate(states):
 
 # Settings
 start_visualization = '2020-03-15'
-end_visualization = '2022-04-01'
+end_visualization = '2022-03-01'
 maxy = 10
 state = 'H_in'
 kdx=0
