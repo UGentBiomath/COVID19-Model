@@ -389,7 +389,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         df.pop('YEAR_WEEK')
         df.pop('end_week')
         df.set_index(['start_week','NUTS5','age','DOSE'], inplace=True)
-        print(df.index.get_level_values('age').unique())
+
         #################################
         ## Fill up the missing entries ##
         #################################
@@ -409,15 +409,14 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ##############################################
         ## Convert cumulative numbers to incidences ##
         ##############################################
-        
+
         # Pre-allocate column
         mergedDf['INCIDENCE'] = 0
-        # Loop over indices (computationally expensive)
-        for idx,start_week in enumerate(mergedDf.index.get_level_values(0).unique()[:-1]):
-            next_week = mergedDf.index.get_level_values(0).unique()[idx+1]
-            for NIS in mergedDf.index.get_level_values(1).unique():
-                incidence = mergedDf['CUMULATIVE'].loc[next_week,NIS,:].values - mergedDf['CUMULATIVE'].loc[start_week,NIS,:].values
-                mergedDf['INCIDENCE'].loc[start_week,NIS,:] = incidence
+        # Loop over weeks and differentiate manually (is there a builtin function for this?)
+        for idx,start_week in enumerate(mergedDf.index.get_level_values('start_week').unique()[:-1]):
+            next_week = mergedDf.index.get_level_values('start_week').unique()[idx+1]
+            incidence = mergedDf['CUMULATIVE'].loc[next_week, slice(None), slice(None), slice(None)] - mergedDf['CUMULATIVE'].loc[start_week, slice(None), slice(None), slice(None)]
+            mergedDf['INCIDENCE'].loc[start_week, slice(None), slice(None), slice(None)] = incidence.values
         # Rename mergedDf back to df for convenience
         df = mergedDf
 
