@@ -289,6 +289,8 @@ def get_sciensano_COVID19_data(update=True):
                 # Assign data
                 df.loc[(slice(None), corresponding_NIS[jdx], interval_index[idx], dose)] = C.values
     df_vacc = df
+    # Sum over regions to go to national level
+    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
     
     return df_hosp, df_mort, df_cases, df_vacc
 

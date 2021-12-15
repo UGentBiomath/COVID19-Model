@@ -129,7 +129,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
-    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
+    
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update)
     # Load and format national VOC data (for time-dependent VOC fraction)
