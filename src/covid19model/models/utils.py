@@ -229,7 +229,6 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
-    initN = initN.values
 
     # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
     df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)

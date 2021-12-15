@@ -89,7 +89,7 @@ for directory in [fig_path, samples_path]:
 # -----------------------
 
 from covid19model.models.utils import load_samples_dict
-samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2, age_stratification_size=age_stratification_size)
+samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
 warmup = int(samples_dict['warmup'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
@@ -107,14 +107,13 @@ from covid19model.models.utils import draw_fcn_spatial as draw_fcn
 # --------------------------------------------
 
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
-initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_stratification_size=age_stratification_size, spatial=agg, vaccination=True, VOC=True)
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 # --------------------
 # Initialize the model
 # --------------------
 
-model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+initN, model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # -------------------
 # Perform simulations
