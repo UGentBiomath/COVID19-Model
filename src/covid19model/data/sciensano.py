@@ -388,33 +388,19 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         df.set_index('start_week')
         df.pop('YEAR_WEEK')
         df.pop('end_week')
-        # Drop the second doses --> for use with one-jab vaccination model
-        df = df.drop(df[df.DOSE == 'B'].index)
-
-        ######################################################
-        ## Add up the first doses and the one-shot vaccines ##
-        ######################################################
-
-        df_A = df.drop(df[df.DOSE == 'C'].index)
-        df_A.pop('DOSE')
-        df_C = df.drop(df[df.DOSE == 'A'].index)
-        df_C.pop('DOSE')
-        
-        multi_df_A = df_A.set_index(['start_week','NUTS5','age'])
-        multi_df_C = df_C.set_index(['start_week','NUTS5','age'])
-        multi_df = multi_df_A + multi_df_C
-
+        df.set_index(['start_week','NUTS5','age','DOSE'], inplace=True)
+        print(df.index.get_level_values('age').unique())
         #################################
         ## Fill up the missing entries ##
         #################################
         
         # Make a dataframe containing all the desired levels
-        iterables = [df['start_week'].unique(), multi_df.index.get_level_values(1).unique(), multi_df.index.get_level_values(2).unique()]
-        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age"])
+        iterables = [df.index.get_level_values('start_week').unique(), df.index.get_level_values('NUTS5').unique(), df.index.get_level_values('age').unique(), df.index.get_level_values('DOSE').unique()]
+        index = pd.MultiIndex.from_product(iterables, names=["start_week", "NUTS5", "age", "DOSE"])
         columns = ['CUMUL']
         complete_df = pd.DataFrame(index=index, columns=columns)
         # Merge the dataframe containing no missing indices with the actual dataframe
-        mergedDf = complete_df.merge(multi_df, left_index=True, right_index=True, how='outer')
+        mergedDf = complete_df.merge(df, left_index=True, right_index=True, how='outer')
         # Remove obsolete columns
         mergedDf.pop('CUMUL_x')
         mergedDf = mergedDf.fillna(0)
