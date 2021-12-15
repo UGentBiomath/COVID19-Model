@@ -15,7 +15,7 @@ df = pd.read_csv(results_path+'/simulations'+'-'+report_version+'.csv', index_co
 dates = df.index.get_level_values('date').unique()
 scenarios = df.index.get_level_values('scenario').unique()
 #scenario_names = ['S0: No intervention', 'S1: Mandatory telework', 'S2: School closure', 'S3: -50% leisure contacts', 'S4: S1 + S2 + S3']
-scenario_names = ['S0: Mandatory telework only', 'S1: S0 - 25% leisure contacts', 'S2: S0 - 50% leisure contacts', 'S3: S0 - 75% leisure contacts']
+scenario_names = ['S0: No NPIs', 'S1: Mandatory telework only', 'S2: S1 -25% leisure contacts', 'S3: S1 -50% leisure contacts', 'S4: S1 -75% leisure contacts']
 models = df.columns.get_level_values('model').unique()
 end_calibration = '2021-11-12'
 
@@ -29,12 +29,13 @@ initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(spatial=
 
 start_visualization = '2020-09-01'
 end_visualization = '2022-01-01'
+rolling_end_margin=1
 
 fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True,figsize=(12,6))
 # Hospitalizations
 rolling_windows = df_hosp.groupby(level='date').sum()['H_in'].rolling(7, min_periods=7)
 rolling_mean = rolling_windows.mean()
-ax[0].plot(df_hosp.index.get_level_values('date').unique().values[:-3], rolling_mean[:-3], color='red', alpha=1, linewidth=2)
+ax[0].plot(df_hosp.index.get_level_values('date').unique().values[:-rolling_end_margin], rolling_mean[:-rolling_end_margin], color='red', alpha=1, linewidth=2)
 ax[0].scatter(df_hosp['H_in'].groupby(level='date').sum()[:end_calibration].index, df_hosp['H_in'].groupby(level='date').sum()[:end_calibration],color='black', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].scatter(df_hosp['H_in'].groupby(level='date').sum()[end_calibration:].index, df_hosp['H_in'].groupby(level='date').sum()[end_calibration:],color='red', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0] = _apply_tick_locator(ax[0])
@@ -45,7 +46,7 @@ ax[0].set_ylabel('New hospitalizations')
 df_cases = df_cases.groupby(level='date').sum().iloc[:-1]
 rolling_windows = df_cases.groupby(level='date').sum().rolling(7, min_periods=7)
 rolling_mean = rolling_windows.mean()
-ax[1].plot(df_cases.index.get_level_values('date').unique().values[:-3], rolling_mean[:-3], color='red', alpha=1, linewidth=2)
+ax[1].plot(df_cases.index.get_level_values('date').unique().values[:-rolling_end_margin], rolling_mean[:-rolling_end_margin], color='red', alpha=1, linewidth=2)
 ax[1].scatter(df_cases.groupby(level='date').sum()[:end_calibration].index, df_cases.groupby(level='date').sum()[:end_calibration],color='black', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[1].scatter(df_cases.groupby(level='date').sum()[end_calibration:].index, df_cases.groupby(level='date').sum()[end_calibration:],color='red', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[1] = _apply_tick_locator(ax[1])
@@ -75,7 +76,7 @@ for idx, scenario in enumerate(scenarios):
 ##############
 
 ICU_ratio = 0.20
-start_visualization = '2020-03-15'
+start_visualization = '2021-03-01'
 end_visualization = '2022-03-01'
 maxy = [950, 8500]
 states = ['H_in', 'H_tot']
@@ -95,10 +96,10 @@ for kdx, state in enumerate(states):
             ax[idx].scatter(df_hosp[state].groupby(level='date').sum()[end_calibration:].index, df_hosp[state].groupby(level='date').sum()[end_calibration:],color='red', alpha=0.2, linestyle='None', facecolors='none', s=60, linewidth=2)
 
         if ((state == 'H_tot') & (idx == 0)):
-            ax[idx].axhline(y=1000/ICU_ratio, c='gray', linestyle='dashed', zorder=-10, linewidth=2)
-            ax[idx].text(pd.Timestamp('2021-03-15'),1000/ICU_ratio+500, 'Nominal IC-capacity (1000 beds)', fontsize=13)
+            ax[idx].axhline(y=500/ICU_ratio, c='gray', linestyle='dashed', zorder=-10, linewidth=2)
+            ax[idx].text(pd.Timestamp('2021-06-15'),1000/ICU_ratio+500, 'Nominal IC-capacity (1000 beds)', fontsize=13)
         elif state == 'H_tot':
-            ax[idx].axhline(y=1000/ICU_ratio, c='gray', linestyle='dashed', zorder=-10, linewidth=2)
+            ax[idx].axhline(y=500/ICU_ratio, c='gray', linestyle='dashed', zorder=-10, linewidth=2)
 
         ax[idx] = _apply_tick_locator(ax[idx])
         ax[idx].set_xlim([start_visualization, end_visualization])
@@ -129,7 +130,7 @@ for scenario in enumerate(scenarios):
 ##############
 
 # Settings
-start_visualization = '2020-03-15'
+start_visualization = '2021-03-01'
 end_visualization = '2022-03-01'
 maxy = [12, 65]
 
@@ -196,7 +197,7 @@ for kdx, state in enumerate(states):
 ################
 
 # Settings
-start_visualization = '2020-03-15'
+start_visualization = '2021-03-01'
 end_visualization = '2022-03-01'
 maxy = 10
 state = 'H_in'
@@ -267,10 +268,11 @@ plt.show()
 plt.close()
 
 # Pt. III
-state= 'H_in'
+state= 'H_tot'
 kdx=1
 NIS = 40000
-maxy=8
+maxy=80
+
 
 fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(16,3))
 
@@ -278,6 +280,7 @@ for jdx, scenario in enumerate(scenarios):
     ax.plot(dates, df.loc[(slice(None), NIS, scenario), ('spatial', state, 'mean')]/np.sum(initN.loc[NIS])*100000, '--', linewidth=1.5, color = colors[jdx])
     ax.fill_between(dates, df.loc[(slice(None), NIS, scenario), ('spatial', state, 'lower')]/np.sum(initN.loc[NIS])*100000,
                             df.loc[(slice(None), NIS, scenario), ('spatial', state, 'upper')]/np.sum(initN.loc[NIS])*100000, alpha=0.04, color = 'black')
+
     ax.scatter(df_hosp.loc[(slice(None),NIS),state][:end_calibration].index.get_level_values('date').unique().values, df_hosp.loc[(slice(None),NIS),state][:end_calibration]/np.sum(initN.loc[NIS])*100000, color='black', alpha=0.10, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.scatter(df_hosp.loc[(slice(None),NIS),state][end_calibration:].index.get_level_values('date').unique().values, df_hosp.loc[(slice(None),NIS),state][end_calibration:]/np.sum(initN.loc[NIS])*100000, color='red', alpha=0.10, linestyle='None', facecolors='none', s=60, linewidth=2)
 
@@ -285,7 +288,7 @@ ax = _apply_tick_locator(ax)
 ax.set_xlim([start_visualization, end_visualization])
 ax.set_ylim([0, maxy])
 ax.grid(False)
-ax.set_ylabel(state_labels[kdx])
+ax.set_ylabel(state_labels[0])
 
 # these are matplotlib.patch.Patch properties
 props = dict(boxstyle='round', facecolor='white', alpha=0.5)

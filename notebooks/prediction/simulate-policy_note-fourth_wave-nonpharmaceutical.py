@@ -55,7 +55,7 @@ print('\n1) Setting up script')
 
 update = False
 date_measures = '2021-11-27'
-scenario_names = ['telework', 'telework_leisure_25', 'telework_leisure_50', 'telework_leisure_75']
+scenario_names = ['no_NPIs', 'telework', 'telework_leisure_25', 'telework_leisure_50', 'telework_leisure_75']
 end_sim = '2022-03-01'
 conf_int = 0.05
 
