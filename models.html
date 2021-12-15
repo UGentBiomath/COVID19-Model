@@ -230,7 +230,7 @@ D_i(k+1) &amp;=&amp; D_i(k) + (ICU_i \rightarrow D_i) (k) + (C_i \rightarrow D_i
 <section id="deterministic-spatial-framework">
 <h3>Deterministic spatial framework<a class="headerlink" href="#deterministic-spatial-framework" title="Permalink to this headline">¶</a></h3>
 <p>The deterministic approach is largely the same as in the non-spatial framework, only this time every ‘patch’ (either arrondissement or province) exhibits the dynamics explained before. We make the following assumptions from the mobility:</p>
-<ol class="simple">
+<ol class="arabic simple">
 <li><p>The effective population of a patch is not the same as the registered population, because (during the daytime) some people will leave their home patch and go to another, e.g. for their profession</p></li>
 <li><p>People can get become exposed in their home patch or in the patch they visit</p></li>
 <li><p>The overall mobility is scaled with a single parameter <span class="math notranslate nohighlight">\(p\)</span>, ranging between 0 and 1, where 0 means no mobility is possible, and 1 indicates regular mobility. This mobility parameter is typically below 1 in a pandemic situation, due to travelling restrictions.</p></li>
@@ -330,7 +330,7 @@ N^g_{c,ij} \propto f\left( \frac{T^g_\text{eff}}{a^g} \right).
 \end{equation}
 \end{split}\]</div>
 <p>The <strong>overall probability of exposure</strong> for an agent in age class <span class="math notranslate nohighlight">\(i\)</span> and patch <span class="math notranslate nohighlight">\(g\)</span>, <span class="math notranslate nohighlight">\(\Pi_i^g\)</span>, is a sum of</p>
-<ol class="simple">
+<ol class="arabic simple">
 <li><p>The probability of being infected at home, <em>plus</em></p></li>
 <li><p>The probability of being infected outside the home patch, weighed by the mobility to that patch</p></li>
 </ol>
@@ -364,7 +364,7 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
 <section id="spatial-remaining-issues-and-tasks">
 <h3>Spatial: remaining issues and tasks<a class="headerlink" href="#spatial-remaining-issues-and-tasks" title="Permalink to this headline">¶</a></h3>
 <p>The theory at the basis of both the deterministic and the stochastic spatial model is still subject to change. Some of these ‘to-dos’ are listed below.</p>
-<ol class="simple">
+<ol class="arabic simple">
 <li><p>In the original implementation of the spatial method, the type of contact in the exposure probability was related to whether or not the contact takes place in the home patch or not (see equation below, in the original notation). The reason is that e.g. home contact (<span class="math notranslate nohighlight">\(N_{\text{home},ij}\)</span> is not relevant when visiting other places; if the individual does not work in his home patch, the work vs home, school, leisure, other human-to-human contacts must be seperate. Whilst this is certainly true, it is currently unclear whether this additional complication is worth pursuing.</p></li>
 </ol>
 <div class="math notranslate nohighlight">
@@ -375,7 +375,7 @@ E_i^g(k+1) &amp;=&amp; E_i^g(k) + (S_i^g \rightarrow E_i^g) (k) - (E_i^g \righta
      \quad - \underbrace{l \beta s_i \sum_{j=1}^{N} (N_{\text{c, home, ij}} + N_{\text{c, school, ij}} + N_{\text{c, leisure, ij}} + N_{\text{c, others, ij}}) \Bigg( \frac{I_{j,g} + A_{j,g}}{T_{j,g}} \Bigg)}_{\text{all other interactions in home patch (subscript g)}} \Bigg\} \Bigg]
 \end{equation*}
 \end{split}\]</div>
-<ol class="simple">
+<ol class="arabic simple">
 <li><p>Many parameters, most notably the mobility parameter <span class="math notranslate nohighlight">\(p_i\)</span>, can (and often should) be stratified further.</p></li>
 <li><p>The calibration methods are still under construction and are more difficult, mainly because of the higher number of possible choices:</p>
 <ul class="simple">
