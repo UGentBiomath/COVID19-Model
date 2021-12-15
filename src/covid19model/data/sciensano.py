@@ -291,7 +291,7 @@ def get_sciensano_COVID19_data(update=True):
     df_vacc = df
     # Sum over regions to go to national level
     df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
-    
+
     return df_hosp, df_mort, df_cases, df_vacc
 
 def get_public_spatial_vaccination_data(update=False, agg='arr'):
@@ -350,7 +350,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
         df.to_csv(rel_dir, index=False)
-        #df = pd.read_csv(rel_dir)
+
         
         ########################################################
         ## Convert YEAR_WEEK to startdate and enddate of week ##
