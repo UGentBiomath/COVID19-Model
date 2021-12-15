@@ -912,9 +912,9 @@ class make_contact_matrix_function():
         t37 = pd.Timestamp('2022-10-31') # Start of autumn break
         t38 = pd.Timestamp('2022-11-06') # End of autumn break
 
-        scenarios_work = [0.7, 0.7, 0.7, 0.7]
-        scenarios_schools = [1, 1, 1, 1] 
-        scenarios_leisure = [1, 0.75, 0.50, 0.25]
+        scenarios_work = [1, 0.7, 0.7, 0.7, 0.7]
+        scenarios_schools = [1, 1, 1, 1, 1] 
+        scenarios_leisure = [1, 1, 0.75, 0.50, 0.25]
 
         if t <= t1:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
@@ -1003,12 +1003,12 @@ class make_contact_matrix_function():
         elif t24 < t <= t25:
             # End of autumn break --> Date of measures
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)   
-        elif t25 < t <= t25 + pd.Timedelta(7, unit='D'):
+        elif t25 < t <= t25 + pd.Timedelta(5, unit='D'):
             # Date of measures --> End easing in leisure restrictions
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=0.7, school=1)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], school=1)
             policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
-            return self.ramp_fun(policy_old, policy_new, t, t25, 7)
-        elif t25 + pd.Timedelta(7, unit='D') < t <= t26:
+            return self.ramp_fun(policy_old, policy_new, t, t25, 5)
+        elif t25 + pd.Timedelta(5, unit='D') < t <= t26:
             # End easing in leisure restrictions --> Early schools closure before Christmas holiday
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
         elif t26 < t <= t27:
@@ -1344,9 +1344,9 @@ class make_contact_matrix_function():
         t36 = pd.Timestamp('2022-10-31') # Start of autumn break
         t37 = pd.Timestamp('2022-11-06') # End of autumn break
 
-        scenarios_work = [0.7, 0.7, 0.7, 0.7]
-        scenarios_schools = [1, 1, 1, 1] 
-        scenarios_leisure = [1, 0.75, 0.50, 0.25]
+        scenarios_work = [1, 0.7, 0.7, 0.7, 0.7]
+        scenarios_schools = [1, 1, 1, 1, 1] 
+        scenarios_leisure = [1, 1, 0.75, 0.50, 0.25]
 
         spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
                                                 prev_rest_lockdown, # W
@@ -1454,12 +1454,12 @@ class make_contact_matrix_function():
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
         elif t23 < t <= t24:
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)  
-        elif t24 < t <= t24 + pd.Timedelta(7, unit='D'):
+        elif t24 < t <= t24 + pd.Timedelta(5, unit='D'):
             # Date of measures --> End easing in leisure restrictions
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=0.7, school=1)
+            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], school=1)
             policy_new = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
-            return self.ramp_fun(policy_old, policy_new, t, t24, 7)
-        elif t24 + pd.Timedelta(7, unit='D') < t <= t25:
+            return self.ramp_fun(policy_old, policy_new, t, t24, 5)
+        elif t24 + pd.Timedelta(5, unit='D') < t <= t25:
             # End easing in leisure restrictions --> Early school closing before Christmas holiday
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
         elif t25 < t <= t26:
@@ -1592,7 +1592,7 @@ class make_contact_matrix_function():
             t7 = pd.Timestamp('2022-04-04') # Start of Easter Break
             t8 = pd.Timestamp('2022-04-17') # End of Easter Break
 
-            scenarios_work = [0.7, 0.7, 0.7, 0.7]
+            scenarios_work = [1, 0.7, 0.7, 0.7, 0.7]
 
             if t <= t1:
                 # Before mandatory telework --> Google data
