@@ -291,12 +291,15 @@ class make_vaccination_function():
         index = pd.MultiIndex.from_product(iterables, names=self.df.index.names)
         self.new_df = pd.Series(index=index)
 
-        # Four possibilities exist
+        # Four possibilities exist: can this be sped up?
         if self.spatial:
             if self.doses:
-                raise ValueError(
-                    "The combination of a spatially explicit, multidose vaccine model is not implemented!"
-                )
+                # Shorten?
+                for date in self.df.index.get_level_values('date').unique():
+                    for NIS in self.df.index.get_level_values('NIS').unique():
+                        for dose in self.df.index.get_level_values('dose').unique():
+                            data = self.df.loc[(date, NIS, slice(None), dose)]
+                            self.new_df.loc[(date, NIS, slice(None), dose)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
             else:
                 for date in self.df.index.get_level_values('date').unique():
                     for NIS in self.df.index.get_level_values('NIS').unique():
@@ -356,7 +359,7 @@ class make_vaccination_function():
                 try:
                     result.append(demographics[age]/data_n_individuals[data.index.get_level_values('age').contains(age)]*data.iloc[np.where(data.index.get_level_values('age').contains(age))[0][0]])
                 except:
-                    result.append(0/data_n_individuals[data.index.get_level_values('age').contains(age)]*data.iloc[np.where(data.index.get_level_values('age').contains(age))[0][0]])
+                    result.append(0)
             out.iloc[idx] = sum(result)
         return out
 
@@ -364,9 +367,13 @@ class make_vaccination_function():
     def get_data(self,t):
         if self.spatial:
             if self.doses:
-                raise ValueError(
-                    "The combination of a spatially explicit, multidose vaccine model is not implemented!"
-                )
+                try:
+                    # Only includes doses A, B and C (so not boosters!) for now
+                    data = np.zeros([self.space_agg, self.age_agg, self.dose_agg+1])
+                    data[:,:,:-2] = np.array(self.df.loc[t,:,:,:].values).reshape( (self.space_agg, self.age_agg, self.dose_agg) )
+                    return data
+                except:
+                    return np.zeros([self.space_agg, self.age_agg, self.dose_agg+1])
             else:
                 try:
                     return np.array(self.df.loc[t,:,:].values).reshape( (self.space_agg, self.age_agg) )
