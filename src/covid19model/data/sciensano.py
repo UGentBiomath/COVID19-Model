@@ -346,12 +346,14 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
 
     if update==True:
         # Extract case data from source
-        df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
+        #df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
-        df.to_csv(rel_dir, index=False)
+        #rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
+        #df.to_csv(rel_dir, index=False)
 
-        
+        # Temporarily load from the raw folder because url returns a 404
+        df = pd.read_csv(os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv'))
+        print(df)
         ########################################################
         ## Convert YEAR_WEEK to startdate and enddate of week ##
         ########################################################
@@ -428,31 +430,31 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         # Save *municipality* data #
         ############################
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
-        iterables = [df.index.get_level_values(0).unique(), df.index.get_level_values(1).unique(), pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["date", "NUTS5", "age"])
+        iterables = [df.index.get_level_values('start_week').unique(), df.index.get_level_values('NUTS5').unique(), pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), df.index.get_level_values('DOSE').unique()]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
         desired_formatted_df = pd.DataFrame(index=index, columns=df.columns)
         for col_name in df.columns:
             desired_formatted_df[col_name] = df[col_name].values
         mun_df =  desired_formatted_df
         mun_df.to_csv(rel_dir, index=True)
-        
-        # Save *arrondissement* data
+
+        ##############################
+        # Save *arrondissement* data #
+        ############################## 
         # Extract arrondissement's NIS codes
         NIS_arr = read_coordinates_nis(spatial='arr')
         # Make a new dataframe
-        iterables = [df.index.get_level_values(0).unique(), NIS_arr, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
+        iterables = [df.index.get_level_values('start_week').unique(), NIS_arr, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), df.index.get_level_values('DOSE').unique()]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
         columns = ['CUMULATIVE','INCIDENCE']
         arr_df = pd.DataFrame(index=index, columns=columns)
         arr_df['CUMULATIVE'] = 0
         arr_df['INCIDENCE'] = 0
         # Loop over indices (computationally expensive)
-        for idx,start_week in enumerate(df.index.get_level_values(0).unique()):
-            som = np.zeros([df.index.get_level_values(2).unique().shape[0],2])    
-            for NIS in df.index.get_level_values(1).unique():
+        for idx,start_week in enumerate(df.index.get_level_values('start_week').unique()):   
+            for NIS in df.index.get_level_values('NUTS5').unique():
                 arr_NIS = int(str(NIS)[0:2] + '000')
-                arr_df.loc[start_week, arr_NIS, :] = arr_df.loc[start_week, arr_NIS, :].values + df.loc[start_week, NIS, :].values
-                
+                arr_df.loc[start_week, arr_NIS, :, :] = arr_df.loc[start_week, arr_NIS, :, :].values + df.loc[start_week, NIS, :, :].values
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_arr.csv')
         arr_df.to_csv(rel_dir, index=True)
         
@@ -463,16 +465,15 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         # Extract provincial NIS codes
         NIS_prov = read_coordinates_nis(spatial='prov')
         # Make a new dataframe
-        iterables = [df.index.get_level_values(0).unique(), NIS_prov, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
+        iterables = [df.index.get_level_values('start_week').unique(), NIS_prov, pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), df.index.get_level_values('DOSE').unique()]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
         columns = ['CUMULATIVE','INCIDENCE']
         prov_df = pd.DataFrame(index=index, columns=columns)
         prov_df['CUMULATIVE'] = 0
         prov_df['INCIDENCE'] = 0
         # Loop over indices (computationally expensive)
-        for idx,start_week in enumerate(arr_df.index.get_level_values(0).unique()):
-            som = np.zeros([arr_df.index.get_level_values(2).unique().shape[0],2])    
-            for NIS in arr_df.index.get_level_values(1).unique():
+        for idx,start_week in enumerate(arr_df.index.get_level_values('date').unique()):
+            for NIS in arr_df.index.get_level_values('NIS').unique():
                 if NIS == 21000:
                     prov_df.loc[start_week, NIS, :] = arr_df.loc[start_week, NIS, :].values
                 elif ((NIS == 23000) | (NIS == 24000)):
@@ -484,7 +485,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
                     prov_df.loc[start_week, prov_NIS, :] = prov_df.loc[start_week, prov_NIS, :].values + arr_df.loc[start_week, NIS, :].values
         rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_prov.csv')
         prov_df.to_csv(rel_dir, index=True)
-        
+
         #############################
         # Return relevant output df #
         #############################
@@ -502,12 +503,13 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
         ##############################
         
         rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
-        df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['date'])
+        df = pd.read_csv(rel_dir, index_col=[0,1,2,3], parse_dates=['date'])
         # pd.read_csv cannot read an IntervalIndex so we need to set this manually
-        iterables = [df.index.get_level_values(0).unique(),
-                     df.index.get_level_values(1).unique(),
-                     pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')]
-        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
+        iterables = [df.index.get_level_values('date').unique(),
+                     df.index.get_level_values('NIS').unique(),
+                     pd.IntervalIndex.from_tuples([(0,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
+                     df.index.get_level_values('dose').unique(),]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
         columns = df.columns
         desired_df = pd.DataFrame(index=index, columns=columns)
         for col_name in df.columns:

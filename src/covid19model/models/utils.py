@@ -244,6 +244,9 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
 
     # Load and format local vaccination data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
+    
+    # Sum over doses A and C and omit doses from data
+    public_spatial_vaccination_data = public_spatial_vaccination_data.loc[((public_spatial_vaccination_data.index.get_level_values('dose') == 'A')|(public_spatial_vaccination_data.index.get_level_values('dose') == 'C'))].groupby(by=['date','NIS', 'age']).sum()['INCIDENCE']
 
     ##################################################
     ## Construct time-dependent parameter functions ##
