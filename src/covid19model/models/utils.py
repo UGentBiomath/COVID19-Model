@@ -378,13 +378,22 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     with open(samples_path+'initial_states_2020-03-17.pickle', 'rb') as handle:
         initial_states = pickle.load(handle)
 
-    # Extend initial states for stratified vacc states --> will be formalized later
+    # Extend initial states for stratified vacc states
+    # --> will be formalized later
     dose_stratification_size = len(public_spatial_vaccination_data.index.get_level_values('dose').unique()) + 2 # Added +2 for waning of 2nd dose vaccination + boosters
     for state,value in initial_states.items():
         value = np.array(value)
         new_value = np.zeros([value.shape[0], value.shape[1], dose_stratification_size])
         new_value[:,:,0] = value
         initial_states.update({state: new_value})
+    # Remove obsolete states    
+    all_states = initial_states.keys()
+    desired_states = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
+    for state in list(all_states - desired_states):
+        initial_states.pop(state)
+    # To avoid nan when computing dividing through VE
+    initial_states['S'][:,:,1] = 1
+    initial_states['S'][:,:,2] = 1
 
     # Add Nc_work to parameters
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
@@ -395,7 +404,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
     params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
     params.update({'d_vacc': 100*365})
-    params.update({'N_vacc': np.zeros([age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
+    params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
 
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=agg,
