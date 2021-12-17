@@ -302,6 +302,195 @@ class COVID19_SEIQRD(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU)
 
+class COVID19_SEIQRD_spatial_vacc(BaseModel):
+    """
+    insert uitleg
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc'],[]]
+    stratification = ['place','Nc','doses'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place', None, None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+
+    # ..transitions/equations
+    @staticmethod
+
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
+                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  area, p,  # spatially stratified parameters. 
+                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
+                  place, Nc, doses): # stratified parameters that determine stratification dimensions
+
+
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
+
+        K_inf = np.array([1, K_inf1, K_inf2])
+
+        # sum of all (three) fractions of variants must be unity
+        # alpha is not stratified (nor by age, nor by region)
+        if sum(alpha) != 1:
+            raise ValueError(
+                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+            )
+
+        # Redefine probability of hospitalisation from mild infection based
+        # on the fraction of every VOC and its increased hospitalisation probability
+        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        
+        # Take weighted average of vaccine efficiencies for all VOCs
+        e_i_eff = np.matmul(alpha, e_i)
+        e_s_eff = np.matmul(alpha, e_s)
+        e_h_eff = np.matmul(alpha, e_h)
+
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
+
+        dS = np.zeros(S.shape)
+        dR = np.zeros(R.shape)
+
+        # 0 --> 1 and  0 --> 2
+        # ~~~~~~~~~~~~~~~~~~~~
+        # Compute vaccine eligible population
+        VE = S[:,:,0] + R[:,:,0]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,0]/VE
+        f_R = R[:,:,0]/VE
+        # Compute transisitoning in zero syringes
+        dS[:,:,0] = - (N_vacc[:,:,0] + N_vacc[:,:,2])*f_S 
+        dR[:,:,0] = - (N_vacc[:,:,0]+ N_vacc[:,:,2])*f_R
+        # Compute transitioning in one short circuit
+        dS[:,:,1] =  N_vacc[:,:,0]*f_S # 0 --> 1 dose
+        dR[:,:,1] =  N_vacc[:,:,0]*f_R # 0 --> 1 dose
+        # Compute transitioning in two shot circuit
+        dS[:,:,2] =  N_vacc[:,:,2]*f_S # 0 --> 2 doses
+        dR[:,:,2] =  N_vacc[:,:,2]*f_R # 0 --> 2 doses
+
+        # 1 --> 2 
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,:,1] + E[:,:,1] + I[:,:,1] + A[:,:,1] + R[:,:,1]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,1]/VE
+        f_R = R[:,:,1]/VE
+        # Compute transitioning in one short circuit
+        dS[:,:,1] = dS[:,:,1] - N_vacc[:,:,1]*f_S
+        dR[:,:,1] = dR[:,:,1] - N_vacc[:,:,1]*f_R
+        # Compute transitioning in two shot circuit
+        dS[:,:,2] = dS[:,:,2] + N_vacc[:,:,1]*f_S
+        dR[:,:,2] = dR[:,:,2] + N_vacc[:,:,1]*f_R
+
+        # waned vaccine, 2 --> B
+        # ~~~~~~~~~~~~~~~~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,:,2]+ R[:,:,2] + S[:,:,3] + R[:,:,3]
+        # 2 dose circuit
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,2]/VE
+        f_R = R[:,:,2]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,:,2] = dS[:,:,2] - N_vacc[:,:,3]*f_S
+        dR[:,:,2] = dR[:,:,2] - N_vacc[:,:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,:,4] = dS[:,:,4] + N_vacc[:,:,3]*f_S
+        dR[:,:,4] = dR[:,:,4] + N_vacc[:,:,3]*f_R
+        # waned vaccine circuit
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,3]/VE
+        f_R = R[:,:,3]/VE
+        # Compute transitioning in two shot circuit
+        dS[:,:,3] = dS[:,:,3] - N_vacc[:,:,3]*f_S
+        dR[:,:,3] = dR[:,:,3] - N_vacc[:,:,3]*f_R
+        # Compute transitioning in booster circuit
+        dS[:,:,4] = dS[:,:,4] + N_vacc[:,:,3]*f_S
+        dR[:,:,4] = dR[:,:,4] + N_vacc[:,:,3]*f_R
+
+        # Update the S and R state
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        S_post_vacc = S + dS
+        R_post_vacc = R + dR
+
+        # Compute dS that makes S and R equal to zero
+        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
+        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
+        # Set S and R equal to zero
+        S_post_vacc[np.where(S_post_vacc < 0)] = 0
+        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2), axis=2) # Sum over doses
+
+        ################################
+        ## Compute infection pressure ##
+        ################################
+
+        # For total population and for the relevant compartments I and A
+        G = place.shape[0] # spatial stratification
+        N = Nc.shape[1] # age stratification
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
+        # infer aggregation (prov, arr or mun)
+        agg = None
+        if G == 11:
+            agg = 'prov'
+        elif G == 43:
+            agg = 'arr'
+        elif G == 581:
+            agg = 'mun'
+        else:
+            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        # Expand beta to size G
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))*sum(alpha*K_inf)
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.matmul(np.transpose(place_eff), T)
+        S_work = np.matmul(np.transpose(place_eff), S)
+        I_work = np.matmul(np.transpose(place_eff), I)
+        A_work = np.matmul(np.transpose(place_eff), A)
+        # Apply work contacts to place modified populations
+        infpop = (I_work + A_work)/T_work*(1-e_i_eff)
+        multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
+        multip_work *= beta[:,np.newaxis]
+        # Apply all other contacts to non-place modified populations
+        infpop = (I + A)/T
+        multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
+        multip_rest *= beta[:,np.newaxis]
+        # Compute rates of change
+        dS_inf = S_work * multip_work + S * multip_rest
+
+        ############################
+        ## Compute system of ODEs ##
+        ############################
+
+        dS = dS
+        dE = np.zeros(S.shape)
+        dI = np.zeros(S.shape)
+        dA = np.zeros(S.shape)
+        dM = np.zeros(S.shape)
+        dC = np.zeros(S.shape)
+        dC_icurec = np.zeros(S.shape)
+        dICUstar = np.zeros(S.shape)
+        dR = dR
+        dD = np.zeros(S.shape)
+        dH_in = np.zeros(S.shape)
+        dH_out = np.zeros(S.shape)
+        dH_tot =np.zeros(S.shape)
+
+        ########################
+        ## Waning of immunity ##
+        ########################
+
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+
 
 class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
@@ -504,6 +693,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         S_post_vacc[np.where(S_post_vacc < 0)] = 0
         R_post_vacc[np.where(R_post_vacc < 0)] = 0
 
+        #################################
+        ## Compute system of equations ##
+        #################################
 
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
