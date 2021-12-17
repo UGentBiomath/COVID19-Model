@@ -370,7 +370,7 @@ class make_vaccination_function():
                 try:
                     # Only includes doses A, B and C (so not boosters!) for now
                     data = np.zeros([self.space_agg, self.age_agg, self.dose_agg+1])
-                    data[:,:,:-2] = np.array(self.df.loc[t,:,:,:].values).reshape( (self.space_agg, self.age_agg, self.dose_agg) )
+                    data[:,:,:-1] = np.array(self.df.loc[t,:,:,:].values).reshape( (self.space_agg, self.age_agg, self.dose_agg) )
                     return data
                 except:
                     return np.zeros([self.space_agg, self.age_agg, self.dose_agg+1])
@@ -486,7 +486,10 @@ class make_vaccination_function():
         # Projection into the future
         else:
             if self.spatial:
-                if not self.doses:
+                if self.doses:
+                    # No projection implemented
+                    return np.zeros([self.space_agg, self.age_agg, self.dose_agg+1])
+                else:
                     # No projection implemented
                     return np.zeros([self.space_agg,self.age_agg])
             else:
