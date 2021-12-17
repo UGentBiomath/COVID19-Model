@@ -147,7 +147,7 @@ if __name__ == '__main__':
     ##########################
 
     # Start of data collection
-    start_data = df_sciensano.index.get_level_values('date').min()
+    start_data = df_sciensano.index.get_level_values('DATE').min()
     # Start of calibration: current initial condition is March 17th, 2021
     start_calibration = '2020-03-17'
     warmup =0
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     else:
         end_calibration = str(args.enddate)
     # Spatial unit: depesnds on aggregation
-    spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
+    spatial_unit = f'{agg}_full-pandemic_{signature}'
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
     multiplier_pso = 4
@@ -168,14 +168,14 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+    data=[df_sciensano[start_calibration:end_calibration]]
     states = ["H_in"]
     weights = [1]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
     print('--------------------------------------------------------------------------------------\n')
-    print('Using data from '+start_calibration.strftime("%Y-%m-%d")+' until '+end_calibration.strftime("%Y-%m-%d")+'\n')
+    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
     print('\n1) Particle swarm optimization\n')
     print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     sys.stdout.flush()
@@ -232,6 +232,17 @@ if __name__ == '__main__':
     ax.set_ylabel('New national hosp./day')
     plt.show()
     plt.close()
+
+    fig,ax = plt.subplots()
+    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=0) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
+    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=1) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
+    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=2) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
+    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=3) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
+    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=4) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
+    plt.show()
+    plt.close()
+
+    sys.exit()
 
     #####################################
     ## Visualize the provincial result ##

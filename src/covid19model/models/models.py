@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import numpy as np
 from .base import BaseModel
 from .utils import stratify_beta
@@ -302,15 +303,15 @@ class COVID19_SEIQRD(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot, dR_C, dR_ICU)
 
-class COVID19_SEIQRD_spatial_vacc(BaseModel):
+class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
     """
     insert uitleg
     """
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
-    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU', 'N_vacc'],[]]
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU'],[]]
     stratification = ['place','Nc','doses'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None, None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
 
@@ -318,33 +319,39 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
-                  s, a, h, c, m_C, m_ICU, N_vacc, # age-stratified parameters
+                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc, doses): # stratified parameters that determine stratification dimensions
-
 
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
         K_inf = np.array([1, K_inf1, K_inf2])
-
-        # sum of all (three) fractions of variants must be unity
-        # alpha is not stratified (nor by age, nor by region)
         if sum(alpha) != 1:
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
-
-        # Redefine probability of hospitalisation from mild infection based
-        # on the fraction of every VOC and its increased hospitalisation probability
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
-        
-        # Take weighted average of vaccine efficiencies for all VOCs
-        e_i_eff = np.matmul(alpha, e_i)
-        e_s_eff = np.matmul(alpha, e_s)
-        e_h_eff = np.matmul(alpha, e_h)
+        e_i = np.matmul(alpha, e_i)
+        e_s = np.matmul(alpha, e_s)
+        e_h = np.matmul(alpha, e_h)
+
+        ####################################################
+        ## Expand dims on first stratification axis (age) ##
+        ####################################################
+
+        a = np.expand_dims(a, axis=1)
+        h = np.expand_dims(h, axis=1)
+        c = np.expand_dims(c, axis=1)
+        m_C = np.expand_dims(m_C, axis=1)
+        m_ICU = np.expand_dims(m_ICU, axis=1)
+        dc_R = np.expand_dims(dc_R, axis=1)
+        dc_D = np.expand_dims(dc_D, axis=1)
+        dICU_R = np.expand_dims(dICU_R, axis=1)
+        dICU_D = np.expand_dims(dICU_D, axis=1)
+        dICUrec = np.expand_dims(dICUrec, axis=1)
 
         ############################################
         ## Compute the vaccination transitionings ##
@@ -428,7 +435,7 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         ## calculate total population ##
         ################################
 
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2), axis=2) # Sum over doses
+        T = np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2) # Sum over doses
 
         ################################
         ## Compute infection pressure ##
@@ -453,41 +460,64 @@ class COVID19_SEIQRD_spatial_vacc(BaseModel):
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))*sum(alpha*K_inf)
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.matmul(np.transpose(place_eff), T)
-        S_work = np.matmul(np.transpose(place_eff), S)
-        I_work = np.matmul(np.transpose(place_eff), I)
-        A_work = np.matmul(np.transpose(place_eff), A)
-        # Apply work contacts to place modified populations
-        infpop = (I_work + A_work)/T_work*(1-e_i_eff)
-        multip_work = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc_work))
-        multip_work *= beta[:,np.newaxis]
+        T_work = np.expand_dims(T_work, axis=2)
+        # I have verified on a dummy example that the following line of code:
+        S_work = np.transpose(np.matmul(np.transpose(S), place_eff))
+        # Is equivalent to the following for loop:
+        # S_work = np.zeros(S.shape)
+        #for idx in range(S.shape[2]):
+        #    S_work[:,:,idx] = np.matmul(np.transpose(place_eff), S[:,:,idx]) 
+        I_work = np.transpose(np.matmul(np.transpose(I), place_eff))
+        A_work = np.transpose(np.matmul(np.transpose(A), place_eff))
+        infpop = (I_work + A_work)/T_work*(1-e_i)
+        # (11, 10, 10) x (11, 10, 5)
+        multip_work = np.matmul(Nc_work, infpop)
+        multip_work *= beta[:,np.newaxis, np.newaxis]
         # Apply all other contacts to non-place modified populations
-        infpop = (I + A)/T
-        multip_rest = np.squeeze( np.matmul(infpop[:,np.newaxis,:], Nc-Nc_work))
-        multip_rest *= beta[:,np.newaxis]
+        infpop = (I + A)/np.expand_dims(T, axis=2)*(1-e_i)
+        multip_rest = np.matmul(Nc-Nc_work, infpop)
+        multip_rest *= beta[:,np.newaxis,np.newaxis]
         # Compute rates of change
-        dS_inf = S_work * multip_work + S * multip_rest
+        dS_inf = (S_work * multip_work + S * multip_rest)*(1-e_s)
 
         ############################
         ## Compute system of ODEs ##
         ############################
 
-        dS = dS
-        dE = np.zeros(S.shape)
-        dI = np.zeros(S.shape)
-        dA = np.zeros(S.shape)
-        dM = np.zeros(S.shape)
-        dC = np.zeros(S.shape)
-        dC_icurec = np.zeros(S.shape)
-        dICUstar = np.zeros(S.shape)
-        dR = dR
-        dD = np.zeros(S.shape)
-        dH_in = np.zeros(S.shape)
-        dH_out = np.zeros(S.shape)
-        dH_tot =np.zeros(S.shape)
+        h_acc = (1-e_h)*h
+
+        dS  = dS - dS_inf
+        dE  = dS_inf - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
+        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h_acc/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
 
         ########################
         ## Waning of immunity ##
         ########################
+
+        # Waning of second dose
+        r_waning_vacc = 1/((5/12)*365)
+        dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
+        dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
+        dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
+        dR[:,:,3] = dR[:,:,3] + r_waning_vacc*R_post_vacc[:,:,2]
+        
+        # Waning of booster dose
+        # No waning of booster dose
+
+        # Waning of natural immunity
+        dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
+        dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
