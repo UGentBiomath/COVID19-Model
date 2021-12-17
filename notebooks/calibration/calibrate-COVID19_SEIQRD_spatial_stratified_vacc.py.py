@@ -29,6 +29,7 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratifi
 from covid19model.data import sciensano
 
 # Import function associated with the PSO and MCMC
+from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson, MLE
 from covid19model.optimization.pso import *
@@ -138,485 +139,238 @@ initN, model = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratificat
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
 
-## The code was applicable to both jobs until this point.
-## Now we make a distinction between the pre-lockdown fit (calculate warmup, infectivities and eventually R0) on the one hand,
-## and the complete fit (with knowledge of the warmup value) on the other hand.
-
-###############
-##  JOB: R0  ##
-###############
-
 # Only necessary for local run in Windows environment
 if __name__ == '__main__':
 
+    ##########################
+    ## Calibration settings ##
+    ##########################
 
-    if job == 'R0':
-        # Note: this job type is only needed to determine the warmup value
+    # Start of data collection
+    start_data = df_sciensano.index.get_level_values('date').min()
+    # Start of calibration: current initial condition is March 17th, 2021
+    start_calibration = '2020-03-17'
+    warmup =0
+    # Last datapoint used to calibrate infectivity, compliance and effectivity
+    if not args.enddate:
+        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
+    else:
+        end_calibration = str(args.enddate)
+    # Spatial unit: depesnds on aggregation
+    spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
+    # PSO settings
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+    multiplier_pso = 4
+    maxiter = n_pso
+    popsize = multiplier_pso*processes
+    # MCMC settings
+    multiplier_mcmc = 2
+    max_n = n_mcmc
+    print_n = 20
+    # Define dataset
+    data=[df_sciensano['H_in'][start_calibration:end_calibration]]
+    states = ["H_in"]
+    weights = [1]
 
-        # ------------------
-        # Calibration set-up
-        # ------------------
+    print('\n--------------------------------------------------------------------------------------')
+    print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
+    print('--------------------------------------------------------------------------------------\n')
+    print('Using data from '+start_calibration.strftime("%Y-%m-%d")+' until '+end_calibration.strftime("%Y-%m-%d")+'\n')
+    print('\n1) Particle swarm optimization\n')
+    print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    sys.stdout.flush()
 
-        # Use private data for R0, because PSO doesn't work well with limited public data
-        public=False
-        df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
+    #############################
+    ## Global PSO optimization ##
+    #############################
+
+    # transmission
+    pars1 = ['beta_R', 'beta_U', 'beta_M']
+    bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
+    # Social intertia
+    pars2 = ['l1',   'l2']
+    bounds2=((1,21), (1,21))
+    # Prevention parameters (effectivities)
+    pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
+    bounds3=((0.01,0.99),      (0.01,0.99), (0.01,0.99),          (0.01,0.99),            (0.01,0.99))
+    # Variants
+    pars4 = ['K_inf1','K_inf2']
+    bounds4 = ((1.25,1.6),(1.7,2.4))
+    # Seasonality
+    pars5 = ['amplitude','peak_shift']
+    bounds5 = ((0,0.25),(-61,61))
+    # Join them together
+    pars = pars1 + pars2 + pars3 + pars4 + pars5
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+
+    # Perform PSO optimization
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    theta = [0.01853192,  0.0190604,   0.02420068, 14.78702555,  9.50603255,  0.40208023, 0.16602563,  0.0169907,   0.78060042,  0.66435039,  1.55329592,  2.25188278, 0.14336164, 10.05197898] # Starting estimate of mcmc run 2021-11-13
+    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77] # Result of mcmc run 2021-11-13
+
+    ####################################
+    ## Local Nelder-mead optimization ##
+    ####################################
         
-        # Start data of recalibration ramp
-        start_calibration = '2020-03-02' # First available date in private data. Inspect df_sciensano.reset_index().DATE[0] if needed
-        if public==True:
-            start_calibration = '2020-03-15' # First available date in public data.
-        # Last datapoint used to calibrate warmup and beta.
-        # Note: first measures in Belgium were taken on March 13, so let's take 5 days of delay regarding hospitalisations
-        if not args.enddate:
-            end_calibration = '2020-03-20' # Final date at which no interventions were felt (before first inflection point)
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depends on aggregation and is basically simply a name (extension to signature)
-        spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
+    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1, 0.1 ]
+    step = 14*[0.05,]
+    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
+    #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
-        # PSO settings
-        processes = 5#int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        sys.stdout.flush()
-        multiplier = 10 # Due to multimodality we need a lot of particles
-        maxiter = n_pso
-        popsize = multiplier*processes
+    ############################
+    ## Visualize national fit ##
+    ############################
 
-        # -------------------------
-        # Print statement to stdout
-        # -------------------------
+    # Assign estimate.
+    pars_PSO = assign_PSO(model.parameters, pars, theta)
+    model.parameters = pars_PSO
+    end_visualization = '2022-09-01'
+    # Perform simulation with best-fit results
+    out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_visualization)
+    ax.set_ylabel('New national hosp./day')
+    plt.show()
+    plt.close()
 
-        print('\n------------------------------------------')
-        print('PERFORMING CALIBRATION OF WARMUP and BETAs')
-        print('------------------------------------------\n')
-        print('Using data from ' + start_calibration + ' until ' + end_calibration + '\n')
-        print('1) Particle swarm optimization')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-        sys.stdout.flush()
+    #####################################
+    ## Visualize the provincial result ##
+    #####################################
 
-        # --------------
-        # define dataset
-        # --------------
+    fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
+    for idx,NIS in enumerate(data[0].columns):
+        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+        ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    plt.show()
+    plt.close()
 
-        # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration]]
-        states = ["H_in"]
-        weights = [1]
+    ###################################
+    ## Visualize the regional result ##
+    ###################################
 
-        # -----------
-        # Perform PSO
-        # -----------
+    fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12))
 
-        # set optimisation settings
-        warmup = 14
-        pars=[]
-        bounds=()
-        for i in range(11):
-            pars += ['beta_'+str(i),]
-            bounds += ((0.010,0.040),)
-        #pars = ['beta_R', 'beta_U', 'beta_M']
-        #bounds=((0.010,0.040),(0.010,0.040),(0.010,0.040))
+    NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+    title_list = ['Brussels', 'Flanders', 'Wallonia']
+    color_list = ['blue', 'blue', 'blue']
 
+    for idx,NIS_list in enumerate(NIS_lists):
+        model_vals = 0
+        data_vals= 0
+        for NIS in NIS_list:
+            model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+            data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
-        # STEP 1: attach bounds of inital conditions
-        #bounds += model.initial_states['S'].shape[0] * ((0,1),)
+        ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
+        ax[idx].scatter(df_sciensano.index,data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].set_title(title_list[idx])
+        ax[idx].set_ylim([0,420])
+        ax[idx].grid(False)
+        ax[idx].set_ylabel('$H_{in}$ (-)')
+    plt.show()
+    plt.close()
 
-        # STEP 2: write a custom objective function
-        # def objective_fcn(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, poisson_offset='auto', agg=None):
+    # Print statement to stdout once
+    print(f'\nPSO RESULTS:')
+    print(f'------------')
+    print(f'infectivities {pars[0:1]}: {theta[0:1]}.')
+    print(f'social intertia {pars[1:3]}: {theta[1:3]}.')
+    print(f'prevention parameters {pars[3:8]}: {theta[3:8]}.')
+    print(f'VOC effects {pars[8:10]}: {theta[8:10]}.')
+    print(f'Seasonality {pars[10:]}: {theta[10:]}')
+    sys.stdout.flush()
 
-        #     #######################
-        #     ## Assign parameters ##
-        #     #######################
+    ########################
+    ## Setup MCMC sampler ##
+    ########################
 
-        #     for i, param in enumerate(parNames):
-        #         if param == 'warmup':
-        #             warmup = int(round(thetas[i]))
-        #         else:
-        #             model.parameters.update({param : thetas[i]})
+    print('\n2) Markov Chain Monte Carlo sampling\n')
 
-        #     ###############################
-        #     ## Assign the initial states ##
-        #     ###############################
-
-        #     values_initE = np.array(thetas[len(parNames):])
-        #     new_initE = np.ones(model.initial_states['E'].shape)
-        #     new_initE = values_initE[:, np.newaxis] * new_initE
-        #     model.initial_states.update({'E': new_initE})
-
-        #     ####################
-        #     ## Run simulation ##
-        #     ####################
-
-        #     # Compute simulation time
-        #     index_max=[]
-        #     for idx, d in enumerate(data):
-        #         index_max.append(d.index.max())
-        #     end_sim = max(index_max)
-        #     # Use previous samples
-        #     if draw_fcn:
-        #         model.parameters = draw_fcn(model.parameters,samples)
-        #     # Perform simulation and loose the first 'warmup' days
-        #     out = model.sim(end_sim, start_date=start_date, warmup=warmup)
-
-        #     #################
-        #     ## Compute MLE ##
-        #     #################
-
-        #     NIS_list = list(data[0].columns)
-        #     MLE = 0
-        #     for NIS in NIS_list:
-        #         for idx,state in enumerate(states):
-        #             new_xarray = out[state].sel(place=NIS)
-        #             for dimension in out.dims:
-        #                 if ((dimension != 'time') & (dimension != 'place')):
-        #                     new_xarray = new_xarray.sum(dim=dimension)
-        #             ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-        #             MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
-        #             MLE += MLE_add
-
-        #     return -MLE
-
-        # STEP 3: perform PSO
-        #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,pars),
-        #                                                                                            kwargs={'weights': weights, 'start_date':start_calibration, 'agg':agg,
-        #                                                                                            'poisson_offset':poisson_offset, 'warmup': warmup}, swarmsize=popsize, maxiter=maxiter, processes=processes,
-        #                                                                                            minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=0.8, phip=0.8, phig=0.8)
-        #theta = p_hat
-        theta = [0.0265,  0.023, 0.0195,  0.02565648, 0.0243881,  0.027, 0.024, 0.0230, 0.0230, 0.020,  0.0205]
-        # Hard-code a good result:
-
-
-        # STEP 4: Visualize the national result
-
-        # Assign initial state estimate
-        #values_initE = np.array(theta[len(pars):])
-        #new_initE = np.ones(model.initial_states['E'].shape)
-        #new_initE = values_initE[:, np.newaxis] * new_initE
-        #model.initial_states.update({'E': new_initE})    
-        # Assign parameter estimate
-        #theta = theta[:len(pars)]
-        #warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
-        model.parameters = pars_PSO
-        # Perform simulation with best-fit results
-        out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-
-        initial_states = {}
-        for state in list(out.data_vars.keys()):
-            initial_states.update({state: list(out[state].sel(time=pd.to_datetime('2020-03-17'), method='nearest').values)})
-
-        samples_path = '../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        with open(samples_path+'initial_states_2020-03-17.pickle', 'wb') as fp:
-            pickle.dump(initial_states, fp)
-
-        print(initial_states)
-
-        # Print statement to stdout once
-        print(f'\nPSO RESULTS:')
-        print(f'------------')
-        print(f'warmup: {warmup}')
-        print(f'infectivities {pars[1:]}: {theta[1:]}.')
-        sys.stdout.flush()
-
-        # Visualize fit and save in order to check the validity of the first step
-        ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-        title=f'warmup: {round(warmup)}; {pars[1:]}: {[round(th,3) for th in theta[1:]]}.'
-        ax.set_title(title)
-        ax.set_ylabel('New national hosp./day')
-        pso_figname = f'{spatial_unit}_PSO-fit_{run_date}'
-        plt.savefig(f'{fig_path}/pso/{pso_figname}.png',dpi=400, bbox_inches='tight')
-        print(f'\nSaved figure /pso/{pso_figname}.png with results of calibration for job==R0.\n')
-        sys.stdout.flush()
-        plt.close()
-
-        # STEP 5: Visualize the provincial result
-        fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
-        for idx,NIS in enumerate(data[0].columns):
-            ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
-            ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        plt.show()
-        plt.close()
-
-        # Print runtime in hours
-        intermediate_time = datetime.datetime.now()
-        runtime = (intermediate_time - initial_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        day = runtime.days
-        if day == 0:
-            print(f"Run time PSO: {hour}h{minute:02}m{second:02}s")
-        else:
-            print(f"Run time PSO: {day}d{hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
-        # Work is done
-        sys.exit()
-
-    #######################################################################################################################################
-
-    ###############
-    ## JOB: FULL ##
-    ###############
-
-    elif job == 'FULL':
-
-        # ------------------
-        # Calibration set-up
-        # ------------------
-        
-        # Start of calibration
-        start_calibration = '2020-03-17'
-        #if public==True:
-            #start_calibration = '2020-03-15' # First available date in public data.
-        # Last datapoint used to calibrate infectivity, compliance and effectivity
-        if not args.enddate:
-            end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
-        else:
-            end_calibration = str(args.enddate)
-        # Spatial unit: depesnds on aggregation
-        spatial_unit = f'{agg}_full-pandemic_{job}_{signature}'
-
-        # PSO settings
-        processes = 5# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()))
-        multiplier_pso = 1 # 10
-        maxiter = n_pso
-        popsize = multiplier_pso*processes
-
-        # MCMC settings
-        multiplier_mcmc = 3
-        max_n = n_mcmc # 500000
-        print_n = 10
-
-        # Note how we use 4 effectivities now, because the schools are not closed
-        print('\n----------------------------------------')
-        print('PERFORMING CALIBRATION OF ALL PARAMETERS')
-        print('----------------------------------------\n')
-        print('Using data from ' + start_calibration + ' until ' + end_calibration + '\n')
-        print('1) Particle swarm optimization')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-        print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
-        sys.stdout.flush()
-
-        # --------------
-        # define dataset
-        # --------------
-
-        # Only use hospitalisation data
-        data=[df_sciensano[start_calibration:end_calibration]]
-        states = ["H_in"]
-        weights = [1]
-
-        # -----------
-        # Perform PSO
-        # -----------
-
-        # Define the 14 free parameters.
-        # Bounds based on results from national run
-
-
-        # -----------
-        # Perform PSO
-        # -----------
-
-        # transmission
-        pars1 = ['beta_R', 'beta_U', 'beta_M']
-        bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
-
-        # Social intertia
-        pars2 = ['l1',   'l2']
-        bounds2=((1,21), (1,21))
-
-        # Prevention parameters (effectivities)
-        pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        bounds3=((0.01,0.99),      (0.01,0.99), (0.01,0.99),          (0.01,0.99),            (0.01,0.99))
-
-        # Variants
-        pars4 = ['K_inf1','K_inf2']
-        bounds4 = ((1.25,1.6),(1.7,2.4))
-
-        # Seasonality
-        pars5 = ['amplitude','peak_shift']
-        bounds5 = ((0,0.25),(-61,61))
-
-        # Join them together
-        pars = pars1 + pars2 + pars3 + pars4 + pars5
-        bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
-
-        # PSO optimization
-        #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
-        #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-
-        theta = [0.01853192,  0.0190604,   0.02420068, 14.78702555,  9.50603255,  0.40208023, 0.16602563,  0.0169907,   0.78060042,  0.66435039,  1.55329592,  2.25188278, 0.14336164, 10.05197898] # Starting estimate of mcmc run 2021-11-13
-        theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77] # Result of mcmc run 2021-11-13
-
-        # Nelder-mead optimization
-        from covid19model.optimization.nelder_mead import nelder_mead
-        step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1, 0.1 ]
-        step = 14*[0.05,]
-        f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
-        #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
-
-        # Assign estimate.
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
-        model.parameters = pars_PSO
-        end_calibration = '2022-09-01'
-        # Perform simulation with best-fit results
-        out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup)
-        ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-        ax.set_ylabel('New national hosp./day')
-        plt.show()
-        plt.close()
-
-        # STEP 5: Visualize the provincial result
-        fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
-        for idx,NIS in enumerate(data[0].columns):
-            ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
-            ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        plt.show()
-        plt.close()
-
-        # STEP 6: Visualize the regional result
-        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12))
-
-        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-        title_list = ['Brussels', 'Flanders', 'Wallonia']
-        color_list = ['blue', 'blue', 'blue']
-
-        for idx,NIS_list in enumerate(NIS_lists):
-            model_vals = 0
-            data_vals= 0
-            for NIS in NIS_list:
-                model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').values
-                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
-            ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
-            ax[idx].scatter(df_sciensano.index,data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax[idx].set_title(title_list[idx])
-            ax[idx].set_ylim([0,420])
-            ax[idx].grid(False)
-            ax[idx].set_ylabel('$H_{in}$ (-)')
-        plt.show()
-        plt.close()
-
-        # STEP 6: Visualize the provincial immunity
-        fig,ax = plt.subplots(nrows=len(data[0].columns[:4]),ncols=1,figsize=(12,4))
-        for idx,NIS in enumerate(data[0].columns[:4]):
-            ax[idx].plot(out['time'],out['R'].sel(place=NIS).sum(dim='Nc')/sum(initN.loc[NIS])*100,'--', color='blue')
-            ax[idx].set_ylim([0,25])
-            #ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        plt.show()
-        plt.close()
-
-        # Print statement to stdout once
-        print(f'\nPSO RESULTS:')
-        print(f'------------')
-        print(f'infectivities {pars[0:1]}: {theta[0:1]}.')
-        print(f'social intertia {pars[1:3]}: {theta[1:3]}.')
-        print(f'prevention parameters {pars[3:8]}: {theta[3:8]}.')
-        print(f'VOC effects {pars[8:10]}: {theta[8:10]}.')
-        print(f'Seasonality {pars[10:]}: {theta[10:]}')
-        sys.stdout.flush()
-
-        # ------------------
-        # Setup MCMC sampler
-        # ------------------
-
-        # Define simple uniform priors based on the PSO bounds
-        log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
-                            prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                            prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-        log_prior_fcn_args = bounds
-        # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
-        # Generally, the less certain we are of a value, the higher the perturbation fraction
-        # pars1 = ['beta_R', 'beta_U', 'beta_M']
-        pert1=[0.10, 0.10, 0.10]
+    # Define simple uniform priors based on the PSO bounds
+    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn_args = bounds
+    # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
+    # Generally, the less certain we are of a value, the higher the perturbation fraction
+    # pars1 = ['beta_R', 'beta_U', 'beta_M']
+    pert1=[0.10, 0.10, 0.10]
     # pars2 = ['l1', 'l2']
-        pert2=[0.10, 0.10]
-        # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-        pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
-        # pars4 = ['K_inf1','K_inf2']
-        pert4=[0.30, 0.30]
-        # pars5 = ['amplitude','peak_shift']
-        pert5 = [0.50, 0.50] 
-        # Add them together
-        pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert2=[0.10, 0.10]
+    # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
+    pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
+    # pars4 = ['K_inf1','K_inf2']
+    pert4=[0.30, 0.30]
+    # pars5 = ['amplitude','peak_shift']
+    pert5 = [0.50, 0.50] 
+    # Add them together
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
 
-        # Use perturbation function
-        ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
+    # Use perturbation function
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
 
-        # Set up the sampler backend if needed
-        if backend:
-            filename = f'{spatial_unit}_backend_{run_date}'
-            backend = emcee.backends.HDFBackend(results_folder+filename)
-            backend.reset(nwalkers, ndim)
+    # Set up the sampler backend if needed
+    if backend:
+        filename = f'{spatial_unit}_backend_{run_date}'
+        backend = emcee.backends.HDFBackend(samples_path+filename)
+        backend.reset(nwalkers, ndim)
 
-        # Labels for traceplots
-        labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
-                    '$l_1$', '$l_2$', \
-                    '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
-                    '$K_{inf,1}$', 'K_{inf,2}', \
-                    '$A$', '$\\phi$']
-        # Arguments of chosen objective function
-        objective_fcn = objective_fcns.log_probability
-        objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-        objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                                'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+    # Labels for traceplots
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
+                '$l_1$', '$l_2$', \
+                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
+                '$K_{inf,1}$', 'K_{inf,2}', \
+                '$A$', '$\\phi$']
+    # Arguments of chosen objective function
+    objective_fcn = objective_fcns.log_probability
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
-        # ----------------
-        # Run MCMC sampler
-        # ----------------
+    ######################
+    ## Run MCMC sampler ##
+    ######################
 
-        print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+    print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
+    sys.stdout.flush()
+
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg)
+
+    #####################
+    ## Process results ##
+    #####################
+
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
+        sys.stdout.flush()
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
         sys.stdout.flush()
 
-        sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg)
+    print('\n3) Sending samples to dictionary')
+    sys.stdout.flush()
 
-        # ---------------
-        # Process results
-        # ---------------
+    # Take all samples (discard=0, thin=1)
+    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(pars):
+        samples_dict[name] = flat_samples[:,count].tolist()
 
-        thin = 1
-        try:
-            autocorr = sampler.get_autocorr_time()
-            thin = max(1,int(0.5 * np.min(autocorr)))
-            print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
-            sys.stdout.flush()
-        except:
-            print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
-            sys.stdout.flush()
+    samples_dict.update({
+        'warmup' : warmup,
+        'start_date_FULL' : start_calibration,
+        'end_date_FULL': end_calibration,
+        'n_chains_FULL' : nwalkers
+    })
 
-        # Print runtime in hours
-        final_time = datetime.datetime.now()
-        runtime = (final_time - intermediate_time)
-        totalMinute, second = divmod(runtime.seconds, 60)
-        hour, minute = divmod(totalMinute, 60)
-        day = runtime.days
-        if day == 0:
-            print(f"Run time MCMC: {hour}h{minute:02}m{second:02}s")
-        else:
-            print(f"Run time MCMC: {day}d{hour}h{minute:02}m{second:02}s")
-        sys.stdout.flush()
+    json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
+    with open(json_file, 'w') as fp:
+        json.dump(samples_dict, fp)
 
-        print('\n3) Sending samples to dictionary')
-        sys.stdout.flush()
-
-        # Take all samples (discard=0, thin=1)
-        flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-        samples_dict = {}
-        for count,name in enumerate(pars):
-            samples_dict[name] = flat_samples[:,count].tolist()
-
-        samples_dict.update({
-            'warmup' : warmup,
-            'start_date_FULL' : start_calibration,
-            'end_date_FULL': end_calibration,
-            'n_chains_FULL' : nwalkers
-        })
-
-        json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
-        with open(json_file, 'w') as fp:
-            json.dump(samples_dict, fp)
-
-        print('DONE!')
-        print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
-        print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-        sys.stdout.flush()
+    print('DONE!')
+    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
+    print('-----------------------------------------------------------------------------------------------------------------------------------\n')
+    sys.stdout.flush()
