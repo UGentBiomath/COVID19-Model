@@ -207,7 +207,7 @@ if __name__ == '__main__':
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
     theta = [0.01853192,  0.0190604,   0.02420068, 14.78702555,  9.50603255,  0.40208023, 0.16602563,  0.0169907,   0.78060042,  0.66435039,  1.55329592,  2.25188278, 0.14336164, 10.05197898] # Starting estimate of mcmc run 2021-11-13
-    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.56, 1.85, 0.227, -6.77] # Result of mcmc run 2021-11-13
+    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.58, 2.00, 0.227, -6.77] # Result of mcmc run 2021-11-13
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -242,7 +242,23 @@ if __name__ == '__main__':
     plt.show()
     plt.close()
 
-    sys.exit()
+    fig,ax = plt.subplots()
+    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
+    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
+    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
+    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
+    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
+    plt.show()
+    plt.close()
+
+    fig,ax = plt.subplots()
+    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
+    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
+    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
+    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
+    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
+    plt.show()
+    plt.close()
 
     #####################################
     ## Visualize the provincial result ##
@@ -250,7 +266,7 @@ if __name__ == '__main__':
 
     fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
     for idx,NIS in enumerate(data[0].columns):
-        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
         ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     plt.show()
     plt.close()
@@ -269,7 +285,7 @@ if __name__ == '__main__':
         model_vals = 0
         data_vals= 0
         for NIS in NIS_list:
-            model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+            model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
             data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
         ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
@@ -280,6 +296,8 @@ if __name__ == '__main__':
         ax[idx].set_ylabel('$H_{in}$ (-)')
     plt.show()
     plt.close()
+
+    sys.exit()
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
