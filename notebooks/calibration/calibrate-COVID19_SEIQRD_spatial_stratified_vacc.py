@@ -99,6 +99,8 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
+# Job type
+job = 'FULL'
 
 # ------------------------
 # Define results locations
@@ -242,24 +244,6 @@ if __name__ == '__main__':
     plt.show()
     plt.close()
 
-    fig,ax = plt.subplots()
-    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
-    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
-    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
-    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
-    ax.plot(out['time'], out['H_in'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
-    plt.show()
-    plt.close()
-
-    fig,ax = plt.subplots()
-    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
-    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
-    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
-    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
-    ax.plot(out['time'], out['E'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
-    plt.show()
-    plt.close()
-
     #####################################
     ## Visualize the provincial result ##
     #####################################
@@ -297,16 +281,14 @@ if __name__ == '__main__':
     plt.show()
     plt.close()
 
-    sys.exit()
-
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
     print(f'------------')
-    print(f'infectivities {pars[0:1]}: {theta[0:1]}.')
-    print(f'social intertia {pars[1:3]}: {theta[1:3]}.')
-    print(f'prevention parameters {pars[3:8]}: {theta[3:8]}.')
-    print(f'VOC effects {pars[8:10]}: {theta[8:10]}.')
-    print(f'Seasonality {pars[10:]}: {theta[10:]}')
+    print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
+    print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
+    print(f'prevention parameters {pars[5:10]}: {theta[5:10]}.')
+    print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
+    print(f'Seasonality {pars[12:]}: {theta[12:]}')
     sys.stdout.flush()
 
     ########################
@@ -340,6 +322,7 @@ if __name__ == '__main__':
 
     # Set up the sampler backend if needed
     if backend:
+        import emcee
         filename = f'{spatial_unit}_backend_{run_date}'
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
