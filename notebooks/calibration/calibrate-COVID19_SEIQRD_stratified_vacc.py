@@ -104,7 +104,6 @@ if __name__ == '__main__':
     start_data = df_hosp.index.get_level_values('date').min()
     # Start of calibration
     start_calibration = start_data
-    # Initial condition currently implemented are states on 2020-03-15 so warmup must be 0!
     warmup = 0
     # Last datapoint used to calibrate compliance and prevention
     if not args.enddate:
