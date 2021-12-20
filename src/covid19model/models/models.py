@@ -462,23 +462,23 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         T_work = np.matmul(np.transpose(place_eff), T)
         T_work = np.expand_dims(T_work, axis=2)
         # I have verified on a dummy example that the following line of code:
-        S_work = np.transpose(np.matmul(np.transpose(S), place_eff))
+        S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
         # Is equivalent to the following for loop:
         # S_work = np.zeros(S.shape)
         #for idx in range(S.shape[2]):
         #    S_work[:,:,idx] = np.matmul(np.transpose(place_eff), S[:,:,idx]) 
         I_work = np.transpose(np.matmul(np.transpose(I), place_eff))
         A_work = np.transpose(np.matmul(np.transpose(A), place_eff))
-        infpop = (I_work + A_work)/T_work*(1-e_i)
+        infpop = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
         # (11, 10, 10) x (11, 10, 5)
-        multip_work = np.matmul(Nc_work, infpop)
+        multip_work = np.matmul(Nc_work, infpop[:,:,np.newaxis])
         multip_work *= beta[:,np.newaxis, np.newaxis]
         # Apply all other contacts to non-place modified populations
-        infpop = (I + A)/np.expand_dims(T, axis=2)*(1-e_i)
-        multip_rest = np.matmul(Nc-Nc_work, infpop)
+        infpop = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
+        multip_rest = np.matmul(Nc-Nc_work, infpop[:,:,np.newaxis])
         multip_rest *= beta[:,np.newaxis,np.newaxis]
         # Compute rates of change
-        dS_inf = (S_work * multip_work + S * multip_rest)*(1-e_s)
+        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*(1-e_s)
 
         ############################
         ## Compute system of ODEs ##
