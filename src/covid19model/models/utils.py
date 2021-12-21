@@ -229,22 +229,14 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
-
-    # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
-    df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
-
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
-
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-
     # Load and format national VOC data (for time-dependent VOC fraction)
     df_VOC_abc = VOC.get_abc_data()
-
     # Load and format local vaccination data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
-    
     # Sum over doses A and C and omit doses from data
     public_spatial_vaccination_data = public_spatial_vaccination_data.loc[((public_spatial_vaccination_data.index.get_level_values('dose') == 'A')|(public_spatial_vaccination_data.index.get_level_values('dose') == 'C'))].groupby(by=['date','NIS', 'age']).sum()
     
@@ -255,16 +247,12 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
     policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
-
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
-
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(df_VOC_abc)
-
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
-
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
@@ -276,13 +264,11 @@ def initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=10, agg='prov
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/')
     with open(samples_path+'initial_states_2020-03-17.pickle', 'rb') as handle:
         initial_states = pickle.load(handle)
-
     # Add the susceptible and exposed population to the initial_states dict
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
     params.update({'e_h': np.array([0.95, 0.95, 0.95])})
     params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
-
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
@@ -326,6 +312,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
                                                               make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
+    from covid19model.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
@@ -333,19 +320,12 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
-
-    # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration.
-    df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=False)
-
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
-
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-
     # Load and format national VOC data (for time-dependent VOC fraction)
     df_VOC_abc = VOC.get_abc_data()
-
     # Load and format local vaccination data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
 
@@ -356,16 +336,12 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
     policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
-
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
-
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(df_VOC_abc)
-
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
-
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
@@ -374,27 +350,22 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     ##########################
 
     # Initial condition on 2020-03-17
-    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/')
-    with open(samples_path+'initial_states_2020-03-17.pickle', 'rb') as handle:
-        initial_states = pickle.load(handle)
-
-    # Extend initial states for stratified vacc states
-    # --> will be formalized later
-    dose_stratification_size = len(public_spatial_vaccination_data.index.get_level_values('dose').unique()) + 2 # Added +2 for waning of 2nd dose vaccination + boosters
-    for state,value in initial_states.items():
-        value = np.array(value)
-        new_value = np.zeros([value.shape[0], value.shape[1], dose_stratification_size])
-        new_value[:,:,0] = value
-        initial_states.update({state: new_value})
-    # Remove obsolete states    
-    all_states = initial_states.keys()
-    desired_states = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    for state in list(all_states - desired_states):
-        initial_states.pop(state)
-    # To avoid nan when computing dividing through VE
-    initial_states['S'][:,:,1] = 1
-    initial_states['S'][:,:,2] = 1
-
+    date = '2020-03-17'
+    samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
+    with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
+        load = pickle.load(handle)
+        initial_states = load[date]
+    # Convert to right age groups using demographic wheiging
+    for key,value in initial_states.items():
+        converted_value = np.zeros([value.shape[0], len(age_classes), value.shape[2]])
+        for i in range(value.shape[0]):
+            for j in range(value.shape[2]):
+                column = value[i,:,j]
+                data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
+                converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
+        initial_states.update({key: converted_value})
+    # Determine dose stratification size
+    dose_stratification_size = len(public_spatial_vaccination_data.index.get_level_values('dose').unique()) + 2
     # Add Nc_work to parameters
     params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     # Add "size dummy" for vaccination stratification
@@ -405,7 +376,6 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
     params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
-
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
@@ -417,7 +387,6 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
                                                        'beta_U': seasonality_function,
                                                        'beta_M': seasonality_function})
     return initN, model
-
 
 def load_samples_dict(filepath, age_stratification_size=10):
     """
