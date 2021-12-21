@@ -366,15 +366,7 @@ S[:,:,1:3] = 1e-1
 E = np.zeros([spatial_stratification_size, age_stratification_size, dose_stratification_size])
 E[:,:,0] = 1e-1
 initial_states = {"S": S, "E": E}
-# Add Nc_work to parameters
-params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
-# Add "size dummy" for vaccination stratification
-params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
-# Correct size of other parameters
-params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
-params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
-params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
-params.update({'d_vacc': 100*365})
+# Update size of N_vacc
 params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
 # Swap trifold beta for one beta
 params.pop('beta_R')
