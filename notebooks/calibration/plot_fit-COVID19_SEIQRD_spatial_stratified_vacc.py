@@ -98,7 +98,7 @@ end_calibration = samples_dict['end_calibration']
 # Load a draw function
 # --------------------
 
-from covid19model.models.utils import draw_fcn_spatial as draw_fcn
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc as draw_fcn
 
 # --------------------------------------------
 # Load data not needed to initialize the model
