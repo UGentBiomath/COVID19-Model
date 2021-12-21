@@ -1,5 +1,5 @@
 """
-This script can be used to plot the model fit of the vaccine-stratified COVID-19 SEIQRD model to the hospitalization data
+This script can be used to plot the model fit of the national vaccine-stratified COVID-19 SEIQRD model to the hospitalization data
 
 Arguments:
 ----------
@@ -113,7 +113,7 @@ initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as draw_fcn_WAVE2
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as draw_fcn
 
 #########################
 ## Perform simulations ##
@@ -121,7 +121,7 @@ from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as
 
 print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn_WAVE2,samples=samples_dict)
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 

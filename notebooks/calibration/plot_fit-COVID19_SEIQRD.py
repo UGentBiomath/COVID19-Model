@@ -1,5 +1,5 @@
 """
-This script can be used to plot the model fit of the virgin COVID-19 SEIQRD model (without VOCs, dose stratification) to the hospitalization data
+This script can be used to plot the model fit of the virgin national COVID-19 SEIQRD model (without VOCs, dose stratification) to the hospitalization data
 
 Arguments:
 ----------
@@ -95,10 +95,8 @@ end_calibration = samples_dict['end_calibration']
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-
 # Deaths in hospitals
 df_sciensano_mortality = sciensano.get_mortality_data()
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']

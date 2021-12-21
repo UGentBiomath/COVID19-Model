@@ -1,12 +1,14 @@
 """
-This script can be used to plot the model fit to the data of the second COVID-19 wave
+This script can be used to plot the model fit of the virgin spatial COVID-19 SEIQRD model (without VOCs, dose stratification) to the hospitalization data
 
 Arguments:
 ----------
--f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--v:
-    Vaccination model, either 'stratified' or 'non-stratified' 
+-f : string
+    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/
+-a: str
+    Spatial aggregation level: 'mun'/'arr'/'prov'
+-n_ag : int
+    Number of age groups used in the model
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -16,37 +18,35 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f -v stratified BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+
+python plot_fit-COVID19_SEIQRD_spatial.py -f prov_full-pandemic_FULL_twallema_test_R0_COMP_EFF_2021-11-13.json -a prov -n_ag 10 -n 5 -k 1 -s
 
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# ----------------------
-# Load required packages
-# ----------------------
+############################
+## Load required packages ##
+############################
 
 import os
 import sys, getopt
 import ujson as json
-import random
-import datetime
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters, VOC
+from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, output_to_visuals, add_poisson
 from covid19model.visualization.utils import colorscale_okabe_ito
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--filename", help="Samples dictionary name")
@@ -56,77 +56,82 @@ parser.add_argument("-s", "--save", help="Save figures",action='store_true')
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr or prov (default).", default = 'prov', type=str)
 args = parser.parse_args()
-
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 agg = args.agg
 
-# --------------------------
-# Define simulation settings
-# --------------------------
+################################
+## Define simulation settings ##
+################################
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2022-09-01'
+end_sim = '2021-02-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
-# ------------------------
-# Define results locations
-# ------------------------
+##############################
+## Define results locations ##
+##############################
 
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
+fig_path = '../../results/calibrations/COVID19_SEIQRD/'+agg+'/others/WAVE1/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/'+agg+'/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# -----------------------
-# Load samples dictionary
-# -----------------------
+#############################
+## Load samples dictionary ##
+#############################
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
-warmup = int(samples_dict['warmup'])
+warmup = 0
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
-# --------------------
-# Load a draw function
-# --------------------
 
-from covid19model.models.utils import draw_fcn_spatial as draw_fcn
+##################################################
+## Load data not needed to initialize the model ##
+##################################################
 
-# --------------------------------------------
-# Load data not needed to initialize the model
-# --------------------------------------------
-
+# Hospitalization data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+# Serodata
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# Deaths in hospitals
+df_sciensano_mortality = sciensano.get_mortality_data()
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
-# --------------------
-# Initialize the model
-# --------------------
+##########################
+## Initialize the model ##
+##########################
 
-initN, model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+initN, model = initialize_COVID19_SEIQRD_spatial(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
-# -------------------
-# Perform simulations
-# -------------------
+#######################
+## Sampling function ##
+#######################
+
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fcn
+
+#########################
+## Perform simulations ##
+#########################
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 simtime = out['time'].values
 
-# -----------
-# Visualizing
-# -----------
+#######################
+## Visualize results ##
+#######################
 
 print('2) Visualizing regional fit')
 
@@ -229,44 +234,6 @@ ax.set_xlim(start_sim,end_sim)
 ax.set_ylim(0,25)
 ax.set_ylabel('Seroprelevance (%)', fontsize=12)
 ax.get_yaxis().set_label_coords(-0.1,0.5)
-plt.tight_layout()
-plt.show()
-plt.close()
-
-print('5) Visualize the regional vaccination degree')
-
-# Visualize the regional fit
-fig,ax = plt.subplots(figsize=(12,4))
-
-# National
-mean, median, lower, upper = add_poisson((out['S_v'].sum(dim='Nc').sum(dim='place').values+out['R_v'].sum(dim='Nc').sum(dim='place').values), args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
-ax.plot(simtime, mean, '--', color='blue')
-ax.fill_between(simtime, lower, upper, alpha=0.2, color='blue')
-
-
-NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-title_list = ['Brussels', 'Flanders', 'Wallonia']
-color_list = ['red', 'green', 'black']
-
-for idx,NIS_list in enumerate(NIS_lists):
-    aggregate=0
-    data = 0
-    pop = 0
-    for NIS in NIS_list:
-        aggregate = aggregate + out['S_v'].sel(place=NIS).sum(dim='Nc').values + out['R_v'].sel(place=NIS).sum(dim='Nc').values
-        data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
-        pop = pop + sum(initN.loc[NIS].values)
-
-    mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)/pop*100
-
-    ax.plot(simtime, mean,'--', color=color_list[idx])
-    ax.fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
-
-ax.legend(['Belgium', 'Brussels', 'Flanders', 'Wallonia'])
-ax.set_ylim([0,100])
-ax.grid(False)
-ax.set_ylabel('Vaccinated (%)')
-ax = _apply_tick_locator(ax)
 plt.tight_layout()
 plt.show()
 plt.close()
