@@ -122,9 +122,9 @@ start_calibration = [samples_dict[0]['start_calibration'], samples_dict[1]['star
 end_calibration = [samples_dict[0]['end_calibration'], samples_dict[1]['end_calibration']]
 start_sim = start_calibration
 
-from covid19model.models.utils import draw_fcn_spatial
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc
 from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc
-draw_fcn = [draw_fcn_COVID19_SEIQRD_stratified_vacc, draw_fcn_spatial]
+draw_fcn = [draw_fcn_COVID19_SEIQRD_stratified_vacc, draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc]
 
 ##################
 ## Setup models ##
@@ -180,22 +180,13 @@ for key,value in initial_states.items():
         data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
         converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
     initial_states.update({key: converted_value})
-# Vaccination parameters when using the stratified vaccination model
-dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
-# Add "size dummy" for vaccination stratification
-params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
-# Correct size of other parameters
-params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
-params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
-params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
-params.update({'d_vacc': 100*365})
+# Update size of N_vacc
 params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 # WAVE 4 specific parameters
 # Social scenarios
 params.update({'scenario': 0, 'date_measures': date_measures})
 # Booster campaign
 params.update({'daily_doses': 80000, 'refusal': 0.12*np.ones(age_stratification_size), 'stop_idx': age_stratification_size-2})
-
 # Initialize model
 model_list.append(models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                     time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function}))
@@ -229,17 +220,25 @@ vaccination_function = make_vaccination_function(public_spatial_vaccination_data
 # Time-dependent seasonality function, updating season_factor
 seasonality_function = make_seasonality_function()
 # Initial condition on 2020-03-17
+date = '2020-03-17'
 with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/initial_states_2020-03-17.pickle', 'rb') as handle:
-    initial_states = pickle.load(handle)
-# Add the susceptible and exposed population to the initial_states dict
-params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
-params.update({'e_s': np.array([0.80, 0.80, 0.80])}) # Lower protection against susceptibility to 0.6 with appearance of delta variant to mimic vaccines waning for suscepitibility only
-params.update({'e_h': np.array([0.95, 0.95, 0.95])})
-params.update({'K_hosp': np.array([1.0, 1.0, 1.0])})
+    load = pickle.load(handle)
+    initial_states = load[date]
+# Convert to right age groups using demographic wheiging
+for key,value in initial_states.items():
+    converted_value = np.zeros([value.shape[0], len(age_classes), value.shape[2]])
+    for i in range(value.shape[0]):
+        for j in range(value.shape[2]):
+            column = value[i,:,j]
+            data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
+            converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
+    initial_states.update({key: converted_value})
+# Update size of N_vacc
+params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
 # WAVE 4 specific parameters
 params.update({'scenario': 0, 'date_measures': date_measures})
 # Initiate model with initial states, defined parameters, and proper time dependent functions
-model_list.append(models.COVID19_SEIQRD_spatial_vacc(initial_states, params, spatial=args.agg,
+model_list.append(models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=args.agg,
                         time_dependent_parameters={'Nc' : policy_function,
                                                     'Nc_work' : policy_function_work,
                                                     'place' : mobility_function,
