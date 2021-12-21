@@ -626,7 +626,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
     # ..transitions/equations
     @staticmethod
 
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, R_C, R_ICU, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
