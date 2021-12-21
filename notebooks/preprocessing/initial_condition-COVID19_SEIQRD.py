@@ -128,7 +128,7 @@ while not satisfied:
     plt.show()
     plt.close()
     # Satisfied?
-    satisfied = click.confirm('Are you satisfied with the result?', default=False)
+    satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
 ##########################################################
 ## Save initial states for the vaccine-stratified model ##

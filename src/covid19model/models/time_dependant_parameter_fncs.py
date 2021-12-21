@@ -269,6 +269,15 @@ class make_vaccination_function():
         if 'NIS' in self.df.index.names:
             self.spatial = True
             self.space_agg = len(self.df.index.get_level_values('NIS').unique().values)
+            # infer aggregation (prov, arr or mun)
+            if self.space_agg == 11:
+                self.agg = 'prov'
+            elif self.space_agg == 43:
+                self.agg = 'arr'
+            elif self.space_agg == 581:
+                self.agg = 'mun'
+            else:
+                raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
 
         # Check if dose data is provided
         self.doses = None
@@ -299,12 +308,12 @@ class make_vaccination_function():
                     for NIS in self.df.index.get_level_values('NIS').unique():
                         for dose in self.df.index.get_level_values('dose').unique():
                             data = self.df.loc[(date, NIS, slice(None), dose)]
-                            self.new_df.loc[(date, NIS, slice(None), dose)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+                            self.new_df.loc[(date, NIS, slice(None), dose)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.agg, NIS).values
             else:
                 for date in self.df.index.get_level_values('date').unique():
                     for NIS in self.df.index.get_level_values('NIS').unique():
                         data = self.df.loc[(date,NIS)]
-                        self.new_df.loc[(date, NIS)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.spatial, NIS).values
+                        self.new_df.loc[(date, NIS)] = self.convert_age_stratified_vaccination_data(data, age_classes, self.agg, NIS).values
         else:
             if self.doses:
                 for date in self.df.index.get_level_values('date').unique():
@@ -318,7 +327,7 @@ class make_vaccination_function():
 
         self.df = self.new_df
 
-    def convert_age_stratified_vaccination_data(self, data, age_classes, spatial=None, NIS=None):
+    def convert_age_stratified_vaccination_data(self, data, age_classes, agg=None, NIS=None):
         """ 
         A function to convert the sciensano vaccination data to the desired model age groups
 
@@ -330,7 +339,7 @@ class make_vaccination_function():
         age_classes : pd.IntervalIndex
             Desired age groups of the vaccination dataframe.
 
-        spatial: str
+        agg: str
             Spatial aggregation: prov, arr or mun
         
         NIS : str
@@ -346,12 +355,12 @@ class make_vaccination_function():
         # Pre-allocate new series
         out = pd.Series(index = age_classes, dtype=float)
         # Extract demographics
-        if spatial: 
-            data_n_individuals = construct_initN(data.index.get_level_values('age'), spatial).loc[NIS,:].values
-            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        if agg: 
+            data_n_individuals = construct_initN(data.index.get_level_values('age'), agg).loc[NIS,:].values
+            demographics = construct_initN(None, agg).loc[NIS,:].values
         else:
-            data_n_individuals = construct_initN(data.index.get_level_values('age'), spatial).values
-            demographics = construct_initN(None, spatial).values
+            data_n_individuals = construct_initN(data.index.get_level_values('age'), agg).values
+            demographics = construct_initN(None, agg).values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []

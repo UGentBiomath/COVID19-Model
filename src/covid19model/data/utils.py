@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 
-def construct_initN(age_classes=None, spatial=None):
+def construct_initN(age_classes=None, agg=None):
     """
     Returns the initial number of susceptibles conform the user-defined age groups and spatial aggregation.
 
@@ -13,7 +13,7 @@ def construct_initN(age_classes=None, spatial=None):
         Desired age groups in the model, initialize as follows:
         age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,110)], closed='left')
         Alternatively: None --> no grouping in age bins but data/age
-    spatial : string
+    agg : string
         Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
         'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
         mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
@@ -28,11 +28,11 @@ def construct_initN(age_classes=None, spatial=None):
 
     abs_dir = os.path.dirname(__file__)
 
-    if spatial == 'mun':
+    if agg == 'mun':
         age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_mun.csv'))
-    elif spatial == 'arr':
+    elif agg == 'arr':
         age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_arr.csv'))
-    elif spatial == 'prov':
+    elif agg == 'prov':
         age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
     else:
         age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
@@ -48,7 +48,7 @@ def construct_initN(age_classes=None, spatial=None):
         
     initN.columns = initN.columns.astype(str)
 
-    if spatial:
+    if agg:
         return initN
     else:
         return initN.sum(axis=0)
