@@ -1,5 +1,4 @@
 import os
-import datetime
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
@@ -444,5 +443,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
 
         # TDPF parameters
         pars_dict['default_mobility'] = None
+
+        # Add Nc_work to parameters
+        pars_dict['Nc_work'] = np.zeros([age_stratification_size,age_stratification_size])
 
     return initN, Nc_dict, pars_dict

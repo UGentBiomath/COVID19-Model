@@ -359,8 +359,6 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
         initial_states.update({key: converted_value})
     # Determine dose stratification size
     dose_stratification_size = len(public_spatial_vaccination_data.index.get_level_values('dose').unique()) + 2
-    # Add Nc_work to parameters
-    params.update({'Nc_work': np.zeros([age_stratification_size,age_stratification_size])})
     # Add "size dummy" for vaccination stratification
     params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
     # Correct size of other parameters
