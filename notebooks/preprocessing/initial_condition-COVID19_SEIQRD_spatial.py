@@ -376,10 +376,13 @@ params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],
 params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
 params.update({'d_vacc': 100*365})
 params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
+# Swap trifold beta for one beta
 params.pop('beta_R')
 params.pop('beta_U')
 params.pop('beta_M')
-params.update({'beta': np.ones(spatial_stratification_size)*0.03})
+params.update({'beta': np.ones(spatial_stratification_size)*0.024})
+# Set l1, prevention parameters and seasonality to guestimates obtained form model calibration
+params.update({'l1':16.0, 'prev_schools':0.166,'prev_work':0.56, 'prev_home':0.501,'prev_rest_lockdown':0.0195, 'prev_rest_relaxation':0.88, 'amplitude': 0.227, 'peak_shift': -6.77})
 # Initiate model with initial states, defined parameters, and proper time dependent functions
 model = custom_COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=args.agg,
                         time_dependent_parameters={'Nc' : policy_function,
@@ -395,12 +398,12 @@ model = custom_COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, sp
 
 # Initial guess: you can replace this to make this faster
 theta = [0.024*np.ones(spatial_stratification_size),]
-theta = [np.array([0.024,0.0238,0.021,0.0255,0.022,0.023,0.025,0.024,0.0235,0.0215,0.021]),] # Manual fit to provinces
+theta = [np.array([0.024,0.023,0.020,0.02475,0.02225,0.023,0.02375,0.023,0.023,0.02,0.021]),] # Manual fit to provinces
 pars = ['beta',]
 
 # Start- and enddates of visualizations
 start_calibration=df_sciensano.index.min()
-end_calibration='2020-03-21'
+end_calibration='2020-04-07'
 end_visualization=end_calibration
 data=[df_sciensano[start_calibration:end_calibration]]
 
