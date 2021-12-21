@@ -183,7 +183,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
     This function returns all parameters needed to run the age-stratified and/or spatially stratified model.
-    This function was created to group all parameters in one centralised location.
+    This function was created to group all parameters in a centralised location.
 
     Parameters
     ----------
@@ -227,7 +227,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-        xi : factor controlling the contact dependence on density f (spatial only)
 
         Age-stratified parameters
         -------------------------
@@ -238,19 +237,14 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
         p : mobility parameter per region. Only loads when spatial is not None
-        v : daily vaccination rate (percentage of population to be vaccinated)
-        e : vaccine effectivity
-        leakiness : leakiness of the vaccine (proportion of vaccinated people that contribute to infections)
 
         Spatially stratified parameters
         -------------------------------
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
-        sg : average size of a household per patch. Not used as of yet.
 
         Other stratified parameters
         ---------------------------
-
 
     Example use
     -----------
@@ -380,12 +374,16 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     #################
 
     if vaccination == True:
-        # Model parameters
+        # Hard-code dose stratification size
+        dose_stratification_size = 5
+        # Add "size dummy" for vaccination stratification
+        pars_dict['doses'] =  np.zeros([dose_stratification_size, dose_stratification_size])
+        # Correct size of other parameters
+        pars_dict['e_s'] = np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]]) # rows = VOC, columns = # no. doses
+        pars_dict['e_h'] = np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])
+        pars_dict['e_i'] = np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])
+        pars_dict['d_vacc'] = 100*365
         pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
-        pars_dict['e_s'] = np.array([0.80, 0.80, 0.75]) # Default: 95% lower susceptibility to SARS-CoV-2 on a per contact basis
-        pars_dict['e_h'] = np.array([0.95, 0.95, 0.95]) # Default: 100% protection against severe COVID-19
-        pars_dict['e_i'] = 0.5*np.ones(3)# Default: vaccinated infectious individual is equally infectious as non-vaccinated individual
-        pars_dict['d_vacc'] = 10*12*30 # Default: 36 months coverage of vaccine
         # TDPF parameters
         pars_dict.update({'initN' : initN.values,
                           'daily_doses' : 60000, # copy default values from vaccination_function, which are curently not used I think

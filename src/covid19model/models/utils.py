@@ -175,14 +175,6 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     ##########################
  
     # Vaccination parameters when using the stratified vaccination model
-    dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1 # waning of 2nd dose vaccination + boosters
-    # Add "size dummy" for vaccination stratification
-    params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
-    # Correct size of other parameters
-    params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
-    params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
-    params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
-    params.update({'d_vacc': 100*365})
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 
     # Initialize model
@@ -245,9 +237,9 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
-    ##########################
-    ## Initialize the model ##
-    ##########################
+    ####################
+    ## Initial states ##
+    ####################
 
     # Initial condition on 2020-03-17
     date = '2020-03-17'
@@ -263,6 +255,10 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
             data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
             converted_value[i,:] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
+
+    ##########################
+    ## Initialize the model ##
+    ##########################
 
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial(initial_states, params, spatial=agg,
@@ -338,9 +334,9 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
-    ##########################
-    ## Initialize the model ##
-    ##########################
+    ####################
+    ## Initial states ##
+    ####################
 
     # Initial condition on 2020-03-17
     date = '2020-03-17'
@@ -357,15 +353,12 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
                 data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
                 converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
-    # Determine dose stratification size
-    dose_stratification_size = len(public_spatial_vaccination_data.index.get_level_values('dose').unique()) + 2
-    # Add "size dummy" for vaccination stratification
-    params.update({'doses': np.zeros([dose_stratification_size, dose_stratification_size])})
-    # Correct size of other parameters
-    params.update({'e_s': np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]])}) # rows = VOC, columns = # no. doses
-    params.update({'e_h': np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])})
-    params.update({'e_i': np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])})  
-    params.update({'d_vacc': 100*365})
+
+    ##########################
+    ## Initialize the model ##
+    ##########################
+    
+    # Update size of N_vacc
     params.update({'N_vacc': np.zeros([params['place'].shape[0], age_stratification_size, len(public_spatial_vaccination_data.index.get_level_values('dose').unique())+1])}) # Added +1 because vaccination dataframe does not include boosters yet
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=agg,
