@@ -1,12 +1,14 @@
 """
-This script can be used to plot the model fit to the data of the second COVID-19 wave
+This script can be used to plot the model fit of the spatial vaccine-stratified COVID-19 SEIQRD model to the hospitalization data
 
 Arguments:
 ----------
--f:
+-f: str
     Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--v:
-    Vaccination model, either 'stratified' or 'non-stratified' 
+-a: str
+    Spatial aggregation level: 'mun'/'arr'/'prov'
+-n_ag : int
+    Number of age groups used in the model
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -16,12 +18,12 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f -v stratified BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+python plot_fit_R0_COMP_EFF_WAVE2.py -f prov_full-pandemic_FULL_twallema_test_R0_COMP_EFF_2021-11-13.json -a prov -n_ag 10 -n 5 -k 1 -s
 
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 # ----------------------
 # Load required packages
@@ -30,15 +32,11 @@ __copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University
 import os
 import sys, getopt
 import ujson as json
-import random
-import datetime
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters, VOC
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson

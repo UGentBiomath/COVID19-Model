@@ -1,5 +1,5 @@
 """
-This script can be used to plot the model fit of the virgin COVID-19 SEIQRD model (without VOCs, dose stratification) to the hospitalization data
+This script can be used to plot the model fit of the virgin national COVID-19 SEIQRD model (without VOCs, dose stratification) to the hospitalization data
 
 Arguments:
 ----------
