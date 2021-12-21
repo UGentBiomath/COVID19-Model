@@ -485,8 +485,8 @@ def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
 
 def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
     """
-    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
-    For use with the model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
+    A function to draw samples from the estimated posterior distributions of the model parameters.
+    For use with the extended national-level COVID-19 model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
 
     Parameters
     ----------
@@ -504,13 +504,7 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
 
     """
 
-    # Calibration of WAVE 1
-    # ---------------------
-    param_dict['zeta'] = np.mean(random.choices(list(samples_dict['zeta']), k=30))
-
-    # Calibration of WAVE 2
-    # ---------------------
-
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
@@ -575,10 +569,73 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
         
     return param_dict
 
-def draw_fcn_spatial(param_dict,samples_dict):
+
+def draw_fcn_COVID19_SEIQRD_spatial(param_dict,samples_dict):
     """
-    A function to draw samples from the posterior distributions of the BIOMATH COVID-19 SEIQRD national model parameters calibrated to the second 2020 COVID-19 wave
-    For use with the model `COVID19_SEIRD` in `~src/models/models.py`
+    A function to draw samples from the estimated posterior distributions of the model parameters.
+    Tailored for use with the spatial COVID-19 SEIQRD model without vaccine stratification ("virgin model").
+    Includes seasonality.
+
+    Parameters
+    ----------
+
+    samples_dict : dict
+        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 1
+
+    param_dict : dict
+        Model parameters dictionary
+
+    Returns
+    -------
+    param_dict : dict
+        Modified model parameters dictionary
+
+    """
+
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
+    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
+    param_dict['beta_M'] = samples_dict['beta_M'][idx]
+    param_dict['l1'] = samples_dict['l1'][idx]  
+    param_dict['l2'] = samples_dict['l2'][idx]  
+    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
+    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
+    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
+    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
+    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(len(param_dict['c'])):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=20
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+    return param_dict
+
+def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
+    """
+    A function to draw samples from the estimated posterior distributions of the model parameters.
+    For use with the extended spatial COVID-19 model `COVID19_SEIRD_spatial_stratified_vacc` in `~src/models/models.py`
 
     Parameters
     ----------
@@ -596,12 +653,7 @@ def draw_fcn_spatial(param_dict,samples_dict):
 
     """
 
-    # Calibration of WAVE 1
-    # ---------------------
-    param_dict['zeta'] = np.mean(random.choices(samples_dict['zeta'], k=30))
-
-    # Calibration of WAVE 2
-    # ---------------------
+    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]  
@@ -612,27 +664,34 @@ def draw_fcn_spatial(param_dict,samples_dict):
     param_dict['prev_work'] = samples_dict['prev_work'][idx]       
     param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
     param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-
     param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
     param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
     param_dict['K_hosp'] = np.ones(3)
-
     param_dict['amplitude'] = samples_dict['amplitude'][idx]  
     param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
 
- 
     # Vaccination
     # -----------
-    param_dict['delay_immunity'] = np.mean(np.random.triangular(1, 21, 21, size=30))
-    param_dict['e_i'] = np.array([np.random.normal(loc=0.50, scale=0.03/3),
-                                  np.random.normal(loc=0.50, scale=0.03/3),
-                                  np.random.normal(loc=0.50, scale=0.03/3)])
-    param_dict['e_s'] = np.array([np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.80, scale=0.03/3),
-                                  np.random.normal(loc=0.80, scale=0.03/3)])   # Lower susceptibility to around 0.60                       
-    param_dict['e_h'] = np.array([np.random.normal(loc=0.95, scale=0.03/3),
-                                  np.random.normal(loc=0.95, scale=0.03/3),
-                                  np.random.normal(loc=0.95, scale=0.03/3)])
+
+    # Reduction of infectiousness
+    #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
+    param_dict['e_i'] = np.zeros([3,5])
+    param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
+    param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
+    # Reduction of susceptibility
+    # Based on: 
+    #https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext#sec1
+    param_dict['e_s'] = np.zeros([3,5])
+    param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
+    param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
+    param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
+    param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
+    # Reduction of hospitalization propensity
+    param_dict['e_h'] = np.zeros([3,5])
+    param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
+    param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
+    param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
+    param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
 
     # Hospitalization
     # ---------------
