@@ -165,24 +165,18 @@ class make_mobility_update_function():
 
 class make_VOC_function():
     """
-    Class that returns a time-dependant parameter function for COVID-19 SEIRD model parameter alpha (variant fraction).
-    Current implementation includes the alpha - delta strains.
-    If the class is initialized without arguments, a logistic model fitted to prelevance data of the alpha-gamma variant is used. The class can also be initialized with the alpha-gamma prelavence data provided by Prof. Tom Wenseleers.
-    A logistic model fitted to prelevance data of the delta variant is always used.
-
-    Input
-    -----
-    *df_abc: pd.dataFrame (optional)
-        Alpha, Beta, Gamma prelevance dataset by Tom Wenseleers, obtained using:
-        `from covid19model.data import VOC`
-        `df_abc = VOC.get_abc_data()`
-        `VOC_function = make_VOC_function(df_abc)`
+    Class that returns a time-dependant parameter function for COVID-19 SEIQRD model parameter alpha (variant fraction and derivative).
+    The model parameter alpha currently consists of 2 rows and 4 columns.
+    The first row contains the VOC fractions, the second row contains the derivatives of the fractions. The derivates are needed to model immune escape.
+    The columns denote the variants: 0: Wild-Type, 1: Alpha,Beta,Gamma, 2: Delta, 3: Omicron.
+    Logistic parameters were manually fitted to the VOC prevalence data and are hardcoded in the init function of this module
 
     Output
     ------
 
     __class__ : function
-        Default variant function
+        Default variant function.
+
 
     """
     def __init__(self):
@@ -214,7 +208,7 @@ class make_VOC_function():
                 idx = [index for index,value in enumerate(self.logistic_parameters['t_introduction'].values) if pd.Timestamp(value) >= t][0] - 1
             except:
                 idx = len(self.logistic_parameters.index) - 1
-            # Perform computation of logistic growth and derivative
+            # Perform computation of VOC fraction and its derivative
             f = self.logistic_growth(t, pd.Timestamp(self.logistic_parameters.iloc[idx]['t_sigmoid']), self.logistic_parameters.iloc[idx]['k'])
             df = self.logistic_parameters.iloc[idx]['k']*f*(1-f)
             alpha[:,idx] = [1-f,-df]
