@@ -390,7 +390,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
 
-        K_inf = np.array([1, K_inf1, K_inf2])
+        K_inf = np.array([1, K_inf1, K_inf2, K_inf2])
 
         # Tentative: modeling immune escape
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -398,8 +398,12 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Remove negative derivatives to ease further computation
         alpha[1,:][np.where(alpha[1,:] < 0)] = 0
 
+        # Split derivatives and fraction
+        VOC_derivatives = alpha[1,:]
+        alpha = alpha[0,:]
+
         # Harcode an immune escape vector 
-        immune_escape = np.array([0,0,0,0.25])
+        immune_escape = np.array([0,0,0,0.5])
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -413,7 +417,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
-        K_hosp = np.ones(3)
+
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
         e_i = np.matmul(alpha, e_i)
         e_s = np.matmul(alpha, e_s)
@@ -562,8 +566,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + (immune_escape*alpha[1,:])*R
-        dR = dR + (immune_escape*alpha[1,:])*R     
+        dS = dS + sum(immune_escape*VOC_derivatives)*R
+        dR = dR - sum(immune_escape*VOC_derivatives)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
