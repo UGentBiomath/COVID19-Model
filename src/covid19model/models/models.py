@@ -392,10 +392,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         K_inf = np.array([1, K_inf1, K_inf2])
 
-        # Tentative: use only first row of alpha
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Tentative: modeling immune escape
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        alpha = alpha[0,:]
+        # Remove negative derivatives to ease further computation
+        alpha[1,:][np.where(alpha[1,:] < 0)] = 0
+
+        # Harcode an immune escape vector 
+        immune_escape = np.array([0,0,0,0.25])
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -553,7 +557,13 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         dS[:,0] = dS[:,0] + zeta*R_post_vacc[:,0] 
-        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]       
+        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]
+
+        # Immune escape
+        # ~~~~~~~~~~~~~
+
+        dS = dS + (immune_escape*alpha[1,:])*R
+        dR = dR + (immune_escape*alpha[1,:])*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
