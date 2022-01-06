@@ -185,47 +185,41 @@ class make_VOC_function():
         Default variant function
 
     """
-    def __init__(self, *df_abc):
-        self.df_abc = df_abc
-        self.data_given = False
-        if self.df_abc != ():
-            self.df_abc = df_abc[0] # First entry in list of optional arguments (dataframe)
-            self.data_given = True
+    def __init__(self):
+        # In this module, logistic growth curves were (manually) fitted to the VOC emergence data
+        self.logistic_parameters = pd.DataFrame(index=['abc', 'delta', 'omicron'], columns = ['k', 't_introduction', 't_sigmoid'])
+        # alpha, beta, gamma variants
+        self.logistic_parameters.loc['abc'] = [0.07, '2020-12-01', '2021-02-14']
+        # delta variant
+        self.logistic_parameters.loc['delta'] = [0.11, '2021-05-01', '2021-06-25']
+        # omicron variant
+        self.logistic_parameters.loc['omicron'] = [0.19, '2021-11-26', '2021-12-24']
 
-    @lru_cache()
-    def VOC_abc_data(self,t):
-        return self.df_abc.iloc[self.df_abc.index.get_loc(t, method='nearest')]['baselinesurv_f_501Y.V1_501Y.V2_501Y.V3']
-
-    @lru_cache()
-    def VOC_abc_logistic(self,t):
-        # Parameters obtained by fitting logistic model to weekly prevalence data
-        t_sig = pd.Timestamp('2021-02-14')
-        k = 0.07
-        # Function to return the fraction of the delta-variant
-        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
-
-    @lru_cache()
-    def VOC_delta_logistic(self,t):
-        # Parameters obtained by fitting logistic model to weekly prevalence data
-        t_sig = pd.Timestamp('2021-06-25')
-        k = 0.11
-        # Function to return the fraction of the delta-variant
+    def logistic_growth(self,t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
     # Default VOC function includes British and Indian variants
     def __call__(self, t, states, param):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
-        # Introduction Indian variant
-        t1 = pd.Timestamp('2021-05-01')
-        # Construct alpha
-        if t <= t1:
-            if self.data_given:
-                return np.array([1-self.VOC_abc_data(t), self.VOC_abc_data(t), 0])
-            else:
-                return np.array([1-self.VOC_abc_logistic(t), self.VOC_abc_logistic(t), 0])
+        # Pre-allocate alpha
+        alpha = np.zeros([2, len(self.logistic_parameters.index)+1])
+        # Return the default before introduction of the first variant
+        if t <= pd.to_datetime(self.logistic_parameters['t_introduction']).min():
+            alpha[0,0] = 1
+            return alpha    
         else:
-            return np.array([0, 1-self.VOC_delta_logistic(t), self.VOC_delta_logistic(t)])
+            # Retrieve correct index of variant logistic growth properties
+            try:
+                idx = [index for index,value in enumerate(self.logistic_parameters['t_introduction'].values) if pd.Timestamp(value) >= t][0] - 1
+            except:
+                idx = len(self.logistic_parameters.index) - 1
+            # Perform computation of logistic growth and derivative
+            f = self.logistic_growth(t, pd.Timestamp(self.logistic_parameters.iloc[idx]['t_sigmoid']), self.logistic_parameters.iloc[idx]['k'])
+            df = self.logistic_parameters.iloc[idx]['k']*f*(1-f)
+            alpha[:,idx] = [1-f,-df]
+            alpha[:,idx+1] = [f,df]
+            return alpha            
 
 ###########################
 ## Vaccination functions ##
