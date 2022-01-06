@@ -132,15 +132,13 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update)
-    # Load and format national VOC data (for time-dependent VOC fraction)
-    df_VOC_abc = VOC.get_abc_data()
 
     ##################################################
     ## Construct time-dependent parameter functions ##
     ##################################################
 
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(df_VOC_abc)
+    VOC_function = make_VOC_function()
 
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
@@ -313,8 +311,6 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-    # Load and format national VOC data (for time-dependent VOC fraction)
-    df_VOC_abc = VOC.get_abc_data()
     # Load and format local vaccination data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
 
@@ -328,7 +324,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(df_VOC_abc)
+    VOC_function = make_VOC_function()
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
     # Time-dependent seasonality function, updating season_factor
