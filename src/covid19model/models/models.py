@@ -380,11 +380,22 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         *Deterministic implementation*
         """
- 
-        K_inf = np.array([1, K_inf1, K_inf2])
+
+        # Detect errors in social contact data
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         if Nc is None:
             print(t)
+
+        # Construct vector K_inf
+        # ~~~~~~~~~~~~~~~~~~~~~~
+
+        K_inf = np.array([1, K_inf1, K_inf2])
+
+        # Tentative: use only first row of alpha
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        alpha = alpha[0,:]
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -723,11 +734,18 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc, doses): # stratified parameters that determine stratification dimensions
 
+        ############################################################
+        ## Tentative: use only first row of alpha (VOC fractions) ##
+        ############################################################
+
+        alpha = alpha[0,:]
+
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
         K_inf = np.array([1, K_inf1, K_inf2])
+
         if sum(alpha) != 1:
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
