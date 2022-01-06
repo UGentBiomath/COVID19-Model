@@ -139,6 +139,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
 
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function()
+    latent_phase_function = make_VOC_function().latent_phase_function
 
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
@@ -179,13 +180,14 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     # Assumpations: 50% lower chance of hospitalization, vaccine protection against susceptibility 30% (waned 2 doses), 70% (boosted); against hospitalization remains 90%, infectability 50%
     params['K_hosp'] = [1, 1, 1, 0.5]
     params['alpha'] = [[1, 0, 0, 0], [0, 0, 0, 0]]
-    params['e_s'] = np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73], [0, 0.58, 0.30, 0.20, 0.73]]) # rows = VOC, columns = # no. doses
-    params['e_h'] = np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.80,0.90]])
-    params['e_i'] = np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.25, 0.5]])
+    # For omicron: Booster Low booster efficacy scenario from Barnard et al. (with low escape) https://cmmid.github.io/topics/covid19/reports/omicron_england/report_23_dec_2021.pdf
+    params['e_s'] = np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73], [0, 0.34, 0.44, 0.25, 0.66]]) # rows = VOC, columns = # no. doses
+    params['e_h'] = np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.84,0.67,0.93]])
+    params['e_i'] = np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.24,0.37,0.24, 0.37]])
 
     # Initialize model
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
-                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality_function, 'sigma': latent_phase_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
 
     return initN, model
 

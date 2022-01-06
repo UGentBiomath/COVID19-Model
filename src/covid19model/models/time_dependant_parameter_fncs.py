@@ -192,6 +192,17 @@ class make_VOC_function():
     def logistic_growth(self,t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
+    def latent_phase_function(self, t, states, param):
+        # Convert time to timestamp
+        t = pd.Timestamp(t.date())
+        # Get variant fraction
+        alpha = self.__call__(t,states,param)
+        # 
+        if t <= pd.to_datetime(self.logistic_parameters['t_introduction'].loc['omicron']):
+            return param
+        else:
+            return alpha[0,-1]*2.34 + alpha[0,-2]*4.54
+
     # Default VOC function includes British and Indian variants
     def __call__(self, t, states, param):
         # Convert time to timestamp
