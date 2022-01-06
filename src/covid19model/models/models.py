@@ -402,8 +402,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         VOC_derivatives = alpha[1,:]
         alpha = alpha[0,:]
 
-        # Harcode an immune escape vector 
-        immune_escape = np.array([0,0,0,0.5])
+        # Harcode an immune escape vector: Barnard: 0.92 (pessimistic), 0.82 (optimistic); Hens: HR 3.3 (0.76; 0.73-0.79)
+        immune_escape = np.array([0,0,0,0.76])
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
