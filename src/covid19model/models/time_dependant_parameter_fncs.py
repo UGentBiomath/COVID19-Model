@@ -169,7 +169,7 @@ class make_VOC_function():
     The model parameter alpha currently consists of 2 rows and 4 columns.
     The first row contains the VOC fractions, the second row contains the derivatives of the fractions. The derivates are needed to model immune escape.
     The columns denote the variants: 0: Wild-Type, 1: Alpha,Beta,Gamma, 2: Delta, 3: Omicron.
-    Logistic parameters were manually fitted to the VOC prevalence data and are hardcoded in the init function of this module
+    Logistic parameters were manually fitted to the VOC effalence data and are hardcoded in the init function of this module
 
     Output
     ------
@@ -501,7 +501,7 @@ class make_vaccination_function():
 
 class make_contact_matrix_function():
     """
-    Class that returns contact matrix based on 4 prevention parameters by default, but has other policies defined as well.
+    Class that returns contact matrix based on 4 effention parameters by default, but has other policies defined as well.
 
     Input
     -----
@@ -514,7 +514,7 @@ class make_contact_matrix_function():
     ------
 
     __class__ : default function
-        Default output function, based on contact_matrix_4prev
+        Default output function, based on contact_matrix_4eff
 
     """
     def __init__(self, df_google, Nc_all):
@@ -530,14 +530,14 @@ class make_contact_matrix_function():
             self.space_agg = len(self.df_google.index.get_level_values('NIS').unique().values)
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t, prev_home=1, prev_schools=1, prev_work=1, prev_rest = 1, mentality=1,
+    def __call__(self, t, eff_home=1, eff_schools=1, eff_work=1, eff_rest = 1, mentality=1,
                        school=None, work=None, transport=None, leisure=None, others=None, home=None):
 
         """
         t : timestamp
             current date
-        prev_... : float [0,1]
-            prevention parameter to estimate
+        eff_... : float [0,1]
+            effention parameter to estimate
         school, work, transport, leisure, others : float [0,1]
             level of opening of these sectors
             if None, it is calculated from google mobility data
@@ -585,12 +585,12 @@ class make_contact_matrix_function():
                 school = school*np.ones(self.space_agg)
 
             # Construct contact matrix
-            CM = (prev_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
-                    (prev_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                    (prev_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                    (prev_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
-                    (prev_rest*values_dict['leisure'])[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
-                    (prev_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
+            CM = (eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+                    (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
+                    (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
+                    (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                    (eff_rest*values_dict['leisure'])[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
+                    (eff_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others'])
 
         else:
             if t < pd.Timestamp('2020-03-17'):
@@ -610,12 +610,12 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (prev_home*self.Nc_all['home'] + mentality*(
-                    prev_schools*school*self.Nc_all['schools'] +
-                    prev_work*values_dict['work']*self.Nc_all['work'] +
-                    prev_rest*values_dict['transport']*self.Nc_all['transport'] +
-                    prev_rest*values_dict['leisure']*self.Nc_all['leisure'] +
-                    prev_rest*values_dict['others']*self.Nc_all['others']) )
+            CM = (eff_home*self.Nc_all['home'] + mentality*(
+                    eff_schools*school*self.Nc_all['schools'] +
+                    eff_work*values_dict['work']*self.Nc_all['work'] +
+                    eff_rest*values_dict['transport']*self.Nc_all['transport'] +
+                    eff_rest*values_dict['leisure']*self.Nc_all['leisure'] +
+                    eff_rest*values_dict['others']*self.Nc_all['others']) )
 
         return CM
 
@@ -654,7 +654,7 @@ class make_contact_matrix_function():
     ## National model ##
     ####################
 
-    def policies_all(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest, prev_home, mentality):
+    def policies_all(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -670,8 +670,10 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
-        prev_{location} : float
+        eff_{location} : float
             Effectivity of contacts at {location}
+        mentality : float
+            lockdown mentality multipier
 
         Returns
         -------
@@ -713,101 +715,99 @@ class make_contact_matrix_function():
         t22 = pd.Timestamp('2021-10-01') # Flanders releases all measures
         t23 = pd.Timestamp('2021-11-01') # Start of autumn break
         t24 = pd.Timestamp('2021-11-07') # End of autumn break
-        t25 = pd.Timestamp('2021-12-26') # Start of Christmass break
-        t26 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t27 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t28 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t29 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t30 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t31 = pd.Timestamp('2022-07-01') # Start of summer holidays
-        t32 = pd.Timestamp('2022-09-01') # End of summer holidays
-        t33 = pd.Timestamp('2022-09-21') # Opening of universities
-        t34 = pd.Timestamp('2022-10-31') # Start of autumn break
-        t35 = pd.Timestamp('2022-11-06') # End of autumn break
+        t25 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+        t26 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+        t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
+        t28 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t30 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t32 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
         ################
         ## First wave ##
         ################
 
         if t <= t1:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
         elif t1 < t <= t1 + l1_days:
             t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
-            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, mentality=mentality, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            policy_new = self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest, mentality=mentality, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, r*1, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, r*1, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)            
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, r*1, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, r*1, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)                                          
         elif t5 < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=0)
 
         ######################      
         ## Winter 2020-2021 ##
         ######################
 
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=0.7)  
         elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)  
         elif t8  < t <= t8 + l2_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest, mentality, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            policy_new = self.__call__(t, eff_schools, eff_work, eff_rest, mentality, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=1)
         elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality,
                                 school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality,
                                 school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                     school=0)                           
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, 
                                 school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, mentality, school=1)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, r*1, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, r*1, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, r*1, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, r*1, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.8, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
 
         ######################
@@ -815,49 +815,39 @@ class make_contact_matrix_function():
         ######################
         
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.8, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.8, school=1)    
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=0.8, school=1)  
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.70, school=0) 
         elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.70, school=1)
         elif t25 < t <= t26:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, school=0)
+            # Gradual re-introduction of mentality change during overlegcommites
+            l = (t26 - t25)/pd.Timedelta(days=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.70, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t25, l)
         elif t26 < t <= t27:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)
         elif t27 < t <= t28:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                leisure=1.1, work=0.9, transport=1, others=1, school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)
         elif t28 < t <= t29:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)
         elif t29 < t <= t30:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)  
         elif t30 < t <= t31:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)           
         elif t31 < t <= t32:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)
         elif t32 < t <= t33:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=0.8) 
-        elif t33 < t <= t34:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)                            
-        elif t34 < t <= t35:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=0.9, leisure=1.1, transport=1, others=1, school=0)                                                                                                                                                
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=1)                                                                                                                                    
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest, 
-                                work=1, leisure=1, transport=1, others=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality, school=0)    
 
-    def policies_all_WAVE4(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home, date_measures, scenario):
+    def policies_all_WAVE4(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest_lockdown, eff_rest_relaxation, eff_home, date_measures, scenario):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -873,7 +863,7 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
-        prev_{location} : float
+        eff_{location} : float
             Effectivity of contacts at {location}
 
         Returns
@@ -935,153 +925,153 @@ class make_contact_matrix_function():
         scenarios_leisure = [1, 1, 0.75, 0.50, 0.25]
 
         if t <= t1:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)
         elif t1 < t <= t1 + l1_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
-            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)
+            policy_new = self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, r*eff_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)            
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, r*eff_rest_relaxation, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)                                          
         elif t5 < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)      
         # Second wave
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0.7)  
         elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  
 
         elif t8  < t <= t8 + l2_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)
+            policy_new = self.__call__(t, eff_schools, eff_work, eff_rest_lockdown, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown,
                                 school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                     school=0)                           
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=1)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, r*eff_rest_relaxation, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, r*prev_rest_relaxation, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, 0.75*prev_rest_relaxation, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, r*eff_rest_relaxation, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, 0.75*eff_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 0.75*prev_rest_relaxation, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, 0.75*eff_rest_relaxation, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, 0.70*prev_rest_relaxation, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, 0.70*eff_rest_relaxation, school=1)    
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)    
         elif t24 < t <= t25:
             # End of autumn break --> Date of measures
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)   
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)   
         elif t25 < t <= t25 + pd.Timedelta(5, unit='D'):
             # Date of measures --> End easing in leisure restrictions
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], school=1)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, work=scenarios_work[scenario], school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
             return self.ramp_fun(policy_old, policy_new, t, t25, 5)
         elif t25 + pd.Timedelta(5, unit='D') < t <= t26:
             # End easing in leisure restrictions --> Early schools closure before Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario]) 
         elif t26 < t <= t27:
             # Early schools closure before Christmas holiday --> Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=0)
         elif t27 < t <= t28:
             # Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=scenarios_work[scenario]-0.2, leisure=scenarios_leisure[scenario], transport=scenarios_work[scenario]-0.2, school=0) 
         elif t28 < t <= t29:
             # Christmass holiday --> End of measures
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario], school=1) 
         elif t29 < t <= t30:
             # End of Measures --> Spring break
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 leisure=1, work=1, transport=1, others=1, school=1)  
         elif t30 < t <= t31:
             # Spring Break
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)     
         elif t31 < t <= t32:
             # Spring Break --> Easter
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t32 < t <= t33:
             # Easter
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0)
         elif t33 < t <= t34:
             # Easter --> Summer
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t34 < t <= t35:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0) 
         elif t35 < t <= t36:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=0.7)                            
         elif t36 < t <= t37:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t37 < t <= t38:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=1, others=1, school=0)                                                                                                                                                                                                                                                           
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1) 
 
     ###################
     ## Spatial model ##
     ###################
 
-    def policies_all_spatial(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
+    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest_lockdown, eff_rest_relaxation, eff_home):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1097,7 +1087,7 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
-        prev_{location} : float
+        eff_{location} : float
             Effectivity of contacts at {location}
 
         Returns
@@ -1149,147 +1139,147 @@ class make_contact_matrix_function():
         t33 = pd.Timestamp('2022-10-31') # Start of autumn break
         t34 = pd.Timestamp('2022-11-06') # End of autumn break
 
-        spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
-                                                prev_rest_lockdown, # W
-                                                prev_rest_lockdown, # Bxl
-                                                prev_rest_lockdown, prev_rest_lockdown, # F
-                                                prev_rest_relaxation, prev_rest_relaxation, # W
-                                                prev_rest_lockdown, # F
-                                                0.7*prev_rest_relaxation, 0.7*prev_rest_relaxation])) # W
+        spatial_summer_lockdown_2020 = tuple(np.array([eff_rest_lockdown, eff_rest_lockdown, # F
+                                                eff_rest_lockdown, # W
+                                                eff_rest_lockdown, # Bxl
+                                                eff_rest_lockdown, eff_rest_lockdown, # F
+                                                eff_rest_relaxation, eff_rest_relaxation, # W
+                                                eff_rest_lockdown, # F
+                                                0.7*eff_rest_relaxation, 0.7*eff_rest_relaxation])) # W
 
         co_F = 0.60
         co_W = 0.50
         co_Bxl = 0.45
-        spatial_summer_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, # W
-                                                co_Bxl*prev_rest_relaxation, # Bxl
-                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
-                                                co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+        spatial_summer_2021 = tuple(np.array([co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, # W
+                                                co_Bxl*eff_rest_relaxation, # Bxl
+                                                co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation, # W
+                                                co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation])) # W
 
         co_F = 1.00
         co_W = 0.50
         co_Bxl = 0.45
-        relaxation_flanders_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, # W
-                                                co_Bxl*prev_rest_relaxation, # Bxl
-                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
-                                                co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+        relaxation_flanders_2021 = tuple(np.array([co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, # W
+                                                co_Bxl*eff_rest_relaxation, # Bxl
+                                                co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation, # W
+                                                co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation])) # W
 
         if t <= t1:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  #self.Nc_all['total']
         elif t1 < t <= t1 + l1_days:
             t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
-            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  #self.Nc_all['total']
+            policy_new = self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)
         # 2020            
         elif t3 < t <= t4:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_lockdown_2020, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_lockdown_2020, school=0)                                          
         elif t5 < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)      
         # Second wave
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0.8)  
         elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  
 
         elif t8  < t <= t8 + l2_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)
+            policy_new = self.__call__(t, eff_schools, eff_work, eff_rest_lockdown, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown,
                                 school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown,
                                 school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                     school=0)                           
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0)
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0.8)
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0.8)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=1)    
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=0)  
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=1)  
         elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=0)  
         elif t25 < t <= t26:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t26 < t <= t27:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 leisure=1.1, work=0.9, transport=1, others=1, school=0)  
         elif t27 < t <= t28:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)           
         elif t28 < t <= t29:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t30 < t <= t31:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1.3, transport=1, others=1, school=0)
         elif t31 < t <= t32:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=0.8) 
         elif t32 < t <= t33:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)                            
         elif t33 < t <= t34:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.9, leisure=1.1, transport=1, others=1, school=0)
                                                                                                                                                                                                                                  
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
-    def policies_all_spatial_WAVE4(self, t, states, param, l1, l2, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home, date_measures, scenario):
+    def policies_all_spatial_WAVE4(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest_lockdown, eff_rest_relaxation, eff_home, date_measures, scenario):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1305,7 +1295,7 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
-        prev_{location} : float
+        eff_{location} : float
             Effectivity of contacts at {location}
 
         Returns
@@ -1365,166 +1355,166 @@ class make_contact_matrix_function():
         scenarios_schools = [1, 1, 1, 1, 1] 
         scenarios_leisure = [1, 1, 0.75, 0.50, 0.25]
 
-        spatial_summer_lockdown_2020 = tuple(np.array([prev_rest_lockdown, prev_rest_lockdown, # F
-                                                prev_rest_lockdown, # W
-                                                prev_rest_lockdown, # Bxl
-                                                prev_rest_lockdown, prev_rest_lockdown, # F
-                                                prev_rest_relaxation, prev_rest_relaxation, # W
-                                                prev_rest_lockdown, # F
-                                                0.7*prev_rest_relaxation, 0.7*prev_rest_relaxation])) # W
+        spatial_summer_lockdown_2020 = tuple(np.array([eff_rest_lockdown, eff_rest_lockdown, # F
+                                                eff_rest_lockdown, # W
+                                                eff_rest_lockdown, # Bxl
+                                                eff_rest_lockdown, eff_rest_lockdown, # F
+                                                eff_rest_relaxation, eff_rest_relaxation, # W
+                                                eff_rest_lockdown, # F
+                                                0.7*eff_rest_relaxation, 0.7*eff_rest_relaxation])) # W
 
         co_F = 0.60
         co_W = 0.50
         co_Bxl = 0.45
-        spatial_summer_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, # W
-                                                co_Bxl*prev_rest_relaxation, # Bxl
-                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
-                                                co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+        spatial_summer_2021 = tuple(np.array([co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, # W
+                                                co_Bxl*eff_rest_relaxation, # Bxl
+                                                co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation, # W
+                                                co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation])) # W
 
         co_F = 1.00
         co_W = 0.50
         co_Bxl = 0.45
-        relaxation_flanders_2021 = tuple(np.array([co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, # W
-                                                co_Bxl*prev_rest_relaxation, # Bxl
-                                                co_F*prev_rest_relaxation, co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation, # W
-                                                co_F*prev_rest_relaxation, # F
-                                                co_W*prev_rest_relaxation, co_W*prev_rest_relaxation])) # W
+        relaxation_flanders_2021 = tuple(np.array([co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, # W
+                                                co_Bxl*eff_rest_relaxation, # Bxl
+                                                co_F*eff_rest_relaxation, co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation, # W
+                                                co_F*eff_rest_relaxation, # F
+                                                co_W*eff_rest_relaxation, co_W*eff_rest_relaxation])) # W
 
         if t <= t1:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  #self.Nc_all['total']
         elif t1 < t <= t1 + l1_days:
             t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  #self.Nc_all['total']
-            policy_new = self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  #self.Nc_all['total']
+            policy_new = self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_lockdown, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_lockdown, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)
         # 2020            
         elif t3 < t <= t4:
-            return self.__call__(t, prev_home=prev_home, prev_schools=prev_schools, prev_work=prev_work, prev_rest=prev_rest_relaxation, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest_relaxation, school=0)
         elif t4 < t <= t5:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_lockdown_2020, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_lockdown_2020, school=0)                                          
         elif t5 < t <= t6:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)      
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0)      
         # Second wave
         elif t6 < t <= t7:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0.8)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=0.8)  
         elif t7 < t <= t8:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)  
 
         elif t8  < t <= t8 + l2_days:
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
-            policy_new = self.__call__(t, prev_schools, prev_work, prev_rest_lockdown, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, school=1)
+            policy_new = self.__call__(t, eff_schools, eff_work, eff_rest_lockdown, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t9 < t <= t10:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown,
                                 school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown,
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown,
                                 school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                     school=0)                           
         elif t17 < t <= t18:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, 
                                 school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_lockdown, school=0)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_lockdown, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0)
         elif t20 < t <= t21:
-            return self.__call__(t, prev_home, prev_schools, prev_work, spatial_summer_2021, school=0.8)
+            return self.__call__(t, eff_home, eff_schools, eff_work, spatial_summer_2021, school=0.8)
         elif t21 < t <= t22:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=1)    
         elif t22 < t <= t23:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=0)  
         elif t23 < t <= t24:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, school=1)  
         elif t24 < t <= t24 + pd.Timedelta(5, unit='D'):
             # Date of measures --> End easing in leisure restrictions
-            policy_old = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], school=1)
-            policy_new = self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, work=scenarios_work[scenario], school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
             return self.ramp_fun(policy_old, policy_new, t, t24, 5)
         elif t24 + pd.Timedelta(5, unit='D') < t <= t25:
             # End easing in leisure restrictions --> Early school closing before Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=scenarios_schools[scenario])
         elif t25 < t <= t26:
             # Early school closing --> Christmas holiday
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=scenarios_work[scenario], leisure=scenarios_leisure[scenario], school=0)
         elif t26 < t <= t27:
             # Christmass break
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario] - 0.2, transport=scenarios_work[scenario] - 0.2, school=0)
         elif t27 < t <= t28:   
             # Christmass --> End of measures
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 leisure=scenarios_leisure[scenario], work=scenarios_work[scenario], school=1)
         elif t28 < t <= t29:
             # End of measures --> Spring break
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021,
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021,
                                 work=1, leisure=1, transport=1, others=1, school=1)           
         elif t29 < t <= t30:
             # Spring Break
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)      
         elif t30 < t <= t31:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t31 < t <= t32:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, relaxation_flanders_2021, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)
         elif t32 < t <= t33:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t33 < t <= t34:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0) 
         elif t34 < t <= t35:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=0.7)                            
         elif t35 < t <= t36:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
         elif t36 < t <= t37:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=0.7, leisure=1, transport=0.7, others=1, school=0)                                                                                                                                                                                                                                 
         else:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
 
-    def policies_all_work_only(self, t, states, param, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home):
+    def policies_all_work_only(self, t, states, param, eff_schools, eff_work, eff_rest_lockdown, eff_rest_relaxation, eff_home):
             '''
             Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
             
@@ -1536,7 +1526,7 @@ class make_contact_matrix_function():
                 model states
             param : dict
                 model parameter dictionary
-            prev_{location} : float
+            eff_{location} : float
                 Effectivity of contacts at {location}
 
             Returns
@@ -1556,28 +1546,28 @@ class make_contact_matrix_function():
 
             if t <= t1:
                 # Before Christmas --> Google data
-                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             elif t1 < t <= t2:
                 # Christmas 
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+                return self.__call__(t, work = 0.7, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0) 
             elif t2 < t <= t3:
                 # Christmas --> Spring Break
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             elif t3 < t <= t4:
                 # Spring Break
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
+                return self.__call__(t, work = 0.7, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)  
             elif t4 < t <= t5:
                 # Spring Break --> Easter Break
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)           
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)           
             elif t5 < t <= t6:
                 # Easter Break
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = 0.7, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
                 # Easter Break --> ...                                                                                                   
             else:
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0) 
 
 
-    def policies_all_work_only_WAVE4(self, t, states, param, prev_schools, prev_work, prev_rest_lockdown, prev_rest_relaxation, prev_home, date_measures, scenario):
+    def policies_all_work_only_WAVE4(self, t, states, param, eff_schools, eff_work, eff_rest_lockdown, eff_rest_relaxation, eff_home, date_measures, scenario):
             '''
             Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
             
@@ -1589,7 +1579,7 @@ class make_contact_matrix_function():
                 model states
             param : dict
                 model parameter dictionary   
-            prev_{location} : float
+            eff_{location} : float
                 Effectivity of contacts at {location}
 
             Returns
@@ -1613,31 +1603,31 @@ class make_contact_matrix_function():
 
             if t <= t1:
                 # Before mandatory telework --> Google data
-                return self.__call__(t, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0) 
             elif t1 < t <= t2:
                 # Mandatory telework --> Christmas
-                return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = scenarios_work[scenario], eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             elif t2 < t <= t3:
                 # Christmas break
-                return self.__call__(t, work = scenarios_work[scenario] - 0.2 , prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = scenarios_work[scenario] - 0.2 , eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             elif t3 < t <= t4:
                 # Christmas break --> End measures
-                return self.__call__(t, work = scenarios_work[scenario], prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)  
+                return self.__call__(t, work = scenarios_work[scenario], eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)  
             elif t4 < t <= t5:
                 # End of measures --> Spring break
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0) 
             elif t5 < t <= t6:
                 # Spring break
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)           
+                return self.__call__(t, work = 0.7, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)           
             elif t6 < t <= t7:
                 # Spring break --> Easter
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             elif t7 < t <= t8:
                 # Easter break
-                return self.__call__(t, work = 0.7, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0)
+                return self.__call__(t, work = 0.7, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0)
             else:
                 # Easter Break --> ...    
-                return self.__call__(t, work = 1, prev_home=0, prev_schools=0, prev_work=prev_work, prev_rest=0, school=0) 
+                return self.__call__(t, work = 1, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, school=0) 
 
 
 ##########################
