@@ -332,6 +332,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         -------------------------
         beta : probability of infection when encountering an infected person
         f_VOC : (first row) fraction of alternative COVID-19 variant, (second row) derivative of fraction of alternative COVID-19 variant
+        f_immune_escape : sequential fraction of immune escape of new variant
         K_inf_abc : infectivity gain of combination of alpha, beta and gamma variant (infectivity of new variant = K * infectivity of old variant)
         K_inf_delta : infectivity gain of delta variant
         K_inf_omicron : infectivity gain of omicron variant
@@ -366,14 +367,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'f_VOC', 'immune_escape', 'K_inf_abc', 'K_inf_delta', 'K_inf_omicron', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf_abc', 'K_inf_delta', 'K_inf_omicron', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, f_VOC, immune_escape, K_inf_abc, K_inf_delta, K_inf_omicron, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, f_immune_escape, K_inf_abc, K_inf_delta, K_inf_omicron, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -566,8 +567,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + sum(immune_escape*d_VOC)*R
-        dR = dR - sum(immune_escape*d_VOC)*R     
+        dS = dS + sum(f_immune_escape*d_VOC)*R
+        dR = dR - sum(f_immune_escape*d_VOC)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
@@ -734,7 +735,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'f_immune_escape', 'K_inf_abc', 'K_inf_delta', 'K_inf_omicron', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
     parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU'],[]]
     stratification = ['place','Nc','doses'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None, None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
@@ -743,31 +744,36 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
     @staticmethod
 
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  beta_R, beta_U, beta_M, f_VOC, f_immune_escape, K_inf_abc, K_inf_delta, K_inf_omicron, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc, doses): # stratified parameters that determine stratification dimensions
 
-        ############################################################
-        ## Tentative: use only first row of alpha (VOC fractions) ##
-        ############################################################
+        ############################
+        ## Modeling immune escape ##
+        ############################
 
-        alpha = alpha[0,:]
+        # Remove negative derivatives to ease further computation
+        f_VOC[1,:][np.where(f_VOC[1,:] < 0)] = 0
+
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]
 
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
-        K_inf = np.array([1, K_inf1, K_inf2])
+        K_inf = np.array([1, K_inf_abc, K_inf_delta, K_inf_omicron])
 
-        if sum(alpha) != 1:
+        if sum(f_VOC) != 1:
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
-        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
-        e_i = np.matmul(alpha, e_i)
-        e_s = np.matmul(alpha, e_s)
-        e_h = np.matmul(alpha, e_h)
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        e_i = np.matmul(f_VOC, e_i)
+        e_s = np.matmul(f_VOC, e_s)
+        e_h = np.matmul(f_VOC, e_h)
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -888,7 +894,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         else:
             raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))*sum(alpha*K_inf)
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))*sum(f_VOC*K_inf)
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.matmul(np.transpose(place_eff), T)
         T_work = np.expand_dims(T_work, axis=2)
@@ -937,7 +943,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         ########################
 
         # Waning of second dose
-        r_waning_vacc = 1/((5/12)*365)
+        r_waning_vacc = 1/((6/12)*365)
         dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
         dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
         dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
@@ -949,6 +955,11 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         # Waning of natural immunity
         dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
         dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
+
+        # Immune escape
+        # ~~~~~~~~~~~~~
+        dS = dS + sum(f_immune_escape*d_VOC)*R
+        dR = dR - sum(f_immune_escape*d_VOC)*R   
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 

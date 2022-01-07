@@ -182,7 +182,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     params['K_hosp'] = [1, 1, 1.66, 0.33*1.66]
     params['f_VOC'] = [[1, 0, 0, 0], [0, 0, 0, 0]]
     # Harcode an immune escape vector: Barnard: 0.92 (pessimistic), 0.82 (optimistic); Hens: HR 3.3 (0.76; 0.73-0.79)
-    params['immune_escape'] = np.array([0,0,0,0.76])
+    params['f_immune_escape'] = np.array([0,0,0,0.76])
     params['sigma'] = [4.54, 4.54, 3.34, 2.34] # alpha-delta: https://www.thelancet.com/journals/lanepe/article/PIIS2666-7762(21)00264-7/fulltext
     # For omicron: Booster Low booster efficacy scenario from Barnard et al. (with low escape) https://cmmid.github.io/topics/covid19/reports/omicron_england/report_23_dec_2021.pdf
     params['e_s'] = np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73], [0, 0.34, 0.44, 0.25, 0.66]]) # rows = VOC, columns = # no. doses
