@@ -379,9 +379,21 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         # Add "size dummy" for vaccination stratification
         pars_dict['doses'] =  np.zeros([dose_stratification_size, dose_stratification_size])
         # Correct size of other parameters
-        pars_dict['e_s'] = np.array([[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73],[0, 0.58, 0.73, 0.47, 0.73]]) # rows = VOC, columns = # no. doses
-        pars_dict['e_h'] = np.array([[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90],[0,0.54,0.90,0.88,0.90]])
-        pars_dict['e_i'] = np.array([[0,0.25,0.5, 0.5, 0.5],[0,0.25,0.5,0.5, 0.5],[0,0.25,0.5,0.5, 0.5]])
+        #                             0    1    2      W     B
+        pars_dict['e_s'] = np.array([[0, 0.48, 0.94, 0.48, 0.94],  # WT
+                                     [0, 0.48, 0.94, 0.48, 0.94],  # alpha
+                                     [0, 0.62, 0.80, 0.45, 0.91],  # delta
+                                     [0, 0.342, 0.441, 0.248, 0.659]]) # omicron
+        #                             0    1    2      W     B
+        pars_dict['e_h'] = np.array([[0, 0.90, 0.95, 0.90, 0.95],  # WT
+                                     [0, 0.90, 0.95, 0.90, 0.95],  # alpha
+                                     [0, 0.92, 0.96, 0.842, 0.99],  # delta
+                                     [0, 0.767, 0.837, 0.676, 0.933]]) # omicron
+        #                             0    1    2      W     B                             
+        pars_dict['e_i'] = np.array([[0, 0.225, 0.45, 0.225, 0.45],  # WT
+                                     [0, 0.225, 0.45, 0.225, 0.45],  # alpha
+                                     [0, 0.24, 0.37, 0.24, 0.37],  # delta
+                                     [0, 0.24, 0.37, 0.24, 0.37]]) # omicron
         pars_dict['d_vacc'] = 100*365
         pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
         # TDPF parameters
@@ -389,7 +401,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
                           'daily_doses' : 60000, # copy default values from vaccination_function, which are curently not used I think
                           'delay_immunity' : 14,
                           'vacc_order' : list(range(age_stratification_size))[::-1],
-                          'stop_idx' : 0,
+                          'stop_idx' : 9,
                           'refusal' : 0.3*np.ones(age_stratification_size)})
 
     ##########
@@ -397,12 +409,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     ##########
 
     if VOC:
-        pars_dict['sigma'] = [4.54, 4.54, 3.34]
-        pars_dict['f_VOC'] = [[1, 0, 0], [0, 0, 0]] # First row: VOC fractions, Second row: VOC fraction derivatives
-        pars_dict['f_immune_escape'] = np.zeros(3)
+        pars_dict['sigma'] = [4.54, 4.54, 3.34, 2.34] # # alpha-delta: https://www.thelancet.com/journals/lanepe/article/PIIS2666-7762(21)00264-7/fulltext
+        pars_dict['f_VOC'] = [[1, 0, 0, 0], [0, 0, 0, 0]] # First row: VOC fractions, Second row: VOC fraction derivatives
+        pars_dict['f_immune_escape'] = np.array([0,0,0,0.76]) # Barnard: 0.92 (pessimistic), 0.82 (optimistic); Hens: HR 3.3 (0.76; 0.73-0.79)
         pars_dict['K_inf_abc'] = 1.30 # British variant infectivity gain
         pars_dict['K_inf_delta'] = 1.30*1.5 # Indian variant infectivity gain
-        pars_dict['K_hosp'] = [1, 1, 1.66] # HR of 3 for delta
+        pars_dict['K_inf_omicron'] = pars_dict['K_inf_delta']
+        pars_dict['K_hosp'] = [1, 1, 1.66, 1.66*0.33] # HR of 3 for delta, HR of 0.50 for Omicron (compared to delta)
 
     #################
     ## Seasonality ##
