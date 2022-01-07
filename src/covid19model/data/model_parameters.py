@@ -397,6 +397,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     ##########
 
     if VOC:
+        pars_dict['sigma'] = [4.54, 4.54, 3.34]
         pars_dict['alpha'] = [[1, 0, 0], [0, 0, 0]] # First row: VOC fractions, Second row: VOC fraction derivatives
         pars_dict['K_inf1'] = 1.45 # British variant infectivity gain
         pars_dict['K_inf2'] = 1.45*1.5 # Indian variant infectivity gain

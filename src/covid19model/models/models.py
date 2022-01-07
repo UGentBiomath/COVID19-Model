@@ -418,7 +418,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
 
+        sigma = np.sum(alpha*sigma)
         h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        h[np.where(h >1)] = 1
         e_i = np.matmul(alpha, e_i)
         e_s = np.matmul(alpha, e_s)
         e_h = np.matmul(alpha, e_h)
