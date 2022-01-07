@@ -103,6 +103,85 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 df_sciensano_mortality = sciensano.get_mortality_data()
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 
+######################################
+## Toy around with the VOC function ##
+######################################
+
+# Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
+from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+# Import packages containing functions to load in data used in the model and the time-dependent parameter functions
+from covid19model.data import VOC
+
+# Load and format national VOC data (for time-dependent VOC fraction)
+df_VOC_abc = VOC.get_abc_data()
+df_VOC_delta = VOC.get_delta_data()
+df_VOC_omicron = VOC.get_omicron_data()
+
+# Time-dependent VOC function, updating alpha
+VOC_function = make_VOC_function()
+
+
+# Variant fraction
+
+simtime = pd.date_range(start=start_calibration,end='2022-03-01')
+
+fig,ax=plt.subplots(nrows=3,ncols=1,figsize=(12,12),sharex=True)
+
+for idx in range(2):
+
+    WT = []
+    abc = []
+    delta = []
+    omicron = []
+    for t in simtime:
+        alpha = VOC_function(t,{},{})
+        WT.append(alpha[idx,0])
+        abc.append(alpha[idx,1])
+        delta.append(alpha[idx,2])
+        omicron.append(alpha[idx,3])
+
+    if idx == 0:
+        ax[idx].plot(simtime,WT,color='black')
+        ax[idx].plot(simtime,abc,color='green')
+        ax[idx].scatter(df_VOC_abc.index, df_VOC_abc.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].plot(simtime,delta,color='orange')
+        ax[idx].scatter(df_VOC_delta.index, df_VOC_delta.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].plot(simtime,omicron,color='red')
+        ax[idx].scatter(df_VOC_omicron.index, df_VOC_omicron.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].set_title('fractions')
+        ax[idx].legend(['WT', 'alpha, beta, gamma', 'delta','omicron'])
+    elif idx == 1:
+        # Plot derivative
+        ax[idx].plot(simtime,WT,color='black')
+        ax[idx].plot(simtime,abc,color='green')
+        ax[idx].plot(simtime,delta,color='orange')
+        ax[idx].plot(simtime,omicron,color='red')
+        ax[idx].set_title('derivatives')
+        # Integrate derivative
+        WT = np.cumsum(WT)
+        WT = WT + 1
+        abc = np.cumsum(abc)
+        delta = np.cumsum(delta)
+        omicron = np.cumsum(omicron)
+        # Plot
+        ax[idx+1].plot(simtime,WT,color='black')
+        ax[idx+1].plot(simtime,abc,color='green')
+        ax[idx+1].scatter(df_VOC_abc.index, df_VOC_abc.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx+1].plot(simtime,delta,color='orange')
+        ax[idx+1].scatter(df_VOC_delta.index, df_VOC_delta.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx+1].plot(simtime,omicron,color='red')
+        ax[idx+1].scatter(df_VOC_omicron.index, df_VOC_omicron.values, color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx+1].set_title('fractions: integration of derivatives')
+        ax[idx+1].grid(False)
+
+    ax[idx].grid(False)
+
+plt.show()
+plt.close()
+
+
+import sys
+sys.exit()
 ##########################
 ## Initialize the model ##
 ##########################
