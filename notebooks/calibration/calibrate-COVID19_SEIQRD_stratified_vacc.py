@@ -144,7 +144,8 @@ if __name__ == '__main__':
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.0415, 16, 12, 0.11, 0.17, 0.03, 0.47, 0.24, 1.40, 1.85, 0.24, 7]) # --> manual fit on 2020-11-15
+    theta = np.array([0.0415, 16, 12, 0.11, 0.17, 0.03, 0.47, 0.24, 1.40, 1.85, 0.24, 7]) # --> manual fit on 2021-11-15
+    theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.06, 0.48, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -162,7 +163,7 @@ if __name__ == '__main__':
     # Assign estimate
     model.parameters = assign_PSO(model.parameters, pars, theta)
     # Perform simulation
-    end_visualization = '2022-01-01'
+    end_visualization = '2022-07-01'
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize fit
     ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_visualization)
@@ -192,7 +193,7 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
         # Satisfied?
-        satisfied = click.confirm('Are you satisfied with the result?', default=False)
+        satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
     ########################
     ## Setup MCMC sampler ##
