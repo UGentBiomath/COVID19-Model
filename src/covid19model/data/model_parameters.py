@@ -363,11 +363,11 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
 
     pars_dict.update({'l1' : 23.0,
                 'l2' : 5.72,
-                'prev_schools' : .333,
-                'prev_work' : .0771,
-                'prev_rest_lockdown' : .014,
-                'prev_rest_relaxation' : .444,
-                'prev_home' : .206})
+                'eff_schools' : .333,
+                'eff_work' : .0771,
+                'eff_rest_lockdown' : .014,
+                'eff_rest_relaxation' : .444,
+                'eff_home' : .206})
 
     #################
     ## Vaccination ##
