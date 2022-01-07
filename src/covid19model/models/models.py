@@ -331,9 +331,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        alpha : fraction of alternative COVID-19 variant
-        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
-        K_inf2 : infectivity gain of Indian COVID-19 variant
+        f_VOC : (first row) fraction of alternative COVID-19 variant, (second row) derivative of fraction of alternative COVID-19 variant
+        K_inf_abc : infectivity gain of combination of alpha, beta and gamma variant (infectivity of new variant = K * infectivity of old variant)
+        K_inf_delta : infectivity gain of delta variant
+        K_inf_omicron : infectivity gain of omicron variant
         # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
         K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
         sigma : length of the latent period
@@ -365,14 +366,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'immune_escape', 'K_inf_abc', 'K_inf_delta', 'K_inf_omicron', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, immune_escape, K_inf_abc, K_inf_delta, K_inf_omicron, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -390,20 +391,17 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
 
-        K_inf = np.array([1, K_inf1, K_inf2, K_inf2])
+        K_inf = np.array([1, K_inf_abc, K_inf_delta, K_inf_omicron])
 
-        # Tentative: modeling immune escape
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Modeling immune escape
+        # ~~~~~~~~~~~~~~~~~~~~~~
 
         # Remove negative derivatives to ease further computation
-        alpha[1,:][np.where(alpha[1,:] < 0)] = 0
+        f_VOC[1,:][np.where(f_VOC[1,:] < 0)] = 0
 
         # Split derivatives and fraction
-        VOC_derivatives = alpha[1,:]
-        alpha = alpha[0,:]
-
-        # Harcode an immune escape vector: Barnard: 0.92 (pessimistic), 0.82 (optimistic); Hens: HR 3.3 (0.76; 0.73-0.79)
-        immune_escape = np.array([0,0,0,0.76])
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -413,17 +411,17 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if sum(alpha) != 1:
+        if sum(f_VOC) != 1:
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
 
-        sigma = np.sum(alpha*sigma)
-        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
+        sigma = np.sum(f_VOC*sigma)
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[np.where(h >1)] = 1
-        e_i = np.matmul(alpha, e_i)
-        e_s = np.matmul(alpha, e_s)
-        e_h = np.matmul(alpha, e_h)
+        e_i = np.matmul(f_VOC, e_i)
+        e_s = np.matmul(f_VOC, e_s)
+        e_h = np.matmul(f_VOC, e_h)
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -525,7 +523,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), alpha*K_inf) ,axis=1) , axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), f_VOC*K_inf) ,axis=1) , axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -550,7 +548,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~
 
         # Waning of second dose
-        r_waning_vacc = 1/((5/12)*365)
+        r_waning_vacc = 1/((6/12)*365)
         dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
         dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]
@@ -568,8 +566,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + sum(immune_escape*VOC_derivatives)*R
-        dR = dR - sum(immune_escape*VOC_derivatives)*R     
+        dS = dS + sum(immune_escape*d_VOC)*R
+        dR = dR - sum(immune_escape*d_VOC)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
