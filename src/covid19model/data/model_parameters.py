@@ -415,7 +415,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         pars_dict['K_inf_abc'] = 1.30 # British variant infectivity gain
         pars_dict['K_inf_delta'] = 1.30*1.5 # Indian variant infectivity gain
         pars_dict['K_inf_omicron'] = pars_dict['K_inf_delta']
-        pars_dict['K_hosp'] = [1, 1, 1.66, 1.66*0.33] # HR of 3 for delta, HR of 0.50 for Omicron (compared to delta)
+        pars_dict['K_hosp'] = [1, 1.61, 1.66, 1.66*0.33] # HR of 1.6 for alpha (https://pubmed.ncbi.nlm.nih.gov/34487522/), HR of 3 for delta (Hens), HR of 0.50 for Omicron (compared to delta; Hens)
 
     #################
     ## Seasonality ##
