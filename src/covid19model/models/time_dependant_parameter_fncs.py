@@ -809,11 +809,9 @@ class make_contact_matrix_function():
         elif t23 < t <= t24:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)    
         elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=1, leisure=1, transport=1, others=1, school=1)
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=1)
         elif t25 < t <= t26:
-            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
+            return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, school=0)
         elif t26 < t <= t27:
             return self.__call__(t, prev_home, prev_schools, prev_work, prev_rest_relaxation, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
@@ -1245,8 +1243,7 @@ class make_contact_matrix_function():
         elif t23 < t <= t24:
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=1)  
         elif t24 < t <= t25:
-            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
-                                work=0.7, leisure=1.3, transport=1, others=1, school=0) 
+            return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, school=0)  
         elif t25 < t <= t26:
             return self.__call__(t, prev_home, prev_schools, prev_work, relaxation_flanders_2021, 
                                 work=1, leisure=1, transport=1, others=1, school=1)
