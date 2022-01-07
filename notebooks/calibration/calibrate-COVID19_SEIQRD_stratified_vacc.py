@@ -139,13 +139,14 @@ if __name__ == '__main__':
     #############################
 
     # optimisation settings
-    pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home', 'K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
+    pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest', 'mentality', 'prev_home', 'K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
     bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.9,2.4), (0, 0.20),(-62,62))
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.0415, 16, 12, 0.11, 0.17, 0.03, 0.47, 0.24, 1.40, 1.85, 0.24, 7]) # --> manual fit on 2021-11-15
-    theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.06, 0.48, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05
+    #theta = np.array([0.0415, 16, 12, 0.11, 0.17, 0.03, 0.47, 0.24, 1.40, 1.85, 0.24, 7]) # --> manual fit on 2021-11-15
+    #theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.06, 0.48, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05
+    theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.15, 0.30, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05 for new prev_rest + mentality combo
 
     ####################################
     ## Local Nelder-mead optimization ##
