@@ -501,39 +501,41 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
-    param_dict['K_hosp'] = np.ones(3)
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['K_inf_abc'] = samples_dict['K_inf_abc'][idx]
+    param_dict['K_inf_delta'] = samples_dict['K_inf_delta'][idx]
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
     param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
+    # Omicron uncertainty: between 0-50% more transmissible; between 20-50% of delta variant severity
+    param_dict['K_inf_omicron'] = np.random.uniform(low=1.30*param_dict['K_inf_delta'], high=1.80*param_dict['K_inf_delta'])
+    param_dict['K_hosp'][3] = np.random.uniform(low=0.2, high=0.5)*param_dict['K_hosp'][2]
 
     # Vaccination
     # -----------
 
     # Reduction of infectiousness
     #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
-    param_dict['e_i'] = np.zeros([3,5])
-    param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
-    param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
+    #param_dict['e_i'] = np.zeros([3,5])
+    #param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
+    #param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
     # Reduction of susceptibility
     # Based on: 
     #https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext#sec1
-    param_dict['e_s'] = np.zeros([3,5])
-    param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
-    param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
-    param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
-    param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
+    #param_dict['e_s'] = np.zeros([3,5])
+    #param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
+    #param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
+    #param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
+    #param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
     # Reduction of hospitalization propensity
-    param_dict['e_h'] = np.zeros([3,5])
-    param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
-    param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
-    param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
-    param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
+    #param_dict['e_h'] = np.zeros([3,5])
+    #param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
+    #param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
+    #param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
+    #param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
 
     # Hospitalization
     # ---------------
