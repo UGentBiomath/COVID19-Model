@@ -770,6 +770,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
             raise ValueError(
                 "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
             )
+        sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         e_i = np.matmul(f_VOC, e_i)
         e_s = np.matmul(f_VOC, e_s)

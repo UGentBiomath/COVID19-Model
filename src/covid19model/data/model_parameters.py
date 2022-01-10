@@ -361,13 +361,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     ## Google community mobility social contact function ##
     #######################################################
 
-    pars_dict.update({'l1' : 23.0,
-                'l2' : 5.72,
-                'eff_schools' : .333,
-                'eff_work' : .0771,
-                'eff_rest_lockdown' : .014,
-                'eff_rest_relaxation' : .444,
-                'eff_home' : .206})
+    pars_dict.update({'l1' : 10,
+                'l2' : 10,
+                'eff_schools' : 0.5,
+                'eff_work' : 0.5,
+                'eff_rest' : 0.5,
+                'mentality' : 0.5,
+                'eff_home' : 0.5})
 
     #################
     ## Vaccination ##
