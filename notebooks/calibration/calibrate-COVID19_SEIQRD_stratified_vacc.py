@@ -140,14 +140,12 @@ if __name__ == '__main__':
     #############################
 
     # optimisation settings
-    pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest', 'mentality', 'prev_home', 'K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
-    bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.9,2.4), (0, 0.20),(-62,62))
+    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
+    bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.6,2.4), (0, 0.20),(-62,62))
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    #theta = np.array([0.0415, 16, 12, 0.11, 0.17, 0.03, 0.47, 0.24, 1.40, 1.85, 0.24, 7]) # --> manual fit on 2021-11-15
-    #theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.06, 0.48, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05
-    theta = np.array([0.0415, 16, 10, 0.1, 0.14, 0.15, 0.30, 0.24, 1.4, 1.7, 0.2, 7]) # --> manual fit on 2022-01-05 for new prev_rest + mentality combo
+    theta = np.array([0.0422, 15.2, 6, 0.06, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.164, 2])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -203,25 +201,12 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Example code to pass custom distributions as priors (Overwritten)
-    # Prior beta
-    #density_beta, bins_beta = np.histogram(samples_dict['beta'], bins=20, density=True)
-    #density_beta_norm = density_beta/np.sum(density_beta)
-
-    # Prior omega
-    #density_omega, bins_omega = np.histogram(samples_dict['omega'], bins=20, density=True)
-    #density_omega_norm = density_omega/np.sum(density_omega)
-
-    #Prior da
-    #density_da, bins_da = np.histogram(samples_dict['da'], bins=20, density=True)
-    #density_da_norm = density_da/np.sum(density_da)
-
     # Setup uniform priors
-    pars = ['beta', 'l1', 'l2', 'prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home','K_inf1', 'K_inf2', 'amplitude', 'peak_shift']
+    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home','K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
     log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fcn_args = [(0.001, 0.12), (0.1,31), (0.1,31), (0.01,1), (0.01,1), (0.01,1),(0.01,1), (0.01,1),(1.25,1.60), (1.80,2.4), (0,0.30), (-61,61)]
+    log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.03,1), (0.03,1), (0.03,1),(0.03,1), (0.03,1),(1.25,1.55), (1.60,2.4), (0,0.30), (-61,61)]
     # Perturbate PSO Estimate
-    pert = [5e-2, 20e-2, 20e-2, 50e-2, 50e-2, 50e-2, 50e-2, 50e-2, 10e-2, 10e-2, 50e-2, 50e-2]
+    pert = [10e-2, 10e-2, 10e-2, 50e-2, 50e-2, 50e-2, 50e-2, 50e-2, 10e-2, 10e-2, 50e-2, 100e-2]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
@@ -229,8 +214,7 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest, lockdown}$', '$\Omega_{rest, relaxation}$',
-                '$\Omega_{home}$', '$K_{inf, 1}$', '$K_{inf, 2}$', 'A', '$\phi$']
+    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, alpha}$', '$K_{inf, delta}$', 'A', '$\phi$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
