@@ -1,4 +1,5 @@
 """
+This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium.
 """
 
 __author__      = " Tijs Alleman, Michiel Rollier"
@@ -192,15 +193,15 @@ if __name__ == '__main__':
     # Social intertia
     pars2 = ['l1',   'l2']
     bounds2=((1,21), (1,21))
-    # Prevention parameters (effectivities)
-    pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
-    bounds3=((0.01,0.99),      (0.01,0.99), (0.01,0.99),          (0.01,0.99),            (0.01,0.99))
+    # Effectivity parameters
+    pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
-    pars4 = ['K_inf1','K_inf2']
+    pars4 = ['K_inf_abc','K_inf_delta']
     bounds4 = ((1.25,1.6),(1.7,2.4))
     # Seasonality
     pars5 = ['amplitude','peak_shift']
-    bounds5 = ((0,0.25),(-61,61))
+    bounds5 = ((0,0.30),(-61,61))
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
@@ -208,8 +209,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.01853192,  0.0190604,   0.02420068, 14.78702555,  9.50603255,  0.40208023, 0.16602563,  0.0169907,   0.78060042,  0.66435039,  1.55329592,  2.25188278, 0.14336164, 10.05197898] # Starting estimate of mcmc run 2021-11-13
-    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.0195, 0.88, 0.501, 1.58, 2.00, 0.227, -6.77] # Result of mcmc run 2021-11-13
+    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.30, 1, 0.30, 1.50, 1.80, 0.227, 0] # Result of mcmc run 2021-11-13
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     print(f'------------')
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
     print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
-    print(f'prevention parameters {pars[5:10]}: {theta[5:10]}.')
+    print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
     print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
     print(f'Seasonality {pars[12:]}: {theta[12:]}')
     sys.stdout.flush()
@@ -308,9 +308,9 @@ if __name__ == '__main__':
     pert1=[0.10, 0.10, 0.10]
     # pars2 = ['l1', 'l2']
     pert2=[0.10, 0.10]
-    # pars3 = ['prev_schools', 'prev_work', 'prev_rest_lockdown', 'prev_rest_relaxation', 'prev_home']
+    # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
-    # pars4 = ['K_inf1','K_inf2']
+    # pars4 = ['K_inf_abc','K_inf_delta']
     pert4=[0.30, 0.30]
     # pars5 = ['amplitude','peak_shift']
     pert5 = [0.50, 0.50] 
@@ -330,8 +330,8 @@ if __name__ == '__main__':
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
                 '$l_1$', '$l_2$', \
-                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest,lockdown}$', '$\\Omega_{rest,relaxation}$', '$\\Omega_{home}$', \
-                '$K_{inf,1}$', 'K_{inf,2}', \
+                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
+                '$K_{inf, abc}$', 'K_{inf, delta}', \
                 '$A$', '$\\phi$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
