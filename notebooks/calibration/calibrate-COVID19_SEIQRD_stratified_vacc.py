@@ -17,6 +17,7 @@ import ujson as json
 import emcee
 import datetime
 import argparse
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -105,11 +106,11 @@ if __name__ == '__main__':
     # Start of calibration
     start_calibration = start_data
     warmup = 0
-    # Last datapoint used to calibrate compliance and prevention
+    # Last datapoint used to calibrate compliance and effention
     if not args.enddate:
         end_calibration = df_hosp.index.get_level_values('date').max()
     else:
-        end_calibration = str(args.enddate)
+        end_calibration = pd.to_datetime(str(args.enddate))
     # Spatial unit
     spatial_unit = 'BE_stratified_vacc'
     # PSO settings
