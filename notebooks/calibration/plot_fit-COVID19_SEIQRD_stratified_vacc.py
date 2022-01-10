@@ -122,7 +122,7 @@ from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as
 print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
 #######################
@@ -176,8 +176,29 @@ plt.show()
 if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
+plt.close()
 
-print('3) Visualizing fit on deaths')
+print('3) Visualizing fraction of immunes')
+
+fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=(12,8))
+ax[0].plot(df_2plot['S','mean'],'--', color='red')
+ax[0].fill_between(simtime, df_2plot['S','lower'], df_2plot['S','upper'],alpha=0.20, color = 'red')
+ax[0].plot(df_2plot['R','mean'],'--', color='green')
+ax[0].fill_between(simtime, df_2plot['R','lower'], df_2plot['R','upper'],alpha=0.20, color = 'green')
+ax[0].axvline(x='2021-12-01', linestyle = '--', color='black')
+ax[0].axvline(x='2022-01-01', linestyle = '--', color='black')
+ax[0].set_xlim(start_sim,end_sim)
+denominator = df_2plot['R','mean']['2021-12-07']
+ax[1].plot(df_2plot['R','mean']/denominator*100,'--', color='black')
+ax[1].fill_between(simtime, df_2plot['R','lower']/denominator*100, df_2plot['R','upper']/denominator*100,alpha=0.20, color = 'green')
+ax[1].axvline(x='2021-12-01', linestyle= '--', color='black')
+ax[1].axvline(x='2022-01-01', linestyle= '--', color='black')
+ax[1].set_xlim(start_sim,end_sim)
+plt.tight_layout()
+plt.show()
+plt.close()
+
+print('4) Visualizing fit on deaths')
 
 dates = ['2021-02-01']
 
