@@ -175,12 +175,6 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())])})
 
-    # Tryout eff_rest + mentality
-    params.pop('eff_rest_lockdown')
-    params.pop('eff_rest_relaxation')
-    params['eff_rest'] = 0.15
-    params['mentality'] = 0.3
-
     # Initialize model
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'f_VOC':VOC_function})
