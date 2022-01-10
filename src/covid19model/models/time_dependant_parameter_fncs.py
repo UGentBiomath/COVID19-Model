@@ -1441,31 +1441,6 @@ class make_seasonality_function():
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
 
-    def square_wave(self,t, states, param, amplitude, peak_shift):
-
-        # End of maximum infectability
-        end_min_inf = pd.to_datetime('2020-10-01') + pd.Timedelta(days=peak_shift)
-        # Calculate relative time
-        t = (t - pd.to_datetime(end_min_inf))/pd.Timedelta(days=1)/365    
-        t = t - math.floor(t)
-        # Ramp time
-        l = 62
-
-        if (365/2-l/2)/365 <= t < (365/2 + l/2)/365 :
-            t_start = (365/2-l/2)/365
-            old = param*(1+amplitude)
-            new = param*(1-amplitude)
-            return old + (old-new)/l * (t-t_start)
-        elif (365/2+l/2)/365 <= t <  (365-l/2)/365:
-            return param*(1-amplitude)
-        elif (365-l/2)/365 <= t <  (365 + l/2)/365:
-            t_start = (365-l/2)/365
-            old = param*(1-amplitude)
-            new = param*(1+amplitude)
-            return old + (old-new)/l * (t-t_start)
-        else:
-            return param*(1+amplitude)
-
 ####################
 ## Economic model ##
 ####################
