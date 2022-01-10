@@ -362,7 +362,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
                                                        'Nc_work' : policy_function_work,
                                                        'place' : mobility_function,
                                                        'N_vacc' : vaccination_function, 
-                                                       'alpha' : VOC_function,
+                                                       'f_VOC' : VOC_function,
                                                        'beta_R' : seasonality_function,
                                                        'beta_U': seasonality_function,
                                                        'beta_M': seasonality_function})
