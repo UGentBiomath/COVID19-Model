@@ -240,7 +240,7 @@ def assign_PSO(param_dict, pars, theta):
                 param_dict[par] = theta[idx]
         return warmup, param_dict
 
-def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
+def plot_PSO(output, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
 
@@ -249,12 +249,6 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
 
     output : xr.DataArray
         Model simulation
-
-    theta : list (of floats)
-        Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
-
-    pars : list (of strings)
-        Names of model parameters estimated using PSO
 
     data : list
         List containing dataseries to compare model output to in calibration objective function
@@ -320,6 +314,70 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
             ax.set_xlim([start_calibration,end_calibration])
     ax = _apply_tick_locator(ax)
     return ax
+
+def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg):
+
+    """
+    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, works on the regional and provincial level.
+
+    Parameters
+    ----------
+
+    output : xr.DataArray
+        Model simulation
+
+    df_sciensano : pd.DataFrame
+        Daily hospitalisation data, obtained using the function `get_sciensano_COVID19_data_spatial
+
+    start_calibration : string
+        Startdate of calibration, 'YYYY-MM-DD'
+
+    end_calibration : string
+        Enddate of calibration, 'YYYY-MM-DD'
+
+    agg : string
+        Spatial aggregation level, either 'reg' or 'prov'
+
+    Returns
+    -------
+
+    fig: plt figure
+    """
+
+    if agg == 'reg':
+        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12), sharex=True)
+        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+        title_list = ['Brussels', 'Flanders', 'Wallonia']
+        color_list = ['blue', 'blue', 'blue']
+        for idx,NIS_list in enumerate(NIS_lists):
+            model_vals = 0
+            data_vals= 0
+            for NIS in NIS_list:
+                model_vals = model_vals + output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
+                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+            ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+            ax[idx].scatter(df_sciensano.index, data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_title(title_list[idx])
+            ax[idx].set_xlim([start_calibration, end_calibration])
+            ax[idx].set_ylim([0, 350])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
+            ax[idx] = _apply_tick_locator(ax[idx])
+    
+    elif agg == 'prov':
+        fig,ax = plt.subplots(nrows=len(df_sciensano.columns),ncols=1,figsize=(12,16), sharex=True)
+        for idx,NIS in enumerate(df_sciensano.columns):
+            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+            ax[idx].scatter(df_sciensano.index, df_sciensano.loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_xlim([start_calibration, end_calibration])
+            ax[idx].set_ylim([0, 150])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
+            ax[idx] = _apply_tick_locator(ax[idx])
+
+    return ax
+
 
 def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     """

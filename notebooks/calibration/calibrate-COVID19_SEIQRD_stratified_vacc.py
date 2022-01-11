@@ -166,7 +166,7 @@ if __name__ == '__main__':
     end_visualization = '2022-07-01'
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize fit
-    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_visualization)
+    ax = plot_PSO(out, data, states, start_calibration, end_visualization)
     plt.show()
     plt.close()
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
         # Perform simulation
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
         # Satisfied?

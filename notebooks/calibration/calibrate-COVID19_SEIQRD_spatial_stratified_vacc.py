@@ -10,16 +10,18 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 
 # Load standard packages
+import ast
+import click
+import os
+import sys
+import datetime
+import argparse
 import pandas as pd
 import ujson as json
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import multiprocessing as mp
-import sys
-import datetime
-import argparse
-import pickle 
+
 # Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
 from covid19model.models import models
 
@@ -34,7 +36,7 @@ from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson, MLE
 from covid19model.optimization.pso import *
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
 # ----------------------
 # Public or private data
@@ -220,9 +222,11 @@ if __name__ == '__main__':
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
-    ############################
-    ## Visualize national fit ##
-    ############################
+    print(theta)
+
+    #######################################
+    ## Visualize fits on multiple levels ##
+    #######################################
 
     # Assign estimate.
     pars_PSO = assign_PSO(model.parameters, pars, theta)
@@ -230,56 +234,47 @@ if __name__ == '__main__':
     end_visualization = '2022-09-01'
     # Perform simulation with best-fit results
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
-    ax = plot_PSO(out, theta, pars, data, states, start_calibration, end_visualization)
+    # National fit
+    ax = plot_PSO(out, data, states, start_calibration, end_visualization)
     ax.set_ylabel('New national hosp./day')
     plt.show()
     plt.close()
-
-    fig,ax = plt.subplots()
-    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=0) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=0), color='red')
-    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=1) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=1), color='orange')
-    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=2) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=2), color='green')
-    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=3) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=3), '--', color='orange')
-    ax.plot(out['time'], out['S'].sum(dim='Nc').sum(dim='place').sel(doses=4) + out['R'].sum(dim='Nc').sum(dim='place').sel(doses=4), '--', color='green')
+    # Regional fit
+    ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
+    plt.show()
+    plt.close()
+    # Provincial fit
+    ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
     plt.show()
     plt.close()
 
-    #####################################
-    ## Visualize the provincial result ##
-    #####################################
+    ####################################
+    ## Ask the user for manual tweaks ##
+    ####################################
 
-    fig,ax = plt.subplots(nrows=len(data[0].columns),ncols=1,figsize=(12,4))
-    for idx,NIS in enumerate(data[0].columns):
-        ax[idx].plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-        ax[idx].scatter(data[0].index,data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-    plt.show()
-    plt.close()
-
-    ###################################
-    ## Visualize the regional result ##
-    ###################################
-
-    fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12))
-
-    NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-    title_list = ['Brussels', 'Flanders', 'Wallonia']
-    color_list = ['blue', 'blue', 'blue']
-
-    for idx,NIS_list in enumerate(NIS_lists):
-        model_vals = 0
-        data_vals= 0
-        for NIS in NIS_list:
-            model_vals = model_vals + out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
-            data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
-        ax[idx].plot(out['time'].values,model_vals,'--', color='blue')
-        ax[idx].scatter(df_sciensano.index,data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax[idx].set_title(title_list[idx])
-        ax[idx].set_ylim([0,420])
-        ax[idx].grid(False)
-        ax[idx].set_ylabel('$H_{in}$ (-)')
-    plt.show()
-    plt.close()
+    satisfied = not click.confirm('Do you want to make manual tweaks to the calibration result?', default=False)
+    while not satisfied:
+        # Prompt for input
+        new_values = ast.literal_eval(input("Define the changes you'd like to make: "))
+        # Modify theta
+        for val in new_values:
+            theta[val[0]] = float(val[1])
+        print(theta)
+        # Assign estimate
+        pars_PSO = assign_PSO(model.parameters, pars, theta)
+        model.parameters = pars_PSO
+        # Perform simulation
+        out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+        # Visualize national fit
+        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        plt.show()
+        plt.close()
+        # Visualize regional fit
+        ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
+        plt.show()
+        plt.close()
+        # Satisfied?
+        satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')
