@@ -895,7 +895,7 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-05-07') # Start of relaxations
+        t18 = pd.Timestamp('2021-06-01') # Start of relaxations
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
 
         # Define key dates of winter 2021-2022
@@ -914,13 +914,13 @@ class make_contact_matrix_function():
         t32 = pd.Timestamp('2022-04-17') # End of Easter Break
         t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
-        mentality_summer_2020_lockdown = np.array([mentality, mentality, # F
+        mentality_summer_2020_lockdown = np.array([1, mentality, # F
                                                 mentality, # W
                                                 mentality, # Bxl
                                                 mentality, mentality, # F
                                                 1, 1, # W
                                                 mentality, # F
-                                                1, 1]) # W
+                                                mentality, mentality]) # W
 
         co_F = 0.60
         co_W = 0.50
@@ -1009,7 +1009,7 @@ class make_contact_matrix_function():
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality*np.ones[len(mentality_summer_2021)]), school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality*np.ones(mentality_summer_2021.shape)), school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021 + r*(1-mentality_summer_2021)), school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:

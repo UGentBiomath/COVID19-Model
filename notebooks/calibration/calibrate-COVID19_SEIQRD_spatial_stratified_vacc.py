@@ -211,7 +211,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.027, 0.026, 0.0335, 16.0, 12.4, 0.15, 0.5, 0.5, 0.28, 0.4, 1.56, 1.85, 0.227]
+    theta = [0.0267, 0.0257, 0.0337, 16.0, 8.0, 0.24, 0.47, 0.5, 0.28, 0.4, 1.56, 1.85, 0.227]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
     pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
+    pert3=[0.80, 0.50, 0.50, 0.20, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
     pert4=[0.30, 0.30]
     # pars5 = ['amplitude']
