@@ -140,12 +140,12 @@ if __name__ == '__main__':
     #############################
 
     # optimisation settings
-    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
-    bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.6,2.4), (0, 0.20),(-62,62))
+    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude']
+    bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.6,2.4), (0, 0.20))
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.0422, 15.2, 6, 0.06, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.164, 2])
+    theta = np.array([0.0422, 15.2, 6, 0.06, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.164])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -202,11 +202,11 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Setup uniform priors
-    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home','K_inf_abc', 'K_inf_delta', 'amplitude', 'peak_shift']
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.03,1), (0.03,1), (0.03,1),(0.03,1), (0.03,1),(1.25,1.55), (1.60,2.4), (0,0.30), (-61,61)]
+    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home','K_inf_abc', 'K_inf_delta', 'amplitude']
+    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.03,1), (0.03,1), (0.03,1),(0.03,1), (0.03,1),(1.25,1.55), (1.60,2.4), (0,0.30)]
     # Perturbate PSO Estimate
-    pert = [10e-2, 10e-2, 10e-2, 50e-2, 50e-2, 50e-2, 50e-2, 50e-2, 10e-2, 10e-2, 50e-2, 100e-2]
+    pert = [10e-2, 10e-2, 10e-2, 50e-2, 50e-2, 50e-2, 50e-2, 50e-2, 10e-2, 10e-2, 50e-2]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
@@ -214,7 +214,7 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, alpha}$', '$K_{inf, delta}$', 'A', '$\phi$']
+    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, alpha}$', '$K_{inf, delta}$', 'A']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)

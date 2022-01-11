@@ -423,8 +423,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     ## Seasonality ##
     #################
 
-    pars_dict.update({'amplitude' : 0.104,
-                    'peak_shift' : 22.2})
+    pars_dict.update({'amplitude' : 0.20,
+                    'peak_shift' : 0})
 
     ########################
     ## Spatial parameters ##

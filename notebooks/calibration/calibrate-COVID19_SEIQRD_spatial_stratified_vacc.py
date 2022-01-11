@@ -202,8 +202,8 @@ if __name__ == '__main__':
     pars4 = ['K_inf_abc','K_inf_delta']
     bounds4 = ((1.25,1.6),(1.7,2.4))
     # Seasonality
-    pars5 = ['amplitude','peak_shift']
-    bounds5 = ((0,0.30),(-61,61))
+    pars5 = ['amplitude']
+    bounds5 = ((0,0.30))
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
@@ -211,15 +211,14 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.30, 0.50, 0.50, 1.56, 1.85, 0.227, -6.77] # Result of mcmc run 2021-11-13 merged with national MCMC run on 2022-01-09
-    #theta = [0.0444, 0.0444, 0.0444, 17.1, 4.92, 0.0418, 0.538, 0.247, 0.381, 0.126, 1.54, 1.67, 0.228, 3.09] # Result of national MCMC run on 2022-01-09
+    theta = [0.027, 0.026, 0.0335, 16.0, 12.4, 0.15, 0.5, 0.5, 0.28, 0.4, 1.56, 1.85, 0.227]
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
-    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1, 0.1 ]
-    step = 14*[0.05,]
+    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1 ]
+    step = 13*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -274,6 +273,10 @@ if __name__ == '__main__':
         ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
         plt.show()
         plt.close()
+        # Visualize provincial fit
+        ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
+        plt.show()
+        plt.close()
         # Satisfied?
         satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
@@ -296,7 +299,7 @@ if __name__ == '__main__':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+                        prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
@@ -308,8 +311,8 @@ if __name__ == '__main__':
     pert3=[0.50, 0.50, 0.50, 0.40, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
     pert4=[0.30, 0.30]
-    # pars5 = ['amplitude','peak_shift']
-    pert5 = [0.50, 0.50] 
+    # pars5 = ['amplitude']
+    pert5 = [0.50] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4 + pert5
 
@@ -328,7 +331,7 @@ if __name__ == '__main__':
                 '$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', 'K_{inf, delta}', \
-                '$A$', '$\\phi$']
+                '$A$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
