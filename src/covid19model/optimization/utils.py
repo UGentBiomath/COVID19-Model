@@ -378,7 +378,6 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
 
     return ax
 
-
 def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     """
     A function to convert a samples dictionary into a 2D and 3D np.array, similar to using the emcee method `sampler.get_chain()`

@@ -211,7 +211,8 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.30, 1, 0.30, 1.50, 1.80, 0.227, 0] # Result of mcmc run 2021-11-13
+    theta = [0.017, 0.0175, 0.0225, 16.0, 12.4, 0.166, 0.56, 0.30, 0.50, 0.50, 1.56, 1.85, 0.227, -6.77] # Result of mcmc run 2021-11-13 merged with national MCMC run on 2022-01-09
+    #theta = [0.0444, 0.0444, 0.0444, 17.1, 4.92, 0.0418, 0.538, 0.247, 0.381, 0.126, 1.54, 1.67, 0.228, 3.09] # Result of national MCMC run on 2022-01-09
 
     ####################################
     ## Local Nelder-mead optimization ##
