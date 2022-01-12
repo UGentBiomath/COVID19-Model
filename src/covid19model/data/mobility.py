@@ -651,7 +651,7 @@ def load_Pmatrix_staytime(dates, data_location, complete=False, verbose=True, re
 
     # Initiate dict for remaining dates and load files
     mmprox_dict=dict({})
-    filename = 'fractional-mobility-matrix_staytime_' + agg + '_'
+    filename = 'absolute-mobility-matrix_staytime_' + agg + '_' # 'fractional-mobility-matrix_staytime_' + agg + '_'
     load_dates = sorted(list(load_dates))
     for date in load_dates:
         datafile = pd.read_csv(data_location + filename + date + ".csv", index_col = 'mllp_postalcode')
