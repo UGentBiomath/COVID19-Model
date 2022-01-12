@@ -211,7 +211,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 16.0, 8.0, 0.24, 0.47, 0.5, 0.28, 0.4, 1.56, 1.85, 0.227]
+    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32] # A calibration I'm happ with
 
     ####################################
     ## Local Nelder-mead optimization ##

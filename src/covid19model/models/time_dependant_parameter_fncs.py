@@ -914,13 +914,15 @@ class make_contact_matrix_function():
         t32 = pd.Timestamp('2022-04-17') # End of Easter Break
         t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
-        mentality_summer_2020_lockdown = np.array([1, mentality, # F
-                                                mentality, # W
-                                                mentality, # Bxl
-                                                mentality, mentality, # F
-                                                1, 1, # W
-                                                mentality, # F
-                                                mentality, mentality]) # W
+        # Manual tweaking is unafortunately needed to make sure the second 2020 waves are correct
+        # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
+        mentality_summer_2020_lockdown = np.array([1.5, 1, # F
+                                                1, # W
+                                                1, # Bxl
+                                                0.7, 1.5, # F
+                                                1.5, 1.5, # W
+                                                1, # F
+                                                1, 1]) # W
 
         co_F = 1#0.60
         co_W = 1#0.50
@@ -933,9 +935,9 @@ class make_contact_matrix_function():
                                                 co_F, # F
                                                 co_W, co_W]) # W
 
-        co_F = 1.00
-        co_W = 0.50
-        co_Bxl = 0.45
+        co_F = 1
+        co_W = 1# 0.50
+        co_Bxl = 1# 0.45
         mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
