@@ -922,9 +922,9 @@ class make_contact_matrix_function():
                                                 mentality, # F
                                                 mentality, mentality]) # W
 
-        co_F = 0.60
-        co_W = 0.50
-        co_Bxl = 0.45
+        co_F = 1#0.60
+        co_W = 1#0.50
+        co_Bxl = 1#0.45
         mentality_summer_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl

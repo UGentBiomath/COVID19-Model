@@ -200,7 +200,7 @@ if __name__ == '__main__':
     bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars4 = ['K_inf_abc','K_inf_delta']
-    bounds4 = ((1.25,1.6),(1.7,2.4))
+    bounds4 = ((1.25,1.6),(1.65,2.4))
     # Seasonality
     pars5 = ['amplitude']
     bounds5 = ((0,0.30))
@@ -304,7 +304,7 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.10, 0.10, 0.10]
+    pert1=[0.20, 0.20, 0.20]
     # pars2 = ['l1', 'l2']
     pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
@@ -312,7 +312,7 @@ if __name__ == '__main__':
     # pars4 = ['K_inf_abc','K_inf_delta']
     pert4=[0.30, 0.30]
     # pars5 = ['amplitude']
-    pert5 = [0.50] 
+    pert5 = [0.50,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4 + pert5
 
