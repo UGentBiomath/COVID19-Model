@@ -792,7 +792,7 @@ def school_vacations_dict():
     vacation_dict[sdate_arbeid21]=len_arbeid21
     
     sdate_hemelvaart21 = pd.Timestamp(2021, 5, 13, 0, 0)
-    len_hemelvaart21 = 1
+    len_hemelvaart21 = 2
     vacation_dict[sdate_hemelvaart21]=len_hemelvaart21
     
     sdate_pinkster21 = pd.Timestamp(2021, 5, 23, 0, 0)
