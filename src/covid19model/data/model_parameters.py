@@ -412,12 +412,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         pars_dict['sigma'] = [4.54, 4.54, 3.34, 2.34] # # alpha-delta: https://www.thelancet.com/journals/lanepe/article/PIIS2666-7762(21)00264-7/fulltext
         pars_dict['f_VOC'] = [[1, 0, 0, 0], [0, 0, 0, 0]] # First row: VOC fractions, Second row: VOC fraction derivatives
         pars_dict['f_immune_escape'] = np.array([0,0,0,1.5]) # Barnard: 92 % (pessimistic), 82 % (optimistic); Hens: HR 3.3 (76%; 73%-79%); desired_percentage = 0.32*ln(f_immune_escape) + 0.53
-        pars_dict['K_inf_abc'] = 1.30 # British variant infectivity gain
-        pars_dict['K_inf_delta'] = 1.30*1.5 # Indian variant infectivity gain
-        pars_dict['K_inf_omicron'] = pars_dict['K_inf_delta']
+        #pars_dict['K_inf_abc'] = 1.30 # British variant infectivity gain
+        #pars_dict['K_inf_delta'] = 1.30*1.5 # Indian variant infectivity gain
+        #pars_dict['K_inf_omicron'] = pars_dict['K_inf_delta']
         # HR of 1.6 for alpha (https://pubmed.ncbi.nlm.nih.gov/34487522/), HR of 3 for delta (Hens), HR of 0.50 for Omicron or 50%? (compared to delta; Hens)
         # HR of 2.26 or 2.83 for delta https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
-        pars_dict['K_hosp'] = [1, 1.61, 1.69, 1.69*0.33] 
+        pars_dict['K_hosp'] = [1.61, 1.69, 1.69*0.33] 
+        pars_dict['K_inf'] = [1.40, 1.40*1.50, 1.40*1.50]
 
     #################
     ## Seasonality ##
