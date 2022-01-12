@@ -787,6 +787,34 @@ def school_vacations_dict():
     len_paas21 = 14
     vacation_dict[sdate_paas21]=len_paas21
     
+    sdate_arbeid21 = pd.Timestamp(2021, 5, 1, 0, 0)
+    len_arbeid21 = 1
+    vacation_dict[sdate_arbeid21]=len_arbeid21
+    
+    sdate_hemelvaart21 = pd.Timestamp(2021, 5, 13, 0, 0)
+    len_hemelvaart21 = 1
+    vacation_dict[sdate_hemelvaart21]=len_hemelvaart21
+    
+    sdate_pinkster21 = pd.Timestamp(2021, 5, 23, 0, 0)
+    len_pinkster21 = 1
+    vacation_dict[sdate_pinkster21]=len_pinkster21
+    
+    sdate_zomer21 = pd.Timestamp(2021, 7, 1, 0, 0)
+    len_zomer21 = 62
+    vacation_dict[sdate_zomer21]=len_zomer21
+    
+    sdate_herfst21 = pd.Timestamp(2021, 11, 1, 0, 0)
+    len_herfst21 = 7
+    vacation_dict[sdate_herfst21]=len_herfst21
+    
+    sdate_wapen21 = pd.Timestamp(2021, 11, 11, 0, 0)
+    len_wapen21 = 1
+    vacation_dict[sdate_wapen21]=len_wapen21
+    
+    sdate_kerst21 = pd.Timestamp(2021, 12, 27, 0, 0) # Actually the schools were closed one week early
+    len_kerst21 = 14
+    vacation_dict[sdate_kerst21]=len_kerst21
+    
     return vacation_dict
     
 def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend_color='wheat', vacation_color='khaki', frametype='all'):
