@@ -1,4 +1,4 @@
-"""
+-k """
 This script coverts an MCMC chain saved in .npy binary format to a .json samples dict.
 
 Arguments:
