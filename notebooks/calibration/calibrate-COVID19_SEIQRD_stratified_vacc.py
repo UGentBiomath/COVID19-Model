@@ -140,8 +140,26 @@ if __name__ == '__main__':
     #############################
 
     # optimisation settings
-    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude']
-    bounds=((0.041,0.045), (4,14), (4,14), (0.03,0.30), (0.03,0.95), (0.03,0.95), (0.03,0.95), (0.03,0.95), (1.35,1.6), (1.6,2.4), (0, 0.20))
+
+    # transmission
+    pars1 = ['beta',]
+    bounds1=((0.005,0.060),)
+    # Social intertia
+    pars2 = ['l1',   'l2']
+    bounds2=((1,21), (1,21))
+    # Effectivity parameters
+    pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    # Variants
+    pars4 = ['K_inf',]
+    # Must supply the bounds
+    bounds4 = ((1.25,1.6),(1.65,2.4))
+    # Seasonality
+    pars5 = ['amplitude',]
+    bounds5 = ((0,0.30),)
+    # Join them together
+    pars = pars1 + pars2 + pars3 + pars4 + pars5
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
@@ -202,11 +220,24 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Setup uniform priors
-    pars = ['beta', 'l1', 'l2', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home','K_inf_abc', 'K_inf_delta', 'amplitude']
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fcn_args = [(0.001, 0.12), (0.1,21), (0.1,21), (0.03,1), (0.03,1), (0.03,1),(0.03,1), (0.03,1),(1.25,1.55), (1.60,2.4), (0,0.30)]
+    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
+                        prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn_args = bounds
     # Perturbate PSO Estimate
-    pert = [10e-2, 10e-2, 10e-2, 50e-2, 50e-2, 50e-2, 50e-2, 50e-2, 10e-2, 10e-2, 50e-2]
+
+    # pars1 = ['beta_R', 'beta_U', 'beta_M']
+    pert1=[0.20,]
+    # pars2 = ['l1', 'l2']
+    pert2=[0.10, 0.10]
+    # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    pert3=[0.80, 0.50, 0.50, 0.20, 0.50]
+    # pars4 = ['K_inf_abc','K_inf_delta']
+    pert4=[0.30, 0.30]
+    # pars5 = ['amplitude']
+    pert5 = [0.50,] 
+    # Add them together and perturbate
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
@@ -214,7 +245,7 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, alpha}$', '$K_{inf, delta}$', 'A']
+    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
