@@ -333,11 +333,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         beta : probability of infection when encountering an infected person
         f_VOC : (first row) fraction of alternative COVID-19 variant, (second row) derivative of fraction of alternative COVID-19 variant
         f_immune_escape : sequential fraction of immune escape of new variant
-        K_inf_abc : infectivity gain of combination of alpha, beta and gamma variant (infectivity of new variant = K * infectivity of old variant)
-        K_inf_delta : infectivity gain of delta variant
-        K_inf_omicron : infectivity gain of omicron variant
-        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
-        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        K_inf : infectivity gain of variants (infectivity of new variant = K * infectivity of index variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (severity of new variant = K * infectivity of reference variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
