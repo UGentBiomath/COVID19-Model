@@ -179,15 +179,19 @@ class make_VOC_function():
 
 
     """
-    def __init__(self):
+    def __init__(self, included_variants=['WT', 'abc', 'delta', 'omicron']):
         # In this module, logistic growth curves were (manually) fitted to the VOC emergence data
-        self.logistic_parameters = pd.DataFrame(index=['abc', 'delta', 'omicron'], columns = ['k', 't_introduction', 't_sigmoid'])
-        # alpha, beta, gamma variants
+        self.logistic_parameters = pd.DataFrame(index=['WT', 'abc', 'delta', 'omicron'], columns = ['k', 't_introduction', 't_sigmoid'])
+        # WT dummy --> Chosen before start of pandemic to assure WT fraction is one by time model is started
+        self.logistic_parameters.loc['WT'] = [0.20, '2019-01-01', '2019-02-01']
+        # Alpha, beta, gamma variants
         self.logistic_parameters.loc['abc'] = [0.07, '2020-12-01', '2021-02-14']
-        # delta variant
+        # Delta variant
         self.logistic_parameters.loc['delta'] = [0.11, '2021-05-01', '2021-06-25']
-        # omicron variant
+        # Omicron variant
         self.logistic_parameters.loc['omicron'] = [0.19, '2021-11-26', '2021-12-24']
+        # Filter only desired variants
+        self.logistic_parameters = self.logistic_parameters.loc[included_variants]
 
     def logistic_growth(self,t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
@@ -197,22 +201,25 @@ class make_VOC_function():
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
         # Pre-allocate alpha
-        alpha = np.zeros([2, len(self.logistic_parameters.index)+1])
-        # Return the default before introduction of the first variant
-        if t <= pd.to_datetime(self.logistic_parameters['t_introduction']).min():
-            alpha[0,0] = 1
-            return alpha    
+        alpha = np.zeros([2, len(self.logistic_parameters.index)])
+        # Before introduction of first variant, return all zeros
+        if t < min(pd.to_datetime(self.logistic_parameters['t_introduction'].values)):
+            return alpha
         else:
-            # Retrieve correct index of variant logistic growth properties
+            # Retrieve correct index of variant that is currently "growing"
             try:
-                idx = [index for index,value in enumerate(self.logistic_parameters['t_introduction'].values) if pd.Timestamp(value) >= t][0] - 1
+                idx = [index for index,value in enumerate(self.logistic_parameters['t_introduction'].values) if pd.Timestamp(value) >= t][0]-1
             except:
-                idx = len(self.logistic_parameters.index) - 1
-            # Perform computation of VOC fraction and its derivative
+                idx = len(self.logistic_parameters['t_introduction'].values) - 1
+            # Perform computation of currently growing VOC fraction and its derivative
             f = self.logistic_growth(t, pd.Timestamp(self.logistic_parameters.iloc[idx]['t_sigmoid']), self.logistic_parameters.iloc[idx]['k'])
             df = self.logistic_parameters.iloc[idx]['k']*f*(1-f)
-            alpha[:,idx] = [1-f,-df]
-            alpha[:,idx+1] = [f,df]
+            # Decision logic
+            if idx == 0:
+                alpha[:,idx] = [f,df]
+            else:
+                alpha[:,idx-1] = [1-f,-df]
+                alpha[:,idx] = [f,df]
             return alpha            
 
 ###########################
