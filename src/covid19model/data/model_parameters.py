@@ -178,7 +178,7 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
     return Nc_dict
 
 def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-                                    spatial=None, vaccination=False, VOC=True):
+                                    spatial=None):
     """
     Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
@@ -198,12 +198,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
         'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
         mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
-
-    vaccination : boolean
-        Attach the vaccination parameters to the model parameters dictionary.
-    
-    VOC : boolean
-        Attach the variant-of-concern parameters to the model parameters dictionary.
 
     Returns
     -------
@@ -370,57 +364,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
                 'eff_home' : 0.5})
 
     #################
-    ## Vaccination ##
-    #################
-
-    if vaccination == True:
-        # Hard-code dose stratification size
-        dose_stratification_size = 5
-        # Add "size dummy" for vaccination stratification
-        pars_dict['doses'] =  np.zeros([dose_stratification_size, dose_stratification_size])
-        # Correct size of other parameters
-        #                             0    1    2      W     B
-        pars_dict['e_s'] = np.array([[0, 0.48, 0.94, 0.48, 0.94],  # WT
-                                     [0, 0.48, 0.94, 0.48, 0.94],  # alpha
-                                     [0, 0.62, 0.80, 0.45, 0.91],  # delta
-                                     [0, 0.342, 0.441, 0.248, 0.659]]) # omicron
-        #                             0    1    2      W     B
-        pars_dict['e_h'] = np.array([[0, 0.90, 0.95, 0.90, 0.95],  # WT
-                                     [0, 0.90, 0.95, 0.90, 0.95],  # alpha
-                                     [0, 0.92, 0.96, 0.842, 0.99],  # delta
-                                     [0, 0.767, 0.837, 0.676, 0.933]]) # omicron
-        #                             0    1    2      W     B                             
-        pars_dict['e_i'] = np.array([[0, 0.225, 0.45, 0.225, 0.45],  # WT
-                                     [0, 0.225, 0.45, 0.225, 0.45],  # alpha
-                                     [0, 0.24, 0.37, 0.24, 0.37],  # delta
-                                     [0, 0.24, 0.37, 0.24, 0.37]]) # omicron
-        pars_dict['d_vacc'] = 100*365
-        pars_dict['N_vacc'] = np.zeros(age_stratification_size) # Default: no vaccination at simulation start
-        # TDPF parameters
-        pars_dict.update({'initN' : initN.values,
-                          'daily_doses' : 60000, # copy default values from vaccination_function, which are curently not used I think
-                          'delay_immunity' : 14,
-                          'vacc_order' : list(range(age_stratification_size))[::-1],
-                          'stop_idx' : 9,
-                          'refusal' : 0.3*np.ones(age_stratification_size)})
-
-    ##########
-    ## VOCs ##
-    ##########
-
-    if VOC:
-        pars_dict['sigma'] = [4.54, 4.54, 3.34, 2.34] # # alpha-delta: https://www.thelancet.com/journals/lanepe/article/PIIS2666-7762(21)00264-7/fulltext
-        pars_dict['f_VOC'] = [[1, 0, 0, 0], [0, 0, 0, 0]] # First row: VOC fractions, Second row: VOC fraction derivatives
-        pars_dict['f_immune_escape'] = np.array([0,0,0,1.5]) # Barnard: 92 % (pessimistic), 82 % (optimistic); Hens: HR 3.3 (76%; 73%-79%); desired_percentage = 0.32*ln(f_immune_escape) + 0.53
-        #pars_dict['K_inf_abc'] = 1.30 # British variant infectivity gain
-        #pars_dict['K_inf_delta'] = 1.30*1.5 # Indian variant infectivity gain
-        #pars_dict['K_inf_omicron'] = pars_dict['K_inf_delta']
-        # HR of 1.6 for alpha (https://pubmed.ncbi.nlm.nih.gov/34487522/), HR of 3 for delta (Hens), HR of 0.50 for Omicron or 50%? (compared to delta; Hens)
-        # HR of 2.26 or 2.83 for delta https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
-        pars_dict['K_hosp'] = [1.61, 1.69, 1.69*0.33] 
-        pars_dict['K_inf'] = [1.40, 1.40*1.50, 1.40*1.50]
-
-    #################
     ## Seasonality ##
     #################
 
@@ -464,3 +407,79 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         pars_dict['Nc_work'] = np.zeros([age_stratification_size,age_stratification_size])
 
     return initN, Nc_dict, pars_dict
+
+def get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):
+    """
+    A function to load all parameters that in some way depend on what VOCs you consider in the model.
+    """
+
+    ##########################################################################
+    ## Define the core dataframe with properties that depend on the variant ##
+    ##########################################################################
+
+    columns = [('logistic_growth','t_introduction'), ('logistic_growth','t_sigmoid'), ('logistic_growth','k'), \
+                ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties', 'f_immune_escape'), ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf'),
+                ('vaccine_properties', 'e_s'), ('vaccine_properties', 'e_h'), ('vaccine_properties', 'e_i')]
+    VOC_parameters = pd.DataFrame(index=['WT', 'abc', 'delta', 'omicron'], columns = pd.MultiIndex.from_tuples(columns))
+
+    # Define logistic growth properties
+    VOC_parameters.loc['WT']['logistic_growth'] = ['2019-01-01', '2019-02-01', 0.20]
+    VOC_parameters.loc['abc']['logistic_growth'] = ['2020-12-01', '2021-02-14', 0.07]
+    VOC_parameters.loc['delta']['logistic_growth'] = ['2021-05-01', '2021-06-25', 0.11]
+    VOC_parameters.loc['omicron']['logistic_growth'] = ['2021-11-26', '2021-12-24', 0.19]
+
+    # Define variant properties
+    VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
+    VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0] , [0, 0], [0, 0], [0, 0]]
+    VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
+    VOC_parameters['variant_properties', 'K_hosp'][1:] = [1.61, 1.69, 1.69*0.33] 
+    VOC_parameters['variant_properties', 'K_inf'][1:] = [1.40, 1.40*1.50, 1.40*1.50]
+
+    # Define vaccination properties                 0    1    2      W     B
+    VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
+                                                   [0, 0.48, 0.94, 0.48, 0.94],  # alpha
+                                                   [0, 0.62, 0.80, 0.45, 0.91],  # delta
+                                                   [0, 0.342, 0.441, 0.248, 0.659]] # omicron
+
+    VOC_parameters['vaccine_properties', 'e_h'] = [[0, 0.90, 0.95, 0.90, 0.95],  # WT
+                                                   [0, 0.90, 0.95, 0.90, 0.95],  # alpha
+                                                   [0, 0.92, 0.96, 0.842, 0.99],  # delta
+                                                   [0, 0.767, 0.837, 0.676, 0.933]] # omicron
+
+    VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.225, 0.45, 0.225, 0.45],  # WT
+                                                   [0, 0.225, 0.45, 0.225, 0.45],  # alpha
+                                                   [0, 0.24, 0.37, 0.24, 0.37],  # delta
+                                                   [0, 0.24, 0.37, 0.24, 0.37]] # omicron
+
+    ##############################################################
+    ## Select data and construct dictionary of model parameters ##
+    ##############################################################
+
+    # Cut everything not needed
+    VOC_parameters = VOC_parameters.loc[VOCs]
+    # Assign all parameters to a dictionary
+    pars_dict = {
+        'sigma': list(VOC_parameters['variant_properties', 'sigma'].values),
+        'f_VOC' : list(VOC_parameters['variant_properties', 'f_VOC'].values),
+        'f_immune_escape' : list(VOC_parameters['variant_properties', 'f_immune_escape'].values),
+        'K_hosp' : list(VOC_parameters['variant_properties', 'K_hosp'].values)[1:],
+        'K_inf' : list(VOC_parameters['variant_properties', 'K_inf'].values)[1:], # Assumes the first variant is the reference variant (#TODO: generalize further?)
+        'e_s' : list(VOC_parameters['vaccine_properties', 'e_s'].values),
+        'e_h' : list(VOC_parameters['vaccine_properties', 'e_h'].values),
+        'e_i' : list(VOC_parameters['vaccine_properties', 'e_i'].values),
+    }
+    # All other random parameters
+    dose_stratification_size = 5
+    pars_dict.update({
+        'doses': np.zeros([dose_stratification_size, dose_stratification_size]),
+        'd_vacc' : 100*365,
+        'N_vacc' : np.zeros(age_stratification_size),
+        'initN' : initN.values,
+        'daily_doses' : 60000,
+        'delay_immunity' : 14,
+        'vacc_order' : list(range(age_stratification_size))[::-1],
+        'stop_idx' : 9,
+        'refusal' : 0.3*np.ones(age_stratification_size)
+    })               
+                          
+    return VOC_parameters['logistic_growth'], pars_dict

@@ -125,11 +125,12 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=True, VOC=True)
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=len(age_classes), VOCs=['WT', 'abc', 'delta'] )
+    params.update(VOC_params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
-    
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update)
 
@@ -138,14 +139,11 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     ##################################################
 
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function()
-
+    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
-
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
-
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
@@ -305,8 +303,10 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     ## Load necessary data ##
     #########################
 
-    # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
+    # Population size, interaction matrices and the model parameters; all VOC dependent parameters
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=len(age_classes), VOCs=['WT', 'abc', 'delta'] )
+    params.update(VOC_params)
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
@@ -324,7 +324,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function()
+    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
     # Time-dependent seasonality function, updating season_factor
