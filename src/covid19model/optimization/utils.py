@@ -192,8 +192,8 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-
-def assign_PSO(param_dict, pars, theta):
+from .objective_fcns import thetas_to_model_pars
+def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
     Parameters
@@ -201,10 +201,10 @@ def assign_PSO(param_dict, pars, theta):
     param_dict : dict
         Model parameters dictionary
 
-    pars : list (of strings)
+    parNames : list (of strings)
         Names of model parameters estimated using PSO
 
-    theta : list (of floats)
+    thetas : list (of floats)
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     Returns
@@ -227,17 +227,16 @@ def assign_PSO(param_dict, pars, theta):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    # Assign results to model.parameters
-    if 'warmup' not in pars:
-        for idx, par in enumerate(pars):
-            param_dict[par] = theta[idx]
+    thetas_dict = thetas_to_model_pars(thetas, parNames, param_dict)
+    for i, (param,value) in enumerate(thetas_dict.items()):
+        if param == 'warmup':
+            warmup = int(round(value))
+        else:
+            param_dict.update({param : value})
+
+    if 'warmup' not in thetas_dict.keys():
         return param_dict
     else:
-        for idx, par in enumerate(pars):
-            if par == 'warmup':
-                warmup = theta[idx]
-            else:
-                param_dict[par] = theta[idx]
         return warmup, param_dict
 
 def plot_PSO(output, data, states, start_calibration, end_calibration):

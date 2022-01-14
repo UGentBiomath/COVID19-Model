@@ -199,11 +199,12 @@ if __name__ == '__main__':
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
-    pars4 = ['K_inf_abc','K_inf_delta']
-    bounds4 = ((1.25,1.6),(1.65,2.4))
+    pars4 = ['K_inf',]
+    # Must supply the bounds
+    bounds4 = ((1.25,1.6),(1.65,2.4), (1.65,2.8))
     # Seasonality
-    pars5 = ['amplitude']
-    bounds5 = ((0,0.30))
+    pars5 = ['amplitude',]
+    bounds5 = ((0,0.30),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
@@ -211,14 +212,14 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32] # A calibration I'm happ with
+    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 1.8, 0.32] # A calibration I'm happ with
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
-    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1 ]
-    step = 13*[0.05,]
+    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1, 0.1]
+    step = 14*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 

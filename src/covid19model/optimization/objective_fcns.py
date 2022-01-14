@@ -3,6 +3,21 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
+def thetas_to_model_pars(thetas, parNames, model_parameters_dict):
+    dict={}
+    idx = 0
+    for param in parNames:
+        try:
+            dict[param] = thetas[idx:idx+len(model_parameters_dict[param])]
+            idx = idx + len(model_parameters_dict[param])
+        except:
+            if ((isinstance(model_parameters_dict[param], float)) | (isinstance(model_parameters_dict[param], int))):
+                dict[param] = thetas[idx]
+                idx = idx + 1
+            else:
+                raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
+    return dict
+
 def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset='auto', agg=None):
 
     """
@@ -62,7 +77,11 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
+    thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
+    
     if dist == 'gaussian':
+        # discontinued
         sigma=[]
         for i, param in enumerate(parNames):
             if param == 'warmup':
@@ -72,11 +91,11 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
             else: # Add all params that are not warmup or sigma to model parameters
                 model.parameters.update({param : thetas[i]})
     if dist == 'poisson':
-        for i, param in enumerate(parNames):
+        for i, (param,value) in enumerate(thetas_dict.items()):
             if param == 'warmup':
-                warmup = int(round(thetas[i]))
+                warmup = int(round(value))
             else:
-                model.parameters.update({param : thetas[i]})
+                model.parameters.update({param : value})
 
     # ~~~~~~~~~~~~~~
     # Run simulation
@@ -329,7 +348,6 @@ def prior_weibull(x,weibull_params):
     k,lam = weibull_params
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
-
 def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset='auto', agg=None):
 
     """
@@ -377,7 +395,7 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
         args = log_prior_fnc_args[idx]
         lp.append(fnc(theta,args))
     lp = sum(lp)
-
+    
     if not np.isfinite(lp).all():
         return - np.inf
     else:
