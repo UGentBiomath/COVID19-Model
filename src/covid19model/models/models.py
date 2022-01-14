@@ -367,14 +367,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf_abc', 'K_inf_delta', 'K_inf_omicron', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, f_VOC, f_immune_escape, K_inf_abc, K_inf_delta, K_inf_omicron, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -392,7 +392,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
 
-        K_inf = np.array([1, K_inf_abc, K_inf_delta, K_inf_omicron])
+        # Prepend a 'one' in front of K_inf and K_hosp
+        K_inf = np.insert(K_inf, 0, 1)
+        K_hosp = np.insert(K_hosp, 0, 1)
 
         # Modeling immune escape
         # ~~~~~~~~~~~~~~~~~~~~~~
