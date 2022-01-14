@@ -192,7 +192,7 @@ class make_VOC_function():
     def logistic_growth(self,t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
-    # Default VOC function includes British and Indian variants
+    # Default VOC function includes abc, delta and omicron variants
     def __call__(self, t, states, param):
         # Convert time to timestamp
         t = pd.Timestamp(t.date())
@@ -820,22 +820,22 @@ class make_contact_matrix_function():
             # Gradual re-introduction of mentality change during overlegcommites
             l = (t26 - t25)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t25, l)
         elif t26 < t <= t27:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, school=1)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, school=0)
         elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, work=1, transport=1, leisure=1, others=1, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, school=1)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, work=1, transport=1, leisure=1, others=1, school=1)           
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
         elif t32 < t <= t33:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.35*mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)    
 
