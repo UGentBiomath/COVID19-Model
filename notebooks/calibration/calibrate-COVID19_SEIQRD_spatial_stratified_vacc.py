@@ -50,7 +50,6 @@ public = True
 
 # Keep track of runtime
 initial_time = datetime.datetime.now()
-
 # Choose to show progress bar. This cannot be shown on HPC
 progress = True
 
@@ -60,6 +59,7 @@ progress = True
 
 # general
 parser = argparse.ArgumentParser()
+parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-e", "--enddate", help="Calibration enddate. Format YYYY-MM-DD.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
@@ -77,6 +77,12 @@ if args.backend == False:
     backend = None
 else:
     backend = True
+
+# HPC
+if args.high_performance_computing == False:
+    high_performance_computing = True
+else:
+    high_performance_computing = False
 
 # Signature (name)
 if args.signature:
@@ -169,9 +175,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 2
+    multiplier_mcmc = 4
     max_n = n_mcmc
-    print_n = 20
+    print_n = 50
     # Define dataset
     data=[df_sciensano[start_calibration:end_calibration]]
     states = ["H_in"]
@@ -223,63 +229,63 @@ if __name__ == '__main__':
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
-    print(theta)
-
     #######################################
     ## Visualize fits on multiple levels ##
     #######################################
 
-    # Assign estimate.
-    pars_PSO = assign_PSO(model.parameters, pars, theta)
-    model.parameters = pars_PSO
-    end_visualization = '2022-09-01'
-    # Perform simulation with best-fit results
-    out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
-    # National fit
-    ax = plot_PSO(out, data, states, start_calibration, end_visualization)
-    ax.set_ylabel('New national hosp./day')
-    plt.show()
-    plt.close()
-    # Regional fit
-    ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
-    plt.show()
-    plt.close()
-    # Provincial fit
-    ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
-    plt.show()
-    plt.close()
-
-    ####################################
-    ## Ask the user for manual tweaks ##
-    ####################################
-
-    satisfied = not click.confirm('Do you want to make manual tweaks to the calibration result?', default=False)
-    while not satisfied:
-        # Prompt for input
-        new_values = ast.literal_eval(input("Define the changes you'd like to make: "))
-        # Modify theta
-        for val in new_values:
-            theta[val[0]] = float(val[1])
+    if high_performance_computing:
+        # Assign estimate.
         print(theta)
-        # Assign estimate
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
-        # Perform simulation
+        end_visualization = '2022-09-01'
+        # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
-        # Visualize national fit
+        # National fit
         ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        ax.set_ylabel('New national hosp./day')
         plt.show()
         plt.close()
-        # Visualize regional fit
+        # Regional fit
         ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
         plt.show()
         plt.close()
-        # Visualize provincial fit
+        # Provincial fit
         ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
         plt.show()
         plt.close()
-        # Satisfied?
-        satisfied = not click.confirm('Would you like to make further changes?', default=False)
+
+        ####################################
+        ## Ask the user for manual tweaks ##
+        ####################################
+
+        satisfied = not click.confirm('Do you want to make manual tweaks to the calibration result?', default=False)
+        while not satisfied:
+            # Prompt for input
+            new_values = ast.literal_eval(input("Define the changes you'd like to make: "))
+            # Modify theta
+            for val in new_values:
+                theta[val[0]] = float(val[1])
+            print(theta)
+            # Assign estimate
+            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            model.parameters = pars_PSO
+            # Perform simulation
+            out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+            # Visualize national fit
+            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            plt.show()
+            plt.close()
+            # Visualize regional fit
+            ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
+            plt.show()
+            plt.close()
+            # Visualize provincial fit
+            ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
+            plt.show()
+            plt.close()
+            # Satisfied?
+            satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
     # Print statement to stdout once
     print(f'\nPSO RESULTS:')

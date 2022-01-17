@@ -34,6 +34,7 @@ from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 #############################
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-e", "--enddate", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
@@ -46,6 +47,11 @@ if args.backend == False:
     backend = None
 else:
     backend = True
+# HPC
+if args.high_performance_computing == False:
+    high_performance_computing = True
+else:
+    high_performance_computing = False
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -119,7 +125,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 2
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -139,8 +145,6 @@ if __name__ == '__main__':
     ## Global PSO optimization ##
     #############################
 
-    # optimisation settings
-
     # transmission
     pars1 = ['beta',]
     bounds1=((0.005,0.060),)
@@ -156,20 +160,23 @@ if __name__ == '__main__':
     bounds4 = ((1.25,1.6),(1.65,2.4))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.30),)
+    bounds5 = ((0,0.40),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.0422, 15.2, 6, 0.06, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.164])
+    # all three options are valid
+    theta = np.array([0.0422, 15.2, 10, 0.08, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.18]) 
+    #theta = np.array([0.0422, 15.2, 10, 0.1, 0.41, 0.3, 0.34, 0.203, 1.52, 1.72, 0.18])
+    #theta = np.array([0.035, 21, 10, 0.12, 0.4, 0.47, 0.17, 0.35, 1.55, 1.65, 0.3])
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 14*[0.05,]
+    step = 11*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
     #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -177,41 +184,43 @@ if __name__ == '__main__':
     ## Visualize fit ##
     ###################
 
-    print(theta)
-    # Assign estimate
-    model.parameters = assign_PSO(model.parameters, pars, theta)
-    # Perform simulation
-    end_visualization = '2022-07-01'
-    out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
-    # Visualize fit
-    ax = plot_PSO(out, data, states, start_calibration, end_visualization)
-    plt.show()
-    plt.close()
-
-    ####################################
-    ## Ask the user for manual tweaks ##
-    ####################################
-
-    satisfied = not click.confirm('Do you want to make manual tweaks to the calibration result?', default=False)
-    while not satisfied:
-        # Prompt for input
-        new_values = ast.literal_eval(input("Define the changes you'd like to make: "))
-        # Modify theta
-        for val in new_values:
-            theta[val[0]] = float(val[1])
+    if high_performance_computing:
+        
         print(theta)
-        # Visualize new fit
         # Assign estimate
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
-        model.parameters = pars_PSO
+        model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
+        end_visualization = '2022-07-01'
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
-        # Satisfied?
-        satisfied = not click.confirm('Would you like to make further changes?', default=False)
+
+        ####################################
+        ## Ask the user for manual tweaks ##
+        ####################################
+
+        satisfied = not click.confirm('Do you want to make manual tweaks to the calibration result?', default=False)
+        while not satisfied:
+            # Prompt for input
+            new_values = ast.literal_eval(input("Define the changes you'd like to make: "))
+            # Modify theta
+            for val in new_values:
+                theta[val[0]] = float(val[1])
+            print(theta)
+            # Visualize new fit
+            # Assign estimate
+            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            model.parameters = pars_PSO
+            # Perform simulation
+            out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+            # Visualize fit
+            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            plt.show()
+            plt.close()
+            # Satisfied?
+            satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
     ########################
     ## Setup MCMC sampler ##
@@ -222,11 +231,11 @@ if __name__ == '__main__':
     # Setup uniform priors
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform]
+                        prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO Estimate
 
-    # pars1 = ['beta_R', 'beta_U', 'beta_M']
+    # pars1 = ['beta',]
     pert1=[0.20,]
     # pars2 = ['l1', 'l2']
     pert2=[0.10, 0.10]
