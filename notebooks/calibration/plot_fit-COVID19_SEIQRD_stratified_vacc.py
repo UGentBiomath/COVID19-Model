@@ -140,7 +140,7 @@ initial_states={}
 for date in dates:
     initial_states_per_date = {}
     for state in out.data_vars:
-        initial_states_per_date.update({state: out[state].sel(time=pd.to_datetime(date)).values})
+        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
     initial_states.update({date: initial_states_per_date})
 with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
     pickle.dump(initial_states, fp)

@@ -408,7 +408,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
 
     return initN, Nc_dict, pars_dict
 
-def get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):
+def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):
     """
     A function to load all parameters that in some way depend on what VOCs you consider in the model.
     """
@@ -462,12 +462,15 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=10, VOCs=['
         'sigma': list(VOC_parameters['variant_properties', 'sigma'].values),
         'f_VOC' : list(VOC_parameters['variant_properties', 'f_VOC'].values),
         'f_immune_escape' : list(VOC_parameters['variant_properties', 'f_immune_escape'].values),
-        'K_hosp' : list(VOC_parameters['variant_properties', 'K_hosp'].values)[1:],
         'K_inf' : list(VOC_parameters['variant_properties', 'K_inf'].values)[1:], # Assumes the first variant is the reference variant (#TODO: generalize further?)
+        'K_hosp' : list(VOC_parameters['variant_properties', 'K_hosp'].values)[1:],
         'e_s' : list(VOC_parameters['vaccine_properties', 'e_s'].values),
         'e_h' : list(VOC_parameters['vaccine_properties', 'e_h'].values),
         'e_i' : list(VOC_parameters['vaccine_properties', 'e_i'].values),
     }
+    if not pd.isnull(list(VOC_parameters['variant_properties', 'K_inf'].values)[0]):
+        pars_dict.update({'h': h*list(VOC_parameters['variant_properties', 'K_inf'].values)[0]})
+    
     # All other random parameters
     dose_stratification_size = 5
     pars_dict.update({
@@ -480,6 +483,5 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=10, VOCs=['
         'vacc_order' : list(range(age_stratification_size))[::-1],
         'stop_idx' : 9,
         'refusal' : 0.3*np.ones(age_stratification_size)
-    })               
-                          
+    })                                    
     return VOC_parameters['logistic_growth'], pars_dict

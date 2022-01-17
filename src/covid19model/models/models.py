@@ -411,10 +411,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if sum(f_VOC) != 1:
-            raise ValueError(
-                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
-            )
+        #if sum(f_VOC) != 1:
+        #    raise ValueError(
+        #        "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
+        #    )
 
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)

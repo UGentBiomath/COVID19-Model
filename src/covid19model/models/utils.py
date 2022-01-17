@@ -88,7 +88,7 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
 
     return initN, model
 
-def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update=False):
+def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -126,7 +126,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=len(age_classes), VOCs=['WT', 'abc', 'delta'] )
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
     params.update(VOC_params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
@@ -151,12 +151,18 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     ## Initial states ##
     ####################
 
-    # Load initial states
-    date = '2020-03-15'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
-        load = pickle.load(handle)
-        initial_states = load[date]
+
+    if start_date == '2020-03-15':
+        with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+
+    elif ((start_date == '2021-07-01') | (start_date == '2021-08-01')):
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         converted_value = np.zeros([len(age_classes),value.shape[1]])
