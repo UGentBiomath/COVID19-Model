@@ -775,16 +775,18 @@ def school_vacations_dict():
     len_wapen = 1
     vacation_dict[sdate_wapen]=len_wapen
     
-    sdate_kerst = pd.Timestamp(2020, 12, 21, 0, 0)
-    len_kerst = 14
+    # sdate_kerst = pd.Timestamp(2020, 12, 21, 0, 0)
+    sdate_kerst = pd.Timestamp(2020, 12, 19, 0, 0)
+    len_kerst = 16 #14
     vacation_dict[sdate_kerst]=len_kerst
     
     sdate_krokus21 = pd.Timestamp(2021, 2, 15, 0, 0)
     len_krokus21 = 7
     vacation_dict[sdate_krokus21]=len_krokus21
     
-    sdate_paas21 = pd.Timestamp(2021, 4, 5, 0, 0)
-    len_paas21 = 14
+    # sdate_paas21 = pd.Timestamp(2021, 4, 5, 0, 0)
+    sdate_paas21 = pd.Timestamp(2021, 3, 26, 0, 0)
+    len_paas21 = 23 #14
     vacation_dict[sdate_paas21]=len_paas21
     
     sdate_arbeid21 = pd.Timestamp(2021, 5, 1, 0, 0)
