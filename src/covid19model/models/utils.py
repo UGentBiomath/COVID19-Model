@@ -500,14 +500,11 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
-    #param_dict['K_inf_abc'] = samples_dict['K_inf_abc'][idx]
-    #param_dict['K_inf_delta'] = samples_dict['K_inf_delta'][idx]
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
     param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
     # Omicron uncertainty: between 0-50% more transmissible; between 20-50% of delta variant severity
-    #param_dict['K_inf_omicron'] = np.random.uniform(low=1.30*param_dict['K_inf_delta'], high=1.80*param_dict['K_inf_delta'])
-    param_dict['K_inf'] = [samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx], np.random.uniform(low=1.30*np.mean(samples_dict['K_inf_delta']), high=1.80*np.mean(samples_dict['K_inf_delta']))]
-    param_dict['K_hosp'][2] = np.random.uniform(low=0.2, high=0.3)*param_dict['K_hosp'][1]
+    #param_dict['K_inf'] = [samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx], np.random.uniform(low=1.30*np.mean(samples_dict['K_inf_delta']), high=1.80*np.mean(samples_dict['K_inf_delta']))]
+    #param_dict['K_hosp'][2] = np.random.uniform(low=0.2, high=0.3)*param_dict['K_hosp'][1]
 
     # Vaccination
     # -----------
