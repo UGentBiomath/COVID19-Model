@@ -96,5 +96,5 @@ qstat
 
 Kill job:
 ```bash
-qdel xxxxxx
+qdel JOB_ID
 ```

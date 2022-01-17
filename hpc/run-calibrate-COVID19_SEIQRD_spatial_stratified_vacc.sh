@@ -19,7 +19,7 @@ echo "Number of MCMC iterations: ${n_mcmc}"
 echo "Calibration enddate: ${enddate}"
 
 # Change to package folder
-cd $VSC_HOME/Documents/COVID19-Model/notebooks/calibration/
+cd $VSC_DATA/COVID19-Model/notebooks/calibration/
 
 # Make script executable
 chmod +x calibrate-COVID19_SEIQRD_spatial_stratified_vacc.py
