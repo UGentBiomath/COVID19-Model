@@ -81,6 +81,12 @@ qsub test.sh --pass reservation=covid19.jb
 
 ## Some usefull HPC commands
 
+Check what reservations you can currently use:
+
+```bash
+scontrol show res
+```
+
 Copy from HPC to Linux PC:
 
 ```bash
