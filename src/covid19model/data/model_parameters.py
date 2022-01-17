@@ -432,8 +432,8 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=10, VOCs=['
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0] , [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters['variant_properties', 'K_hosp'][1:] = [1.61, 1.69, 1.69*0.33] 
-    VOC_parameters['variant_properties', 'K_inf'][1:] = [1.40, 1.40*1.50, 1.40*1.50]
+    VOC_parameters.loc[('abc','delta','omicron'), ('variant_properties', 'K_hosp')] = [1.61, 1.69, 1.69*0.30] 
+    VOC_parameters.loc[('abc','delta','omicron'), ('variant_properties', 'K_inf')] = [1.40, 1.40*1.50, 1.40*1.50]
 
     # Define vaccination properties                 0    1    2      W     B
     VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
