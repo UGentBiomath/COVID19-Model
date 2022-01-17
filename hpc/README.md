@@ -6,7 +6,7 @@ This readme contains a short tutorial on how to setup and execute the BIOMATH CO
 
 ## Prerequisites
 
-Copy (or `git clone`) the COVID19-Model directory to your personal directory on the Flemish HPC cluster. First, install Miniconda to setup the model environment. Download the Bash script that will install it from conda.io using, e.g., wget:
+First, install Miniconda to setup the model environment. Download the Bash script that will install it from conda.io using, e.g., wget:
 
 ```bash
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -31,6 +31,10 @@ conda env create -f environment.yml
 conda init bash
 conda activate COVID_MODEL
 ```
+
+Copy (or `git clone`) the COVID19-Model directory to your personal directory on the Flemish HPC cluster.
+
+git clone git@github.com:username/COVID19-Model.git 
 
 Finally, install the code developed specifically for the project (lives inside the src/covid19model folder) in the environment (in -e edit mode),
 
