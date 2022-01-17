@@ -4,12 +4,12 @@
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Define calibration settings
-signature = "CORE_calibration"
-agg = "prov"
-n_ag = "10"
-n_pso = "20"
-n_mcmc = "5000"
-enddate = "2021-10-01"
+signature="CORE_calibration"
+agg="prov"
+n_ag =10
+n_pso =20
+n_mcmc =5000
+enddate="2021-10-01"
 
 # Print job properties at the head of the stdout
 echo "Spatial aggregation: ${agg}"

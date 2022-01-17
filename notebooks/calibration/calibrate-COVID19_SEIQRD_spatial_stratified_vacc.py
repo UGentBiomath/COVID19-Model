@@ -170,7 +170,7 @@ if __name__ == '__main__':
     # Spatial unit: depesnds on aggregation
     spatial_unit = f'{agg}_full-pandemic_{signature}'
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
     multiplier_pso = 4
     maxiter = n_pso
     popsize = multiplier_pso*processes
