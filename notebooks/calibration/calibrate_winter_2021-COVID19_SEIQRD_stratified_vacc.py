@@ -166,10 +166,10 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1,2.5),)
+    bounds3 = ((1,1.9),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0,1),)
+    bounds4 = ((0,0.55),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
