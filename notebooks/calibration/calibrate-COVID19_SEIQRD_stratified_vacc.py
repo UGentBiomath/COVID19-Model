@@ -62,8 +62,6 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
-# Job type
-job = 'FULL'
 
 ##############################
 ## Define results locations ##
@@ -84,6 +82,8 @@ for directory in [fig_path, samples_path, backend_folder]:
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
+# Job identifier
+identifier = 'BE_CORE'
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -117,8 +117,6 @@ if __name__ == '__main__':
         end_calibration = df_hosp.index.get_level_values('date').max()
     else:
         end_calibration = pd.to_datetime(str(args.enddate))
-    # Spatial unit
-    spatial_unit = 'BE_stratified_vacc'
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
     multiplier_pso = 4
@@ -250,7 +248,7 @@ if __name__ == '__main__':
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
-        filename = spatial_unit+run_date
+        filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
@@ -267,7 +265,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date)
 
     #####################
     ## Process results ##
@@ -288,13 +286,13 @@ if __name__ == '__main__':
     for count,name in enumerate(pars):
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
-    samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
+    samples_dict.update({'n_chains': nwalkers,
                         'start_calibration': start_calibration,
                         'end_calibration': end_calibration})
 
-    with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
