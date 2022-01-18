@@ -291,13 +291,13 @@ if __name__ == '__main__':
     for count,name in enumerate(pars):
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
-    samples_dict.update({'n_chains_R0_COMP_EFF': nwalkers,
+    samples_dict.update({'n_chains': nwalkers,
                         'start_calibration': start_calibration,
                         'end_calibration': end_calibration})
 
-    with open(samples_path+str(identifier)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_R0_COMP_EFF'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
