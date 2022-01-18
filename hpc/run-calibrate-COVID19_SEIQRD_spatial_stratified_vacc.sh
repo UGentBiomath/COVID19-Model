@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N calibrate-COVID19_SEIQRD_stratified_vacc ## job name
+#PBS -N calibrate-COVID19_SEIQRD_spatial_stratified_vacc ## job name
 #PBS -l nodes=1:ppn=18 ## single-node job, on 36 cores
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
