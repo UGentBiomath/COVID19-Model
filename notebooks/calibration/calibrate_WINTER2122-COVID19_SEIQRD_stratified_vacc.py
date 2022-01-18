@@ -174,7 +174,7 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1,1.9),)
+    bounds3 = ((1,1.8),)
     # Omicron severity
     pars4 = ['K_hosp',]
     bounds4 = ((0,0.55),)
@@ -249,11 +249,11 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     pert1=[0.02,]
     # pars2 = ['mentality',]
-    pert2=[0.10,]
+    pert2=[0.05,]
     # pars4 = ['K_inf',]
-    pert3=[0.10,]
+    pert3=[0.05,]
     # pars5 = ['K_hosp']
-    pert4 = [0.10,] 
+    pert4 = [0.05,] 
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)

@@ -116,6 +116,7 @@ initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size
 
 # TODO: Formalize
 
+# Option 1: No sampling on previously obtained parameters
 import json
 # Set the average values for contact effectivities and seasonality according to the reference 'CORE' calibration dictionary
 core_dict_name = 'BE_stratified_vacc_R0_COMP_EFF_2022-01-09.json'
@@ -127,6 +128,9 @@ model.parameters.update({
     'eff_home': np.mean(CORE_samples_dict['eff_home']),
     'amplitude': np.mean(CORE_samples_dict['amplitude'])
 })
+
+# Option 2: Sampling on previously obtained parameters
+
 
 #######################
 ## Sampling function ##
@@ -161,7 +165,9 @@ def draw_fcn(param_dict,samples_dict):
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['mentality'] = samples_dict['mentality'][idx]  
     param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx],]
-    param_dict['K_hosp'] = [samples_dict['K_hosp_omicron'][idx],]
+    param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10),]
+    # 40-60% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
+    # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
 
     # Hospitalization
     # ---------------
