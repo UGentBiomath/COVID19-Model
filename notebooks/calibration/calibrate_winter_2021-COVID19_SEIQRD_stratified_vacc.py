@@ -1,5 +1,9 @@
 """
 This script contains a calibration of national COVID-19 SEIQRD model to hospitalization data in Belgium starting in the summer of 2021.
+
+python npy_to_samples_dict.py -f BE_WINTER2122_2022-01-17.npy -k 'beta' 'mentality' 'K_inf_omicron' 'K_hosp_omicron' -ak 'warmup' 'n_chains' 'start_calibration' 'end_calibration' -av 0 20 2020-08-01 2022-xx-xx
+python emcee-manual-thinning.py -f BE_WINTER2122_2022-01-17.json -n 20 -k 'beta' 'mentality' 'K_inf_omicron' 'K_hosp_omicron' -l '$\beta$' '$M$' '$K_{inf, omicron}$' '$K_{hosp, omicron}$' -r '(0.06,0.08)' '(0,1)' '(0,2.5)' '(0,1)' -d xxx -t xx -s
+
 """
 
 __author__      = "Tijs Alleman"
@@ -64,8 +68,6 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
-# Job type
-job = 'FULL'
 
 ##############################
 ## Define results locations ##
@@ -86,6 +88,8 @@ for directory in [fig_path, samples_path, backend_folder]:
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
+# Job identifier
+identifier = 'BE_WINTER2122'
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -130,8 +134,6 @@ if __name__ == '__main__':
         end_calibration = df_hosp.index.get_level_values('date').max()
     else:
         end_calibration = pd.to_datetime(str(args.enddate))
-    # Spatial unit
-    spatial_unit = 'BE_WINTER_2021'
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
     multiplier_pso = 4
@@ -251,7 +253,7 @@ if __name__ == '__main__':
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
-        filename = spatial_unit+run_date
+        filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
@@ -268,7 +270,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date)
 
     #####################
     ## Process results ##
@@ -293,9 +295,9 @@ if __name__ == '__main__':
                         'start_calibration': start_calibration,
                         'end_calibration': end_calibration})
 
-    with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_R0_COMP_EFF'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(spatial_unit)+'_R0_COMP_EFF'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_R0_COMP_EFF'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
