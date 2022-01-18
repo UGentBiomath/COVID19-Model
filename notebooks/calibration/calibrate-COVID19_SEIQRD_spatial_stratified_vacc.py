@@ -5,9 +5,9 @@ This script contains a calibration of the spatial COVID-19 SEIQRD model to hospi
 __author__      = " Tijs Alleman, Michiel Rollier"
 __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# ----------------------
-# Load required packages
-# ----------------------
+############################
+## Load required packages ##
+############################
 
 # Load standard packages
 import ast
@@ -24,13 +24,10 @@ import multiprocessing as mp
 
 # Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
 from covid19model.models import models
-
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc
-
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
 from covid19model.data import sciensano
-
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
@@ -38,24 +35,24 @@ from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
-# ----------------------
-# Public or private data
-# ----------------------
+############################
+## Public or private data ##
+############################
 
 public = True
 
-# ---------------------
-# HPC-specific settings
-# ---------------------
+###########################
+## HPC-specific settings ##
+###########################
 
 # Keep track of runtime
 initial_time = datetime.datetime.now()
 # Choose to show progress bar. This cannot be shown on HPC
 progress = True
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 # general
 parser = argparse.ArgumentParser()
@@ -68,28 +65,23 @@ parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used i
 # spatial
 parser.add_argument("-s", "--signature", help="Name in output files (identifier).")
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
-
 # save as dict
 args = parser.parse_args()
-
 # Backend
 if args.backend == False:
     backend = None
 else:
     backend = True
-
 # HPC
 if args.high_performance_computing == False:
     high_performance_computing = True
 else:
     high_performance_computing = False
-
 # Signature (name)
 if args.signature:
     signature = str(args.signature)
 else:
     raise Exception("The script must have a descriptive name for its output.")
-    
 # Spatial aggregation
 if args.agg:
     agg = str(args.agg)
@@ -108,12 +100,10 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
-# Job type
-job = 'FULL'
 
-# ------------------------
-# Define results locations
-# ------------------------
+##############################
+## Define results locations ##
+##############################
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
@@ -130,10 +120,12 @@ for directory in [fig_path, samples_path, backend_folder]:
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
+# Spatial unit: depesnds on aggregation
+identifier = f'{agg}_{signature}'
 
-# --------------------------------------------
-# Load data not needed to initialize the model
-# --------------------------------------------
+##################################################
+## Load data not needed to initialize the model ##
+##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
@@ -141,9 +133,9 @@ df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hos
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
-# --------------------
-# Initialize the model
-# --------------------
+##########################
+## Initialize the model ##
+##########################
 
 initN, model = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
@@ -167,8 +159,6 @@ if __name__ == '__main__':
         end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
     else:
         end_calibration = str(args.enddate)
-    # Spatial unit: depesnds on aggregation
-    spatial_unit = f'{agg}_full-pandemic_{signature}'
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
     multiplier_pso = 4
@@ -329,7 +319,7 @@ if __name__ == '__main__':
     # Set up the sampler backend if needed
     if backend:
         import emcee
-        filename = f'{spatial_unit}_backend_{run_date}'
+        filename = f'{identifier}_backend_{run_date}'
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
 
@@ -352,7 +342,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, agg=agg)
 
     #####################
     ## Process results ##
@@ -384,7 +374,7 @@ if __name__ == '__main__':
         'n_chains_FULL' : nwalkers
     })
 
-    json_file = f'{samples_path}{str(spatial_unit)}_{run_date}.json'
+    json_file = f'{samples_path}{str(identifier)}_{run_date}.json'
     with open(json_file, 'w') as fp:
         json.dump(samples_dict, fp)
 
