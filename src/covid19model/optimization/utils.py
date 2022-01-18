@@ -14,7 +14,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, agg=None, progress=True):
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -51,12 +51,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # Hardcode threshold values defining convergence
             thres_multi = 50.0
             thres_frac = 0.03
-
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
-
             # Update autocorrelation plot
             n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
@@ -69,21 +67,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            if job == 'FULL':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-            elif job == 'R0':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
+            fig.savefig(fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             # Update traceplot
-            if job == 'FULL':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-            elif job == 'R0':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-
+            traceplot(sampler.get_chain(),labels,
+                        filename=fig_path_agg+'traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
+                        plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+            # Garbage collection
             plt.close('all')
             gc.collect()
 
@@ -111,16 +100,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
-            if job == 'FULL':
-                with open(samples_path_agg+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
-            elif job == 'R0':
-                with open(samples_path_agg+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
+            with open(samples_path_agg+str(identifier)+'_'+run_date+'.npy', 'wb') as f:
+                np.save(f,flat_samples)
+                f.close()
+                gc.collect()
+
 
     return sampler
 
