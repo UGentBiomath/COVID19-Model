@@ -716,12 +716,16 @@ class make_contact_matrix_function():
         t25 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
         t26 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
         t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
-        t28 = pd.Timestamp('2022-01-06') # End of Christmass break
-        t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t30 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t32 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
+
+        t28 = pd.Timestamp('2021-12-25') # Christmas
+        t29 = pd.Timestamp('2022-12-31') # NYE
+
+        t30 = pd.Timestamp('2022-01-10') # End of Christmass break
+        t31 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t32 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t33 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t34 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t35 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
         ################
         ## First wave ##
@@ -823,14 +827,19 @@ class make_contact_matrix_function():
         elif t27 < t <= t28:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            # Increase mentality slightly between Christmas and NYE
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
         elif t32 < t <= t33:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+        elif t33 < t <= t34:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+        elif t34 < t <= t35:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)    
