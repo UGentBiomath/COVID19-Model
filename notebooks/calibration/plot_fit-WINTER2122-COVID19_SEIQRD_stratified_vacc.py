@@ -159,7 +159,7 @@ if option == 1:
 
         idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
         param_dict['mentality'] = samples_dict['mentality'][idx]  
-        param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx]- 0.5,]
+        param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx],]
         param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
         # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
         # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
