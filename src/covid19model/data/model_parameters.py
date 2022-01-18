@@ -248,7 +248,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
 
     Example use
     -----------
-    initN, Nc_dict, parameters = get_COVID19_SEIRD_parameters()
+    initN, Nc_dict, parameters = get_COVID19_SEIQRD_parameters()
     """
 
     abs_dir = os.path.dirname(__file__)
