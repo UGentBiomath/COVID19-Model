@@ -8,6 +8,7 @@ n_ag=10
 n_pso=20
 n_mcmc=5000
 enddate="2021-10-01"
+identifier="CORE"
 
 # Print job properties at the head of the stdout
 echo "Number of age groups: ${n_ag}"
@@ -28,7 +29,7 @@ source activate COVID_MODEL
 export OMP_NUM_THREADS=1
 
 # Execute script. Note the python option -u to flush the prints to the stdout
-python calibrate-COVID19_SEIQRD_stratified_vacc.py -n_ag ${n_ag} -n_pso ${n_pso} -n_mcmc ${n_mcmc} -e ${enddate} -hpc
+python calibrate-COVID19_SEIQRD_stratified_vacc.py -n_ag ${n_ag} -n_pso ${n_pso} -n_mcmc ${n_mcmc} -e ${enddate} -ID ${identifier} -hpc
 
 # Deactivate environment
 conda deactivate

@@ -4,7 +4,7 @@
 #PBS -l walltime=72:00:00 ## max. 72h of wall time
 
 # Define calibration settings
-signature="CORE_calibration"
+identifier="CORE"
 agg="prov"
 n_ag =10
 n_pso =20
@@ -31,7 +31,7 @@ source activate COVID_MODEL
 export OMP_NUM_THREADS=1
 
 # Execute script. Note the python option -u to flush the prints to the stdout
-python calibrate-COVID19_SEIQRD_spatial_stratified_vacc.py -a ${agg} -n_ag ${n_ag} -n_pso ${n_pso} -n_mcmc ${n_mcmc} -e ${enddate} -s ${signature} -hpc
+python calibrate-COVID19_SEIQRD_spatial_stratified_vacc.py -a ${agg} -n_ag ${n_ag} -n_pso ${n_pso} -n_mcmc ${n_mcmc} -e ${enddate} -i ${identifier} -hpc
 
 # Deactivate environment
 conda deactivate

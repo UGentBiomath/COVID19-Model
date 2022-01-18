@@ -46,6 +46,7 @@ parser.add_argument("-e", "--enddate", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
+parser.add_argument("-ID", "--identifier", help="Name in output files.")
 args = parser.parse_args()
 
 # Backend
@@ -58,6 +59,13 @@ if args.high_performance_computing == False:
     high_performance_computing = True
 else:
     high_performance_computing = False
+# Identifier (name)
+if args.identifier:
+    identifier = str(args.identifier)
+    # Spatial unit: depesnds on aggregation
+    identifier = f'BE_{identifier}'
+else:
+    raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -88,8 +96,6 @@ for directory in [fig_path, samples_path, backend_folder]:
 for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
-# Job identifier
-identifier = 'BE_WINTER2122'
 
 ##################################################
 ## Load data not needed to initialize the model ##
