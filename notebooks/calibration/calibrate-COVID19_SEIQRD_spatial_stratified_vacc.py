@@ -191,14 +191,14 @@ if __name__ == '__main__':
     bounds2=((1,21), (1,21))
     # Effectivity parameters
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    bounds3=((0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99))
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
     bounds4 = ((1.25,1.6),(1.65,2.4))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.30),)
+    bounds5 = ((0,0.40),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
