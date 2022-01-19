@@ -184,7 +184,7 @@ if __name__ == '__main__':
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+    #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     theta = np.array([0.07, 0.5, 1.8, 0.35])
 
@@ -260,10 +260,7 @@ if __name__ == '__main__':
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+
     # Setup priors of CORE parameters
     pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
     pars = pars + pars_prior 
@@ -282,6 +279,10 @@ if __name__ == '__main__':
         filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
+    # Arguments of chosen objective function
+    objective_fcn = objective_fcns.log_probability
+    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
+    objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
 
     ######################
     ## Run MCMC sampler ##
