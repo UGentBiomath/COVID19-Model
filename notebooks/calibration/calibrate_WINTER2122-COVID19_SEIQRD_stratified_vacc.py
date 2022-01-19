@@ -148,9 +148,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 2
     max_n = n_mcmc
-    print_n = 20
+    print_n = 10
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration]]
     states = ["H_in"]
@@ -265,11 +265,11 @@ if __name__ == '__main__':
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
     objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
     # Setup priors of CORE parameters
-    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'mentality']
+    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
     pars = pars + pars_prior 
-    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$M$']
-    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['mentality'])]))
-    pert = pert + len(pars_prior)*[0.02,]
+    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
+    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
+    pert = pert + len(pars_prior)*[0.05,]
     log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
     for par in pars_prior:
         density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
