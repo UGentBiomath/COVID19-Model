@@ -718,7 +718,7 @@ class make_contact_matrix_function():
         t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
 
         t28 = pd.Timestamp('2021-12-25') # Christmas
-        t29 = pd.Timestamp('2022-12-31') # NYE
+        t29 = pd.Timestamp('2021-12-31') # NYE
 
         t30 = pd.Timestamp('2022-01-10') # End of Christmass break
         t31 = pd.Timestamp('2022-02-28') # Start of Spring Break
@@ -828,7 +828,7 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t28 < t <= t29:
             # Increase mentality slightly between Christmas and NYE
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.5*mentality, school=0)
         elif t29 < t <= t30:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t30 < t <= t31:
