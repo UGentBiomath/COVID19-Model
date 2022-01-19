@@ -124,8 +124,7 @@ CORE_samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
 
 if option == 1:
 
-    # Option 1: No sampling on previously obtained parameters
-    # Set the average values for contact effectivities and seasonality according to the reference 'CORE' calibration dictionary
+    # Option 1: No sampling of CORE parameters dictionary
     model.parameters.update({
         'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
         'eff_work': np.mean(CORE_samples_dict['eff_work']),
@@ -135,24 +134,7 @@ if option == 1:
     })
     # Define draw function
     def draw_fcn(param_dict,samples_dict):
-        """
-        A function to draw samples from the estimated posterior distributions of the model parameters for the winter 2021-2022 reestimation.
-        For use with the extended national-level COVID-19 model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
-
-        Parameters
-        ----------
-
-        samples_dict : dict
-            Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
-
-        param_dict : dict
-            Model parameters dictionary
-
-        Returns
-        -------
-        param_dict : dict
-            Modified model parameters dictionary
-
+        """ some docstring
         """
 
         idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
@@ -160,7 +142,8 @@ if option == 1:
         idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
         param_dict['mentality'] = samples_dict['mentality'][idx]  
         param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx],]
-        param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
+        param_dict['K_hosp'] = [samples_dict['K_hosp_omicron'][idx],]
+        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
         # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
         # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
 
@@ -192,7 +175,6 @@ if option == 1:
         return param_dict
 
 elif option == 2:
-    print('I have been naughty')
     # Option 2: Sampling on previously obtained parameters
     # Merge dicts
     samples_dict.update({
@@ -204,24 +186,7 @@ elif option == 2:
     })
     # Define draw function
     def draw_fcn(param_dict,samples_dict):
-        """
-        A function to draw samples from the estimated posterior distributions of the model parameters for the winter 2021-2022 reestimation.
-        For use with the extended national-level COVID-19 model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
-
-        Parameters
-        ----------
-
-        samples_dict : dict
-            Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
-
-        param_dict : dict
-            Model parameters dictionary
-
-        Returns
-        -------
-        param_dict : dict
-            Modified model parameters dictionary
-
+        """ some docstring
         """
 
         idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
@@ -229,7 +194,8 @@ elif option == 2:
         idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
         param_dict['mentality'] = samples_dict['mentality'][idx]  
         param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx],]
-        param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
+        param_dict['K_hosp'] = [samples_dict['K_hosp_omicron'][idx],]
+        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
         # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
         # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
         
@@ -267,6 +233,54 @@ elif option == 2:
             
         return param_dict
 
+elif option == 3:
+    # Option 3: CORE parameter distributions were used as priors during winter calibration
+    # Define draw function
+    def draw_fcn(param_dict,samples_dict):
+        """ some docstring
+        """
+
+        idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
+
+        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+        param_dict['mentality'] = samples_dict['mentality'][idx]  
+        param_dict['K_inf'] = [samples_dict['K_inf_omicron'][idx],]
+        param_dict['K_hosp'] = [samples_dict['K_hosp_omicron'][idx],]
+        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
+        # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
+        # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
+        param_dict['eff_schools'] = samples_dict['eff_schools'][idx]  
+        param_dict['eff_work'] = samples_dict['eff_work'][idx]  
+        param_dict['eff_home'] = samples_dict['eff_home'][idx] 
+        param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
+        param_dict['amplitude'] = samples_dict['amplitude'][idx]   
+
+        # Hospitalization
+        # ---------------
+        # Fractions
+        names = ['c','m_C','m_ICU']
+        for idx,name in enumerate(names):
+            par=[]
+            for jdx in range(len(param_dict['c'])):
+                par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+            param_dict[name] = np.array(par)
+        # Residence times
+        n=20
+        distributions = [samples_dict['residence_times']['dC_R'],
+                        samples_dict['residence_times']['dC_D'],
+                        samples_dict['residence_times']['dICU_R'],
+                        samples_dict['residence_times']['dICU_D'],
+                        samples_dict['residence_times']['dICUrec']]
+
+        names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
+        for idx,dist in enumerate(distributions):
+            param_val=[]
+            for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+                draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+                param_val.append(np.mean(draw))
+            param_dict[names[idx]] = np.array(param_val)
+            
+        return param_dict
 
 #######################
 ## Sampling function ##
