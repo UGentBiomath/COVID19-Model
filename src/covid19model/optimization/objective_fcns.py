@@ -254,7 +254,8 @@ def prior_custom(x, args):
     x: float
         Parameter value whos likelihood we want to test.
     args: tuple
-        Tuple containg the density of each bin in the first position and the bounds of the bins in the second position
+        Tuple containg the density of each bin in the first position and the bounds of the bins in the second position.
+        Contains a weight given to the custom prior in the third position of the tuple.
 
     Returns
     -------
@@ -266,15 +267,15 @@ def prior_custom(x, args):
     density_my_par, bins_my_par = np.histogram(samples_dict['my_par'], bins=20, density=True)
     density_my_par_norm = density_my_par/np.sum(density_my_par)
     prior_fcn = prior_custom
-    prior_fcn_args = (density_my_par_norm, bins_my_par)
+    prior_fcn_args = (density_my_par_norm, bins_my_par, weight)
     # Prior_fcn and prior_fcn_args must then be passed on to the function log_probability
     """
-    density,bins = args
-    if x < bins.min() or x > bins.max():
+    density, bins, weight = args
+    if x <= bins.min() or x >= bins.max():
         return -np.inf
     else:
         idx = np.digitize(x, bins)
-        return np.log(density[idx-1])
+        return weight*np.log(density[idx-1])
 
 def prior_normal(x,norm_params):
     """ Normal prior distribution
