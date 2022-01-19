@@ -174,17 +174,17 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1,1.8),)
+    bounds3 = ((1.3,1.9),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0,0.55),)
+    bounds4 = ((0.20,0.50),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.07, 0.5, 1.7, 0.3])
+    theta = np.array([0.07, 0.5, 1.8, 0.35])
 
     ####################################
     ## Local Nelder-mead optimization ##

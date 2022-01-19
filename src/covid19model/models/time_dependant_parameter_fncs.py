@@ -828,7 +828,7 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t28 < t <= t29:
             # Increase mentality slightly between Christmas and NYE
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.5*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1.4*mentality, school=0)
         elif t29 < t <= t30:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t30 < t <= t31:
