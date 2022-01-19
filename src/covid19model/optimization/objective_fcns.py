@@ -241,6 +241,7 @@ def prior_uniform(x, bounds):
     prob = 1/(bounds[1]-bounds[0])
     condition = bounds[0] < x < bounds[1]
     if condition == True:
+        # Can also be set to zero: value doesn't matter much because its constant
         return np.log(prob)
     else:
         return -np.inf
