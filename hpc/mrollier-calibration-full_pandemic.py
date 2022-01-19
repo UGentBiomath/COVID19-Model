@@ -245,7 +245,7 @@ policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
 mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
 
 # Time-dependent VOC function, updating alpha
-VOC_function = make_VOC_function(df_VOC_abc)
+VOC_function = make_VOC_function()
 
 # Time-dependent (first) vaccination function, updating N_vacc
 vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_stratification_size=age_stratification_size)
