@@ -29,7 +29,7 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization.objective_fcns import prior_uniform
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.optimization import objective_fcns
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
 
@@ -76,6 +76,8 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
+# To avoid quadratic parallelization
+os.environ["OMP_NUM_THREADS"] = "1"
 
 ##############################
 ## Define results locations ##
@@ -115,13 +117,13 @@ initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size
 
 # Set the average values for contact effectivities and seasonality according to 'CORE' calibration dictionary
 core_dict_name = 'BE_stratified_vacc_R0_COMP_EFF_2022-01-09.json'
-samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
+CORE_samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
 model.parameters.update({
-    'eff_schools': np.mean(samples_dict['eff_schools']),
-    'eff_work': np.mean(samples_dict['eff_work']),
-    'eff_rest': np.mean(samples_dict['eff_rest']),
-    'eff_home': np.mean(samples_dict['eff_home']),
-    'amplitude': np.mean(samples_dict['amplitude'])
+    'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
+    'eff_work': np.mean(CORE_samples_dict['eff_work']),
+    'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
+    'eff_home': np.mean(CORE_samples_dict['eff_home']),
+    'amplitude': np.mean(CORE_samples_dict['amplitude'])
 })
 
 if __name__ == '__main__':
@@ -146,7 +148,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -256,18 +258,30 @@ if __name__ == '__main__':
     pert4 = [0.05,] 
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
-    # Set up the sampler backend if needed
-    if backend:
-        filename = identifier+run_date
-        backend = emcee.backends.HDFBackend(backend_folder+filename)
-        backend.reset(nwalkers, ndim)
     # Labels for traceplots
     labels = ['$\\beta$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
     objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+    # Setup priors of CORE parameters
+    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'mentality']
+    pars = pars + pars_prior 
+    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', '$M$']
+    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['mentality'])]))
+    pert = pert + len(pars_prior)*[0.02,]
+    log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
+    for par in pars_prior:
+        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
+        density_my_par_norm = density_my_par/np.sum(density_my_par)
+        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par),)
+    # Perturbate
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
+    # Set up the sampler backend if needed
+    if backend:
+        filename = identifier+run_date
+        backend = emcee.backends.HDFBackend(backend_folder+filename)
+        backend.reset(nwalkers, ndim)
 
     ######################
     ## Run MCMC sampler ##
