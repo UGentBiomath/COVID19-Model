@@ -15,6 +15,32 @@ from ..data.economic_parameters import read_economic_labels
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
+###############
+## jit utils ##
+###############
+
+@jit(fastmath=True, nopython=True)
+def loop_2D_matmul(A, B):
+    """A simple jitted implementation of 2D matrix multiplication
+        Works twice as fast as a jitted '@' multiplication
+    """
+    n = A.shape[0]
+    f = A.shape[1]
+    m = B.shape[1]
+    out = np.zeros((n,m), np.float64)
+    for i in range(n):
+        for j in range(m):
+            for k in range(f):
+                out[i, j] += A[i, k] * B[k, j]
+    return out
+
+@jit(fastmath=True, nopython=True)
+def negative_values_replacement_2D(A, B):
+    for i in range(A.shape[0]):
+        A[i,:][B[i,:]<0] = 0
+    return A
+
+
 class simple_stochastic_SIR(BaseModel):
     """
     A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
@@ -360,7 +386,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         Nc : contact matrix between all age groups in stratification
 
     """
-
+    
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
     parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
@@ -369,7 +395,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    @jit(nopython=True)
+    @jit(fastmath=True, nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -379,6 +405,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         *Deterministic implementation*
         """
+
+        # jit TODO's:
+        # - loop implementation of matmul, loop_2D_matmul(A, B)
+        # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
 
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
@@ -392,7 +422,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # Remove negative derivatives to ease further computation
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
-
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]
@@ -407,10 +436,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        # Code snippet below does not work for 2D matrices if you use jit
         h[h > 1] = 1
-        # TODO: jit: loop implementation of matmul is twice faster
-        e_i = f_VOC @ e_i
-        e_s = f_VOC @ e_s
+        e_i = f_VOC @ e_i 
+        e_s = f_VOC @ e_s 
         e_h = f_VOC @ e_h
 
         # Expand dims on first stratification axis (age)
@@ -500,7 +529,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         R_post_vacc = R + dR
 
         # Compute dS that makes S and R equal to zero
-        # TODO: jit implementation using a dimension reduction function
         #dS[S_post_vacc < 0] = 0 - S[S_post_vacc < 0]
         #dR[R_post_vacc < 0] = 0 - R[R_post_vacc < 0]
         # Set S and R equal to zero
@@ -514,7 +542,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*(Nc @ np.sum(((I+A)/T)*(1-e_i),axis=1)), f_VOC*K_inf) ,axis=1) , axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*(Nc @ np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

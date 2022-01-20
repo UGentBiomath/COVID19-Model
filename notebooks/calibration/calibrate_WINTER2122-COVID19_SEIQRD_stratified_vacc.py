@@ -266,9 +266,9 @@ if __name__ == '__main__':
     pars = pars + pars_prior 
     labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
     theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
-    pert = pert + len(pars_prior)*[0.05,]
+    pert = pert + len(pars_prior)*[0.02,]
     log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
-    weight = 100
+    weight = 20
     for par in pars_prior:
         density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
         density_my_par_norm = density_my_par/np.sum(density_my_par)
