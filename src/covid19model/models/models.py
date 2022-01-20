@@ -369,7 +369,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    #@jit(nopython=True)
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -380,16 +380,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         *Deterministic implementation*
         """
 
-        # Detect errors in social contact data
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        #if Nc is None:
-        #    print(t)
-
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
 
-        # Prepend a 'one' in front of K_inf and K_hosp
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
         
@@ -397,7 +391,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~
 
         # Remove negative derivatives to ease further computation
-        f_VOC[1,:][np.where(f_VOC[1,:] < 0)] = 0
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0
 
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
@@ -413,10 +407,11 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        h[np.where(h >1)] = 1
-        e_i = np.matmul(f_VOC, e_i)
-        e_s = np.matmul(f_VOC, e_s)
-        e_h = np.matmul(f_VOC, e_h)
+        h[h > 1] = 1
+        # TODO: jit: loop implementation of matmul is twice faster
+        e_i = f_VOC @ e_i
+        e_s = f_VOC @ e_s
+        e_h = f_VOC @ e_h
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -436,8 +431,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         ## Compute the vaccination transitionings ##
         ############################################
 
-        dS = np.zeros(S.shape, np.float32)
-        dR = np.zeros(R.shape, np.float32)
+        dS = np.zeros(S.shape, np.float64)
+        dR = np.zeros(R.shape, np.float64)
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~
@@ -505,11 +500,12 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         R_post_vacc = R + dR
 
         # Compute dS that makes S and R equal to zero
-        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
-        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
+        # TODO: jit implementation using a dimension reduction function
+        #dS[S_post_vacc < 0] = 0 - S[S_post_vacc < 0]
+        #dR[R_post_vacc < 0] = 0 - R[R_post_vacc < 0]
         # Set S and R equal to zero
-        S_post_vacc[np.where(S_post_vacc < 0)] = 0
-        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+        #S_post_vacc[S_post_vacc < 0] = 0
+        #R_post_vacc[R_post_vacc < 0] = 0
 
         #################################
         ## Compute system of equations ##
@@ -518,7 +514,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), f_VOC*K_inf) ,axis=1) , axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*(Nc @ np.sum(((I+A)/T)*(1-e_i),axis=1)), f_VOC*K_inf) ,axis=1) , axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
