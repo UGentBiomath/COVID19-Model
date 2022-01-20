@@ -40,6 +40,12 @@ def negative_values_replacement_2D(A, B):
         A[i,:][B[i,:]<0] = 0
     return A
 
+@jit(fastmath=True, nopython=True)
+def som_1d(a):
+    som = 0
+    for i in range(len(a)):
+        som = som + a[i]
+    return som
 
 class simple_stochastic_SIR(BaseModel):
     """
@@ -409,6 +415,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # jit TODO's:
         # - loop implementation of matmul, loop_2D_matmul(A, B)
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
+        # - replacement for np.sum, som_1d
+        # - replacement for np.outer 
 
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
