@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import sys
 import numpy as np
+from numba import jit
 from .base import BaseModel
 from .utils import stratify_beta
 from .economic_utils import *
@@ -294,8 +295,6 @@ class COVID19_SEIQRD(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
-
-
 class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
@@ -370,6 +369,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -390,9 +390,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~
 
         # Prepend a 'one' in front of K_inf and K_hosp
-        K_inf = np.insert(K_inf, 0, 1)
-        K_hosp = np.insert(K_hosp, 0, 1)
-
+        K_inf = np.array([1,] + list(K_inf))
+        K_hosp = np.array([1,] + list(K_hosp))
+        
         # Modeling immune escape
         # ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -410,11 +410,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        #if sum(f_VOC) != 1:
-        #    raise ValueError(
-        #        "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
-        #    )
 
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
@@ -566,8 +561,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + sum(f_immune_escape*d_VOC)*R
-        dR = dR - sum(f_immune_escape*d_VOC)*R     
+        dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        dR = dR - np.sum(f_immune_escape*d_VOC)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 

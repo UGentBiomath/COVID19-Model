@@ -26,3 +26,4 @@ dependencies:
   - ujson
   - openpyxl
   - pyomo
+  - numba
