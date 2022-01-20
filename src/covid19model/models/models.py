@@ -401,7 +401,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    @jit(fastmath=True, nopython=True)
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -413,9 +413,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         """
 
         # jit TODO's:
-        # - loop implementation of matmul, loop_2D_matmul(A, B)
+        # - loop implementation of matmul, loop_2D_matmul(A, B); speedup from 1000 ns to 500 ns 
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
-        # - replacement for np.sum, som_1d
+        # - replacement for np.sum, som_1d; speedup from 280 ns to 200 ns
         # - replacement for np.outer 
 
         # Construct vector K_inf
