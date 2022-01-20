@@ -369,7 +369,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    @jit(nopython=True)
+    #@jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -383,15 +383,15 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Detect errors in social contact data
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if Nc is None:
-            print(t)
+        #if Nc is None:
+        #    print(t)
 
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
 
         # Prepend a 'one' in front of K_inf and K_hosp
-        K_inf = np.array([1,] + list(K_inf))
-        K_hosp = np.array([1,] + list(K_hosp))
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
         
         # Modeling immune escape
         # ~~~~~~~~~~~~~~~~~~~~~~
@@ -436,8 +436,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         ## Compute the vaccination transitionings ##
         ############################################
 
-        dS = np.zeros(S.shape)
-        dR = np.zeros(R.shape)
+        dS = np.zeros(S.shape, np.float32)
+        dR = np.zeros(R.shape, np.float32)
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~

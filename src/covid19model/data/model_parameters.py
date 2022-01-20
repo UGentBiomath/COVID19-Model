@@ -459,18 +459,18 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     VOC_parameters = VOC_parameters.loc[VOCs]
     # Assign all parameters to a dictionary
     pars_dict = {
-        'sigma': list(VOC_parameters['variant_properties', 'sigma'].values),
-        'f_VOC' : list(VOC_parameters['variant_properties', 'f_VOC'].values),
-        'f_immune_escape' : list(VOC_parameters['variant_properties', 'f_immune_escape'].values),
-        'K_inf' : list(VOC_parameters['variant_properties', 'K_inf'].values)[1:], # Assumes the first variant is the reference variant (#TODO: generalize further?)
-        'K_hosp' : list(VOC_parameters['variant_properties', 'K_hosp'].values)[1:],
-        'e_s' : list(VOC_parameters['vaccine_properties', 'e_s'].values),
-        'e_h' : list(VOC_parameters['vaccine_properties', 'e_h'].values),
-        'e_i' : list(VOC_parameters['vaccine_properties', 'e_i'].values),
+        'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
+        'f_VOC' : np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64),
+        'f_immune_escape' : np.array(VOC_parameters['variant_properties', 'f_immune_escape'], np.float64),
+        'K_inf' : np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64), # Assumes the first variant is the reference variant (#TODO: generalize further?)
+        'K_hosp' : np.array(VOC_parameters['variant_properties', 'K_hosp'].tolist()[1:], np.float64),
+        'e_s' : np.array(VOC_parameters['vaccine_properties', 'e_s'].tolist(), np.float64),
+        'e_h' : np.array(VOC_parameters['vaccine_properties', 'e_h'].tolist(), np.float64),
+        'e_i' : np.array(VOC_parameters['vaccine_properties', 'e_i'].tolist(), np.float64),
     }
     if not pd.isnull(list(VOC_parameters['variant_properties', 'K_inf'].values)[0]):
         pars_dict.update({'h': h*list(VOC_parameters['variant_properties', 'K_inf'].values)[0]})
-    
+
     # All other random parameters
     dose_stratification_size = 5
     pars_dict.update({
