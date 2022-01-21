@@ -20,7 +20,7 @@ register_matplotlib_converters()
 ###############
 
 @jit(fastmath=True, nopython=True)
-def jit_matmul_2D_1D(A, B):
+def jit_matmul_2D_1D(A, b):
     """A simple jitted implementation of a 2Dx1D matrix multiplication
     """
     n = A.shape[0]
@@ -28,7 +28,7 @@ def jit_matmul_2D_1D(A, B):
     out = np.zeros(n, np.float64)
     for i in range(n):
             for k in range(f):
-                out[i] += A[i, k] * B[k]
+                out[i] += A[i, k] * b[k]
     return out
 
 @jit(fastmath=True, nopython=True)
@@ -73,10 +73,10 @@ def negative_values_replacement_2D(A, B):
     return A
 
 @jit(fastmath=True, nopython=True)
-def som_1d(a):
+def jit_sum(a):
     som = 0
     for i in range(len(a)):
-        som = som + a[i]
+        som += a[i]
     return som
 
 class simple_stochastic_SIR(BaseModel):
@@ -442,10 +442,12 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         *Deterministic implementation*
         """
 
-        # jit TODO's:
+        # jit wisdom:
+        # the jit-compatible versions of np.outer, np.sum, np.matmul have large speedups as compared to their numpy counterparts however:
+        # replacing np.outer, np.sum with jit-compatible variants does not result in a speedup (and even slows the code slightly down)
+        # replacing @ by np.matmul results in a speedup for matrices of sufficient size, but slows the code down for smaller systems
+
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
-        # - replacement for np.sum, som_1d; speedup from 280 ns to 200 ns
-        # - replacement for np.outer 
 
         # Construct vector K_inf
         # ~~~~~~~~~~~~~~~~~~~~~~
@@ -474,9 +476,9 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
-        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) --> performs slower than @ (maybe because matrices are quite small)
-        e_s = f_VOC @ e_s #jit_matmul_1D_2D(f_VOC, e_s)
-        e_h = f_VOC @ e_h #jit_matmul_1D_2D(f_VOC, e_h)
+        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        e_s = f_VOC @ e_s 
+        e_h = f_VOC @ e_h 
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
