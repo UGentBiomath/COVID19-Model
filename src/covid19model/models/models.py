@@ -468,17 +468,17 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1)
+        T = np.expand_dims(jit_sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1)
 
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        sigma = np.sum(f_VOC*sigma)
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        sigma = jit_sum(f_VOC*sigma)
+        h = jit_sum(jit_outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
-        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
-        e_s = f_VOC @ e_s 
-        e_h = f_VOC @ e_h 
+        e_i = jit_matmul_1D_2D(f_VOC, e_i) #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        e_s = jit_matmul_1D_2D(f_VOC, e_s) 
+        e_h = jit_matmul_1D_2D(f_VOC, e_h)
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -580,7 +580,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        IP = np.expand_dims( jit_sum( jit_outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -623,8 +623,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        dR = dR - np.sum(f_immune_escape*d_VOC)*R     
+        dS = dS + jit_sum(f_immune_escape*d_VOC)*R
+        dR = dR - jit_sum(f_immune_escape*d_VOC)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
