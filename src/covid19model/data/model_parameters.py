@@ -289,7 +289,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
     ##########################################################################
 
     # Susceptibility (Davies et al.)
-    pars_dict['s'] =  np.ones(age_stratification_size)
+    pars_dict['s'] =  np.ones(age_stratification_size, np.float64)
 
     # Hospitalization propensity (manually fitted)
     hosp_prop = pd.Series(index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'),
@@ -311,24 +311,24 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0,1
         return minimize(errorfcn, 0, args=(n, n_desired))['x'] * relative_data
     
     rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
-    pars_dict['h'] = convert_age_stratified_property(hosp_prop, age_classes).values
-    pars_dict['a'] = 1 - convert_age_stratified_property(rel_symptoms, age_classes).values
+    pars_dict['h'] = np.array(convert_age_stratified_property(hosp_prop, age_classes).values, np.float64)
+    pars_dict['a'] = np.array(1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
 
     #########################
     ## Hospital parameters ##
     #########################
 
     fractions = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='fractions', index_col=0, header=[0,1], engine='openpyxl')
-    pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1])
-    pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1])
-    pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1])
+    pars_dict['c'] = np.array(fractions['c','point estimate'].values[:-1], np.float64)
+    pars_dict['m_C'] = np.array(fractions['m0_{C}','point estimate'].values[:-1], np.float64)
+    pars_dict['m_ICU'] = np.array(fractions['m0_{ICU}', 'point estimate'].values[:-1], np.float64)
 
     residence_times = pd.read_excel(os.path.join(par_interim_path,'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1], engine='openpyxl')
-    pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1])
-    pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1])
-    pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1])
-    pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1])
-    pars_dict['dICUrec'] = np.array(residence_times['dICUrec', 'median'].values[:-1])
+    pars_dict['dc_R'] = np.array(residence_times['dC_R','median'].values[:-1], np.float64)
+    pars_dict['dc_D'] = np.array(residence_times['dC_D','median'].values[:-1], np.float64)
+    pars_dict['dICU_R'] = np.array(residence_times['dICU_R','median'].values[:-1], np.float64)
+    pars_dict['dICU_D'] = np.array(residence_times['dICU_D','median'].values[:-1], np.float64)
+    pars_dict['dICUrec'] = np.array(residence_times['dICUrec', 'median'].values[:-1], np.float64)
 
     ###################################
     ## Non-age-stratified parameters ##
