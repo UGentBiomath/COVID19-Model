@@ -72,13 +72,6 @@ def negative_values_replacement_2D(A, B):
         A[i,:][B[i,:]<0] = 0
     return A
 
-@jit(fastmath=True, nopython=True)
-def jit_sum(a):
-    som = 0
-    for i in range(len(a)):
-        som += a[i]
-    return som
-
 class simple_stochastic_SIR(BaseModel):
     """
     A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
@@ -473,7 +466,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        sigma = jit_sum(f_VOC*sigma)
+        sigma = np.sum(f_VOC*sigma)
         h = np.sum(jit_outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
         e_i = jit_matmul_1D_2D(f_VOC, e_i) #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
@@ -623,8 +616,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + jit_sum(f_immune_escape*d_VOC)*R
-        dR = dR - jit_sum(f_immune_escape*d_VOC)*R     
+        dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        dR = dR - np.sum(f_immune_escape*d_VOC)*R     
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
