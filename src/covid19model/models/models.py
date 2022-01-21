@@ -726,7 +726,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
         N = Nc.shape[1] # age stratification
         
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
         # infer aggregation (prov, arr or mun)
         agg = None
         if G == 11:
@@ -740,15 +740,15 @@ class COVID19_SEIQRD_spatial(BaseModel):
         # Expand beta to size G
         beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
         # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.transpose(place_eff) @ T
-        S_work = np.transpose(place_eff) @ S
-        I_work = np.transpose(place_eff) @ I
-        A_work = np.transpose(place_eff)@  A
+        T_work = np.matmul(np.transpose(place_eff), T)
+        S_work = np.matmul(np.transpose(place_eff), S)
+        I_work = np.matmul(np.transpose(place_eff), I)
+        A_work = np.matmul(np.transpose(place_eff), A)
         # Apply work contacts to place modified populations
-        multip_work = np.squeeze( ((I_work + A_work)/T_work)[:,np.newaxis,:] @ Nc_work)
+        multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
         multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
-        multip_rest = np.squeeze( ((I + A)/T)[:,np.newaxis,:] @ Nc-Nc_work)
+        multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
         multip_rest *= beta[:,np.newaxis]
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
