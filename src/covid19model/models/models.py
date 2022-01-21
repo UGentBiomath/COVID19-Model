@@ -20,9 +20,8 @@ register_matplotlib_converters()
 ###############
 
 @jit(fastmath=True, nopython=True)
-def loop_2D_1D_matmul(A, B):
+def jit_matmul_2D_1D(A, B):
     """A simple jitted implementation of a 2Dx1D matrix multiplication
-        Works twice as fast as a jitted '@' multiplication
     """
     n = A.shape[0]
     f = A.shape[1]
@@ -33,9 +32,20 @@ def loop_2D_1D_matmul(A, B):
     return out
 
 @jit(fastmath=True, nopython=True)
-def loop_2D_2D_matmul(A, B):
+def jit_matmul_1D_2D(a, B):
+    """A simple jitted implementation of a 1Dx2D matrix multiplication
+    """
+    n = B.shape[1]
+    f = len(a)
+    out = np.zeros(n, np.float64)
+    for i in range(n):
+            for k in range(f):
+                out[i] += a[k]*B[k,i] 
+    return out
+
+@jit(fastmath=True, nopython=True)
+def jit_matmul_2D_2D(A, B):
     """A simple jitted implementation of 2Dx2D matrix multiplication
-        Works twice as fast as a jitted '@' multiplication
     """
     n = A.shape[0]
     f = A.shape[1]
@@ -45,6 +55,15 @@ def loop_2D_2D_matmul(A, B):
         for j in range(m):
             for k in range(f):
                 out[i, j] += A[i, k] * B[k, j]
+    return out
+
+@jit(fastmath=True, nopython=True)
+def jit_outer(a, b):
+    """A jitted implementation of np.outer"""
+    out = np.zeros((len(a),len(b)), np.float64)
+    for i in range(len(a)):
+        for j in range(len(b)):
+            out[i,j] = a[i]*b[j]
     return out
 
 @jit(fastmath=True, nopython=True)
@@ -315,7 +334,7 @@ class COVID19_SEIQRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = beta*s*loop_2D_1D_matmul(Nc, (I+A)/T)
+        IP = beta*s*jit_matmul_2D_1D(Nc, (I+A)/T)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -424,7 +443,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         """
 
         # jit TODO's:
-        # - loop implementation of matmul, loop_2D_matmul(A, B); speedup from 1000 ns to 500 ns 
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
         # - replacement for np.sum, som_1d; speedup from 280 ns to 200 ns
         # - replacement for np.outer 
@@ -439,7 +457,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Modeling immune escape
         # ~~~~~~~~~~~~~~~~~~~~~~
 
-        # Remove negative derivatives to ease further computation
+        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
@@ -455,11 +473,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         sigma = np.sum(f_VOC*sigma)
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        # Code snippet below does not work for 2D matrices if you use jit
         h[h > 1] = 1
-        e_i = f_VOC @ e_i 
-        e_s = f_VOC @ e_s 
-        e_h = f_VOC @ e_h
+        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) --> performs slower than @ (maybe because matrices are quite small)
+        e_s = f_VOC @ e_s #jit_matmul_1D_2D(f_VOC, e_s)
+        e_h = f_VOC @ e_h #jit_matmul_1D_2D(f_VOC, e_h)
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -561,7 +578,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*(Nc @ np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
