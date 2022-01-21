@@ -221,7 +221,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=False, VOC=False)
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
