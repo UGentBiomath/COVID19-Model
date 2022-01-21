@@ -115,7 +115,7 @@ initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size
 #############################################################
 
 # TODO: Formalize
-option = 1
+option = 3
 
 import json
 import random
@@ -234,7 +234,7 @@ elif option == 2:
         return param_dict
 
 elif option == 3:
-    # Option 3: CORE parameter distributions were used as priors during winter calibration
+    # Option 3: CORE parameter distributions were used as priors during winter calibration so no CORE dictionary is needed
     # Define draw function
     def draw_fcn(param_dict,samples_dict):
         """ some docstring
@@ -281,11 +281,6 @@ elif option == 3:
             param_dict[names[idx]] = np.array(param_val)
             
         return param_dict
-
-#######################
-## Sampling function ##
-#######################
-
 
 #########################
 ## Perform simulations ##
