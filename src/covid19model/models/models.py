@@ -20,8 +20,21 @@ register_matplotlib_converters()
 ###############
 
 @jit(fastmath=True, nopython=True)
-def loop_2D_matmul(A, B):
-    """A simple jitted implementation of 2D matrix multiplication
+def loop_2D_1D_matmul(A, B):
+    """A simple jitted implementation of a 2Dx1D matrix multiplication
+        Works twice as fast as a jitted '@' multiplication
+    """
+    n = A.shape[0]
+    f = A.shape[1]
+    out = np.zeros(n, np.float64)
+    for i in range(n):
+            for k in range(f):
+                out[i] += A[i, k] * B[k]
+    return out
+
+@jit(fastmath=True, nopython=True)
+def loop_2D_2D_matmul(A, B):
+    """A simple jitted implementation of 2Dx2D matrix multiplication
         Works twice as fast as a jitted '@' multiplication
     """
     n = A.shape[0]
@@ -283,6 +296,7 @@ class COVID19_SEIQRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
@@ -293,9 +307,6 @@ class COVID19_SEIQRD(BaseModel):
         *Deterministic implementation*
         """
 
-        if Nc is None:
-            print(t)
-
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -304,7 +315,7 @@ class COVID19_SEIQRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = beta*s*np.matmul(Nc,((I+A)/T))
+        IP = beta*s*loop_2D_1D_matmul(Nc, (I+A)/T)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

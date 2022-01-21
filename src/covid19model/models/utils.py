@@ -45,7 +45,7 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=False, VOC=False)
+    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
