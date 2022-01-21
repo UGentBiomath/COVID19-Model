@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+import numba as nb
 import numpy as np
 from numba import jit
 from .base import BaseModel
@@ -700,7 +701,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
@@ -726,30 +727,59 @@ class COVID19_SEIQRD_spatial(BaseModel):
         N = Nc.shape[1] # age stratification
         
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
-        # infer aggregation (prov, arr or mun)
-        agg = None
-        if G == 11:
-            agg = 'prov'
-        elif G == 43:
-            agg = 'arr'
-        elif G == 581:
-            agg = 'mun'
-        else:
-            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
+
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
+        # Define densities
+        dens = T.sum(axis=1)/area
+        RU_threshold=400
+        UM_threshold=4000
+        # Initialise and fill beta array
+        beta = np.full(len(dens), beta_U, np.float64) # np.ones(len(dens))*beta_U # inbetween values
+        beta[dens < RU_threshold] = beta_R # lower-than-threshold values
+        beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
+
         # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.matmul(np.transpose(place_eff), T)
-        S_work = np.matmul(np.transpose(place_eff), S)
-        I_work = np.matmul(np.transpose(place_eff), I)
-        A_work = np.matmul(np.transpose(place_eff), A)
-        # Apply work contacts to place modified populations
-        multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
-        multip_work *= beta[:,np.newaxis]
+        T_work = jit_matmul_2D_2D(np.transpose(place_eff), T)
+        S_work = jit_matmul_2D_2D(np.transpose(place_eff), S)
+        I_work = jit_matmul_2D_2D(np.transpose(place_eff), I)
+        A_work = jit_matmul_2D_2D(np.transpose(place_eff), A)
+
+        # Apply work contacts to place modified populations, apply other contacts to non-place modified populations
+        # Numpy implementation:
+        #multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
+        #multip_work *= beta[:,np.newaxis]
         # Apply all other contacts to non-place modified populations
-        multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
-        multip_rest *= beta[:,np.newaxis]
+        #multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
+        #multip_rest *= beta[:,np.newaxis]
+        # Jitted implementation with nested jit_matmul_1D_2D function
+        #for i in range(Nc.shape[0]):
+        #    multip_work[i,:] = beta[i]*jit_matmul_1D_2D(((I_work + A_work)/T_work)[i,:], Nc_work[i,:,:])
+        #    multip_rest[i,:] = beta[i]*jit_matmul_1D_2D(((I + A)/T)[i,:], (Nc[i,:,:] - Nc_work[i,:,:]))        
+        # Jitted loop implementation
+        multip_work = multip_rest = np.zeros(A.shape, np.float64)
+        for i in range(Nc.shape[0]):
+            a = ((I_work + A_work)/T_work)[i,:]
+            B = Nc_work[i,:,:]
+            n = B.shape[1]
+            f = len(a)
+            out = np.zeros(n, np.float64)
+            for j in range(n):
+                for k in range(f):
+                    out[j] += a[k]*B[k,j]
+            multip_work[i,:] = out
+
+        for i in range(Nc.shape[0]):
+            a = ((I + A)/T)[i,:]
+            B = Nc[i,:,:] - Nc_work[i,:,:]
+            n = B.shape[1]
+            f = len(a)
+            out = np.zeros(n, np.float64)
+            for j in range(n):
+                for k in range(f):
+                    out[j] += a[k]*B[k,j]
+            multip_work[i,:] = out
+
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
 
@@ -763,7 +793,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
-        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dC =  M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
