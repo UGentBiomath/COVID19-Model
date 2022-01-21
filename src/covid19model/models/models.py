@@ -468,11 +468,11 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         sigma = np.sum(f_VOC*sigma)
-        h = np.sum(jit_outer(h, f_VOC*K_hosp),axis=1)
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
-        e_i = jit_matmul_1D_2D(f_VOC, e_i) #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
-        e_s = jit_matmul_1D_2D(f_VOC, e_s) 
-        e_h = jit_matmul_1D_2D(f_VOC, e_h)
+        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        e_s = f_VOC @ e_s 
+        e_h = f_VOC @ e_h
 
         # Expand dims on first stratification axis (age)
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -574,7 +574,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( jit_outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -740,10 +740,10 @@ class COVID19_SEIQRD_spatial(BaseModel):
         beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = jit_matmul_2D_2D(np.transpose(place_eff), T)
-        S_work = jit_matmul_2D_2D(np.transpose(place_eff), S)
-        I_work = jit_matmul_2D_2D(np.transpose(place_eff), I)
-        A_work = jit_matmul_2D_2D(np.transpose(place_eff), A)
+        T_work = np.transpose(place_eff) @ T
+        S_work = np.transpose(place_eff) @ S
+        I_work = np.transpose(place_eff) @ I
+        A_work = np.transpose(place_eff) @ A
 
         # Apply work contacts to place modified populations, apply other contacts to non-place modified populations
         # Numpy implementation:
@@ -778,7 +778,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
             for j in range(n):
                 for k in range(f):
                     out[j] += a[k]*B[k,j]
-            multip_work[i,:] = out
+            multip_rest[i,:] = out
 
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
