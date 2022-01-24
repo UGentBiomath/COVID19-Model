@@ -1,9 +1,9 @@
 import os
 import random
+from numba import jit
 import numpy as np
 import pandas as pd
 import xarray as xr
-import zarr
 import ujson as json
 import pickle
 
@@ -879,7 +879,8 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
-def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM_threshold=4000):
+@jit(nopython=True)
+def stratify_beta(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_threshold=4000):
     """
     Function that returns a spatially stratified infectivity parameter. IMPORTANT: this assumes that throughout the model, all NIS values are in order (e.g. 11000 to 93000). Currently hard-coded on threshold densities of 400/km2 and 4000/km2. Indices indicated in order of density.
     
@@ -891,8 +892,6 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
         Infectivity in urban areas
     beta_M : float
         Infectivity in metropolitan areas
-    agg : str
-        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
     areas : np.array
         G-fold numpy.array with areas of all regions in order of increasing NIS code
     pops : np.array
@@ -907,19 +906,18 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
     beta : np.array of floats
         Array with length fitting to aggregation level agg, and three degrees of freedom depending on beta_R, beta_U, beta_M
     """
+
     # Exceptions
-    if agg not in ['prov', 'arr', 'mun']:
-        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     if (RU_threshold >= UM_threshold) or (RU_threshold < 0) or (UM_threshold < 0):
-        raise Exception(f"RU_threshold ({RU_threshold}) must be smaller than UM_threshold ({UM_threshold}) and both values must be positive (units of people/km2).")
+        raise Exception("RU_threshold must be smaller than UM_threshold and both values must be positive (units of people/km2).")
         
     # Define densities
     dens = pops/areas
 
     # Initialise and fill beta array
-    beta = np.full(len(dens), beta_U) # np.ones(len(dens))*beta_U # inbetween values
-    beta = np.where(dens < RU_threshold, beta_R, beta) # lower-than-threshold values
-    beta = np.where(dens >= UM_threshold, beta_M, beta) # higher-than-threshold values
+    beta = np.full(len(dens), beta_U, np.float64) # np.ones(len(dens))*beta_U # inbetween values
+    beta[dens < RU_threshold] = beta_R # lower-than-threshold values
+    beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
 
     return beta
 

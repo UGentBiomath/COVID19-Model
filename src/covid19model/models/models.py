@@ -59,6 +59,22 @@ def jit_matmul_2D_2D(A, B):
     return out
 
 @jit(fastmath=True, nopython=True)
+def matmul_2D_3D(A,B):
+    out = np.zeros(A.shape, np.float64)
+    for i in range(A.shape[0]):
+        # reduce dimension
+        a = A[i,:]
+        b = B[i,:,:]
+        # determine loop sizes
+        n = b.shape[1]
+        f = len(a)
+        # loop
+        for j in range(n):
+            for k in range(f):
+                out[i,j] += a[k]*b[k,j]
+    return out
+
+@jit(fastmath=True, nopython=True)
 def jit_outer(a, b):
     """A jitted implementation of np.outer"""
     out = np.zeros((len(a),len(b)), np.float64)
@@ -736,14 +752,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
         place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
 
         # Expand beta to size G
-        # Define densities
-        dens = T.sum(axis=1)/area
-        RU_threshold=400
-        UM_threshold=4000
-        # Initialise and fill beta array
-        beta = np.full(len(dens), beta_U, np.float64) # np.ones(len(dens))*beta_U # inbetween values
-        beta[dens < RU_threshold] = beta_R # lower-than-threshold values
-        beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
+        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.transpose(place_eff) @ T
@@ -752,39 +761,8 @@ class COVID19_SEIQRD_spatial(BaseModel):
         A_work = np.transpose(place_eff) @ A
 
         # Apply work contacts to place modified populations, apply other contacts to non-place modified populations
-        # Numpy implementation:
-        #multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
-        #multip_work *= beta[:,np.newaxis]
-        # Apply all other contacts to non-place modified populations
-        #multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
-        #multip_rest *= beta[:,np.newaxis]
-        # Jitted implementation with nested jit_matmul_1D_2D function
-        #for i in range(Nc.shape[0]):
-        #    multip_work[i,:] = beta[i]*jit_matmul_1D_2D(((I_work + A_work)/T_work)[i,:], Nc_work[i,:,:])
-        #    multip_rest[i,:] = beta[i]*jit_matmul_1D_2D(((I + A)/T)[i,:], (Nc[i,:,:] - Nc_work[i,:,:]))        
-        # Jitted loop implementation
-        multip_work = multip_rest = np.zeros(A.shape, np.float64)
-        for i in range(Nc.shape[0]):
-            a = ((I_work + A_work)/T_work)[i,:]
-            B = Nc_work[i,:,:]
-            n = B.shape[1]
-            f = len(a)
-            out = np.zeros(n, np.float64)
-            for j in range(n):
-                for k in range(f):
-                    out[j] += a[k]*B[k,j]
-            multip_work[i,:] = out
-
-        for i in range(Nc.shape[0]):
-            a = ((I + A)/T)[i,:]
-            B = Nc[i,:,:] - Nc_work[i,:,:]
-            n = B.shape[1]
-            f = len(a)
-            out = np.zeros(n, np.float64)
-            for j in range(n):
-                for k in range(f):
-                    out[j] += a[k]*B[k,j]
-            multip_rest[i,:] = out
+        multip_work = matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
+        multip_rest = matmul_2D_3D((I + A)/T, Nc-Nc_work)
 
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
