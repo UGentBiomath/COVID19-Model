@@ -764,6 +764,11 @@ class COVID19_SEIQRD_spatial(BaseModel):
         multip_work = matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
         multip_rest = matmul_2D_3D((I + A)/T, Nc-Nc_work)
 
+        # Multiply result with beta
+        for i in range(multip_work.shape[0]):
+            multip_work[:,i] = beta*multip_work[:,i]
+            multip_rest[:,i] = beta*multip_rest[:,i]
+
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
 
