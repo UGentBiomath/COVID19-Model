@@ -75,7 +75,7 @@ def jit_matmul_2D_3D(A,B):
             for k in range(f):
                 out[i,j] += a[k]*b[k,j]
     return out
-    
+
 @jit(fastmath=True, nopython=True)
 def jit_matmul_3D_2D(A, B):
     """(n,k,m) x (n,m) --> for n: (k,m) x (m,) --> (n,k) """
@@ -786,9 +786,8 @@ class COVID19_SEIQRD_spatial(BaseModel):
         multip_rest = jit_matmul_2D_3D((I + A)/T, Nc-Nc_work)
 
         # Multiply result with beta
-        for i in range(multip_work.shape[0]):
-            multip_work[:,i] = beta*multip_work[:,i]
-            multip_rest[:,i] = beta*multip_rest[:,i]
+        multip_work *= np.expand_dims(beta, axis=1)
+        multip_rest *= np.expand_dims(beta, axis=1)
 
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
