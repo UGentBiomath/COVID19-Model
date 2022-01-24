@@ -318,6 +318,12 @@ class COVID19_SEIQRD(BaseModel):
         Biomath extended SEIQRD model for COVID-19
 
         *Deterministic implementation*
+
+        numba jit benchmark: simulation from 2020-03-15 until 2021-02-01:
+            no jit using np.matmul matrix multiplication ()
+            no jit using @ matrix multiplication (1060 +- 46 ms)
+            jit using @ mattrix multiplication (835 +- 9 ms)
+            jit using loop matrix multiplication (786 +- 11 ms)
         """
 
         # calculate total population
