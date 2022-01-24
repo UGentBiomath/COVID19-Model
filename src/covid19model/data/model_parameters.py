@@ -92,15 +92,14 @@ def get_interaction_matrices(dataset='willem_2012', wave = 1, intensity='all', a
                 "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
 
         # Extract interaction matrices
-        Nc_home = pd.read_excel(os.path.join(path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_work = pd.read_excel(os.path.join(path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_schools = pd.read_excel(os.path.join(path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_transport = pd.read_excel(os.path.join(path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_leisure = pd.read_excel(os.path.join(path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_others = pd.read_excel(os.path.join(path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
-        Nc_total = pd.read_excel(os.path.join(path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values
+        Nc_home = np.ascontiguousarray(pd.read_excel(os.path.join(path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_work = np.ascontiguousarray(pd.read_excel(os.path.join(path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_schools = np.ascontiguousarray(pd.read_excel(os.path.join(path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_transport = np.ascontiguousarray(pd.read_excel(os.path.join(path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_leisure = np.ascontiguousarray(pd.read_excel(os.path.join(path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_others = np.ascontiguousarray(pd.read_excel(os.path.join(path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+        Nc_total = np.ascontiguousarray(pd.read_excel(os.path.join(path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
         Nc_dict = {'total': Nc_total, 'home':Nc_home, 'work': Nc_work, 'schools': Nc_schools, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
-
         return Nc_dict
 
 
