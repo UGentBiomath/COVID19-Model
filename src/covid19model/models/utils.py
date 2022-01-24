@@ -272,7 +272,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
                                                        'beta_M': seasonality_function})
     return initN, model
 
-def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
+def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], update=False, provincial=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -311,7 +311,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
 
     # Population size, interaction matrices and the model parameters; all VOC dependent parameters
     initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
-    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, age_stratification_size=len(age_classes), VOCs=['WT', 'abc', 'delta'] )
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
     params.update(VOC_params)
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
