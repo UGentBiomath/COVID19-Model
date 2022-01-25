@@ -24,6 +24,12 @@ export PATH="${VSC_DATA}/miniconda3/bin:${PATH}"
 ```
 ### Cloning the COVID19-Model code from git
 
+To acces my personal github repo, I need to use the following commands to 'initialize' github on the HPC,
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/HPC_Github
+```
+
 Copy (or `git clone`) the COVID19-Model directory to your personal directory on the Flemish HPC cluster. I recommend using $VSC_DATA over $VSC_HOME because there is up to 25 Gb of storage on $VSC_HOME.
 ```bash
 git clone git@github.com:username/COVID19-Model.git 
