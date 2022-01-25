@@ -30,6 +30,16 @@ def vaccination_write_protection_2D(X, X_post_vacc, dX):
     return X_post_vacc, dX
 
 @jit(nopython=True)
+def vaccination_write_protection_3D(X, X_post_vacc, dX):
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            for k in range(X.shape[2]):
+                if X_post_vacc[i,j,k] < 0:
+                    dX[i,j,k] = 0 - X[i,j,k]
+                    X_post_vacc[i,j,k] = 0
+    return X_post_vacc, dX
+
+@jit(nopython=True)
 def jit_matmul_1D_2D(a, B):
     """A simple jitted implementation of a 1Dx2D matrix multiplication
     """
@@ -961,12 +971,11 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         S_post_vacc = S + dS
         R_post_vacc = R + dR
 
-        # Compute dS that makes S and R equal to zero
-        #dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
-        #dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
-        # Set S and R equal to zero
-        #S_post_vacc[np.where(S_post_vacc < 0)] = 0
-        #R_post_vacc[np.where(R_post_vacc < 0)] = 0
+        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        S_post_vacc, dS = vaccination_write_protection_3D(S, S_post_vacc, dS)
+        R_post_vacc, dR = vaccination_write_protection_3D(R, R_post_vacc, dR)
 
         ################################
         ## Compute infection pressure ##
