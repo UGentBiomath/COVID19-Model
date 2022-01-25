@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta',]
-    bounds1=((0.005,0.060),)
+    bounds1=((0.003,0.060),)
     # Social intertia
     pars2 = ['l1',   'l2']
     bounds2=((1,21), (1,21))
@@ -238,15 +238,15 @@ if __name__ == '__main__':
     # Perturbate PSO Estimate
 
     # pars1 = ['beta',]
-    pert1=[0.20,]
+    pert1 = [0.20,]
     # pars2 = ['l1', 'l2']
-    pert2=[0.10, 0.10]
+    pert2 = [0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.80, 0.50, 0.50, 0.20, 0.50]
+    pert3 = [0.80, 0.50, 0.50, 0.20, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.30, 0.30]
+    pert4 = [0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.50,] 
+    pert5 = [0.20,] 
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4 + pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
