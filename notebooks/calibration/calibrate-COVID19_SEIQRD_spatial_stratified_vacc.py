@@ -163,9 +163,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 50
+    print_n = 20
     # Define dataset
     data=[df_sciensano[start_calibration:end_calibration]]
     states = ["H_in"]
