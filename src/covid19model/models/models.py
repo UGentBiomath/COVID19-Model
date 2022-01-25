@@ -665,6 +665,160 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
+class COVID19_SEIQRD_spatial_no_jit(BaseModel):
+    """
+    BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
+    Can account for re-infection and co-infection with a new COVID-19 variants.
+
+    Parameters
+    ----------
+    To initialise the model, provide following inputs:
+
+    states : dictionary
+        contains the initial values of all non-zero model states
+        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
+        initialising zeros is thus not required
+        
+        S : susceptible
+        E : exposed
+        I : infected
+        A : asymptomatic
+        M : mild
+        C : cohort
+        C_icurec : cohort after recovery from ICU
+        ICU : intensive care
+        R : recovered
+        D : deceased
+
+        H_in : new hospitalizations
+        H_out : new hospital discharges
+        H_tot : total patients in Belgian hospitals
+        
+    parameters : dictionary
+        containing the values of all parameters (both stratified and not)
+        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
+
+        Non-stratified parameters
+        -------------------------
+        beta : probability of infection when encountering an infected person
+        sigma : length of the latent period
+        omega : length of the pre-symptomatic infectious period
+        zeta : effect of re-susceptibility and seasonality
+        a : probability of an asymptomatic cases
+        m : probability of an initially mild infection (m=1-a)
+        da : duration of the infection in case of asymptomatic
+        dm : duration of the infection in case of mild
+        der : duration of stay in emergency room/buffer ward
+        dc : average length of a hospital stay when not in ICU
+        dICU_R : average length of a hospital stay in ICU in case of recovery
+        dICU_D: average length of a hospital stay in ICU in case of death
+        dhospital : time before a patient reaches the hospital
+
+        Age-stratified parameters
+        -------------------------
+        s: relative susceptibility to infection
+        a : probability of a subclinical infection
+        h : probability of hospitalisation for a mild infection
+        c : probability of hospitalisation in Cohort (non-ICU)
+        m_C : mortality in Cohort
+        m_ICU : mortality in ICU
+
+        Spatially-stratified parameters
+        -------------------------------
+        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
+        p : mobility parameter (1 by default = no measures)
+
+        Other parameters
+        ----------------
+        Nc : N-by-N contact matrix between all age groups in stratification
+
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work']
+    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
+    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
+    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
+    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
+
+    # ..transitions/equations
+    @staticmethod
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
+                  beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
+                  area, p,  # spatially stratified parameters. 
+                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
+                  place, Nc): # stratified parameters that determine stratification dimensions
+
+        """
+        BIOMATH extended SEIRD model for COVID-19
+        """
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = S + E + I + A + M + C + C_icurec + ICU + R
+
+        ####################################
+        ## Compute the infection pressure ##
+        ####################################
+
+        # For total population and for the relevant compartments I and A
+        G = place.shape[0] # spatial stratification
+        N = Nc.shape[1] # age stratification
+        
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
+        # infer aggregation (prov, arr or mun)
+        agg = None
+        if G == 11:
+            agg = 'prov'
+        elif G == 43:
+            agg = 'arr'
+        elif G == 581:
+            agg = 'mun'
+        else:
+            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        # Expand beta to size G
+        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.matmul(np.transpose(place_eff), T)
+        S_work = np.matmul(np.transpose(place_eff), S)
+        I_work = np.matmul(np.transpose(place_eff), I)
+        A_work = np.matmul(np.transpose(place_eff), A)
+        # Apply work contacts to place modified populations
+        multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
+        multip_work *= beta[:,np.newaxis]
+        # Apply all other contacts to non-place modified populations
+        multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
+        multip_rest *= beta[:,np.newaxis]
+        # Compute rates of change
+        dS_inf = S_work * multip_work + S * multip_rest
+
+        ############################
+        ## Compute system of ODEs ##
+        ############################
+        
+        ### non-vaccinated population
+        dS  = - dS_inf + zeta*R
+        dE  = dS_inf - E/sigma
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
+        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
+        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C  
+
+        ## Hospital rates of changes
+        dH_in = M*(h/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
+
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+
 class COVID19_SEIQRD_spatial(BaseModel):
     """
     BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
