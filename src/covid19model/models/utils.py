@@ -1,3 +1,4 @@
+import warnings
 import os
 import random
 from numba import jit
@@ -780,6 +781,7 @@ def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.
             if ((dimension != 'time') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
         # Add Poisson draws
+        print(state_name)
         mean, median, lower, upper = add_poisson(copy[state_name].values, n_draws_per_sample, UL, LL)
         # Add to dataframe
         df[state_name,'mean'] = mean
@@ -828,14 +830,21 @@ def add_poisson(output_array, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
 
     """
 
-    # Determine number of samples
+    # Determine number of samples and number of timesteps
+    simtime = output_array.shape[1]
     n_samples = output_array.shape[0]
-    # Initialize vectors
-    vector = np.zeros((output_array.shape[1],n_draws_per_sample*n_samples))
+    # Initialize a column vector to append to
+    vector = np.zeros((simtime,1))
     # Loop over dimension draws
-    for n in range(output_array.shape[0]):
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = np.random.poisson( np.expand_dims(output_array[n,:],axis=1),size = (output_array.shape[1],n_draws_per_sample))
-    # Compute mean and median
+    for n in range(n_samples):
+        try:
+            result = np.random.poisson( np.expand_dims(output_array[n,:],axis=1),size = (output_array.shape[1],n_draws_per_sample))
+            vector = np.append(vector, result, axis=1)
+        except:
+            warnings.warn("I had to remove a simulation result from the output because there was a negative value in it..")
+    # Remove first column
+    vector = np.delete(vector, 0, axis=1)
+    #  Compute mean and median
     mean = np.mean(vector,axis=1)
     median = np.median(vector,axis=1)    
     # Compute quantiles
