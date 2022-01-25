@@ -618,7 +618,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # Write protect the S and R states against vaccination data resulting in > 100% vaccination
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        # TODO: This slows the code waaaay down
         S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
         R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
 
@@ -973,7 +973,9 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
 
         # Write protect the S and R states against vaccination data resulting in > 100% vaccination
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        # TODO: This slows the code waaaay down
+        # I don't know why, if I time one model evaluation with and without this code it doesn't influence the computation at all
+        # But when you try to run it "irl" it is bogged down enormously
         S_post_vacc, dS = vaccination_write_protection_3D(S, S_post_vacc, dS)
         R_post_vacc, dR = vaccination_write_protection_3D(R, R_post_vacc, dR)
 
