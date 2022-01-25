@@ -100,7 +100,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path_agg+str(identifier)+'_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path_agg+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()

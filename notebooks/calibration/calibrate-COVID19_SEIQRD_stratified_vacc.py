@@ -55,9 +55,7 @@ else:
     high_performance_computing = False
 # Identifier (name)
 if args.identifier:
-    identifier = str(args.identifier)
-    # Spatial unit: depesnds on aggregation
-    identifier = f'{agg}_{identifier}'
+    identifier = 'BE_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations

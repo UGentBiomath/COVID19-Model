@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32] # A calibration I'm happ with
+    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32] # A calibration I'm happy with
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -281,8 +281,8 @@ if __name__ == '__main__':
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
     print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
     print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
-    print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
-    print(f'Seasonality {pars[12:]}: {theta[12:]}')
+    print(f'VOC effects {pars[10:11]}: {theta[10:11]}.')
+    print(f'Seasonality {pars[11:]}: {theta[11:]}')
     sys.stdout.flush()
 
     ########################
