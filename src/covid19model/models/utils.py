@@ -185,7 +185,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
 
     return initN, model
 
-def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', update=False, provincial=False, jitmodel=False):
+def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', update=False, provincial=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -263,22 +263,14 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     ##########################
 
     # Initiate model with initial states, defined parameters, and proper time dependent functions
-    if jitmodel:
-        model = models.COVID19_SEIQRD_spatial(initial_states, params, spatial=agg,
-                                time_dependent_parameters={'Nc' : policy_function,
-                                                        'Nc_work' : policy_function_work,
-                                                        'place' : mobility_function,
-                                                        'beta_R' : seasonality_function,
-                                                        'beta_U': seasonality_function,
-                                                        'beta_M': seasonality_function})
-    else:
-        model = models.COVID19_SEIQRD_spatial_no_jit(initial_states, params, spatial=agg,
-                                time_dependent_parameters={'Nc' : policy_function,
-                                                        'Nc_work' : policy_function_work,
-                                                        'place' : mobility_function,
-                                                        'beta_R' : seasonality_function,
-                                                        'beta_U': seasonality_function,
-                                                        'beta_M': seasonality_function})
+    model = models.COVID19_SEIQRD_spatial(initial_states, params, spatial=agg,
+                            time_dependent_parameters={'Nc' : policy_function,
+                                                    'Nc_work' : policy_function_work,
+                                                    'place' : mobility_function,
+                                                    'beta_R' : seasonality_function,
+                                                    'beta_U': seasonality_function,
+                                                    'beta_M': seasonality_function})
+                                                    
     return initN, model
 
 def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], update=False, provincial=False):
