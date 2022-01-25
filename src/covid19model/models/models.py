@@ -510,12 +510,6 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         e_s = f_VOC @ e_s 
         e_h = f_VOC @ e_h
 
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1) # sum over doses
-
         ####################################################
         ## Expand dims on first stratification axis (age) ##
         ####################################################
@@ -603,12 +597,23 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         S_post_vacc = S + dS
         R_post_vacc = R + dR
 
-        # Compute dS that makes S and R equal to zero
-        #dS[S_post_vacc < 0] = 0 - S[S_post_vacc < 0]
-        #dR[R_post_vacc < 0] = 0 - R[R_post_vacc < 0]
-        # Set S and R equal to zero
-        #S_post_vacc[S_post_vacc < 0] = 0
-        #R_post_vacc[R_post_vacc < 0] = 0
+        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        for i in range(S.shape[0]):
+            for j in range(S.shape[1]):
+                if S_post_vacc[i,j] < 0:
+                    dS[i,j] = 0 - S[i,j]
+                    S_post_vacc[i,j] = 0
+                if R_post_vacc[i,j] < 0:
+                    dR[i,j] = 0 - R[i,j]
+                    R_post_vacc[i,j] = 0
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1) # sum over doses
 
         #################################
         ## Compute system of equations ##
