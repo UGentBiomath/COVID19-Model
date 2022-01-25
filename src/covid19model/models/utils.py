@@ -270,7 +270,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
                                                     'beta_R' : seasonality_function,
                                                     'beta_U': seasonality_function,
                                                     'beta_M': seasonality_function})
-                                                    
+
     return initN, model
 
 def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], update=False, provincial=False):
@@ -366,13 +366,14 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
-                                                       'Nc_work' : policy_function_work,
-                                                       'place' : mobility_function,
-                                                       'N_vacc' : vaccination_function, 
-                                                       'f_VOC' : VOC_function,
-                                                       'beta_R' : seasonality_function,
-                                                       'beta_U': seasonality_function,
-                                                       'beta_M': seasonality_function})
+                                                    'Nc_work' : policy_function_work,
+                                                    'place' : mobility_function,
+                                                    'N_vacc' : vaccination_function, 
+                                                    'f_VOC' : VOC_function,
+                                                    'beta_R' : seasonality_function,
+                                                    'beta_U': seasonality_function,
+                                                    'beta_M': seasonality_function})
+     
     return initN, model
 
 def load_samples_dict(filepath, age_stratification_size=10):

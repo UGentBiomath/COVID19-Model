@@ -87,7 +87,7 @@ def jit_matmul_3D_2D(A, B):
         f = A_acc.shape[1]
         for i in range(n):
                 for k in range(f):
-                    out[idx, :] += A[i, k] * b[k]
+                    out[idx, i] += A_acc[i, k] * b[k]
     return out
 
 @jit(fastmath=True, nopython=True)
@@ -985,7 +985,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         # Compute infectious work population (11,10)
         infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
         infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
-        
+
         # Multiply with number of contacts
         multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
         multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
