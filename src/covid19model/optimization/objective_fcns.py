@@ -8,7 +8,7 @@ def thetas_to_model_pars(thetas, parNames, model_parameters_dict):
     idx = 0
     for param in parNames:
         try:
-            dict[param] = thetas[idx:idx+len(model_parameters_dict[param])]
+            dict[param] = np.array(thetas[idx:idx+len(model_parameters_dict[param])], np.float64)
             idx = idx + len(model_parameters_dict[param])
         except:
             if ((isinstance(model_parameters_dict[param], float)) | (isinstance(model_parameters_dict[param], int))):
