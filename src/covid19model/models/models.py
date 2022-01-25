@@ -20,7 +20,16 @@ register_matplotlib_converters()
 ## jit utils ##
 ###############
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
+def vaccination_write_protection_2D(X, X_post_vacc, dX):
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            if X_post_vacc[i,j] < 0:
+                dX[i,j] = 0 - X[i,j]
+                X_post_vacc[i,j] = 0
+    return X_post_vacc, dX
+
+@jit(nopython=True)
 def jit_matmul_1D_2D(a, B):
     """A simple jitted implementation of a 1Dx2D matrix multiplication
     """
@@ -32,7 +41,7 @@ def jit_matmul_1D_2D(a, B):
                 out[i] += a[k]*B[k,i] 
     return out
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
 def jit_matmul_2D_1D(A, b):
     """ A simple jitted implementation of a 2D (n,m) with a 1D (m,) matrix multiplication
         Result is a 1D matrix (n,)
@@ -45,7 +54,7 @@ def jit_matmul_2D_1D(A, b):
                 out[i] += A[i, k] * b[k]
     return out
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
 def jit_matmul_2D_2D(A, B):
     """A simple jitted implementation of 2Dx2D matrix multiplication
     """
@@ -59,7 +68,7 @@ def jit_matmul_2D_2D(A, B):
                 out[i, j] += A[i, k] * B[k, j]
     return out
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
 def jit_matmul_2D_3D(A,B):
     """ A simple jitted implementation to multiply a 2D matrix of size (n,m) with a 3D matrix (n,m,m)"""
     out = np.zeros(A.shape, np.float64)
@@ -76,7 +85,7 @@ def jit_matmul_2D_3D(A,B):
                 out[i,j] += a[k]*b[k,j]
     return out
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
 def jit_matmul_3D_2D(A, B):
     """(n,k,m) x (n,m) --> for n: (k,m) x (m,) --> (n,k) """
     out = np.zeros(B.shape, np.float64)
@@ -90,7 +99,7 @@ def jit_matmul_3D_2D(A, B):
                     out[idx, i] += A_acc[i, k] * b[k]
     return out
 
-@jit(fastmath=True, nopython=True)
+@jit(nopython=True)
 def matmul_q_2D(A,B):
     """ A simple jitted implementation to multiply a 2D matrix of size (n,m) with a 3D matrix (m,k,q)
         Implemented as q times the matrix multiplication (n,m) x (m,k)
@@ -600,20 +609,14 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Write protect the S and R states against vaccination data resulting in > 100% vaccination
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        for i in range(S.shape[0]):
-            for j in range(S.shape[1]):
-                if S_post_vacc[i,j] < 0:
-                    dS[i,j] = 0 - S[i,j]
-                    S_post_vacc[i,j] = 0
-                if R_post_vacc[i,j] < 0:
-                    dR[i,j] = 0 - R[i,j]
-                    R_post_vacc[i,j] = 0
+        S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
+        R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
 
         ################################
         ## calculate total population ##
         ################################
 
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1) # sum over doses
+        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M + C + C_icurec + ICU + R_post_vacc, axis=1),axis=1) # sum over doses
 
         #################################
         ## Compute system of equations ##
@@ -666,7 +669,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~
 
         dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        dR = dR - np.sum(f_immune_escape*d_VOC)*R     
+        dR = dR - np.sum(f_immune_escape*d_VOC)*R 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
