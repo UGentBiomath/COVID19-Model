@@ -131,9 +131,10 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration]]
-    states = ["H_in"]
-    weights = [1]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'][0:5], df_sero_sciensano['abs','mean'][0:8]]
+    states = ["H_in", "R", "R"]
+    weight_sciensano = 1e-4
+    weights = [1, (8/5)*weight_sciensano, weight_sciensano]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -155,7 +156,7 @@ if __name__ == '__main__':
     bounds2=((1,21), (1,21))
     # Effectivity parameters
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    bounds3=((0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99))
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
@@ -163,14 +164,17 @@ if __name__ == '__main__':
     # Seasonality
     pars5 = ['amplitude',]
     bounds5 = ((0,0.40),)
+    # Waning antibody immunity
+    pars6 = ['zeta',]
+    bounds6 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
     # run optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     # all three options are valid
-    theta = np.array([0.0422, 15.2, 10, 0.08, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.18]) 
+    theta = np.array([0.0422, 15.2, 10, 0.08, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0032]) 
     #theta = np.array([0.0422, 15.2, 10, 0.1, 0.41, 0.3, 0.34, 0.203, 1.52, 1.72, 0.18])
     #theta = np.array([0.035, 21, 10, 0.12, 0.4, 0.47, 0.17, 0.35, 1.55, 1.65, 0.3])
 
@@ -178,7 +182,7 @@ if __name__ == '__main__':
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 11*[0.05,]
+    step = 12*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
     #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -233,22 +237,24 @@ if __name__ == '__main__':
     # Setup uniform priors
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform]
+                        prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO Estimate
 
     # pars1 = ['beta',]
-    pert1 = [0.20,]
+    pert1 = [0.05,]
     # pars2 = ['l1', 'l2']
     pert2 = [0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3 = [0.80, 0.50, 0.50, 0.20, 0.50]
+    pert3 = [0.20, 0.20, 0.20, 0.20, 0.20]
     # pars4 = ['K_inf_abc','K_inf_delta']
     pert4 = [0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.20,] 
+    pert5 = [0.10,] 
+    # pars6 = ['zeta',]
+    pert6 = [0.10,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
@@ -256,7 +262,7 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
     # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
