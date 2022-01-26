@@ -148,7 +148,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 2
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 10
     # Define dataset
