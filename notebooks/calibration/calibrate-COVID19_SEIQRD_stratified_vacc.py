@@ -175,8 +175,6 @@ if __name__ == '__main__':
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     # all three options are valid
     theta = np.array([0.0422, 15.2, 10, 0.08, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0032]) 
-    #theta = np.array([0.0422, 15.2, 10, 0.1, 0.41, 0.3, 0.34, 0.203, 1.52, 1.72, 0.18])
-    #theta = np.array([0.035, 21, 10, 0.12, 0.4, 0.47, 0.17, 0.35, 1.55, 1.65, 0.3])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -242,7 +240,7 @@ if __name__ == '__main__':
     # Perturbate PSO Estimate
 
     # pars1 = ['beta',]
-    pert1 = [0.05,]
+    pert1 = [0.03,]
     # pars2 = ['l1', 'l2']
     pert2 = [0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
