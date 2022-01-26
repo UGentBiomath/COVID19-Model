@@ -160,10 +160,10 @@ if __name__ == '__main__':
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
-    bounds4 = ((1.25,1.6),(1.65,2.4))
+    bounds4 = ((1.25,1.55),(1.60,2.4))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.40),)
+    bounds5 = ((0,0.24),)
     # Waning antibody immunity
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
