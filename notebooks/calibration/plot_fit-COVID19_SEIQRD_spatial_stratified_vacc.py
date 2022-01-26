@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc, output_to_visuals, add_poisson
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 # -----------------------
@@ -76,7 +76,7 @@ conf_int = 0.05
 # Path where figures and results should be stored
 fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/'+str(agg)+'/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
@@ -111,7 +111,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 # Initialize the model
 # --------------------
 
-initN, model = initialize_COVID19_SEIQRD_spatial_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+initN, model = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # -------------------
 # Perform simulations
