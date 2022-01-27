@@ -117,7 +117,7 @@ model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_
 
 # Define delay on booster immunity
 model.parameters.update({
-        'delay_immunity' : 10
+        'delay_immunity' : 7
 })
 
 if __name__ == '__main__':
