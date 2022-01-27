@@ -340,7 +340,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                 data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
             ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
-            ax[idx].scatter(df_sciensano.index, data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax[idx].set_title(title_list[idx])
             ax[idx].set_xlim([start_calibration, end_calibration])
             ax[idx].set_ylim([0, 350])
@@ -349,10 +349,10 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
             ax[idx] = _apply_tick_locator(ax[idx])
     
     elif agg == 'prov':
-        fig,ax = plt.subplots(nrows=len(df_sciensano.columns),ncols=1,figsize=(12,16), sharex=True)
-        for idx,NIS in enumerate(df_sciensano.columns):
+        fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
+        for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
             ax[idx].plot(output['time'], output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-            ax[idx].scatter(df_sciensano.index, df_sciensano.loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax[idx].set_xlim([start_calibration, end_calibration])
             ax[idx].set_ylim([0, 150])
             ax[idx].grid(False)

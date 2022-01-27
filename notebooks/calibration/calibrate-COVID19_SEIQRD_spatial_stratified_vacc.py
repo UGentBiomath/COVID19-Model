@@ -126,7 +126,7 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
+df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
@@ -147,13 +147,13 @@ if __name__ == '__main__':
     ##########################
 
     # Start of data collection
-    start_data = df_sciensano.index.get_level_values('DATE').min()
+    start_data = df_hosp.index.get_level_values('date').min()
     # Start of calibration: current initial condition is March 17th, 2021
     start_calibration = '2020-03-17'
     warmup =0
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
-        end_calibration = df_sciensano.index.max().strftime("%m-%d-%Y") #'2021-01-01'#
+        end_calibration = df_hosp.index.get_level_values('date').max().strftime("%Y-%m-%d") #'2021-01-01'#
     else:
         end_calibration = str(args.enddate)
     # PSO settings
@@ -162,11 +162,12 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 6
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+    df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][0:16]]
     states = ["H_in", "R", "R"]
     weights = [1, 1e-4, 1e-4]
 
@@ -232,16 +233,17 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][0:16]]
+        ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         ax.set_ylabel('New national hosp./day')
         plt.show()
         plt.close()
         # Regional fit
-        ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='reg')
         plt.show()
         plt.close()
         # Provincial fit
-        ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='prov')
         plt.show()
         plt.close()
 
@@ -263,15 +265,15 @@ if __name__ == '__main__':
             # Perform simulation
             out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
             # Visualize national fit
-            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
             plt.close()
             # Visualize regional fit
-            ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='reg')
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='reg')
             plt.show()
             plt.close()
             # Visualize provincial fit
-            ax = plot_PSO_spatial(out, df_sciensano, start_calibration, end_calibration, agg='prov')
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='prov')
             plt.show()
             plt.close()
             # Satisfied?
@@ -283,9 +285,9 @@ if __name__ == '__main__':
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
     print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
     print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
-    print(f'VOC effects {pars[10:11]}: {theta[10:11]}.')
-    print(f'Seasonality {pars[11:12]}: {theta[11:12]}')
-    print(f'Waning antibodies {pars[12:]}: {theta[12:]}')
+    print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
+    print(f'Seasonality {pars[12:13]}: {theta[12:13]}')
+    print(f'Waning antibodies {pars[13:]}: {theta[13:]}')
     sys.stdout.flush()
 
     ########################
@@ -333,11 +335,11 @@ if __name__ == '__main__':
                 '$K_{inf, abc}$', 'K_{inf, delta}', \
                 '$A$',
                 '$\zeta$']
-                
+
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights':weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
+    objective_fcn_kwargs = {'weights': weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
                             'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
 
     ######################
