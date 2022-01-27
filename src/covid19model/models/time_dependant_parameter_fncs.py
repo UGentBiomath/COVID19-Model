@@ -416,8 +416,11 @@ class make_vaccination_function():
                 N_vacc[vacc_order[idx],3] = daily_doses
                 daily_doses= 0
             else:
-                N_vacc[vacc_order[idx],3] = VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]]
-                daily_doses = daily_doses - (VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]])
+                if VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]] >= 0:
+                    N_vacc[vacc_order[idx],3] = VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]]
+                    daily_doses = daily_doses - (VE[vacc_order[idx]] - self.fully_vaccinated_0[vacc_order[idx]]*refusal[vacc_order[idx]])
+                else:
+                    N_vacc[vacc_order[idx],3] = 0
                 idx = idx + 1
         return N_vacc
 
@@ -827,7 +830,6 @@ class make_contact_matrix_function():
         elif t27 < t <= t28:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t28 < t <= t29:
-            # Increase mentality slightly between Christmas and NYE
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t29 < t <= t30:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
