@@ -131,10 +131,9 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'][0:5], df_sero_sciensano['abs','mean'][0:8]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
     states = ["H_in", "R", "R"]
-    weight_sciensano = 1e-4
-    weights = [1, (8/5)*weight_sciensano, weight_sciensano]
+    weights = [1, 1e-4, 1e-4]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -153,17 +152,17 @@ if __name__ == '__main__':
     bounds1=((0.003,0.060),)
     # Social intertia
     pars2 = ['l1',   'l2']
-    bounds2=((1,21), (1,21))
+    bounds2=((1,25), (1,25))
     # Effectivity parameters
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99))
+    bounds3=((0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99))
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
     bounds4 = ((1.25,1.55),(1.60,2.4))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.24),)
+    bounds5 = ((0,0.35),)
     # Waning antibody immunity
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
@@ -174,7 +173,7 @@ if __name__ == '__main__':
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     # all three options are valid
-    theta = np.array([0.0422, 15.2, 10, 0.08, 0.469, 0.23, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0032]) 
+    theta = np.array([0.0422, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0032]) 
 
     ####################################
     ## Local Nelder-mead optimization ##
