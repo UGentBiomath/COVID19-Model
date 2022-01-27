@@ -111,14 +111,14 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
         # Check the indices
         if 'date' in list(df.index.names):
             if 'NIS' in list(df.index.names):
-                # Spatial data
+                # Spatial data (must have 'date' first and then 'NIS')
                 for NIS in df.index.get_level_values('NIS').unique():
                     new_xarray = out[states[idx]].sel(place=NIS)
                     for dimension in out.dims:
                         if ((dimension != 'time') & (dimension != 'place')):
                             new_xarray = new_xarray.sum(dim=dimension)
                     ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                    MLE_add = weights[idx]*ll_poisson(ymodel, df[NIS], offset=poisson_offset)
+                    MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
                     MLE += MLE_add
             else:
                 # National data
