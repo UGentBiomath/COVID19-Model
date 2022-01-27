@@ -129,7 +129,7 @@ simtime = out['time'].values
 ## Visualize results ##
 #######################
 
-print('3) Visualizing fit')
+print('2) Visualizing fit')
 
 # Plot hospitalizations
 fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
@@ -178,7 +178,7 @@ if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-print('4) Visualizing fraction of immunes')
+print('3) Visualizing fraction of immunes')
 
 fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=(12,8))
 ax[0].plot(df_2plot['S','mean'],'--', color='red')
@@ -198,7 +198,7 @@ plt.tight_layout()
 plt.show()
 plt.close()
 
-print('5) Visualizing fit on deaths')
+print('4) Visualizing fit on deaths')
 
 dates = ['2021-02-01']
 
@@ -233,7 +233,7 @@ if args.save:
 ## Save states during summer of 2021 ##
 #######################################
 
-print('2) Save states during summer of 2021')
+print('5) Save states during summer of 2021')
 
 import pickle
 # Path where the pickle with initial conditions should be stored
