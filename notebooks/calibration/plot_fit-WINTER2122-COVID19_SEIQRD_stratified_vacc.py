@@ -324,3 +324,14 @@ if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 plt.close()
+
+# Booster campaign:
+#fig,ax=plt.subplots(figsize=(12,4))
+#for age_group in range(out.dims['Nc']):
+#    ax.plot(simtime, out['S'].isel(Nc=age_group).isel(doses=2).mean(dim='draws') + out['S'].isel(Nc=age_group).isel(doses=3).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=2).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=3).mean(dim='draws'))
+#    ax.plot(simtime, out['S'].isel(Nc=age_group).isel(doses=4).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=4).mean(dim='draws'), '--')
+#ax.legend(['0-12', '12-18', '18-25', '25-35', '35-45', '45-55', '55-65', '65-75', '75-85', '85+'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+
+#plt.tight_layout()
+#plt.show()
+#plt.close()
