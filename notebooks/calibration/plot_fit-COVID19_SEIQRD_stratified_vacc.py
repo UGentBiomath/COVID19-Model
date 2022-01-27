@@ -198,36 +198,36 @@ plt.tight_layout()
 plt.show()
 plt.close()
 
-print('4) Visualizing fit on deaths')
+print('4) Visualizing fit on deaths (not working for 10 age groups)')
 
-dates = ['2021-02-01']
+#dates = ['2021-02-01']
 
-fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(14,4*len(dates)),sharex=True)
-if len(dates) == 1:
-    axes = [axes,]
+#fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(14,4*len(dates)),sharex=True)
+#if len(dates) == 1:
+#    axes = [axes,]
 
-for idx,date in enumerate(dates):
-    data_sciensano = []
-    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
-        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
+#for idx,date in enumerate(dates):
+#    data_sciensano = []
+#    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
+#        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
     
-    axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').loc[dict(time=date)],color='black',marker='v',zorder=1)
-    yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
-    yerr[0,:] = out['D'].mean(dim='draws').loc[dict(time=date)] - out['D'].quantile(dim='draws',q=0.025).loc[dict(time=date)].values
-    yerr[1,:] = out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').loc[dict(time=date)]
-    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
-                       y=out['D'].mean(dim='draws').loc[dict(time=date)],
-                       yerr=yerr,
-                       color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
-    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
-    axes[idx].set_xticklabels(['[0,10(','[10,20(','[20,30(','[30,40(','[40,50(','[50,60(','[60,70(','[70,80(','[80,120('])
-    axes[idx].set_ylabel('Cumulative hospital deaths')
-    #axes[idx].set_title(date)
-    axes[idx].grid(False)
-plt.show()
-if args.save:
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
-    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
+#    axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').loc[dict(time=date)],color='black',marker='v',zorder=1)
+#    yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
+#    yerr[0,:] = out['D'].mean(dim='draws').loc[dict(time=date)] - out['D'].quantile(dim='draws',q=0.025).loc[dict(time=date)].values
+#    yerr[1,:] = out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').loc[dict(time=date)]
+#    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
+#                       y=out['D'].mean(dim='draws').loc[dict(time=date)],
+#                       yerr=yerr,
+#                       color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
+#    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
+#    axes[idx].set_xticklabels(['[0,10(','[10,20(','[20,30(','[30,40(','[40,50(','[50,60(','[60,70(','[70,80(','[80,120('])
+#    axes[idx].set_ylabel('Cumulative hospital deaths')
+#    #axes[idx].set_title(date)
+#    axes[idx].grid(False)
+#plt.show()
+#if args.save:
+#    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
+#    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
 
 #######################################
 ## Save states during summer of 2021 ##
