@@ -441,7 +441,6 @@ def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
@@ -450,7 +449,8 @@ def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]  
 
     # Hospitalization
     # ---------------
@@ -499,7 +499,6 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
@@ -509,6 +508,7 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
     # Omicron uncertainty: between 0-50% more transmissible; between 20-50% of delta variant severity
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
 
