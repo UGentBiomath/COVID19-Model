@@ -477,10 +477,10 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
         'd_vacc' : 100*365,
         'N_vacc' : np.zeros(age_stratification_size),
         'initN' : initN.values,
-        'daily_doses' : 60000,
+        'daily_doses' : 50000,
         'delay_immunity' : 14,
         'vacc_order' : list(range(age_stratification_size))[::-1],
-        'stop_idx' : 9,
-        'refusal' : 0.3*np.ones(age_stratification_size)
+        'stop_idx' : 8,
+        'refusal' : 0.10*np.ones(age_stratification_size)
     })                                    
     return VOC_parameters['logistic_growth'], pars_dict
