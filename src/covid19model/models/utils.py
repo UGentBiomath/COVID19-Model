@@ -46,7 +46,7 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -87,7 +87,7 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
     model = models.COVID19_SEIQRD(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function})
 
-    return initN, model
+    return model, CORE_samples_dict, initN
 
 def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update=False):
 
@@ -126,7 +126,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
     params.update(VOC_params)
     # Sciensano hospital and vaccination data
@@ -186,7 +186,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'f_VOC':VOC_function})
 
-    return initN, model
+    return model, CORE_samples_dict, initN
 
 def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', update=False, provincial=False):
 
@@ -224,7 +224,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
@@ -314,7 +314,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     #########################
 
     # Population size, interaction matrices and the model parameters; all VOC dependent parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
     VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
     params.update(VOC_params)
     # Google Mobility data (for social contact Nc)

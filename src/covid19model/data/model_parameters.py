@@ -465,7 +465,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         pars_dict['Nc_work'] = np.zeros(
             [age_stratification_size, age_stratification_size])
 
-    return initN, Nc_dict, pars_dict
+    return initN, Nc_dict, pars_dict, CORE_samples_dict
 
 
 def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):

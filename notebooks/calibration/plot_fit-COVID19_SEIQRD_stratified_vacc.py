@@ -107,7 +107,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
 
 #######################
 ## Sampling function ##

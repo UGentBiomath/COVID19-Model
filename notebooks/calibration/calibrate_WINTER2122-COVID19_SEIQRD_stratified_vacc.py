@@ -31,7 +31,7 @@ from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.optimization import objective_fcns
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, attach_CORE_priors
 
 #############################
 ## Handle script arguments ##
@@ -113,16 +113,12 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
 
 # Define delay on booster immunity
 model.parameters.update({
         'delay_immunity' : 10
 })
-# Set the average values for contact effectivities and seasonality according to 'CORE' calibration dictionary
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-core_dict_name = 'BE_CORE_SAMPLES_2022-01-26.json'
-CORE_samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
 
 if __name__ == '__main__':
 
@@ -184,7 +180,7 @@ if __name__ == '__main__':
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.07, 0.45, 1.95, 0.40])
+    theta = np.array([0.0665, 0.45, 1.95, 0.45])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -258,19 +254,8 @@ if __name__ == '__main__':
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
-
-    # Setup priors of CORE parameters
-    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
-    pars = pars + pars_prior 
-    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
-    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
-    pert = pert + len(pars_prior)*[0.02,]
-    log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
-    weight = 10
-    for par in pars_prior:
-        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
-        density_my_par_norm = density_my_par/np.sum(density_my_par)
-        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
+    # Attach priors of CORE calibration
+    pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args = attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn)
     # Perturbate
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed

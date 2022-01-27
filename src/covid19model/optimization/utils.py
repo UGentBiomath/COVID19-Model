@@ -361,6 +361,24 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
 
     return ax
 
+def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
+    """
+    A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
+    """
+
+    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
+    pars = pars + pars_prior 
+    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
+    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
+    pert = pert + len(pars_prior)*[0.02,]
+    log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
+    for par in pars_prior:
+        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
+        density_my_par_norm = density_my_par/np.sum(density_my_par)
+        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
+    return pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args
+
+
 def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     """
     A function to convert a samples dictionary into a 2D and 3D np.array, similar to using the emcee method `sampler.get_chain()`

@@ -108,7 +108,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update=False)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update=False)
 # Parameters of hypothetical booster campaign
 model.parameters.update({'delay_immunity' : 10, 'daily_doses': 50000, 'stop_idx' : 8, 'refusal': 0.10*np.ones(age_stratification_size)})
 
