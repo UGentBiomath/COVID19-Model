@@ -170,7 +170,7 @@ if __name__ == '__main__':
     pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
     # run optimization
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+    #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     # all three options are valid
     theta = np.array([0.0422, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) 
