@@ -125,26 +125,6 @@ out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
-#######################################
-## Save states during summer of 2021 ##
-#######################################
-
-print('2) Save states during summer of 2021')
-
-import pickle
-# Path where the pickle with initial conditions should be stored
-pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
-# Save initial states
-dates = ['2021-07-01', '2021-08-01', '2021-09-01']
-initial_states={}
-for date in dates:
-    initial_states_per_date = {}
-    for state in out.data_vars:
-        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
-    initial_states.update({date: initial_states_per_date})
-with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
-    pickle.dump(initial_states, fp)
-
 #######################
 ## Visualize results ##
 #######################
@@ -248,3 +228,23 @@ plt.show()
 if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
+
+#######################################
+## Save states during summer of 2021 ##
+#######################################
+
+print('2) Save states during summer of 2021')
+
+import pickle
+# Path where the pickle with initial conditions should be stored
+pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+# Save initial states
+dates = ['2021-08-01', '2021-09-01']
+initial_states={}
+for date in dates:
+    initial_states_per_date = {}
+    for state in out.data_vars:
+        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
+    initial_states.update({date: initial_states_per_date})
+with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
+    pickle.dump(initial_states, fp)

@@ -30,8 +30,6 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 # ----------------------
 
 import os
-import sys, getopt
-import ujson as json
 import argparse
 import numpy as np
 import pandas as pd
@@ -40,11 +38,10 @@ from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc, output_to_visuals, add_poisson
-from covid19model.visualization.utils import colorscale_okabe_ito
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--filename", help="Samples dictionary name")
@@ -59,19 +56,17 @@ args = parser.parse_args()
 age_stratification_size=int(args.n_age_groups)
 agg = args.agg
 
-# --------------------------
-# Define simulation settings
-# --------------------------
+################################
+## Define simulation settings ##
+################################
 
-# Start and end of simulation
-start_sim = '2020-09-01'
 end_sim = '2022-09-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
-# ------------------------
-# Define results locations
-# ------------------------
+##############################
+## Define results locations ##
+##############################
 
 # Path where figures and results should be stored
 fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
@@ -82,59 +77,59 @@ for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-# -----------------------
-# Load samples dictionary
-# -----------------------
+#############################
+## Load samples dictionary ##
+#############################
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
 warmup = int(samples_dict['warmup'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
+start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
 
-# --------------------
-# Load a draw function
-# --------------------
-
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc as draw_fcn
-
-# --------------------------------------------
-# Load data not needed to initialize the model
-# --------------------------------------------
+##################################################
+## Load data not needed to initialize the model ##
+##################################################
 
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
-# --------------------
-# Initialize the model
-# --------------------
+##########################
+## Initialize the model ##
+##########################
 
 initN, model = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
-# -------------------
-# Perform simulations
-# -------------------
+#######################
+## Sampling function ##
+#######################
+
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc as draw_fcn
+
+#########################
+## Perform simulations ##
+#########################
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 simtime = out['time'].values
 
-# -----------
-# Visualizing
-# -----------
+#######################
+## Visualize results ##
+#######################
 
 print('2) Visualizing regional fit')
 
-# Visualize the regional fit
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-mean, median, lower, upper = add_poisson(out['H_in'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
-ax[0].plot(simtime, mean, '--', color='blue')
-ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+ax[0].plot(simtime, df_2plot['H_in', 'mean']/np.sum(np.sum(initN,axis=0))*100000, '--', color='blue')
+ax[0].fill_between(simtime, df_2plot['H_in', 'lower'].values/np.sum(np.sum(initN,axis=0))*100000, df_2plot['H_in', 'upper'].values/np.sum(np.sum(initN,axis=0))*100000, alpha=0.2, color='blue')
 ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,12])
@@ -151,7 +146,7 @@ for idx,NIS_list in enumerate(NIS_lists):
     data = 0
     pop = 0
     for NIS in NIS_list:
-        aggregate = aggregate + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+        aggregate = aggregate + out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim="doses").values
         data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
         pop = pop + sum(initN.loc[NIS].values)
 
@@ -176,7 +171,7 @@ print('3) Visualizing provincial fit')
 fig,ax = plt.subplots(nrows=int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coords['place'])/2)+1)]):
     pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim="doses").values, args.n_draws_per_sample)/pop
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -194,7 +189,7 @@ plt.close()
 fig,ax = plt.subplots(nrows=len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1)+1):]):
     pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim="doses").values, args.n_draws_per_sample)/pop
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -212,7 +207,7 @@ print('4) Visualize the seroprevalence fit')
 
 # Plot fraction of immunes
 
-mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='place').sum(dim="doses").values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
 
 fig,ax = plt.subplots(figsize=(12,4))
 ax.plot(simtime,mean,'--', color='blue')
@@ -231,40 +226,22 @@ plt.tight_layout()
 plt.show()
 plt.close()
 
-print('5) Visualize the regional vaccination degree')
+#######################################
+## Save states during summer of 2021 ##
+#######################################
 
-# Visualize the regional fit
-fig,ax = plt.subplots(figsize=(12,4))
+print('2) Save states during summer of 2021')
 
-# National
-mean, median, lower, upper = add_poisson((out['S_v'].sum(dim='Nc').sum(dim='place').values+out['R_v'].sum(dim='Nc').sum(dim='place').values), args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
-ax.plot(simtime, mean, '--', color='blue')
-ax.fill_between(simtime, lower, upper, alpha=0.2, color='blue')
-
-
-NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-title_list = ['Brussels', 'Flanders', 'Wallonia']
-color_list = ['red', 'green', 'black']
-
-for idx,NIS_list in enumerate(NIS_lists):
-    aggregate=0
-    data = 0
-    pop = 0
-    for NIS in NIS_list:
-        aggregate = aggregate + out['S_v'].sel(place=NIS).sum(dim='Nc').values + out['R_v'].sel(place=NIS).sum(dim='Nc').values
-        data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
-        pop = pop + sum(initN.loc[NIS].values)
-
-    mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)/pop*100
-
-    ax.plot(simtime, mean,'--', color=color_list[idx])
-    ax.fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
-
-ax.legend(['Belgium', 'Brussels', 'Flanders', 'Wallonia'])
-ax.set_ylim([0,100])
-ax.grid(False)
-ax.set_ylabel('Vaccinated (%)')
-ax = _apply_tick_locator(ax)
-plt.tight_layout()
-plt.show()
-plt.close()
+import pickle
+# Path where the pickle with initial conditions should be stored
+pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/prov/'
+# Save initial states
+dates = ['2021-08-01', '2021-09-01']
+initial_states={}
+for date in dates:
+    initial_states_per_date = {}
+    for state in out.data_vars:
+        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
+    initial_states.update({date: initial_states_per_date})
+with open(pickle_path+'summer_2021-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'wb') as fp:
+    pickle.dump(initial_states, fp)
