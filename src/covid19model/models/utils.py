@@ -415,10 +415,6 @@ def load_samples_dict(filepath, age_stratification_size=10):
     samples_dict.update({'residence_times': residence_time_distributions})
     bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
-    # Append the samples of zeta
-    samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
-    samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
-
     return samples_dict
 
 def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
