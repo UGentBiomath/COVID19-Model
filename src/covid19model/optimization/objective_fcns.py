@@ -108,6 +108,7 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     MLE=0
     # Loop over dataframes
     for idx,df in enumerate(data):
+        # TODO: sum pd.Dataframe over all dimensions except date and NIS
         # Check the indices
         if 'date' in list(df.index.names):
             if 'NIS' in list(df.index.names):
@@ -117,7 +118,7 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                     for dimension in out.dims:
                         if ((dimension != 'time') & (dimension != 'place')):
                             new_xarray = new_xarray.sum(dim=dimension)
-                    ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
+                    ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
                     MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
                     MLE += MLE_add
             else:
