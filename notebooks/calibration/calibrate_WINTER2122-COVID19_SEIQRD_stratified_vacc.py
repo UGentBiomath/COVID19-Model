@@ -114,6 +114,10 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
+# delay on booster immunity
+model.parameters.update({
+        'delay_immunity' : 10
+})
 
 # Set the average values for contact effectivities and seasonality according to 'CORE' calibration dictionary
 core_dict_name = 'BE_stratified_vacc_R0_COMP_EFF_2022-01-09.json'
@@ -176,17 +180,17 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1.5,2.10),)
+    bounds3 = ((1.5,2.20),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0.25,0.55),)
+    bounds4 = ((0.25,0.50),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.07, 0.45, 1.95, 0.45])
+    theta = np.array([0.07, 0.45, 1.95, 0.40])
 
     ####################################
     ## Local Nelder-mead optimization ##
