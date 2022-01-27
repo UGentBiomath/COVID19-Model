@@ -114,21 +114,15 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
-# delay on booster immunity
+
+# Define delay on booster immunity
 model.parameters.update({
         'delay_immunity' : 10
 })
-
 # Set the average values for contact effectivities and seasonality according to 'CORE' calibration dictionary
-core_dict_name = 'BE_stratified_vacc_R0_COMP_EFF_2022-01-09.json'
+samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+core_dict_name = 'BE_CORE_SAMPLES_2022-01-26.json'
 CORE_samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
-model.parameters.update({
-    'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
-    'eff_work': np.mean(CORE_samples_dict['eff_work']),
-    'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
-    'eff_home': np.mean(CORE_samples_dict['eff_home']),
-    'amplitude': np.mean(CORE_samples_dict['amplitude'])
-})
 
 if __name__ == '__main__':
 
