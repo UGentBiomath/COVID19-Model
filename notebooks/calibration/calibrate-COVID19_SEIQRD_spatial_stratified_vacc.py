@@ -127,7 +127,6 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_sciensano = sciensano.get_sciensano_COVID19_data_spatial(agg=agg, values='hospitalised_IN', moving_avg=False, public=public)
-
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
@@ -163,13 +162,13 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_sciensano[start_calibration:end_calibration]]
-    states = ["H_in"]
-    weights = [1]
+    data=[df_sciensano['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+    states = ["H_in", "R", "R"]
+    weights = [1, 1e-4, 1e-4]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -199,21 +198,24 @@ if __name__ == '__main__':
     # Seasonality
     pars5 = ['amplitude',]
     bounds5 = ((0,0.40),)
+    # Waning antibody immunity
+    pars6 = ['zeta',]
+    bounds6 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
 
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32] # A calibration I'm happy with
+    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32, 0.0030] # A calibration I'm happy with
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
     step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1]
-    step = 13*[0.05,]
+    step = 14*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -282,7 +284,8 @@ if __name__ == '__main__':
     print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
     print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
     print(f'VOC effects {pars[10:11]}: {theta[10:11]}.')
-    print(f'Seasonality {pars[11:]}: {theta[11:]}')
+    print(f'Seasonality {pars[11:12]}: {theta[11:12]}')
+    print(f'Waning antibodies {pars[12:]}: {theta[12:]}')
     sys.stdout.flush()
 
     ########################
@@ -294,7 +297,7 @@ if __name__ == '__main__':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform]
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
@@ -308,8 +311,10 @@ if __name__ == '__main__':
     pert4=[0.30, 0.30]
     # pars5 = ['amplitude']
     pert5 = [0.50,] 
+    # pars6 = ['zeta']
+    pert6 = [0.10,]     
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
@@ -326,7 +331,9 @@ if __name__ == '__main__':
                 '$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', 'K_{inf, delta}', \
-                '$A$']
+                '$A$',
+                '$\zeta$']
+                
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
