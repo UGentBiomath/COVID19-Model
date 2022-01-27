@@ -110,179 +110,56 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 
 initN, model = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update=False)
 # Parameters of hypothetical booster campaign
-model.parameters.update({'daily_doses': 50000, 'stop_idx' : 8, 'refusal': 0.10*np.ones(age_stratification_size), 'delay_immunity' : 10})
+model.parameters.update({'delay_immunity' : 10, 'daily_doses': 50000, 'stop_idx' : 8, 'refusal': 0.10*np.ones(age_stratification_size)})
 
-#############################################################
-## Set the CORE calibration parameters + sampling function ##
-#############################################################
+##############################
+## Define sampling function ##
+##############################
 
-# TODO: Formalize
-option = 3
-
-import json
 import random
-core_dict_name = 'BE_stratified_vacc_R0_COMP_EFF_2022-01-09.json'
-CORE_samples_dict = json.load(open(os.path.join(samples_path, core_dict_name)))
+def draw_fcn(param_dict,samples_dict):
+    """ some docstring
+    """
 
-if option == 1:
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
+    param_dict['mentality'] = samples_dict['mentality'][idx]  
+    param_dict['K_inf'] = np.array([samples_dict['K_inf_omicron'][idx],], np.float64)
+    param_dict['K_hosp'] = np.array([samples_dict['K_hosp_omicron'][idx],], np.float64)
+    #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
+    # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
+    # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]  
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]  
+    param_dict['eff_home'] = samples_dict['eff_home'][idx] 
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]   
 
-    # Option 1: No sampling of CORE parameters dictionary
-    model.parameters.update({
-        'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
-        'eff_work': np.mean(CORE_samples_dict['eff_work']),
-        'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
-        'eff_home': np.mean(CORE_samples_dict['eff_home']),
-        'amplitude': np.mean(CORE_samples_dict['amplitude'])
-    })
-    # Define draw function
-    def draw_fcn(param_dict,samples_dict):
-        """ some docstring
-        """
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(len(param_dict['c'])):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=20
+    distributions = [samples_dict['residence_times']['dC_R'],
+                    samples_dict['residence_times']['dC_D'],
+                    samples_dict['residence_times']['dICU_R'],
+                    samples_dict['residence_times']['dICU_D'],
+                    samples_dict['residence_times']['dICUrec']]
 
-        idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
-
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        param_dict['mentality'] = samples_dict['mentality'][idx]  
-        param_dict['K_inf'] = np.array([samples_dict['K_inf_omicron'][idx],], np.float64)
-        param_dict['K_hosp'] = np.array([samples_dict['K_hosp_omicron'][idx],], np.float64)
-        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
-        # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
-        # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
-
-        # Hospitalization
-        # ---------------
-        # Fractions
-        names = ['c','m_C','m_ICU']
-        for idx,name in enumerate(names):
-            par=[]
-            for jdx in range(len(param_dict['c'])):
-                par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-            param_dict[name] = np.array(par)
-        # Residence times
-        n=20
-        distributions = [samples_dict['residence_times']['dC_R'],
-                        samples_dict['residence_times']['dC_D'],
-                        samples_dict['residence_times']['dICU_R'],
-                        samples_dict['residence_times']['dICU_D'],
-                        samples_dict['residence_times']['dICUrec']]
-
-        names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-        for idx,dist in enumerate(distributions):
-            param_val=[]
-            for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-                draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-                param_val.append(np.mean(draw))
-            param_dict[names[idx]] = np.array(param_val)
-            
-        return param_dict
-
-elif option == 2:
-    # Option 2: Sampling on previously obtained parameters
-    # Merge dicts
-    samples_dict.update({
-        'eff_schools': CORE_samples_dict['eff_schools'],
-        'eff_work': CORE_samples_dict['eff_work'],
-        'eff_rest': CORE_samples_dict['eff_rest'],
-        'eff_home': CORE_samples_dict['eff_home'],
-        'amplitude': CORE_samples_dict['amplitude']
-    })
-    # Define draw function
-    def draw_fcn(param_dict,samples_dict):
-        """ some docstring
-        """
-
-        idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
-
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        param_dict['mentality'] = samples_dict['mentality'][idx]  
-        param_dict['K_inf'] = np.array([samples_dict['K_inf_omicron'][idx],], np.float64)
-        param_dict['K_hosp'] = np.array([samples_dict['K_hosp_omicron'][idx],], np.float64)
-        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
-        # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
-        # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
         
-        # Sample core parameters
-        idx, param_dict['eff_schools'] = random.choice(list(enumerate(samples_dict['eff_schools'])))
-        param_dict['eff_work'] = samples_dict['eff_work'][idx]  
-        param_dict['eff_home'] = samples_dict['eff_home'][idx] 
-        param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
-        param_dict['amplitude'] = samples_dict['amplitude'][idx]   
-
-        # Hospitalization
-        # ---------------
-        # Fractions
-        names = ['c','m_C','m_ICU']
-        for idx,name in enumerate(names):
-            par=[]
-            for jdx in range(len(param_dict['c'])):
-                par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-            param_dict[name] = np.array(par)
-        # Residence times
-        n=20
-        distributions = [samples_dict['residence_times']['dC_R'],
-                        samples_dict['residence_times']['dC_D'],
-                        samples_dict['residence_times']['dICU_R'],
-                        samples_dict['residence_times']['dICU_D'],
-                        samples_dict['residence_times']['dICUrec']]
-
-        names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-        for idx,dist in enumerate(distributions):
-            param_val=[]
-            for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-                draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-                param_val.append(np.mean(draw))
-            param_dict[names[idx]] = np.array(param_val)
-            
-        return param_dict
-
-elif option == 3:
-    # Option 3: CORE parameter distributions were used as priors during winter calibration so no CORE dictionary is needed
-    # Define draw function
-    def draw_fcn(param_dict,samples_dict):
-        """ some docstring
-        """
-
-        idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
-
-        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-        param_dict['mentality'] = samples_dict['mentality'][idx]  
-        param_dict['K_inf'] = np.array([samples_dict['K_inf_omicron'][idx],], np.float64)
-        param_dict['K_hosp'] = np.array([samples_dict['K_hosp_omicron'][idx],], np.float64)
-        #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
-        # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
-        # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
-        param_dict['eff_schools'] = samples_dict['eff_schools'][idx]  
-        param_dict['eff_work'] = samples_dict['eff_work'][idx]  
-        param_dict['eff_home'] = samples_dict['eff_home'][idx] 
-        param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
-        param_dict['amplitude'] = samples_dict['amplitude'][idx]   
-
-        # Hospitalization
-        # ---------------
-        # Fractions
-        names = ['c','m_C','m_ICU']
-        for idx,name in enumerate(names):
-            par=[]
-            for jdx in range(len(param_dict['c'])):
-                par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-            param_dict[name] = np.array(par)
-        # Residence times
-        n=20
-        distributions = [samples_dict['residence_times']['dC_R'],
-                        samples_dict['residence_times']['dC_D'],
-                        samples_dict['residence_times']['dICU_R'],
-                        samples_dict['residence_times']['dICU_D'],
-                        samples_dict['residence_times']['dICUrec']]
-
-        names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-        for idx,dist in enumerate(distributions):
-            param_val=[]
-            for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-                draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-                param_val.append(np.mean(draw))
-            param_dict[names[idx]] = np.array(param_val)
-            
-        return param_dict
+    return param_dict
 
 #########################
 ## Perform simulations ##
