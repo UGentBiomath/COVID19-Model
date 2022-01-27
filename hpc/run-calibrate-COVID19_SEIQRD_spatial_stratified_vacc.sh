@@ -6,9 +6,9 @@
 # Define calibration settings
 identifier="CORE"
 agg="prov"
-n_ag =10
-n_pso =20
-n_mcmc =5000
+n_ag=10
+n_pso=20
+n_mcmc=5000
 enddate="2021-10-10"
 
 # Print job properties at the head of the stdout
