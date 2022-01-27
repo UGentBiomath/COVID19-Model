@@ -159,10 +159,12 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
             load = pickle.load(handle)
             initial_states = load[start_date]
 
-    elif ((start_date == '2021-07-01') | (start_date == '2021-08-01')):
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
         with open(samples_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
+    else:
+        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
 
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
