@@ -304,17 +304,17 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.20, 0.20, 0.20]
+    pert1=[0.25, 0.25, 0.25]
     # pars2 = ['l1', 'l2']
     pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert3=[0.80, 0.50, 0.50, 0.20, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.30, 0.30]
+    pert4=[0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.50,] 
+    pert5 = [0.40,] 
     # pars6 = ['zeta']
-    pert6 = [0.10,]     
+    pert6 = [0.20,]     
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
 
@@ -332,7 +332,7 @@ if __name__ == '__main__':
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
                 '$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
-                '$K_{inf, abc}$', 'K_{inf, delta}', \
+                '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$',
                 '$\zeta$']
 
