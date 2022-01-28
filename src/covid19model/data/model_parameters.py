@@ -408,14 +408,14 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'CORE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        core_dict_name = 'prov_CORE_SAMPLES_2022-01-18.json'
+        core_dict_name = 'prov_CORE_SAMPLES_2022-01-27.json'
         CORE_samples_dict = json.load(
             open(os.path.join(samples_path, core_dict_name)))
         pars_dict.update({
             'beta_R': np.mean(CORE_samples_dict['beta_R']),
             'beta_U': np.mean(CORE_samples_dict['beta_U']),
             'beta_M': np.mean(CORE_samples_dict['beta_M']),
-            'zeta': 0.003, #TODO: change to zeta found in zeta-CORE calibration
+            'zeta': np.mean(CORE_samples_dict['zeta']),
             'l1': np.mean(CORE_samples_dict['l1']),
             'l2': np.mean(CORE_samples_dict['l2']),
             'eff_schools': np.mean(CORE_samples_dict['eff_schools']),

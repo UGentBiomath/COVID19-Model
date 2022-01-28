@@ -226,7 +226,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
     # Google Mobility data (for social contact Nc)
-    df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
+    df_google = mobility.get_google_mobility_data(update=update, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
 
@@ -274,7 +274,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
                                                     'beta_U': seasonality_function,
                                                     'beta_M': seasonality_function})
 
-    return initN, model
+    return model, CORE_samples_dict, initN
 
 def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], update=False, provincial=False):
 
@@ -344,12 +344,19 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     ## Initial states ##
     ####################
 
-    # Initial condition on 2020-03-17
-    date = '2020-03-17'
+    # Get correct initial condition
     samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
-    with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
-        load = pickle.load(handle)
-        initial_states = load[date]
+    if start_date == '2020-03-17':
+        with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+    else:
+        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-17, 2021-08-01 or 2021-09-01".format(start_date))
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         converted_value = np.zeros([value.shape[0], len(age_classes), value.shape[2]])
@@ -377,7 +384,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
                                                     'beta_U': seasonality_function,
                                                     'beta_M': seasonality_function})
      
-    return initN, model
+    return model, CORE_samples_dict, initN
 
 def load_samples_dict(filepath, age_stratification_size=10):
     """
@@ -583,7 +590,6 @@ def draw_fcn_COVID19_SEIQRD_spatial(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]
@@ -594,7 +600,8 @@ def draw_fcn_COVID19_SEIQRD_spatial(param_dict,samples_dict):
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Hospitalization
     # ---------------
@@ -643,7 +650,6 @@ def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]  
@@ -655,7 +661,8 @@ def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Vaccination
     # -----------
