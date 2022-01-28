@@ -276,7 +276,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
 
     return model, CORE_samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], update=False, provincial=False):
+def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-17', update=False, provincial=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##

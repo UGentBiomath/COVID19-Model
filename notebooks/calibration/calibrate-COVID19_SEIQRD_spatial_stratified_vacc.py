@@ -233,7 +233,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][0:16]]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         ax.set_ylabel('New national hosp./day')
         plt.show()
