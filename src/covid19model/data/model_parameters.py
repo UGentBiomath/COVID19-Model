@@ -496,13 +496,10 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
 
     # Define variant properties
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
-    VOC_parameters['variant_properties', 'f_VOC'] = [
-        [1, 0], [0, 0], [0, 0], [0, 0]]
+    VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [
-        1.61, 1.69, 1.69*0.30]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [
-        1.40, 1.40*1.50, 1.40*1.50]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.61, 1.61*1.69, 1.61*1.69*0.30]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.40, 1.40*1.50, 1.40*1.50*1.80]
 
     # Define vaccination properties                 0    1    2      W     B
     VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
@@ -544,10 +541,9 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
         'e_h': np.array(VOC_parameters['vaccine_properties', 'e_h'].tolist(), np.float64),
         'e_i': np.array(VOC_parameters['vaccine_properties', 'e_i'].tolist(), np.float64),
     }
-    if not pd.isnull(list(VOC_parameters['variant_properties', 'K_inf'].values)[0]):
+    if not pd.isnull(list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]):
         pars_dict.update(
-            {'h': h*list(VOC_parameters['variant_properties', 'K_inf'].values)[0]})
-
+            {'h': h*list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]})
     # All other random parameters
     dose_stratification_size = 5
     pars_dict.update({

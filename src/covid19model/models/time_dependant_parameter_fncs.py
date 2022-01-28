@@ -914,7 +914,7 @@ class make_contact_matrix_function():
         t25 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
         t26 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
         t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
-        t28 = pd.Timestamp('2022-01-06') # End of Christmass break
+        t28 = pd.Timestamp('2022-01-10') # End of Christmass break
         t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
         t30 = pd.Timestamp('2022-03-06') # End of Spring Break
         t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
@@ -931,20 +931,9 @@ class make_contact_matrix_function():
                                                 1, # F
                                                 1, 1]) # W
 
-        co_F = 1#0.60
-        co_W = 1#0.50
-        co_Bxl = 1#0.45
-        mentality_summer_2021 = np.array([co_F, co_F, # F
-                                                co_W, # W
-                                                co_Bxl, # Bxl
-                                                co_F, co_F, # F
-                                                co_W, co_W, # W
-                                                co_F, # F
-                                                co_W, co_W]) # W
-
         co_F = 1
-        co_W = 1# 0.50
-        co_Bxl = 1# 0.45
+        co_W = 1
+        co_Bxl = 1
         mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
@@ -1018,14 +1007,14 @@ class make_contact_matrix_function():
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality*np.ones(mentality_summer_2021.shape)), school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021 + r*(1-mentality_summer_2021)), school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021 + r*(1-mentality_summer_2021)), school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021), school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
 
         ######################      
@@ -1033,9 +1022,9 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021), school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2021), school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
         elif t22 < t <= t23:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
         elif t23 < t <= t24:    
