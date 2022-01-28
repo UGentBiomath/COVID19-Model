@@ -107,11 +107,11 @@ initial_time = datetime.datetime.now()
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIQRD/{agg}/'
+fig_path = f'../../results/calibrations/COVID19_SEIQRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
+samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
+backend_folder = f'../../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -235,15 +235,14 @@ if __name__ == '__main__':
         # National fit
         data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
-        ax.set_ylabel('New national hosp./day')
         plt.show()
         plt.close()
         # Regional fit
-        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='reg')
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
         plt.show()
         plt.close()
         # Provincial fit
-        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='prov')
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
         plt.show()
         plt.close()
 
@@ -269,11 +268,11 @@ if __name__ == '__main__':
             plt.show()
             plt.close()
             # Visualize regional fit
-            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='reg')
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
             plt.show()
             plt.close()
             # Visualize provincial fit
-            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_calibration, agg='prov')
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
             plt.show()
             plt.close()
             # Satisfied?

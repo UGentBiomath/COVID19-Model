@@ -361,6 +361,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
 
     return ax
 
+from covid19model.optimization.objective_fcns import prior_custom
 def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
     """
     A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.

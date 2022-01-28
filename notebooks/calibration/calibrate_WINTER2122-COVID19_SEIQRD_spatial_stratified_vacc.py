@@ -13,32 +13,43 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
-import os
-import sys
+# Load standard packages
 import ast
 import click
-import ujson as json
-import emcee
+import os
+import sys
 import datetime
 import argparse
 import pandas as pd
+import ujson as json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+
+# Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
+from covid19model.models import models
+# Import the function to initialize the model
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc
+# Import packages containing functions to load in data used in the model and the time-dependent parameter functions
 from covid19model.data import sciensano
-from covid19model.optimization.pso import *
+# Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
-from covid19model.optimization import objective_fcns
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, attach_CORE_priors
+from covid19model.optimization import pso, objective_fcns
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson, MLE
+from covid19model.optimization.pso import *
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial, attach_CORE_priors
+
+############################
+## Public or private data ##
+############################
+
+public = True
 
 #############################
 ## Handle script arguments ##
 #############################
 
 start_date = '2021-08-01'
-
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
@@ -47,8 +58,11 @@ parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
+parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
 args = parser.parse_args()
 
+# save as dict
+args = parser.parse_args()
 # Backend
 if args.backend == False:
     backend = None
@@ -59,11 +73,18 @@ if args.high_performance_computing == False:
     high_performance_computing = True
 else:
     high_performance_computing = False
+# Spatial aggregation
+if args.agg:
+    agg = str(args.agg)
+    if agg not in ['mun', 'arr', 'prov']:
+        raise Exception(f"Aggregation type --agg {agg} is not valid. Choose between 'mun', 'arr', or 'prov'.")
+else:
+    agg = 'arr'
 # Identifier (name)
 if args.identifier:
     identifier = str(args.identifier)
     # Spatial unit: depesnds on aggregation
-    identifier = f'BE_{identifier}'
+    identifier = f'{agg}_{identifier}'
 else:
     raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations
@@ -76,8 +97,6 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
-# To avoid quadratic parallelization
-os.environ["OMP_NUM_THREADS"] = "1"
 
 ##############################
 ## Define results locations ##
@@ -85,11 +104,11 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
+fig_path = f'../../results/calibrations/COVID19_SEIQRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/backends/'
+backend_folder = f'../../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -103,9 +122,8 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ## Load data not needed to initialize the model ##
 ##################################################
 
-# Sciensano hospital and vaccination data
-df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
-df_hosp = df_hosp.groupby(by=['date']).sum()
+# Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
+df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
@@ -113,7 +131,10 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, agg=agg, update=False, provincial=True)
+
+# Offset needed to deal with zeros in data in a Poisson distribution-based calibration
+poisson_offset = 'auto'
 
 # Define delay on booster immunity
 model.parameters.update({
@@ -142,9 +163,10 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 3
     max_n = n_mcmc
-    print_n = 10
+    print_n = 5
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration]]
+    df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
+    data=[df_hosp]
     states = ["H_in"]
     weights = [1]
 
@@ -161,8 +183,8 @@ if __name__ == '__main__':
     #############################
 
     # transmission
-    pars1 = ['beta',]
-    bounds1=((0.050,0.100),)
+    pars1 = ['beta_R', 'beta_U', 'beta_M']
+    bounds1=((0.03,0.07),(0.03,0.07),(0.03,0.07))
     # Effectivity parameters
     pars2 = ['mentality',]
     bounds2=((0.01,0.99),)
@@ -178,13 +200,13 @@ if __name__ == '__main__':
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.063, 0.41,  2., 0.45])
+    theta = np.array([0.042, 0.0505, 0.044, 0.38, 1.65, 0.45])
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 3*[0.05,]
+    step = 6*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
     #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -201,10 +223,18 @@ if __name__ == '__main__':
         end_visualization = '2022-03-01'
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        ax = plot_PSO(out, [df_hosp.groupby(by=['date']).sum()], states, start_calibration, end_visualization)
         plt.show()
         plt.close()
-
+        # Regional fit
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
+        plt.show()
+        plt.close()
+        # Provincial fit
+        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
+        plt.show()
+        plt.close()
+        
         ####################################
         ## Ask the user for manual tweaks ##
         ####################################
@@ -224,7 +254,15 @@ if __name__ == '__main__':
             # Perform simulation
             out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
             # Visualize fit
-            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            ax = plot_PSO(out, [df_hosp.groupby(by=['date']).sum()], states, start_calibration, end_visualization)
+            plt.show()
+            plt.close()
+            # Regional fit
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
+            plt.show()
+            plt.close()
+            # Provincial fit
+            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
             plt.show()
             plt.close()
             # Satisfied?
@@ -237,11 +275,11 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Setup uniform priors
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO Estimate
-    # pars1 = ['beta',]
-    pert1=[0.02,]
+    # pars1 = ['beta_R', 'beta_U', 'beta_M']
+    pert1=[0.02,0.02,0.02]
     # pars2 = ['mentality',]
     pert2=[0.20,]
     # pars4 = ['K_inf',]
@@ -251,13 +289,14 @@ if __name__ == '__main__':
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
-    labels = ['$\\beta$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
+    labels = ['$\\beta_R$', '$\\beta_M$', '$\\beta_U$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
     # Attach priors of CORE calibration
     pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args = attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args)
     # Perturbate
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
     if backend:
+        import emcee
         filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
