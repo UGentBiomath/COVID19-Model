@@ -165,7 +165,7 @@ yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','
 ax4.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
 ax4 = _apply_tick_locator(ax4)
 ax4.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax4.fill_between(df_2plot['R','lower']/sum(initN)*100, df_2plot['R','upper']/sum(initN)*100,alpha=0.20, color = 'blue')
+ax4.fill_between(simtime, df_2plot['R','lower']/sum(initN)*100, df_2plot['R','upper']/sum(initN)*100,alpha=0.20, color = 'blue')
 ax4.set_xlim(start_sim,end_sim)
 ax4.set_ylim(0,25)
 ax4.set_ylabel('Seroprelevance (%)', fontsize=12)

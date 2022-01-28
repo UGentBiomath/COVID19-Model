@@ -167,7 +167,7 @@ if __name__ == '__main__':
     print_n = 20
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][0:16]]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
     states = ["H_in", "R", "R"]
     weights = [1, 1e-4, 1e-4]
 
@@ -285,9 +285,9 @@ if __name__ == '__main__':
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
     print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
     print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
-    print(f'VOC effects {pars[10:12]}: {theta[10:12]}.')
-    print(f'Seasonality {pars[12:13]}: {theta[12:13]}')
-    print(f'Waning antibodies {pars[13:]}: {theta[13:]}')
+    print(f'VOC effects {pars[10:11]}: {theta[10:12]}.')
+    print(f'Seasonality {pars[11:12]}: {theta[12:13]}')
+    print(f'Waning antibodies {pars[12:]}: {theta[13:]}')
     sys.stdout.flush()
 
     ########################

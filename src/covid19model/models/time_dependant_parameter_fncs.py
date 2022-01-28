@@ -921,13 +921,13 @@ class make_contact_matrix_function():
         t32 = pd.Timestamp('2022-04-17') # End of Easter Break
         t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
-        # Manual tweaking is unafortunately needed to make sure the second 2020 waves are correct
+        # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        mentality_summer_2020_lockdown = np.array([1.5, 1, # F
-                                                1, # W
-                                                1, # Bxl
-                                                0.7, 1.5, # F
-                                                1.5, 1.5, # W
+        mentality_summer_2020_lockdown = np.array([1.8, 1, # F
+                                                1.4, # W
+                                                1.3, # Bxl
+                                                0.7, 1.7, # F
+                                                1.8, 1.8, # W
                                                 1, # F
                                                 1, 1]) # W
 
