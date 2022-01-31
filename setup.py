@@ -22,7 +22,8 @@ setup(
         'xarray',
         'rbfopt',
         'pyomo',
-        'benderopt'
+        'benderopt',
+        'numba'
     ],
     extras_require={
         "develop":  ["pytest",

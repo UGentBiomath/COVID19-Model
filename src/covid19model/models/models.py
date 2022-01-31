@@ -5,7 +5,9 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+import numba as nb
 import numpy as np
+from numba import jit
 from .base import BaseModel
 from .utils import stratify_beta
 from .economic_utils import *
@@ -13,6 +15,118 @@ from ..data.economic_parameters import read_economic_labels
 # Register pandas formatters and converters with matplotlib
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
+
+###############
+## jit utils ##
+###############
+
+@jit(nopython=True)
+def vaccination_write_protection_2D(X, X_post_vacc, dX):
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            if X_post_vacc[i,j] < 0:
+                dX[i,j] = 0 - X[i,j]
+                X_post_vacc[i,j] = 0
+    return X_post_vacc, dX
+
+@jit(nopython=True)
+def vaccination_write_protection_3D(X, X_post_vacc, dX):
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            for k in range(X.shape[2]):
+                if X_post_vacc[i,j,k] < 0:
+                    dX[i,j,k] = 0 - X[i,j,k]
+                    X_post_vacc[i,j,k] = 0
+    return X_post_vacc, dX
+
+@jit(nopython=True)
+def jit_matmul_1D_2D(a, B):
+    """A simple jitted implementation of a 1Dx2D matrix multiplication
+    """
+    n = B.shape[1]
+    f = len(a)
+    out = np.zeros(n, np.float64)
+    for i in range(n):
+            for k in range(f):
+                out[i] += a[k]*B[k,i] 
+    return out
+
+@jit(nopython=True)
+def jit_matmul_2D_1D(A, b):
+    """ A simple jitted implementation of a 2D (n,m) with a 1D (m,) matrix multiplication
+        Result is a 1D matrix (n,)
+    """
+    n = A.shape[0]
+    f = A.shape[1]
+    out = np.zeros(n, np.float64)
+    for i in range(n):
+            for k in range(f):
+                out[i] += A[i, k] * b[k]
+    return out
+
+@jit(nopython=True)
+def jit_matmul_2D_2D(A, B):
+    """A simple jitted implementation of 2Dx2D matrix multiplication
+    """
+    n = A.shape[0]
+    f = A.shape[1]
+    m = B.shape[1]
+    out = np.zeros((n,m), np.float64)
+    for i in range(n):
+        for j in range(m):
+            for k in range(f):
+                out[i, j] += A[i, k] * B[k, j]
+    return out
+
+@jit(nopython=True)
+def jit_matmul_2D_3D(A,B):
+    """ A simple jitted implementation to multiply a 2D matrix of size (n,m) with a 3D matrix (n,m,m)"""
+    out = np.zeros(A.shape, np.float64)
+    for i in range(A.shape[0]):
+        # reduce dimension
+        a = A[i,:]
+        b = B[i,:,:]
+        # determine loop sizes
+        n = b.shape[1]
+        f = len(a)
+        # loop
+        for j in range(n):
+            for k in range(f):
+                out[i,j] += a[k]*b[k,j]
+    return out
+
+@jit(nopython=True)
+def jit_matmul_3D_2D(A, B):
+    """(n,k,m) x (n,m) --> for n: (k,m) x (m,) --> (n,k) """
+    out = np.zeros(B.shape, np.float64)
+    for idx in range(A.shape[0]):
+        A_acc = A[idx,:,:]
+        b = B[idx,:]
+        n = A_acc.shape[0]
+        f = A_acc.shape[1]
+        for i in range(n):
+                for k in range(f):
+                    out[idx, i] += A_acc[i, k] * b[k]
+    return out
+
+@jit(nopython=True)
+def matmul_q_2D(A,B):
+    """ A simple jitted implementation to multiply a 2D matrix of size (n,m) with a 3D matrix (m,k,q)
+        Implemented as q times the matrix multiplication (n,m) x (m,k)
+        Output of size (n,k,q)
+    """
+    out = np.zeros((A.shape[0],B.shape[1],B.shape[2]), np.float64)
+    for q in range(B.shape[2]):
+        b = B[:,:,q]
+        n = A.shape[0]
+        f = A.shape[1]
+        m = b.shape[1]
+        for i in range(n):
+            for j in range(m):
+                for k in range(f):
+                    out[i, j, q] += A[i, k] * b[k, j]
+    return out
+
 
 class simple_stochastic_SIR(BaseModel):
     """
@@ -250,6 +364,7 @@ class COVID19_SEIQRD(BaseModel):
 
     # ..transitions/equations
     @staticmethod
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
                   s, a, h, c, m_C, m_ICU,
@@ -258,10 +373,13 @@ class COVID19_SEIQRD(BaseModel):
         Biomath extended SEIQRD model for COVID-19
 
         *Deterministic implementation*
-        """
 
-        if Nc is None:
-            print(t)
+        numba jit benchmark: simulation from 2020-03-15 until 2021-02-01:
+            no jit using np.matmul matrix multiplication ()
+            no jit using @ matrix multiplication (1060 +- 46 ms)
+            jit using @ mattrix multiplication (835 +- 9 ms)
+            jit using loop matrix multiplication (786 +- 11 ms)
+        """
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -271,7 +389,7 @@ class COVID19_SEIQRD(BaseModel):
         # Compute infection pressure (IP) of both variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = beta*s*np.matmul(Nc,((I+A)/T))
+        IP = beta*s*jit_matmul_2D_1D(Nc, (I+A)/T)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -293,8 +411,6 @@ class COVID19_SEIQRD(BaseModel):
         dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
-
-
 
 class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
@@ -331,11 +447,10 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
-        alpha : fraction of alternative COVID-19 variant
-        K_inf1 : infectivity gain of B1.1.1.7 (British) COVID-19 variant (infectivity of new variant = K * infectivity of old variant)
-        K_inf2 : infectivity gain of Indian COVID-19 variant
-        # TODO: This is split because we have to estimate the infectivity gains, however, we should adjust the calibration code to allow estimation of subsets of vector parameters
-        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (infectivity of new variant = K * infectivity of old variant)
+        f_VOC : (first row) fraction of alternative COVID-19 variant, (second row) derivative of fraction of alternative COVID-19 variant
+        f_immune_escape : sequential fraction of immune escape of new variant
+        K_inf : infectivity gain of variants (infectivity of new variant = K * infectivity of index variant)
+        K_hosp : hospitalization propensity gain of alternative COVID-19 variants (severity of new variant = K * infectivity of reference variant)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -362,17 +477,18 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         Nc : contact matrix between all age groups in stratification
 
     """
-
+    
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -380,32 +496,42 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         *Deterministic implementation*
         """
- 
-        K_inf = np.array([1, K_inf1, K_inf2])
 
-        if Nc is None:
-            print(t)
+        # jit wisdom:
+        # the jit-compatible versions of np.outer, np.sum, np.matmul have large speedups as compared to their numpy counterparts however:
+        # replacing np.outer, np.sum with jit-compatible variants does not result in a speedup (and even slows the code slightly down)
+        # replacing @ by np.matmul results in a speedup for matrices of sufficient size, but slows the code down for smaller systems
 
-        # calculate total population
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
 
-        T = np.expand_dims(np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=1),axis=1)
+        ############################
+        ## Modeling immune escape ##
+        ############################
 
-        # Account for higher hospitalisation propensity and changes in vaccination parameters due to new variant
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]        
+        
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
 
-        if sum(alpha) != 1:
-            raise ValueError(
-                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
-            )
-        K_hosp = np.ones(3)
-        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
-        e_i = np.matmul(alpha, e_i)
-        e_s = np.matmul(alpha, e_s)
-        e_h = np.matmul(alpha, e_h)
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        # compute properties
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
+        sigma = np.sum(f_VOC*sigma)
+        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        e_s = f_VOC @ e_s 
+        e_h = f_VOC @ e_h
 
-        # Expand dims on first stratification axis (age)
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ####################################################
+        ## Expand dims on first stratification axis (age) ##
+        ####################################################
 
         a = np.expand_dims(a, axis=1)
         h = np.expand_dims(h, axis=1)
@@ -422,8 +548,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         ## Compute the vaccination transitionings ##
         ############################################
 
-        dS = np.zeros(S.shape)
-        dR = np.zeros(R.shape)
+        dS = np.zeros(S.shape, np.float64)
+        dR = np.zeros(R.shape, np.float64)
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~
@@ -490,12 +616,17 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         S_post_vacc = S + dS
         R_post_vacc = R + dR
 
-        # Compute dS that makes S and R equal to zero
-        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
-        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
-        # Set S and R equal to zero
-        S_post_vacc[np.where(S_post_vacc < 0)] = 0
-        R_post_vacc[np.where(R_post_vacc < 0)] = 0
+        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # TODO: This slows the code waaaay down
+        S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
+        R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M + C + C_icurec + ICU + R_post_vacc, axis=1),axis=1) # sum over doses
 
         #################################
         ## Compute system of equations ##
@@ -504,7 +635,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*(1-e_i),axis=1)), alpha*K_inf) ,axis=1) , axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -529,7 +660,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~
 
         # Waning of second dose
-        r_waning_vacc = 1/((5/12)*365)
+        r_waning_vacc = 1/((6/12)*365)
         dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
         dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]
@@ -542,7 +673,13 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         dS[:,0] = dS[:,0] + zeta*R_post_vacc[:,0] 
-        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]       
+        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]
+
+        # Immune escape
+        # ~~~~~~~~~~~~~
+
+        dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        dR = dR - np.sum(f_immune_escape*d_VOC)*R 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
@@ -625,7 +762,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
@@ -651,30 +788,24 @@ class COVID19_SEIQRD_spatial(BaseModel):
         N = Nc.shape[1] # age stratification
         
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
-        # infer aggregation (prov, arr or mun)
-        agg = None
-        if G == 11:
-            agg = 'prov'
-        elif G == 43:
-            agg = 'arr'
-        elif G == 581:
-            agg = 'mun'
-        else:
-            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
+
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))
+        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
+
         # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.matmul(np.transpose(place_eff), T)
-        S_work = np.matmul(np.transpose(place_eff), S)
-        I_work = np.matmul(np.transpose(place_eff), I)
-        A_work = np.matmul(np.transpose(place_eff), A)
-        # Apply work contacts to place modified populations
-        multip_work = np.squeeze( np.matmul(((I_work + A_work)/T_work)[:,np.newaxis,:], Nc_work))
-        multip_work *= beta[:,np.newaxis]
-        # Apply all other contacts to non-place modified populations
-        multip_rest = np.squeeze( np.matmul(((I + A)/T)[:,np.newaxis,:], Nc-Nc_work))
-        multip_rest *= beta[:,np.newaxis]
+        T_work = np.transpose(place_eff) @ T
+        S_work = np.transpose(place_eff) @ S
+        I_work = np.transpose(place_eff) @ I
+        A_work = np.transpose(place_eff) @ A
+
+        # Apply work contacts to place modified populations, apply other contacts to non-place modified populations
+        multip_work = jit_matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
+        multip_rest = jit_matmul_2D_3D((I + A)/T, Nc-Nc_work)
+
+        # Multiply result with beta
+        multip_work *= np.expand_dims(beta, axis=1)
+        multip_rest *= np.expand_dims(beta, axis=1)
         # Compute rates of change
         dS_inf = S_work * multip_work + S * multip_rest
 
@@ -688,7 +819,7 @@ class COVID19_SEIQRD_spatial(BaseModel):
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
-        dC = M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dC =  M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
         dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
@@ -709,33 +840,50 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'alpha', 'K_inf1', 'K_inf2', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
     parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU'],[]]
     stratification = ['place','Nc','doses'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None, None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
 
     # ..transitions/equations
     @staticmethod
-
+    @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, alpha, K_inf1, K_inf2, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  beta_R, beta_U, beta_M, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc, doses): # stratified parameters that determine stratification dimensions
+
+        ############################
+        ## Modeling immune escape ##
+        ############################
+
+        # Remove negative derivatives to ease further computation
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]
 
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
-        K_inf = np.array([1, K_inf1, K_inf2])
-        if sum(alpha) != 1:
-            raise ValueError(
-                "The sum of the fractions of the VOCs is not equal to one, please check your time dependant VOC function"
-            )
-        h = np.sum(np.outer(h, alpha*K_hosp),axis=1)
-        e_i = np.matmul(alpha, e_i)
-        e_s = np.matmul(alpha, e_s)
-        e_h = np.matmul(alpha, e_h)
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        # compute properties
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
+        sigma = np.sum(f_VOC*sigma)
+        e_i = f_VOC @ e_i
+        e_s = f_VOC @ e_s
+        e_h = f_VOC @ e_h
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2) # Sum over doses
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -823,18 +971,13 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         S_post_vacc = S + dS
         R_post_vacc = R + dR
 
-        # Compute dS that makes S and R equal to zero
-        dS[np.where(S_post_vacc < 0)] = 0 - S[np.where(S_post_vacc < 0)]
-        dR[np.where(R_post_vacc < 0)] = 0 - R[np.where(R_post_vacc < 0)]
-        # Set S and R equal to zero
-        S_post_vacc[np.where(S_post_vacc < 0)] = 0
-        R_post_vacc[np.where(R_post_vacc < 0)] = 0
-
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2) # Sum over doses
+        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # TODO: This slows the code waaaay down
+        # I don't know why, if I time one model evaluation with and without this code it doesn't influence the computation at all
+        # But when you try to run it "irl" it is bogged down enormously
+        S_post_vacc, dS = vaccination_write_protection_3D(S, S_post_vacc, dS)
+        R_post_vacc, dR = vaccination_write_protection_3D(R, R_post_vacc, dR)
 
         ################################
         ## Compute infection pressure ##
@@ -843,39 +986,33 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         # For total population and for the relevant compartments I and A
         G = place.shape[0] # spatial stratification
         N = Nc.shape[1] # age stratification
+
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*np.matmul(place, (1-np.outer(p,p)))
-        # infer aggregation (prov, arr or mun)
-        agg = None
-        if G == 11:
-            agg = 'prov'
-        elif G == 43:
-            agg = 'arr'
-        elif G == 581:
-            agg = 'mun'
-        else:
-            raise Exception(f"Space is {G}-fold stratified. This is not recognized as being stratification at Belgian province, arrondissement, or municipality level.")
+        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
+        
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, agg, area, T.sum(axis=1))*sum(alpha*K_inf)
+        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+
         # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.matmul(np.transpose(place_eff), T)
-        T_work = np.expand_dims(T_work, axis=2)
-        # I have verified on a dummy example that the following line of code:
-        S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
-        # Is equivalent to the following for loop:
-        # S_work = np.zeros(S.shape)
-        #for idx in range(S.shape[2]):
-        #    S_work[:,:,idx] = np.matmul(np.transpose(place_eff), S[:,:,idx]) 
-        I_work = np.transpose(np.matmul(np.transpose(I), place_eff))
-        A_work = np.transpose(np.matmul(np.transpose(A), place_eff))
-        infpop = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
-        # (11, 10, 10) x (11, 10, 5)
-        multip_work = np.matmul(Nc_work, infpop[:,:,np.newaxis])
-        multip_work *= beta[:,np.newaxis, np.newaxis]
-        # Apply all other contacts to non-place modified populations
-        infpop = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
-        multip_rest = np.matmul(Nc-Nc_work, infpop[:,:,np.newaxis])
-        multip_rest *= beta[:,np.newaxis,np.newaxis]
+        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
+        S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
+        I_work = matmul_q_2D(np.transpose(place_eff), I)
+        A_work = matmul_q_2D(np.transpose(place_eff), A)
+        # The following line of code is the numpy equivalent of the above loop (verified)
+        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
+
+        # Compute infectious work population (11,10)
+        infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
+        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
+
+        # Multiply with number of contacts
+        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
+        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
+
+        # Multiply result with beta
+        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+
         # Compute rates of change
         dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*(1-e_s)
 
@@ -905,7 +1042,7 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         ########################
 
         # Waning of second dose
-        r_waning_vacc = 1/((5/12)*365)
+        r_waning_vacc = 1/((6/12)*365)
         dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
         dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
         dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
@@ -917,6 +1054,11 @@ class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
         # Waning of natural immunity
         dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
         dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
+
+        # Immune escape
+        # ~~~~~~~~~~~~~
+        dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        dR = dR - np.sum(f_immune_escape*d_VOC)*R   
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 

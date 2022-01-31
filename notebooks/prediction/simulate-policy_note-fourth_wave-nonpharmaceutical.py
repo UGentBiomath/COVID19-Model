@@ -1,27 +1,30 @@
 """
-This script can be used to plot the model fit to the data of the second COVID-19 wave
+This script initializes the national and the spatial model with a tailored social contact TDPF and simulates several social contact scenarios for the fourth COVID-19 wave in Belgium.
+Results are saved in .csv file because these simulations are computationally expensive.
+The script is non-functional (we remove the custom TDPFs after they become obsolete) but can serve as a template to generate a policy advice with both models.
 
 Arguments:
 ----------
--f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--v:
-    Vaccination model, either 'stratified' or 'non-stratified' 
+
+-a: str
+    Spatial aggregation level: 'mun'/'arr'/'prov'
+-n_ag : int
+    Number of age groups used in the model
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
     Number of poisson samples added a-posteriori to each model trajectory.
 -s : 
-    Save figures to results/calibrations/COVID19_SEIRD/national/others/
+    Save figures to ~/results/predictions/prov/
 
 Example use:
 ------------
-python plot_fit_R0_COMP_EFF_WAVE2.py -f -v stratified BE_WAVE2_R0_COMP_EFF_2021-04-28.json -n 5 -k 1 -s
+python plot-policy_note-fourth_wave-nonpharmaceutical.py -a prov -n_ag 10 -n 200 -k 1 -s
 
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 # ----------------------
 # Load required packages
