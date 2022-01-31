@@ -12,17 +12,13 @@ setup(
         'matplotlib',
         'numpy',
         'scipy',
-        'networkx',
         'pandas',
         'xlrd',
-        'sklearn',
 	    'openpyxl',
         'zarr',
         'emcee',
         'xarray',
         'rbfopt',
-        'pyomo',
-        'benderopt',
         'numba'
     ],
     extras_require={
