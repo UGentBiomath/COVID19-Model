@@ -14,7 +14,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, agg=None, progress=True):
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -51,12 +51,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # Hardcode threshold values defining convergence
             thres_multi = 50.0
             thres_frac = 0.03
-
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
-
             # Update autocorrelation plot
             n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
@@ -69,21 +67,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            if job == 'FULL':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-            elif job == 'R0':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
+            fig.savefig(fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             # Update traceplot
-            if job == 'FULL':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-            elif job == 'R0':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-
+            traceplot(sampler.get_chain(),labels,
+                        filename=fig_path_agg+'traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
+                        plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+            # Garbage collection
             plt.close('all')
             gc.collect()
 
@@ -111,16 +100,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
-            if job == 'FULL':
-                with open(samples_path_agg+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
-            elif job == 'R0':
-                with open(samples_path_agg+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
+            with open(samples_path_agg+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
+                np.save(f,flat_samples)
+                f.close()
+                gc.collect()
+
 
     return sampler
 
@@ -192,8 +176,8 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-
-def assign_PSO(param_dict, pars, theta):
+from .objective_fcns import thetas_to_model_pars
+def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
     Parameters
@@ -201,10 +185,10 @@ def assign_PSO(param_dict, pars, theta):
     param_dict : dict
         Model parameters dictionary
 
-    pars : list (of strings)
+    parNames : list (of strings)
         Names of model parameters estimated using PSO
 
-    theta : list (of floats)
+    thetas : list (of floats)
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     Returns
@@ -227,20 +211,19 @@ def assign_PSO(param_dict, pars, theta):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    # Assign results to model.parameters
-    if 'warmup' not in pars:
-        for idx, par in enumerate(pars):
-            param_dict[par] = theta[idx]
+    thetas_dict = thetas_to_model_pars(thetas, parNames, param_dict)
+    for i, (param,value) in enumerate(thetas_dict.items()):
+        if param == 'warmup':
+            warmup = int(round(value))
+        else:
+            param_dict.update({param : value})
+
+    if 'warmup' not in thetas_dict.keys():
         return param_dict
     else:
-        for idx, par in enumerate(pars):
-            if par == 'warmup':
-                warmup = theta[idx]
-            else:
-                param_dict[par] = theta[idx]
         return warmup, param_dict
 
-def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
+def plot_PSO(output, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
 
@@ -249,12 +232,6 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
 
     output : xr.DataArray
         Model simulation
-
-    theta : list (of floats)
-        Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
-
-    pars : list (of strings)
-        Names of model parameters estimated using PSO
 
     data : list
         List containing dataseries to compare model output to in calibration objective function
@@ -320,6 +297,88 @@ def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibrati
             ax.set_xlim([start_calibration,end_calibration])
     ax = _apply_tick_locator(ax)
     return ax
+
+def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg):
+
+    """
+    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, works on the regional and provincial level.
+
+    Parameters
+    ----------
+
+    output : xr.DataArray
+        Model simulation
+
+    df_sciensano : pd.DataFrame
+        Daily hospitalisation data, obtained using the function `get_sciensano_COVID19_data_spatial
+
+    start_calibration : string
+        Startdate of calibration, 'YYYY-MM-DD'
+
+    end_calibration : string
+        Enddate of calibration, 'YYYY-MM-DD'
+
+    agg : string
+        Spatial aggregation level, either 'reg' or 'prov'
+
+    Returns
+    -------
+
+    fig: plt figure
+    """
+
+    if agg == 'reg':
+        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12), sharex=True)
+        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+        title_list = ['Brussels', 'Flanders', 'Wallonia']
+        color_list = ['blue', 'blue', 'blue']
+        for idx,NIS_list in enumerate(NIS_lists):
+            model_vals = 0
+            data_vals= 0
+            for NIS in NIS_list:
+                model_vals = model_vals + output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
+                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+            ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_title(title_list[idx])
+            ax[idx].set_xlim([start_calibration, end_calibration])
+            ax[idx].set_ylim([0, 350])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
+            ax[idx] = _apply_tick_locator(ax[idx])
+    
+    elif agg == 'prov':
+        fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
+        for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
+            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+            ax[idx].set_xlim([start_calibration, end_calibration])
+            ax[idx].set_ylim([0, 150])
+            ax[idx].grid(False)
+            ax[idx].set_ylabel('$H_{in}$ (-)')
+            ax[idx] = _apply_tick_locator(ax[idx])
+
+    return ax
+
+from covid19model.optimization.objective_fcns import prior_custom
+def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
+    """
+    A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
+    """
+
+    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
+    pars = pars + pars_prior 
+    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
+    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
+    pert = pert + len(pars_prior)*[0.02,]
+    log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
+    for par in pars_prior:
+        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
+        density_my_par_norm = density_my_par/np.sum(density_my_par)
+        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
+    return pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args
+
 
 def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     """

@@ -3,7 +3,22 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 
-def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson', poisson_offset='auto', agg=None):
+def thetas_to_model_pars(thetas, parNames, model_parameters_dict):
+    dict={}
+    idx = 0
+    for param in parNames:
+        try:
+            dict[param] = np.array(thetas[idx:idx+len(model_parameters_dict[param])], np.float64)
+            idx = idx + len(model_parameters_dict[param])
+        except:
+            if ((isinstance(model_parameters_dict[param], float)) | (isinstance(model_parameters_dict[param], int))):
+                dict[param] = thetas[idx]
+                idx = idx + 1
+            else:
+                raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
+    return dict
+
+def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson',poisson_offset='auto',agg=None):
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset.
@@ -62,21 +77,14 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    if dist == 'gaussian':
-        sigma=[]
-        for i, param in enumerate(parNames):
-            if param == 'warmup':
-                warmup = int(round(thetas[i]))
-            elif i < len(data): # Add a sigma value for every data series provided
-                sigma.append(thetas[i])
-            else: # Add all params that are not warmup or sigma to model parameters
-                model.parameters.update({param : thetas[i]})
-    if dist == 'poisson':
-        for i, param in enumerate(parNames):
-            if param == 'warmup':
-                warmup = int(round(thetas[i]))
-            else:
-                model.parameters.update({param : thetas[i]})
+    # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
+    thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
+
+    for i, (param,value) in enumerate(thetas_dict.items()):
+        if param == 'warmup':
+            warmup = int(round(value))
+        else:
+            model.parameters.update({param : value})
 
     # ~~~~~~~~~~~~~~
     # Run simulation
@@ -84,8 +92,8 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
 
     # Compute simulation time
     index_max=[]
-    for idx, d in enumerate(data):
-        index_max.append(d.index.max())
+    for idx, df in enumerate(data):
+        index_max.append(df.index.get_level_values('date').unique().max())
     end_sim = max(index_max)
     # Use previous samples
     if draw_fcn:
@@ -96,48 +104,34 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # -------------
     # calculate MLE
     # -------------
-
-    if not agg: # keep existing code for non-spatial case (aggregation level = None)
-        MLE = 0
-        
-        for idx,state in enumerate(states):
-            new_xarray = out[state]
-            for dimension in out.dims:
-                if dimension != 'time':
-                    new_xarray = new_xarray.sum(dim=dimension)
-            ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-            if dist == 'gaussian':            
-                MLE = MLE + weights[idx]*ll_gaussian(ymodel, data[idx].values, sigma[idx])  
-            elif dist == 'poisson':
-                MLE = MLE + weights[idx]*ll_poisson(ymodel, data[idx].values, offset=poisson_offset)
-    else: # add code for spatial case
-        # Create list of all NIS codes
-        NIS_list = list(data[0].columns)
-        
-        if dist == 'gaussian':
-            print("Note: this part of the code (if dist=='gaussian') needs to be altered still.")
-            ymodel = []
-            MLE = 0
-            for idx,d in enumerate(data):
-                som = 0
-                # sum required states. This is wrong for j != 0 I think.
-                for NIS in NIS_list:
-                    ymodel = []
-                    for j in range(len(states[i])):
-                        som += out[states[i][j]].sel(place=NIS).sum(dim="Nc").values[warmup:]
-                    ymodel.append(som[warmup:])
-                    MLE += ll_gaussian(ymodel[i], d[NIS], sigma[i]) # multiplication of likelihood is sum of loglikelihoods
-        if dist == 'poisson':
-            MLE = 0
-            for NIS in NIS_list:
-                for idx,state in enumerate(states):
-                    new_xarray = out[state].sel(place=NIS)
+    
+    MLE=0
+    # Loop over dataframes
+    for idx,df in enumerate(data):
+        # TODO: sum pd.Dataframe over all dimensions except date and NIS
+        # Check the indices
+        if 'date' in list(df.index.names):
+            if 'NIS' in list(df.index.names):
+                # Spatial data (must have 'date' first and then 'NIS')
+                for NIS in df.index.get_level_values('NIS').unique():
+                    new_xarray = out[states[idx]].sel(place=NIS)
                     for dimension in out.dims:
                         if ((dimension != 'time') & (dimension != 'place')):
                             new_xarray = new_xarray.sum(dim=dimension)
-                    ymodel = new_xarray.sel(time=data[idx].index.values, method='nearest').values
-                    MLE_add = weights[idx]*ll_poisson(ymodel, data[idx][NIS], offset=poisson_offset)
+                    ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
+                    MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
                     MLE += MLE_add
+            else:
+                # National data
+                new_xarray = out[states[idx]]
+                for dimension in out.dims:
+                    if dimension != 'time':
+                        new_xarray = new_xarray.sum(dim=dimension)
+                ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
+                MLE += weights[idx]*ll_poisson(ymodel, df.values, offset=poisson_offset)                
+        else:
+            raise ValueError("The dimensions of your {0}th dataframe did not contain dimension 'date'.".format(idx))
+
     return -MLE
 
 def ll_gaussian(ymodel, ydata, sigma):
@@ -222,6 +216,7 @@ def prior_uniform(x, bounds):
     prob = 1/(bounds[1]-bounds[0])
     condition = bounds[0] < x < bounds[1]
     if condition == True:
+        # Can also be set to zero: value doesn't matter much because its constant
         return np.log(prob)
     else:
         return -np.inf
@@ -233,8 +228,9 @@ def prior_custom(x, args):
     ----------
     x: float
         Parameter value whos likelihood we want to test.
-    bounds: tuple
-        Tuple containg the upper and lower bounds of the parameter value.
+    args: tuple
+        Tuple containg the density of each bin in the first position and the bounds of the bins in the second position.
+        Contains a weight given to the custom prior in the third position of the tuple.
 
     Returns
     -------
@@ -244,17 +240,17 @@ def prior_custom(x, args):
     ------------
     # Posterior of 'my_par' in samples_dict['my_par']
     density_my_par, bins_my_par = np.histogram(samples_dict['my_par'], bins=20, density=True)
-    density_my_par__norm = density_my_par/np.sum(density_my_par)
+    density_my_par_norm = density_my_par/np.sum(density_my_par)
     prior_fcn = prior_custom
-    prior_fcn_args = (bins_my_par, density_my_par_norm)
+    prior_fcn_args = (density_my_par_norm, bins_my_par, weight)
     # Prior_fcn and prior_fcn_args must then be passed on to the function log_probability
     """
-    bins, density = args
-    if x < bins.min() or x > bins.max():
+    density, bins, weight = args
+    if x <= bins.min() or x >= bins.max():
         return -np.inf
     else:
         idx = np.digitize(x, bins)
-        return np.log(density[idx-1])
+        return weight*np.log(density[idx-1])
 
 def prior_normal(x,norm_params):
     """ Normal prior distribution
@@ -329,7 +325,6 @@ def prior_weibull(x,weibull_params):
     k,lam = weibull_params
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
-
 def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset='auto', agg=None):
 
     """
@@ -377,7 +372,7 @@ def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,pa
         args = log_prior_fnc_args[idx]
         lp.append(fnc(theta,args))
     lp = sum(lp)
-
+    
     if not np.isfinite(lp).all():
         return - np.inf
     else:

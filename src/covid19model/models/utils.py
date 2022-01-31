@@ -1,9 +1,10 @@
+import warnings
 import os
 import random
+from numba import jit
 import numpy as np
 import pandas as pd
 import xarray as xr
-import zarr
 import ujson as json
 import pickle
 
@@ -45,7 +46,7 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=False, VOC=False)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -86,9 +87,9 @@ def initialize_COVID19_SEIQRD(age_stratification_size=10, update=False):
     model = models.COVID19_SEIQRD(initial_states, params,
                         time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function})
 
-    return initN, model
+    return model, CORE_samples_dict, initN
 
-def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update=False):
+def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -125,29 +126,25 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, vaccination=True, VOC=True)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
+    params.update(VOC_params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update)
     df_hosp = df_hosp.groupby(by=['date']).sum()
-    
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update)
-    # Load and format national VOC data (for time-dependent VOC fraction)
-    df_VOC_abc = VOC.get_abc_data()
 
     ##################################################
     ## Construct time-dependent parameter functions ##
     ##################################################
 
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(df_VOC_abc)
-
+    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
-
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
-
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
 
@@ -155,12 +152,20 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
     ## Initial states ##
     ####################
 
-    # Load initial states
-    date = '2020-03-15'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
-        load = pickle.load(handle)
-        initial_states = load[date]
+
+    if start_date == '2020-03-15':
+        with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+    else:
+        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
+
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         converted_value = np.zeros([len(age_classes),value.shape[1]])
@@ -179,9 +184,9 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, update
 
     # Initialize model
     model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
-                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'alpha':VOC_function})
+                        time_dependent_parameters={'beta': seasonality_function, 'Nc': policy_function, 'N_vacc': vaccination_function, 'f_VOC':VOC_function})
 
-    return initN, model
+    return model, CORE_samples_dict, initN
 
 def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', update=False, provincial=False):
 
@@ -219,9 +224,9 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=False, VOC=False)
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
     # Google Mobility data (for social contact Nc)
-    df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
+    df_google = mobility.get_google_mobility_data(update=update, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
 
@@ -263,14 +268,15 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
-                                                       'Nc_work' : policy_function_work,
-                                                       'place' : mobility_function,
-                                                       'beta_R' : seasonality_function,
-                                                       'beta_U': seasonality_function,
-                                                       'beta_M': seasonality_function})
-    return initN, model
+                                                    'Nc_work' : policy_function_work,
+                                                    'place' : mobility_function,
+                                                    'beta_R' : seasonality_function,
+                                                    'beta_U': seasonality_function,
+                                                    'beta_M': seasonality_function})
 
-def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', update=False, provincial=False):
+    return model, CORE_samples_dict, initN
+
+def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-17', update=False, provincial=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -307,14 +313,14 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     ## Load necessary data ##
     #########################
 
-    # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg, vaccination=True, VOC=True)
+    # Population size, interaction matrices and the model parameters; all VOC dependent parameters
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, spatial=agg)
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], age_stratification_size=len(age_classes), VOCs=VOCs)
+    params.update(VOC_params)
     # Google Mobility data (for social contact Nc)
     df_google = mobility.get_google_mobility_data(update=False, provincial=provincial)
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False)
-    # Load and format national VOC data (for time-dependent VOC fraction)
-    df_VOC_abc = VOC.get_abc_data()
     # Load and format local vaccination data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=update,agg=agg)
 
@@ -328,7 +334,7 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data, proximus_mobility_data_avg).mobility_wrapper_func
     # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(df_VOC_abc)
+    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
     # Time-dependent (first) vaccination function, updating N_vacc
     vaccination_function = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes=age_classes)
     # Time-dependent seasonality function, updating season_factor
@@ -338,12 +344,19 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     ## Initial states ##
     ####################
 
-    # Initial condition on 2020-03-17
-    date = '2020-03-17'
+    # Get correct initial condition
     samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
-    with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
-        load = pickle.load(handle)
-        initial_states = load[date]
+    if start_date == '2020-03-17':
+        with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial_stratified_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+    else:
+        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-17, 2021-08-01 or 2021-09-01".format(start_date))
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         converted_value = np.zeros([value.shape[0], len(age_classes), value.shape[2]])
@@ -363,14 +376,15 @@ def initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=10
     # Initiate model with initial states, defined parameters, and proper time dependent functions
     model = models.COVID19_SEIQRD_spatial_stratified_vacc(initial_states, params, spatial=agg,
                             time_dependent_parameters={'Nc' : policy_function,
-                                                       'Nc_work' : policy_function_work,
-                                                       'place' : mobility_function,
-                                                       'N_vacc' : vaccination_function, 
-                                                       'alpha' : VOC_function,
-                                                       'beta_R' : seasonality_function,
-                                                       'beta_U': seasonality_function,
-                                                       'beta_M': seasonality_function})
-    return initN, model
+                                                    'Nc_work' : policy_function_work,
+                                                    'place' : mobility_function,
+                                                    'N_vacc' : vaccination_function, 
+                                                    'f_VOC' : VOC_function,
+                                                    'beta_R' : seasonality_function,
+                                                    'beta_U': seasonality_function,
+                                                    'beta_M': seasonality_function})
+     
+    return model, CORE_samples_dict, initN
 
 def load_samples_dict(filepath, age_stratification_size=10):
     """
@@ -408,10 +422,6 @@ def load_samples_dict(filepath, age_stratification_size=10):
     samples_dict.update({'residence_times': residence_time_distributions})
     bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
-    # Append the samples of zeta
-    samples_dict_WAVE1 = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE1_R0_COMP_EFF_2021-05-15.json'))
-    samples_dict.update({'zeta': samples_dict_WAVE1['zeta']})
-
     return samples_dict
 
 def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
@@ -436,17 +446,16 @@ def draw_fcn_COVID19_SEIQRD(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
-    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]  
 
     # Hospitalization
     # ---------------
@@ -495,43 +504,41 @@ def draw_fcn_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
-    param_dict['K_hosp'] = np.ones(3)
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
+    # Omicron uncertainty: between 0-50% more transmissible; between 20-50% of delta variant severity
+    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
 
     # Vaccination
     # -----------
 
     # Reduction of infectiousness
     #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
-    param_dict['e_i'] = np.zeros([3,5])
-    param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
-    param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
+    #param_dict['e_i'] = np.zeros([3,5])
+    #param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
+    #param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
     # Reduction of susceptibility
     # Based on: 
     #https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext#sec1
-    param_dict['e_s'] = np.zeros([3,5])
-    param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
-    param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
-    param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
-    param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
+    #param_dict['e_s'] = np.zeros([3,5])
+    #param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
+    #param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
+    #param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
+    #param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
     # Reduction of hospitalization propensity
-    param_dict['e_h'] = np.zeros([3,5])
-    param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
-    param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
-    param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
-    param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
+    #param_dict['e_h'] = np.zeros([3,5])
+    #param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
+    #param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
+    #param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
+    #param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
 
     # Hospitalization
     # ---------------
@@ -583,19 +590,18 @@ def draw_fcn_COVID19_SEIQRD_spatial(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
-    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Hospitalization
     # ---------------
@@ -644,45 +650,42 @@ def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['zeta'] = random.choice(list(enumerate(samples_dict['zeta'])))
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]  
     param_dict['l1'] = samples_dict['l1'][idx]  
     param_dict['l2'] = samples_dict['l2'][idx]  
-    param_dict['prev_schools'] = samples_dict['prev_schools'][idx]    
-    param_dict['prev_home'] = samples_dict['prev_home'][idx]      
-    param_dict['prev_work'] = samples_dict['prev_work'][idx]       
-    param_dict['prev_rest_relaxation'] = samples_dict['prev_rest_relaxation'][idx]
-    param_dict['prev_rest_lockdown'] = samples_dict['prev_rest_lockdown'][idx]
-    param_dict['K_inf1'] = samples_dict['K_inf1'][idx]
-    param_dict['K_inf2'] = samples_dict['K_inf2'][idx]
-    param_dict['K_hosp'] = np.ones(3)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]  
-    param_dict['peak_shift'] = samples_dict['peak_shift'][idx]  
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Vaccination
     # -----------
 
     # Reduction of infectiousness
     #https://www.sciencedirect.com/science/article/pii/S0264410X21011087?via%3Dihub
-    param_dict['e_i'] = np.zeros([3,5])
-    param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
-    param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
+    #param_dict['e_i'] = np.zeros([3,5])
+    #param_dict['e_i'][:,1] = np.random.normal(loc=0.25, scale=0.033)
+    #param_dict['e_i'][:,2:] = np.random.normal(loc=0.5, scale=0.033)
     # Reduction of susceptibility
     # Based on: 
     #https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(21)02183-8/fulltext#sec1
-    param_dict['e_s'] = np.zeros([3,5])
-    param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
-    param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
-    param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
-    param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
+    #param_dict['e_s'] = np.zeros([3,5])
+    #param_dict['e_s'][:,1] = np.random.normal(loc=0.58, scale=0.04/3) # 1st dose: 58 (54- 61)
+    #param_dict['e_s'][:,2] =  np.random.normal(loc=0.73, scale=0.01/3) # 2nd dose: 73 (72- 74)
+    #param_dict['e_s'][:,3] =  np.random.normal(loc=0.47, scale=0.04/3) # waned vaccine (5 months): 47 (43- 51)
+    #param_dict['e_s'][:,4] = param_dict['e_s'][:,2] # booster dose = 2nd dose
     # Reduction of hospitalization propensity
-    param_dict['e_h'] = np.zeros([3,5])
-    param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
-    param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
-    param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
-    param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
+    #param_dict['e_h'] = np.zeros([3,5])
+    #param_dict['e_h'][:,1] = np.random.normal(loc=0.54, scale=0.10/3) # 1st dose: 54 (43- 63)
+    #param_dict['e_h'][:,2] = np.random.normal(loc=0.90, scale=0.02/3) # 2nd dose: 90 (89- 92)
+    #param_dict['e_h'][:,3] = np.random.normal(loc=0.88, scale=0.06/3) # waned dose (5 months): 88 (82- 92)
+    #param_dict['e_h'][:,4] = param_dict['e_h'][:,2]
 
     # Hospitalization
     # ---------------
@@ -826,14 +829,21 @@ def add_poisson(output_array, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
 
     """
 
-    # Determine number of samples
+    # Determine number of samples and number of timesteps
+    simtime = output_array.shape[1]
     n_samples = output_array.shape[0]
-    # Initialize vectors
-    vector = np.zeros((output_array.shape[1],n_draws_per_sample*n_samples))
+    # Initialize a column vector to append to
+    vector = np.zeros((simtime,1))
     # Loop over dimension draws
-    for n in range(output_array.shape[0]):
-        vector[:,n*n_draws_per_sample:(n+1)*n_draws_per_sample] = np.random.poisson( np.expand_dims(output_array[n,:],axis=1),size = (output_array.shape[1],n_draws_per_sample))
-    # Compute mean and median
+    for n in range(n_samples):
+        try:
+            result = np.random.poisson( np.expand_dims(output_array[n,:],axis=1),size = (output_array.shape[1],n_draws_per_sample))
+            vector = np.append(vector, result, axis=1)
+        except:
+            warnings.warn("I had to remove a simulation result from the output because there was a negative value in it..")
+    # Remove first column
+    vector = np.delete(vector, 0, axis=1)
+    #  Compute mean and median
     mean = np.mean(vector,axis=1)
     median = np.median(vector,axis=1)    
     # Compute quantiles
@@ -878,7 +888,8 @@ def name2nis(name):
     else:
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
-def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM_threshold=4000):
+@jit(nopython=True)
+def stratify_beta(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_threshold=4000):
     """
     Function that returns a spatially stratified infectivity parameter. IMPORTANT: this assumes that throughout the model, all NIS values are in order (e.g. 11000 to 93000). Currently hard-coded on threshold densities of 400/km2 and 4000/km2. Indices indicated in order of density.
     
@@ -890,8 +901,6 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
         Infectivity in urban areas
     beta_M : float
         Infectivity in metropolitan areas
-    agg : str
-        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
     areas : np.array
         G-fold numpy.array with areas of all regions in order of increasing NIS code
     pops : np.array
@@ -906,19 +915,18 @@ def stratify_beta(beta_R, beta_U, beta_M, agg, areas, pops, RU_threshold=400, UM
     beta : np.array of floats
         Array with length fitting to aggregation level agg, and three degrees of freedom depending on beta_R, beta_U, beta_M
     """
+
     # Exceptions
-    if agg not in ['prov', 'arr', 'mun']:
-        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     if (RU_threshold >= UM_threshold) or (RU_threshold < 0) or (UM_threshold < 0):
-        raise Exception(f"RU_threshold ({RU_threshold}) must be smaller than UM_threshold ({UM_threshold}) and both values must be positive (units of people/km2).")
+        raise Exception("RU_threshold must be smaller than UM_threshold and both values must be positive (units of people/km2).")
         
     # Define densities
     dens = pops/areas
 
     # Initialise and fill beta array
-    beta = np.full(len(dens), beta_U) # np.ones(len(dens))*beta_U # inbetween values
-    beta = np.where(dens < RU_threshold, beta_R, beta) # lower-than-threshold values
-    beta = np.where(dens >= UM_threshold, beta_M, beta) # higher-than-threshold values
+    beta = np.full(len(dens), beta_U, np.float64) # np.ones(len(dens))*beta_U # inbetween values
+    beta[dens < RU_threshold] = beta_R # lower-than-threshold values
+    beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
 
     return beta
 

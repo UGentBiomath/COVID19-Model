@@ -28,7 +28,7 @@ df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(updat
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov', vaccination=True, VOC=True)
 
 start_visualization = '2020-09-01'
-end_visualization = '2022-01-01'
+end_visualization = '2022-02-01'
 rolling_end_margin=1
 
 fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True,figsize=(12,6))
