@@ -49,7 +49,7 @@ public = True
 ## Handle script arguments ##
 #############################
 
-start_date = '2021-08-01'
+start_date = '2021-09-01'
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
@@ -184,23 +184,23 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta_R', 'beta_U', 'beta_M']
-    bounds1=((0.03,0.07),(0.03,0.07),(0.03,0.07))
+    bounds1=((0.03,0.10),(0.03,0.10),(0.03,0.10))
     # Effectivity parameters
     pars2 = ['mentality',]
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1.5,2.00),)
+    bounds3 = ((1.40,2.50),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0.25,0.55),)
+    bounds4 = ((0.20,0.55),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.042, 0.055, 0.043, 0.38, 1.6, 0.43])
+    theta = np.array([0.042, 0.0555, 0.042, 0.37, 1.6, 0.43])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -289,9 +289,9 @@ if __name__ == '__main__':
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_M$', '$\\beta_U$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
     # Attach priors of CORE calibration
-    pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args = attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args)
+    pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args = attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args,weight=300) # 30
     # Perturbate
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
