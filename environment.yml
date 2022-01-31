@@ -23,7 +23,6 @@ dependencies:
   - descartes
   - pyarrow
   - zarr
-  - ujson
   - openpyxl
   - pyomo
   - numba

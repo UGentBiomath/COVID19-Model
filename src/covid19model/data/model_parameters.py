@@ -1,5 +1,5 @@
 import os
-import ujson as json
+import json
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
