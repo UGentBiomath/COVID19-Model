@@ -390,7 +390,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not spatial:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'CORE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        core_dict_name = 'BE_CORE_SAMPLES_2022-01-27.json'
+        core_dict_name = 'BE_CORE_SAMPLES_2022-01-28.json'
         CORE_samples_dict = json.load(
             open(os.path.join(samples_path, core_dict_name)))
         pars_dict.update({
@@ -408,7 +408,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'CORE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        core_dict_name = 'prov_CORE_SAMPLES_2022-01-27.json'
+        core_dict_name = 'prov_CORE_SAMPLES_2022-01-28.json'
         CORE_samples_dict = json.load(
             open(os.path.join(samples_path, core_dict_name)))
         pars_dict.update({
