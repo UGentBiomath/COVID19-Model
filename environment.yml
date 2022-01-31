@@ -11,12 +11,9 @@ dependencies:
   - numpy
   - scipy
   - xarray
-  - networkx
   - pandas
   - ipywidgets
   - xlrd
-  - scikit-learn
-  - openpyxl
   - emcee
   - corner
   - geopandas
@@ -24,5 +21,4 @@ dependencies:
   - pyarrow
   - zarr
   - openpyxl
-  - pyomo
   - numba
