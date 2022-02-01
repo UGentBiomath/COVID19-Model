@@ -503,24 +503,18 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
 
     # Define vaccination properties                 0    1    2      W     B
     VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
-                                                   # alpha
-                                                   [0, 0.48, 0.94, 0.48, 0.94],
-                                                   # delta
-                                                   [0, 0.62, 0.80, 0.45, 0.91],
+                                                   [0, 0.48, 0.94, 0.48, 0.94], # alpha
+                                                   [0, 0.62, 0.80, 0.45, 0.91],# delta
                                                    [0, 0.342, 0.441, 0.248, 0.659]]  # omicron
 
     VOC_parameters['vaccine_properties', 'e_h'] = [[0, 0.90, 0.95, 0.90, 0.95],  # WT
-                                                   # alpha
-                                                   [0, 0.90, 0.95, 0.90, 0.95],
-                                                   # delta
-                                                   [0, 0.92, 0.96, 0.842, 0.99],
+                                                   [0, 0.90, 0.95, 0.90, 0.95], # alpha
+                                                   [0, 0.92, 0.96, 0.842, 0.99], # delta
                                                    [0, 0.767, 0.837, 0.676, 0.933]]  # omicron
 
     VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.225, 0.45, 0.225, 0.45],  # WT
-                                                   # alpha
-                                                   [0, 0.225, 0.45, 0.225, 0.45],
-                                                   # delta
-                                                   [0, 0.24, 0.37, 0.24, 0.37],
+                                                   [0, 0.225, 0.45, 0.225, 0.45], # alpha
+                                                   [0, 0.24, 0.37, 0.24, 0.37], # delta
                                                    [0, 0.24, 0.37, 0.24, 0.37]]  # omicron
 
     ##############################################################
