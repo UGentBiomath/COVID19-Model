@@ -136,7 +136,7 @@ if __name__ == '__main__':
         end_calibration = pd.to_datetime(str(args.enddate))
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-    multiplier_pso = 4
+    multiplier_pso = 10
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
@@ -162,23 +162,23 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta',]
-    bounds1=((0.050,0.100),)
+    bounds1=((0.040,0.100),)
     # Effectivity parameters
     pars2 = ['mentality',]
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1.6,2.30),)
+    bounds3 = ((1.6,2.20),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0.30,0.55),)
+    bounds4 = ((0.30,0.50),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
-    #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-    #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.062, 0.39, 1.95, 0.45])
+    theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
+                        start_date=start_calibration, warmup=warmup, processes=processes)
+    #theta = np.array([0.0596, 0.536, 1.650, 0.444])
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         # Assign estimate
         model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
-        end_visualization = '2022-03-01'
+        end_visualization = '2022-06-01'
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration, end_visualization)
