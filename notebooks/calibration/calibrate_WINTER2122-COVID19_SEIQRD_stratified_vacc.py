@@ -178,7 +178,7 @@ if __name__ == '__main__':
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.0596, 0.536, 1.650, 0.444])
+    theta = np.array([0.06, 0.53, 1.78, 0.35])
 
     ####################################
     ## Local Nelder-mead optimization ##
