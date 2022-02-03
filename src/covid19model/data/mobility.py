@@ -1132,7 +1132,72 @@ def complete_data_clean(mmprox, agg='mun'):
     mmprox_clean = mm_aggregate( fill_missing_pc( GDPR_replace(mmprox) ), agg=agg)
     return mmprox_clean
 
+def complete_data_clean_new(unprocessed_data, initN):
+    """
+    unprocessed_data: DataFrame
+        Loaded with load_datafile_proximus()
+    initN: np.array
+        Loaded with initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        
+    Example use:
+        unprocessed_data = load_datafile_proximus(pd.Timestamp(2021, 1, 1), data_location)
+        initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        mmprox_clean = complete_data_clean_new(unprocessed_data, initN)
+    """
+    # Takes about twenty seconds per date
+    # Make array of all unique postalcodes in the data
+    pc_array = unprocessed_data.mllp_postalcode.unique()
 
+    # Loop over all postal codes and fill in GDPR protected data with an estimate
+    # It is important to do this in the first step: this will compensate automatically at the provincial level
+    for pc in pc_array:
+        # Define two masks
+        mask_mllp = unprocessed_data['mllp_postalcode']==pc
+        mask_GDPR = unprocessed_data['est_staytime']==-1
+
+        # Number of GDPR protected data points for this particular postalcode
+        GDPR_protected_size = unprocessed_data[mask_mllp & mask_GDPR].est_staytime.size
+
+        # Calculate the reported total est_staytime versus the calculated (summed) total est_staytime
+        total_est_staytime = unprocessed_data.loc[mask_mllp, 'total_est_staytime'].values[0]
+        summed_est_staytime = unprocessed_data[mask_mllp][['est_staytime']].sum(axis=0).values[0]
+
+        # Calculate number of hidden seconds and make up for summing the -1 values
+        hidden_seconds = total_est_staytime - summed_est_staytime + GDPR_protected_size
+        hidden_seconds_per_pc = hidden_seconds / GDPR_protected_size
+
+        # Distribute all hidden seconds evenly to all GDPR-protected postalcodes
+        unprocessed_data.loc[mask_mllp & mask_GDPR,'est_staytime'] = hidden_seconds_per_pc
+        
+    # Next, merge all postalcodes together in provinces
+    # Note that this still contains 'Foreigner' and 'ABROAD'
+
+    # pc-to-pc matrix
+    mmprox = load_mmprox(unprocessed_data, values='est_staytime')
+
+    # Add postalcodes that Proximus has missed
+    mmprox = fill_missing_pc(mmprox)
+
+    # Aggregate at the level of provinces
+    mmprox = mm_aggregate(mmprox, agg='prov')
+
+    # Loop over province NIS values and add unregistered waking-life seconds
+    for NIS in initN.index:
+        NIS_pop = initN.sum(axis=1).loc[NIS]
+        available_seconds_NIS = NIS_pop * 60 * 60 * 16 # 8 hours asleep
+        registered_seconds_NIS = mmprox.loc[str(NIS)].sum()
+        unregistered_seconds_NIS = available_seconds_NIS - registered_seconds_NIS
+        mmprox.loc[str(NIS), str(NIS)] += unregistered_seconds_NIS
+        
+    # Now we only have to deal with the 'ABROAD' category, which might be a pain in the ass ...
+    # The final step is to just normalise everything
+
+    mmprox_clean = mmprox.drop(index=['Foreigner'], columns=['ABROAD'])
+    mmprox_clean = mmprox_clean.div(mmprox_BE.sum(axis=1),axis=0)
+
+    # Clearly the vast majority of time is spent in the home province, which obiously makes sense.
+    
+    return mmprox_clean
 
 # Temporal aggregation/averaging
 def average_mobility(mmprox_dict):
