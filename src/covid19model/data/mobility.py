@@ -492,7 +492,7 @@ def check_missing_dates(dates, data_location):
     missing = set(dates).difference(set(full_list))
     return missing
 
-def load_datafile_proximus(date, data_location):
+def load_datafile_proximus(date, data_location, agg='postalcode'):
     """
     Load an entire raw Proximus data file
     
@@ -502,26 +502,54 @@ def load_datafile_proximus(date, data_location):
         Single date in the shape YYYYMMDD
     data_location: str
         Name of directory (relative or absolute) that contains all Proximus data files
+    agg: str
+        'postalcode' (default) or 'arr'
         
     Output
     ------
     datafile: pandas DataFrame
     """
-    suffix = proximus_mobility_suffix()
-    datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
-    # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
-    datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
-                                                                                         'postalcode' : str,
-                                                                                         'imsisinpostalcode' : float,
-                                                                                         'habitatants' : float,
-                                                                                         'nrofimsi' : float,
-                                                                                         'visitors' : float,
-                                                                                         'est_staytime' : float,
-                                                                                         'total_est_staytime' : float,
-                                                                                         'est_staytime_perc' : float})
+    if agg=='postalcode':
+        suffix = proximus_mobility_suffix()
+        datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
+        # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
+        datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
+                                                                                             'postalcode' : str,
+                                                                                             'imsisinpostalcode' : float,
+                                                                                             'habitatants' : float,
+                                                                                             'nrofimsi' : float,
+                                                                                             'visitors' : float,
+                                                                                             'est_staytime' : float,
+                                                                                             'total_est_staytime' : float,
+                                                                                             'est_staytime_perc' : float})
+    elif agg=='arr':
+        name1 = f'corona_report_proximus_district2district_{date}_{date}.csv'
+        name2 = f'output_PROXIMUS_122747_coronadistrict_{date}_AZUREREF001.csv'
+        try:
+            datafile = pd.read_csv(data_location+name1, sep=';', decimal=',', dtype={'mllp_district' : str,
+                                                                                     'district' : str,
+                                                                                     'imsisindistrict' : float,
+                                                                                     'habitatants' : float,
+                                                                                     'nrofimsi' : float,
+                                                                                     'visitors' : float,
+                                                                                     'est_staytime' : float,
+                                                                                     'total_est_staytime' : float,
+                                                                                     'est_staytime_perc' : float})
+        except:
+            datafile = pd.read_csv(data_location+name2, sep=';', decimal=',', dtype={'mllp_district' : str,
+                                                                                     'district' : str,
+                                                                                     'imsisindistrict' : float,
+                                                                                     'habitatants' : float,
+                                                                                     'nrofimsi' : float,
+                                                                                     'visitors' : float,
+                                                                                     'est_staytime' : float,
+                                                                                     'total_est_staytime' : float,
+                                                                                     'est_staytime_perc' : float})
+    else:
+        raise Exception("agg must be 'arr' or 'postalcode'.")
     return datafile    
     
-def load_mmprox(datafile, values='nrofimsi'):
+def load_mmprox(datafile, values='nrofimsi', agg='postalcode'):
     """
     Process raw Proximus datafile into a mobility matrix for either nrofimsi values or est_staytime values
     
@@ -531,15 +559,24 @@ def load_mmprox(datafile, values='nrofimsi'):
         loaded from load_datafile_proximus
     values: str
         Either 'nrofimsi' (visit counts) or 'est_staytime' (estimated staytime)
+    agg: str
+        'postalcode' (default) or 'arr'
     
     Output
     ------
     mmprox: pandas.DataFrame
         pandas DataFrames with visit counts or estimated staytime between postal codes.
     """
-    mmprox = datafile.pivot_table(values=values,
+    if agg=='postalcode':
+        mmprox = datafile.pivot_table(values=values,
                                   index='mllp_postalcode',
                                   columns='postalcode').fillna(value=0)
+    elif agg=='arr':
+        mmprox = datafile.pivot_table(values=values,
+                                  index='mllp_district',
+                                  columns='district').fillna(value=0)
+    else:
+        raise Exception("agg must be 'arr' or 'postalcode'.")
     return mmprox
 
 def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
@@ -958,7 +995,7 @@ def est_hidden_staytime_per_pc(datafile):
 
 # Aggregate
 
-def mm_aggregate(mmprox, agg='mun'):
+def mm_aggregate(mmprox, agg='mun', from_agg='postalcode'):
     """
     Aggregate cleaned-up mobility dataframes at the aggregation level of municipalities, arrondissements or provinces
     
@@ -968,6 +1005,8 @@ def mm_aggregate(mmprox, agg='mun'):
         Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
     agg: str
         The level at which to aggregate. Choose between 'mun', 'arr' or 'prov'. Default is 'mun'.
+    from_agg: str
+        The starting level from which to aggregate. Only 'arr' implemented so far. 'postalcode' does nothing.
         
     Output
     ------
@@ -976,83 +1015,113 @@ def mm_aggregate(mmprox, agg='mun'):
     """
     # validate
     mmprox_shape = mmprox.shape
-    if mmprox_shape != (1148, 1148):
+    if from_agg != 'arr' and mmprox_shape != (1148, 1148):
         raise Exception(f"The input dataframe is of the shape {mmprox_shape}, not (1148, 1148) which is all 1147 postal codes + destinations/origins abroad. Fix this first.")
     if agg not in ['mun', 'arr', 'prov']:
         raise Exception("The aggregation level must be either municipality ('mun'), arrondissements ('arr') or provinces ('prov').")
     
-    # copy dataframe and load the postal-code-to-NIS-value translator
-    mmprox_agg = mmprox.copy()
-    pc_to_nis = load_pc_to_nis()
-    
-    rename_abroad = 'ABROAD'
-    rename_foreigner = 'Foreigner'
-    
-    # initiate renaming dictionaries
-    rename_col_dict = dict({})
-    rename_idx_dict = dict({})
-    for pc in mmprox_agg.columns:
-        if pc != 'ABROAD':
-            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
-            rename_col_dict[pc] = NIS
-    rename_col_dict['ABROAD'] = rename_abroad
-    for pc in mmprox_agg.index:
-        if pc != 'Foreigner':
-            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
-            rename_idx_dict[pc] = NIS
-    rename_idx_dict['Foreigner'] = rename_foreigner
-    
-    # Rename the column names and indices to prepare for merging
-    mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
-    
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
-    
-    if agg in ['arr', 'prov']:
+    if agg=='prov' and from_agg=='arr':
         # Rename columns
-        for nis in mmprox_agg.columns:
-            if nis != 'ABROAD':
-                new_nis = nis[:-3] + '000'
-                mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+        for nis in mmprox.columns:
+            if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
+                new_nis = nis[:-4] + '0000'
+                mmprox = mmprox.rename(columns={nis : new_nis})
+            if nis in ['23000', '24000']:
+                new_nis = '20001'
+                mmprox = mmprox.rename(columns={nis : new_nis})
+            if nis == '25000':
+                new_nis = '20002'
+                mmprox = mmprox.rename(columns={nis : new_nis})
 
         # Rename rows
-        for nis in mmprox_agg.index:
-            if nis != 'Foreigner':
-                new_nis = nis[:-3] + '000'
-                mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+        for nis in mmprox.index:
+            if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                new_nis = nis[:-4] + '0000'
+                mmprox = mmprox.rename(index={nis : new_nis})
+            if nis in ['23000', '24000']:
+                new_nis = '20001'
+                mmprox = mmprox.rename(index={nis : new_nis})
+            if nis == '25000':
+                new_nis = '20002'
+                mmprox = mmprox.rename(index={nis : new_nis})
 
         # Collect rows and columns with the same NIS code, and automatically order column/row names
+        mmprox_agg = mmprox.groupby(level=0, axis=1).sum()
+        mmprox_agg = mmprox.groupby(level=0, axis=0).sum()#.astype(int)
+    
+    else:
+        # copy dataframe and load the postal-code-to-NIS-value translator
+        mmprox_agg = mmprox.copy()
+        pc_to_nis = load_pc_to_nis()
+
+        rename_abroad = 'ABROAD'
+        rename_foreigner = 'Foreigner'
+
+        # initiate renaming dictionaries
+        rename_col_dict = dict({})
+        rename_idx_dict = dict({})
+        for pc in mmprox_agg.columns:
+            if pc != 'ABROAD':
+                NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+                rename_col_dict[pc] = NIS
+        rename_col_dict['ABROAD'] = rename_abroad
+        for pc in mmprox_agg.index:
+            if pc != 'Foreigner':
+                NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+                rename_idx_dict[pc] = NIS
+        rename_idx_dict['Foreigner'] = rename_foreigner
+
+        # Rename the column names and indices to prepare for merging
+        mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
+
         mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
         mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
-        
-        if agg == 'prov':
+
+        if agg in ['arr', 'prov']:
             # Rename columns
             for nis in mmprox_agg.columns:
-                if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
-                    new_nis = nis[:-4] + '0000'
-                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
-                if nis in ['23000', '24000']:
-                    new_nis = '20001'
-                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
-                if nis == '25000':
-                    new_nis = '20002'
+                if nis != 'ABROAD':
+                    new_nis = nis[:-3] + '000'
                     mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
 
             # Rename rows
             for nis in mmprox_agg.index:
-                if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
-                    new_nis = nis[:-4] + '0000'
-                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
-                if nis in ['23000', '24000']:
-                    new_nis = '20001'
-                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
-                if nis == '25000':
-                    new_nis = '20002'
+                if nis != 'Foreigner':
+                    new_nis = nis[:-3] + '000'
                     mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
 
             # Collect rows and columns with the same NIS code, and automatically order column/row names
             mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
             mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
+
+            if agg == 'prov':
+                # Rename columns
+                for nis in mmprox_agg.columns:
+                    if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
+                        new_nis = nis[:-4] + '0000'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                    if nis in ['23000', '24000']:
+                        new_nis = '20001'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                    if nis == '25000':
+                        new_nis = '20002'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+
+                # Rename rows
+                for nis in mmprox_agg.index:
+                    if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                        new_nis = nis[:-4] + '0000'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                    if nis in ['23000', '24000']:
+                        new_nis = '20001'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                    if nis == '25000':
+                        new_nis = '20002'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+
+                # Collect rows and columns with the same NIS code, and automatically order column/row names
+                mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
+                mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     return mmprox_agg
     
