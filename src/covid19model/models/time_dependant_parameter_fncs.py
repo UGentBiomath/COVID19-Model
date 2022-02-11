@@ -114,9 +114,8 @@ class make_mobility_update_function():
     proximus_mobility_data_avg : np.array
         Average mobility matrix over all matrices
     """
-    def __init__(self, proximus_mobility_data, proximus_mobility_data_avg):
+    def __init__(self, proximus_mobility_data):
         self.proximus_mobility_data = proximus_mobility_data
-        self.proximus_mobility_data_avg = proximus_mobility_data_avg
 
     @lru_cache()
     # Define mobility_update_func
