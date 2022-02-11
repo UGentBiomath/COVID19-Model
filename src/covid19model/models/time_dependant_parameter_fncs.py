@@ -119,7 +119,7 @@ class make_mobility_update_function():
 
     @lru_cache()
     # Define mobility_update_func
-    def __call__(self, t, default_mobility=None):
+    def __call__(self, t):
         """
         time-dependent function which has a mobility matrix of type dtype for every date.
         Note: only works with datetime input (no integer time steps). This
@@ -128,12 +128,6 @@ class make_mobility_update_function():
         -----
         t : timestamp
             current date as datetime object
-        states : str
-            formal necessity
-        param : str
-            formal necessity
-        default_mobility : np.array or None
-            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
         Returns
         -------
@@ -144,10 +138,25 @@ class make_mobility_update_function():
         try: # if there is data available for this date (if the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
-            if default_mobility: # If there is no data available and a user-defined input is given
-                place = self.default_mobility
-            else: # No data and no user input: fall back on average mobility
-                place = self.proximus_mobility_data_avg
+            if t < pd.Timestamp(2020, 2, 10):
+                # prepandemic default mobility. Take average of first 20-ish days
+                if t.dayofweek < 5:
+                    # business days
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+                if t.dayofweek >= 5:
+                    # weekend
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+            elif t == pd.Timestamp(2020, 2, 21):
+                # first missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 20)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 22)])/2
+            elif t == pd.Timestamp(2020, 12, 18):
+                # second missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 19)])/2
+            elif t > pd.Timestamp(2021, 8, 31):
+                # beyond Proximus service. Make a distinction between 
+                
         return place
 
     def mobility_wrapper_func(self, t, states, param, default_mobility=None):
