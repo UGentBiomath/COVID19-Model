@@ -737,9 +737,14 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
     return graphs
             
 
-def school_vacations_dict():
+def school_vacations_dict(explicit=False):
     """
-    Returns dictionary with pd.Timestamp objects as keys and lengths of vacations as values
+    Returns dictionary with pd.Timestamp objects as keys and lengths of vacations as values when not explicit. When explicit==True, returns numpy array with all Timestamps
+    
+    Input
+    -----
+        explicit : boolean
+            if True, return numpy array with all holiday Timestamps. False by default.
     """
     # Define school vacations
     vacation_dict=dict({})
@@ -816,6 +821,14 @@ def school_vacations_dict():
     sdate_kerst21 = pd.Timestamp(2021, 12, 27, 0, 0) # Actually the schools were closed one week early
     len_kerst21 = 14
     vacation_dict[sdate_kerst21]=len_kerst21
+    
+    if explicit:
+        all_holidays = []
+        for date, duration in vacation_dict.items():
+            for day in range(duration):
+                holiday = (date + pd.Timedelta(days=day))#.date()
+                all_holidays.append(holiday)
+        vacation_dict = np.array(all_holidays)
     
     return vacation_dict
     
