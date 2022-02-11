@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import itertools
 from functools import lru_cache
+from covid19model.visualization.output import school_vacations_dict
 
 ##########################
 ## Compliance functions ##
@@ -135,7 +136,7 @@ class make_mobility_update_function():
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
         t = pd.Timestamp(t.date())
-        try: # if there is data available for this date (if the key exists)
+        try: # simplest case: there is data available for this date (the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
             if t < pd.Timestamp(2020, 2, 10):
@@ -143,7 +144,7 @@ class make_mobility_update_function():
                 if t.dayofweek < 5:
                     # business days
                     place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
-                if t.dayofweek >= 5:
+                elif t.dayofweek >= 5:
                     # weekend
                     place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
             elif t == pd.Timestamp(2020, 2, 21):
@@ -155,7 +156,26 @@ class make_mobility_update_function():
                 place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] + 
                           self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 19)])/2
             elif t > pd.Timestamp(2021, 8, 31):
-                # beyond Proximus service. Make a distinction between 
+                # beyond Proximus service. Make a distinction between holiday/non-holiday and weekend/business day
+                holiday = False
+                for first, duration in school_vacations_dict().items():
+                    if (t0 >= first) and (t0 < (first + pd.Timedelta(days=duration))):
+                        holiday = True
+                        # it's a holiday. Take average of summer vacation behaviour
+                        if t.dayofweek < 5:
+                            # non-weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                        elif t.dayofweek >= 5:
+                            # weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                if not holiday:
+                    # it's not a holiday. Take average of two months before summer vacation
+                    if t.dayofweek < 5:
+                        # business day
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                    elif t.dayofweek >= 5:
+                        # regular weekend
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
                 
         return place
 
