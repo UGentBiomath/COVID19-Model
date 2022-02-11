@@ -159,7 +159,7 @@ class make_mobility_update_function():
                 # beyond Proximus service. Make a distinction between holiday/non-holiday and weekend/business day
                 holiday = False
                 for first, duration in school_vacations_dict().items():
-                    if (t0 >= first) and (t0 < (first + pd.Timedelta(days=duration))):
+                    if (t >= first) and (t < (first + pd.Timedelta(days=duration))):
                         holiday = True
                         # it's a holiday. Take average of summer vacation behaviour
                         if t.dayofweek < 5:
