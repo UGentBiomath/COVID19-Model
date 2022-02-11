@@ -179,13 +179,9 @@ class make_mobility_update_function():
                 
         return place
 
-    def mobility_wrapper_func(self, t, states, param, default_mobility=None):
+    def mobility_wrapper_func(self, t, states, param):
         t = pd.Timestamp(t.date())
-        if t <= pd.Timestamp('2020-03-17'):
-            place = self.__call__(t, default_mobility=default_mobility)
-            return np.eye(place.shape[0])
-        else:
-            return self.__call__(t, default_mobility=default_mobility)
+        return self.__call__(t)
 
 ###################
 ## VOC functions ##
