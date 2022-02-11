@@ -227,18 +227,16 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
 ####################################
 
 # Load all data in a big DataFrame
-def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
+def get_proximus_mobility_data(agg):
     """
-    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
+    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. The loaded data are provided as fractions of the staytime between regions within Belgium.
+    
+    Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
     
     Input
     -----
     agg : str
-        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
-    dtype : str
-        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
-    beyond_borders : boolean
-        If true, also include mobility abroad and mobility from foreigners
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'. NOTE currently only 'prov' data is available.
     
     Returns
     -------
@@ -255,18 +253,13 @@ def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
                     "spatial stratification '{0}' is not legitimate. Possible spatial "
                     "stratifications are 'mun', 'arr', or 'prov'".format(agg)
                 )
-    if dtype not in ['fractional', 'staytime', 'visits']:
-        raise ValueError(
-                    "data type '{0}' is not legitimate. Possible mobility matrix "
-                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
-                )
     
     ### Load all available data ###
     
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    data_location = f'../../../data/interim/mobility/{agg}/fractional'
     
     # Iterate over all available interim mobility data
     all_available_dates=[]
@@ -278,25 +271,14 @@ def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
         # Create list of datetime objects
         all_available_dates.append(pd.to_datetime(datum, format="%Y%m%d"))
         # Load the CSV as a np.array
-        if beyond_borders:
-            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values
-        else:
-            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-            if dtype=='fractional':
-                # make sure the rows sum up to 1 nicely again after dropping a row and a column
-                place = place / place.sum(axis=1)
-                # This still introduces some numerical imperfections, so add the offset to the diagonal element
-                np.fill_diagonal(place, place.diagonal() + (np.ones(place.shape[0]) - place.sum(axis=1)))
+        place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values#.drop(index='Foreigner', columns='ABROAD').values
         # Create list of places
         all_available_places.append(place)
     # Create new empty dataframe with available dates. Load mobility later
     df = pd.DataFrame({'DATE' : all_available_dates, 'place' : all_available_places}).set_index('DATE')
     proximus_mobility_data = df.copy()
     
-    # Take average of all available mobility data
-    proximus_mobility_data_avg = df['place'].values.mean()
-    
-    return proximus_mobility_data, proximus_mobility_data_avg
+    return proximus_mobility_data
 
 
 def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True, normalise=True):
