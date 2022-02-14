@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import itertools
 from functools import lru_cache
+from covid19model.visualization.output import school_vacations_dict
 
 ##########################
 ## Compliance functions ##
@@ -114,13 +115,12 @@ class make_mobility_update_function():
     proximus_mobility_data_avg : np.array
         Average mobility matrix over all matrices
     """
-    def __init__(self, proximus_mobility_data, proximus_mobility_data_avg):
+    def __init__(self, proximus_mobility_data):
         self.proximus_mobility_data = proximus_mobility_data
-        self.proximus_mobility_data_avg = proximus_mobility_data_avg
 
     @lru_cache()
     # Define mobility_update_func
-    def __call__(self, t, default_mobility=None):
+    def __call__(self, t):
         """
         time-dependent function which has a mobility matrix of type dtype for every date.
         Note: only works with datetime input (no integer time steps). This
@@ -129,12 +129,6 @@ class make_mobility_update_function():
         -----
         t : timestamp
             current date as datetime object
-        states : str
-            formal necessity
-        param : str
-            formal necessity
-        default_mobility : np.array or None
-            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
         Returns
         -------
@@ -142,22 +136,52 @@ class make_mobility_update_function():
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
         t = pd.Timestamp(t.date())
-        try: # if there is data available for this date (if the key exists)
+        try: # simplest case: there is data available for this date (the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
-            if default_mobility: # If there is no data available and a user-defined input is given
-                place = self.default_mobility
-            else: # No data and no user input: fall back on average mobility
-                place = self.proximus_mobility_data_avg
+            if t < pd.Timestamp(2020, 2, 10):
+                # prepandemic default mobility. Take average of first 20-ish days
+                if t.dayofweek < 5:
+                    # business days
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+                elif t.dayofweek >= 5:
+                    # weekend
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+            elif t == pd.Timestamp(2020, 2, 21):
+                # first missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 20)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 22)])/2
+            elif t == pd.Timestamp(2020, 12, 18):
+                # second missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 19)])/2
+            elif t > pd.Timestamp(2021, 8, 31):
+                # beyond Proximus service. Make a distinction between holiday/non-holiday and weekend/business day
+                holiday = False
+                for first, duration in school_vacations_dict().items():
+                    if (t >= first) and (t < (first + pd.Timedelta(days=duration))):
+                        holiday = True
+                        # it's a holiday. Take average of summer vacation behaviour
+                        if t.dayofweek < 5:
+                            # non-weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                        elif t.dayofweek >= 5:
+                            # weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                if not holiday:
+                    # it's not a holiday. Take average of two months before summer vacation
+                    if t.dayofweek < 5:
+                        # business day
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                    elif t.dayofweek >= 5:
+                        # regular weekend
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                
         return place
 
-    def mobility_wrapper_func(self, t, states, param, default_mobility=None):
+    def mobility_wrapper_func(self, t, states, param):
         t = pd.Timestamp(t.date())
-        if t <= pd.Timestamp('2020-03-17'):
-            place = self.__call__(t, default_mobility=default_mobility)
-            return np.eye(place.shape[0])
-        else:
-            return self.__call__(t, default_mobility=default_mobility)
+        return self.__call__(t)
 
 ###################
 ## VOC functions ##
