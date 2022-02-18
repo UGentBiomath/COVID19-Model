@@ -78,12 +78,12 @@ def get_serological_data():
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["abs/rel", "data"])
     df = pd.DataFrame(index=data.index, columns=columns)
-    df['abs','mean'] = data['mean']*sum(initN) 
-    df['abs','LL'] = data['LL']*sum(initN)
-    df['abs','UL'] = data['UL']*sum(initN)
-    df['rel','mean'] = data['mean']
-    df['rel','LL'] = data['LL']
-    df['rel','UL'] = data['UL']
+    df['abs','mean'] = data['Seroprevalence']*sum(initN) 
+    df['abs','LL'] = data['Lower CI']*sum(initN)
+    df['abs','UL'] = data['Upper CI']*sum(initN)
+    df['rel','mean'] = data['Seroprevalence']
+    df['rel','LL'] = data['Lower CI']
+    df['rel','UL'] = data['Upper CI']
     df_sero_sciensano = df
 
     return df_sero_herzog, df_sero_sciensano
