@@ -1103,13 +1103,18 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        # compute properties
+        
+        # compute effective hospitalisation propensity and force cut-off for numerical safety
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
+        
+        # compute effective latent period (varies per VOC)
         sigma = np.sum(f_VOC*sigma)
-        e_i = f_VOC @ e_i
-        e_s = f_VOC @ e_s
-        e_h = f_VOC @ e_h
+        
+        # commented out for now (but probably to be deleted)
+        # e_i = f_VOC @ e_i
+        # e_s = f_VOC @ e_s
+        # e_h = f_VOC @ e_h
 
         ################################
         ## calculate total population ##
