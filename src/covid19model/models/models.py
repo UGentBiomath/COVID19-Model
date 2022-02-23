@@ -1104,13 +1104,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
         
-        # compute effective hospitalisation propensity and force cut-off for numerical safety
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        h[h > 1] = 1
-        
-        # compute effective latent period (varies per VOC)
-        sigma = np.sum(f_VOC*sigma)
-        
         # commented out for now (but probably to be deleted)
         # e_i = f_VOC @ e_i
         # e_s = f_VOC @ e_s
@@ -1149,7 +1142,27 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
+        
+        ### RESCALING INFECTIVITY ###
+        # Rescale beta according to the prevalence of the VOCs
+        beta *= np.sum(f_VOC*K_inf)
+
+        # Rescale beta according to vaccination status per region
+        # ...
+        
+        ### RESCALING HOSPITALISATION PROPENSITY ###
+        # rescale h according to the prevalence of the VOCs
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        # ... and force ceiling for numerical safety
+        h[h > 1] = 1
+        
+        # Rescale h according to vaccination status per region
+        # ...
+        
+        ### RESCALING LATENT PERIOD ###
+        # rescale sigma according to the prevalnce of the VOCs
+        sigma = np.sum(f_VOC*sigma)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
