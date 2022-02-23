@@ -1175,8 +1175,14 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         A_eff = np.transpose(place_eff) @ A # asymptomatic I_asy
         E_inf_eff = place_eff @ E_inf
         
-        # Contribution to infection pressure from the home province
+        # Contribution to infection pressure from the home province.
+        # T is (G,N)-dimensional. Nc and Nc_work are (G,N,N)-dimensional
+        # Effectively implement the N^gh_ij 
+        T_home = np.diag(np.diagonal(T_eff))
         
+        ### HOW DO WE DO THIS ELEGANTLY??!
+        multip_work = jit_matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
+        multip_rest = jit_matmul_2D_3D((I + A)/T, Nc-Nc_work)
 
         # Compute infectious fraction of work population (11,10)
         infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
