@@ -1175,14 +1175,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         A_eff = np.transpose(place_eff) @ A
         E_inf_eff = place_eff @ E_inf
 
-        # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
-        S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
-        I_work = matmul_q_2D(np.transpose(place_eff), I)
-        A_work = matmul_q_2D(np.transpose(place_eff), A)
-        # The following line of code is the numpy equivalent of the above loop (verified)
-        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
-
         # Compute infectious fraction of work population (11,10)
         infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
         infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
