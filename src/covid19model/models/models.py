@@ -1141,15 +1141,18 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
         
-        # Expand beta to size G
+        # Expand beta to size G based on local population density
         beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
         
         ### RESCALING INFECTIVITY ###
-        # Rescale beta according to the prevalence of the VOCs
+        # Rescale beta according to the prevalence of the VOCs (nationally aggregated)
         beta *= np.sum(f_VOC*K_inf)
 
         # Rescale beta according to vaccination status per region
-        # ...
+        # beta *= E_inf * E_susc
+        
+        # Rescale beta according to seasonality (nationally aggregated)
+        # beta *= seasonality
         
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
@@ -1158,7 +1161,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         h[h > 1] = 1
         
         # Rescale h according to vaccination status per region
-        # ...
+        # h *= E_hosp
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalnce of the VOCs
