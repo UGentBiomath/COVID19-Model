@@ -1227,13 +1227,14 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # No waning of booster dose
 
         # Waning of natural immunity
-        dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
-        dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
+        # THIS IS NOW INCLUDED IN THE NEW IMPLEMENTATION
+        # dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
+        # dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
 
         # Immune escape
         # ~~~~~~~~~~~~~
         
-        # THIS IS NOW INCLUDED IN THE 
+        # NOT SURE WHAT THIS DID?
         # dS = dS + np.sum(f_immune_escape*d_VOC)*R
         # dR = dR - np.sum(f_immune_escape*d_VOC)*R   
 
