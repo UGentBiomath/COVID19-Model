@@ -1088,8 +1088,9 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ############################
         ## Modeling immune escape ##
         ############################
-
+        
         # Remove negative derivatives to ease further computation
+        # Note: this model will only use the fraction itself, not its derivative
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
