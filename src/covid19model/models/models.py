@@ -1149,6 +1149,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         beta *= np.sum(f_VOC*K_inf)
 
         # Rescale beta according to vaccination status per region
+        # actually, to be really precise, we must make a distinction between infectivity and susceptibility. Consider the scenario where a visitor from a fully vaccinated region $g$ goes to a region $h$ that is not vaccinated at all. Then this visitor's susceptibility has gone up, but the infectivity of their peers hasn't.
         # beta *= E_inf * E_susc
         
         # Rescale beta according to seasonality (nationally aggregated)
@@ -1164,7 +1165,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # h *= E_hosp
         
         ### RESCALING LATENT PERIOD ###
-        # rescale sigma according to the prevalnce of the VOCs
+        # rescale sigma according to the prevalence of the VOCs
         sigma = np.sum(f_VOC*sigma)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
