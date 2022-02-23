@@ -1080,10 +1080,10 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
+                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
                   area, p,  # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
-                  place, Nc, doses): # stratified parameters that determine stratification dimensions
+                  place, Nc): # stratified parameters that determine stratification dimensions
 
         ############################
         ## Modeling immune escape ##
