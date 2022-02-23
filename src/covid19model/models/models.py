@@ -1120,7 +1120,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ## calculate total population ##
         ################################
 
-        T = np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2) # Sum over doses
+        T = S + E + I + A + M + C + C_icurec + ICU + R
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
