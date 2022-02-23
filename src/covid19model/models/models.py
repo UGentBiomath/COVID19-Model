@@ -1232,8 +1232,10 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
         # Immune escape
         # ~~~~~~~~~~~~~
-        dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        dR = dR - np.sum(f_immune_escape*d_VOC)*R   
+        
+        # THIS IS NOW INCLUDED IN THE 
+        # dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        # dR = dR - np.sum(f_immune_escape*d_VOC)*R   
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
