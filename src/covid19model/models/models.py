@@ -1217,11 +1217,12 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ########################
 
         # Waning of second dose
-        r_waning_vacc = 1/((6/12)*365)
-        dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
-        dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
-        dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
-        dR[:,:,3] = dR[:,:,3] + r_waning_vacc*R_post_vacc[:,:,2]
+        # THIS IS NOW INCLUDED IN THE NEW IMPLEMENTATION
+        # r_waning_vacc = 1/((6/12)*365)
+        # dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
+        # dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
+        # dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
+        # dR[:,:,3] = dR[:,:,3] + r_waning_vacc*R_post_vacc[:,:,2]
         
         # Waning of booster dose
         # No waning of booster dose
