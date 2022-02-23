@@ -1148,7 +1148,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Rescale beta according to the prevalence of the VOCs (nationally aggregated)
         beta *= np.sum(f_VOC*K_inf)
 
-        # Rescale beta according to vaccination status per region
+        # Rescale beta according to vaccination status per region - maybe best to only rescale with E_susc here and leave E_inf for later
         # actually, to be really precise, we must make a distinction between infectivity and susceptibility. Consider the scenario where a visitor from a fully vaccinated region $g$ goes to a region $h$ that is not vaccinated at all. Then this visitor's susceptibility has gone up, but the infectivity of their peers hasn't.
         # beta *= E_inf * E_susc
         
@@ -1161,7 +1161,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # ... and force ceiling for numerical safety
         h[h > 1] = 1
         
-        # Rescale h according to vaccination status per region
+        # Rescale h according to vaccination status per region (needs dimensional attention)
         # h *= E_hosp
         
         ### RESCALING LATENT PERIOD ###
@@ -1195,7 +1195,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ## Compute system of ODEs ##
         ############################
 
-        h_acc = (1-e_h)*h
+        # h_acc = (1-e_h)*h (no longer required here)
 
         dS  = dS - dS_inf
         dE  = dS_inf - E/sigma 
