@@ -1197,7 +1197,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
         # h_acc = (1-e_h)*h (no longer required here)
 
-        dS  = dS - dS_inf
+        dS  = dS - dS_inf + zeta*R
         dE  = dS_inf - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
@@ -1206,7 +1206,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
         dH_in = M*(h_acc/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
