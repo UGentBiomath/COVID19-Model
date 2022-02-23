@@ -1081,7 +1081,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
-                  area, p,  # spatially stratified parameters. 
+                  area, p, E_susc, E_inf, E_hosp, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
@@ -1170,10 +1170,13 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         ### Define effective local populations (T, I and A) and local average infectivity
         # MAKE SURE THIS IS CORRECT!
-        T_eff = np.transpose(place_eff) @ T
-        I_eff = np.transpose(place_eff) @ I
-        A_eff = np.transpose(place_eff) @ A
+        T_eff = np.transpose(place_eff) @ T # total
+        I_eff = np.transpose(place_eff) @ I # presymptomatic I_presy
+        A_eff = np.transpose(place_eff) @ A # asymptomatic I_asy
         E_inf_eff = place_eff @ E_inf
+        
+        # Contribution to infection pressure from the home province
+        
 
         # Compute infectious fraction of work population (11,10)
         infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
