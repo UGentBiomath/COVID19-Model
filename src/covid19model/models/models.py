@@ -1229,7 +1229,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ## Compute system of ODEs ##
         ############################
 
-        dS  = dS - dS_inf + zeta*R
+        dS  = - dS_inf + zeta*R
         dE  = dS_inf - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
