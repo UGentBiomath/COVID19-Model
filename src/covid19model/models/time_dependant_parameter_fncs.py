@@ -522,7 +522,7 @@ class make_vaccination_function():
 
 class make_vaccination_rescaling_functions():
     """
-    Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per region, determined by vaccination
+    Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
     
     Input
     -----
@@ -542,11 +542,92 @@ class make_vaccination_rescaling_functions():
     
     Example use
     -----------
+    VOCs = ['WT', 'abc', 'delta']
+    VOC_logistic_growth_parameters, VOC_params = \
+        model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
+    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
+    public_spatial_vaccination_data = \
+        sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
+    E_susc_function, E_inf_function, E_hosp_function = \
+        make_vaccination_rescaling_functions(public_spatial_vaccination_data, VOC_function, VOC_params)
     
     """
+    
     def __init__(self, public_spatial_vaccination_data, VOC_function, VOC_params):
+        self.vacc_data = public_spatial_vaccination_data
+        # dimension [type] with type in {susc, inf, hosp}
+        self.onset_days = VOC_params['onset_days']
+        # dimension [VOC, dose] with dose in {none, 1st, full, waned, booster}
+        self.E_susc = 1-VOC_params['e_s']
+        self.E_inf = 1-VOC_params['e_i']
+        self.E_hosp = 1-VOC_params['e_h']
+        self.VOC_function = VOC_function
         
-                
+    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def __call__(self, t):
+        """
+        ...
+        """
+        
+        
+        return E_susc, E_inf, E_hosp
+    
+    def vacc_stage_fraction(self, t, vacc_data):
+        """
+        Function that takes the raw data and outputs the fraction of the total population in province g and age class i that is in one of four vaccination stages at time t: no vaccination, 1st dose only, full vaccination (including single-dose vaccines), booster. The vaccination stages are exclusive
+        
+        Input
+        -----
+        t : pd.Timestamp object
+            Date at which the user wants the vaccination stage fractions
+        vacc_data : pd.DataFrame
+            Daily data with all vaccination information per dose
+            
+        Output
+        ------
+        stage_frac : np.array
+            vector with four entries, corresponding to four vaccination stages, resp. none, 1st dose only, full vaccinations (including single-dose vaccines), booster. np.sum(stage_frac) = 1
+        """
+        
+    
+    def waning_exp_delay(self, days, onset_days, E_init, E_best, E_waned):
+        """
+        Function that implements time-dependence of vaccine effect.
+        
+        Input
+        -----
+        days : float
+            number of days after the novel vaccination
+        onset_days : float
+            number of days it takes for the vaccine to take full effect
+        E_init : float
+            vaccine-related rescaling value right before vaccination
+        E_best : float
+            rescaling value related to the best possible protection by the currently injected vaccine
+        E_waned : float
+            rescaling value related to the vaccine protection after a waning period.
+            
+        Output
+        ------
+        E_eff : float
+            effective rescaling value associated with the newly administered vaccine
+        
+        """
+        waning_days = 183 # hard-coded to half a year
+        if days <= 0:
+            return E_init
+        elif days < onset_days:
+            E_eff = (E_best - E_init)/onset_days*days + E_init
+            return E_eff
+        else:
+            if E_best == E_waned:
+                return E_best
+            halftime_days = waning_days-onset days
+            A = 1-E_best
+            beta = -np.log((1-E_waned)/A)/halftime_days
+            E_eff = -A*np.exp(-beta*(days-onset_days))+1
+        return E_eff
+
                 
 ###################################
 ## Google social policy function ##
