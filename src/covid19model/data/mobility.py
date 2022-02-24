@@ -242,8 +242,6 @@ def get_proximus_mobility_data(agg):
     -------
     proximus_mobility_data : pd.DataFrame
         DataFrame with datetime objects as indices ('DATE') and np.arrays ('place') as value column
-    proximus_mobility_data_avg : np.array
-        average mobility matrix over all available dates
     """
 
     ### Validate input ###
