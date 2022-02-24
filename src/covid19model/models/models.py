@@ -1182,10 +1182,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ### RESCALING INFECTIVITY ###
         # Rescale beta according to the prevalence of the VOCs (nationally aggregated)
         beta *= np.sum(f_VOC*K_inf)
-
-        # Rescale beta according to vaccination status per region - maybe best to only rescale with E_susc here and leave E_inf for later
-        # actually, to be really precise, we must make a distinction between infectivity and susceptibility. Consider the scenario where a visitor from a fully vaccinated region $g$ goes to a region $h$ that is not vaccinated at all. Then this visitor's susceptibility has gone up, but the infectivity of their peers hasn't.
-        # beta *= E_susc
         
         # Rescale beta according to seasonality (nationally aggregated)
         # beta *= seasonality
@@ -1197,7 +1193,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         h[h > 1] = 1
         
         # Rescale h according to vaccination status per region (needs dimensional attention)
-        # h *= E_hosp
+        h = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
@@ -1208,37 +1204,30 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         T_eff = np.transpose(place_eff) @ T # total
         I_eff = np.transpose(place_eff) @ I # presymptomatic I_presy
         A_eff = np.transpose(place_eff) @ A # asymptomatic I_asy
-        E_inf_eff = place_eff @ E_inf
+        I_dens = (I_eff+A_eff) / T_eff
+        E_inf_eff = place_eff @ E_inf / np.sum(place_eff,axis=0)
         
-        # Contribution to infection pressure from the home province.
-        # T is (G,N)-dimensional. Nc and Nc_work are (G,N,N)-dimensional
+        # Rescale beta according to vaccination status per region - maybe best to only rescale with E_susc here and leave E_inf for later
+        # Important! In the first expand_dims we have two choices:
+        #   - axis=0 : infectivity is calibrated depending on the pop densitiy of the visited province 
+        #   - axis=1 : infectivity is calibrated depending on the pop densitiy of the province or origin
+        # In practice the difference will be rather minor. Result is beta[g,h] of dimension (G,G)
+        beta = np.expand_dims(beta, axis=0) * np.expand_dims(E_susc, axis=1) * np.expand_dims(E_inf_eff, axis=0)
         
-        ### HOW DO WE DO THIS ELEGANTLY??!
-        multip_work = jit_matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
-        multip_rest = jit_matmul_2D_3D((I + A)/T, Nc-Nc_work)
-
-        # Compute infectious fraction of work population (11,10)
-        infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
-        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
-
-        # Multiply with number of contacts. Multiply with the E_inf value belonging to the visited province
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
-
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-
-        # Compute rates of change
-        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*(1-e_s)
+        # Calculate Nc^gh_ij. It would be more efficient to take this out of the class altogether
+        kroneckerG = np.diag(np.ones(G))
+        kroneckerG = np.expand_dims(kroneckerG, axis=2)
+        kroneckerG = np.expand_dims(kroneckerG, axis=2)
+        Nc_g_total = np.expand_dims(Nc, axis=1)
+        Nc_g_work = np.expand_dims(Nc_work, axis=1)
+        Nc_gh = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work
         
-        # I need dS_inf = (total interaction with home province + work-like interaction with away province)
+        # Use all input in the jit-defined loop function
+        dS_inf = jit_main_function_spatial(place, S, beta, Nc_gh, I_dens)
 
         ############################
         ## Compute system of ODEs ##
         ############################
-
-        # h_acc = (1-e_h)*h (no longer required here)
 
         dS  = dS - dS_inf + zeta*R
         dE  = dS_inf - E/sigma 
