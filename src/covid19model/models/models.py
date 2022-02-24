@@ -1106,7 +1106,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
     parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
