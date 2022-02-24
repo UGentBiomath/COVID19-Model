@@ -1153,16 +1153,16 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ####################################################
 
         # ... such that the dimensions are correct in the set of ODEs. This looks like the wrong dimension though ..?
-        a = np.expand_dims(a, axis=1)
-        h = np.expand_dims(h, axis=1)
-        c = np.expand_dims(c, axis=1)
-        m_C = np.expand_dims(m_C, axis=1)
-        m_ICU = np.expand_dims(m_ICU, axis=1)
-        dc_R = np.expand_dims(dc_R, axis=1)
-        dc_D = np.expand_dims(dc_D, axis=1)
-        dICU_R = np.expand_dims(dICU_R, axis=1)
-        dICU_D = np.expand_dims(dICU_D, axis=1)
-        dICUrec = np.expand_dims(dICUrec, axis=1)
+        a = np.expand_dims(a, axis=0)
+        h = np.expand_dims(h, axis=0)
+        c = np.expand_dims(c, axis=0)
+        m_C = np.expand_dims(m_C, axis=0)
+        m_ICU = np.expand_dims(m_ICU, axis=0)
+        dc_R = np.expand_dims(dc_R, axis=0)
+        dc_D = np.expand_dims(dc_D, axis=0)
+        dICU_R = np.expand_dims(dICU_R, axis=0)
+        dICU_D = np.expand_dims(dICU_D, axis=0)
+        dICUrec = np.expand_dims(dICUrec, axis=0)
 
         ################################
         ## Compute infection pressure ##
@@ -1187,12 +1187,12 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h *= np.sum(f_VOC*K_hosp)
         # ... and force ceiling for numerical safety
         h[h > 1] = 1
         
         # Rescale h according to vaccination status per region (needs dimensional attention)
-        h_bar = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
+        h_bar = h * np.expand_dims(E_hosp, axis=1)
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
