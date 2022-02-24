@@ -515,6 +515,39 @@ class make_vaccination_function():
                 else:
                     return self.unidose_2021_vaccination_campaign(states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal)
 
+                
+###########################################
+## Rescaling function due to vaccination ##
+###########################################
+
+class make_vaccination_rescaling_functions():
+    """
+    Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per region, determined by vaccination
+    
+    Input
+    -----
+    public_spatial_vaccination_data : pd.DataFrame
+        DataFrame with incidence and cumulative values per day, province, age, and dose.
+        
+    VOC_function : custom function
+        Output of make_VOC_function. Takes arguments time t, states, param and outputs f_VOC (fraction per VOC at time t) and d_VOC (differentated value at time t)
+    
+    VOC_params : dict
+        Dict with all VOC-related parameters. We will use keys e_s, e_i, e_h. Each of these keys holds an np.array with vaccine properties (rescaling parameters per vaccine stage), for every VOC provided. The number of VOCs should match with those given in 
+    
+    Output
+    ------
+    __class__ : default function
+        Default output function with arguments t (datetime object), which returns spatially stratified parameters E_susc, E_inf, E_hosp
+    
+    Example use
+    -----------
+    
+    """
+    def __init__(self, public_spatial_vaccination_data, VOC_function, VOC_params):
+        
+                
+                
 ###################################
 ## Google social policy function ##
 ###################################
@@ -525,10 +558,10 @@ class make_contact_matrix_function():
 
     Input
     -----
-    Nc_all : dictionnary
-        contact matrices for home, schools, work, transport, leisure and others
     df_google : dataframe
         google mobility data
+    Nc_all : dictionnary
+        contact matrices for home, schools, work, transport, leisure and others
 
     Output
     ------
