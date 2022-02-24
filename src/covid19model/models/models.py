@@ -1130,9 +1130,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Split derivatives and fraction - this is wrong?
         d_VOC = f_VOC[:,1]
         f_VOC = f_VOC[:,0]
-        
-        # DELETE
-        print('f_VOC:', f_VOC)
 
         #################################################
         ## Compute variant weighted-average properties ##
@@ -1147,22 +1144,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ################################
 
         T = S + E + I + A + M + C + C_icurec + ICU + R
-
-        ####################################################
-        ## Expand dims on first stratification axis (age) ##
-        ####################################################
-
-        # ... such that the dimensions are correct in the set of ODEs. This looks like the wrong dimension though ..?
-        a = np.expand_dims(a, axis=0)
-        h = np.expand_dims(h, axis=0)
-        c = np.expand_dims(c, axis=0)
-        m_C = np.expand_dims(m_C, axis=0)
-        m_ICU = np.expand_dims(m_ICU, axis=0)
-        dc_R = np.expand_dims(dc_R, axis=0)
-        dc_D = np.expand_dims(dc_D, axis=0)
-        dICU_R = np.expand_dims(dICU_R, axis=0)
-        dICU_D = np.expand_dims(dICU_D, axis=0)
-        dICUrec = np.expand_dims(dICUrec, axis=0)
 
         ################################
         ## Compute infection pressure ##
@@ -1192,7 +1173,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         h[h > 1] = 1
         
         # Rescale h according to vaccination status per region (needs dimensional attention)
-        h_bar = h * np.expand_dims(E_hosp, axis=1)
+        h_bar = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
@@ -1223,6 +1204,22 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         # Use all input in the jit-defined loop function
         dS_inf = jit_main_function_spatial(place, S, beta_bar, Nc_bar, I_dens)
+        
+        ####################################################
+        ## Add spatial dimension to age-stratified params ##
+        ####################################################
+
+        # ... such that the dimensions are correct in the set of ODEs.
+        a = np.expand_dims(a, axis=0)
+        # h = np.expand_dims(h, axis=0) # already done above
+        c = np.expand_dims(c, axis=0)
+        m_C = np.expand_dims(m_C, axis=0)
+        m_ICU = np.expand_dims(m_ICU, axis=0)
+        dc_R = np.expand_dims(dc_R, axis=0)
+        dc_D = np.expand_dims(dc_D, axis=0)
+        dICU_R = np.expand_dims(dICU_R, axis=0)
+        dICU_D = np.expand_dims(dICU_D, axis=0)
+        dICUrec = np.expand_dims(dICUrec, axis=0)
 
         ############################
         ## Compute system of ODEs ##
