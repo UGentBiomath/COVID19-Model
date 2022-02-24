@@ -598,6 +598,7 @@ class make_vaccination_rescaling_functions():
         def stage_frac(self, t):
             """..."""
             # frac = np.array([none, 1st, full, booster])
+            # Use a pandas built-in resampling method and interpolate to ... hourly data, for example?
             return frac
         
         return stage_frac
