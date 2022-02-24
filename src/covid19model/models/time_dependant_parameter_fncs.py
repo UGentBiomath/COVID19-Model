@@ -529,6 +529,9 @@ class make_vaccination_rescaling_functions():
     public_spatial_vaccination_data : pd.DataFrame
         DataFrame with incidence and cumulative values per day, province, age, and dose.
         
+    initN : pd.DataFrame
+        Total population in Belgium per province (indices) and age (columns). Required for calculating vacc stage fractions
+        
     VOC_function : custom function
         Output of make_VOC_function. Takes arguments time t, states, param and outputs f_VOC (fraction per VOC at time t) and d_VOC (differentated value at time t)
     
@@ -542,6 +545,7 @@ class make_vaccination_rescaling_functions():
     
     Example use
     -----------
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
     VOCs = ['WT', 'abc', 'delta']
     VOC_logistic_growth_parameters, VOC_params = \
         model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
@@ -549,14 +553,17 @@ class make_vaccination_rescaling_functions():
     public_spatial_vaccination_data = \
         sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
     E_susc_function, E_inf_function, E_hosp_function = \
-        make_vaccination_rescaling_functions(public_spatial_vaccination_data, VOC_function, VOC_params)
+        make_vaccination_rescaling_functions(public_spatial_vaccination_data, initN, VOC_function, VOC_params)
     
     """
     
-    def __init__(self, public_spatial_vaccination_data, VOC_function, VOC_params):
+    def __init__(self, public_spatial_vaccination_data, initN, VOC_function, VOC_params):
         self.vacc_data = public_spatial_vaccination_data
+        self.initN = initN
+        
         # dimension [type] with type in {susc, inf, hosp}
         self.onset_days = VOC_params['onset_days']
+        
         # dimension [VOC, dose] with dose in {none, 1st, full, waned, booster}
         self.E_susc = 1-VOC_params['e_s']
         self.E_inf = 1-VOC_params['e_i']
@@ -572,22 +579,28 @@ class make_vaccination_rescaling_functions():
         
         return E_susc, E_inf, E_hosp
     
-    def vacc_stage_fraction(self, t, vacc_data):
+    def smooth_vacc_stage_fraction(self, vacc_data):
         """
-        Function that takes the raw data and outputs the fraction of the total population in province g and age class i that is in one of four vaccination stages at time t: no vaccination, 1st dose only, full vaccination (including single-dose vaccines), booster. The vaccination stages are exclusive
+        Function that takes the raw data and outputs a function which shows a fraction of the total population in province g and age class i that is in one of four vaccination stages at time t: no vaccination, 1st dose only, full vaccination (including single-dose vaccines), booster. The vaccination stages are exclusive.
+        This function must only be executed once in the __init__ because it is probably a bit heavy
         
         Input
         -----
-        t : pd.Timestamp object
-            Date at which the user wants the vaccination stage fractions
         vacc_data : pd.DataFrame
             Daily data with all vaccination information per dose
             
         Output
         ------
-        stage_frac : np.array
-            vector with four entries, corresponding to four vaccination stages, resp. none, 1st dose only, full vaccinations (including single-dose vaccines), booster. np.sum(stage_frac) = 1
+        stage_frac : function
+            function which for any time value t outputs a vector with four entries, corresponding to four vaccination stages, resp. none, 1st dose only, full vaccinations (including single-dose vaccines), booster. np.sum(stage_frac) = 1
         """
+        
+        def stage_frac(self, t):
+            """..."""
+            # frac = np.array([none, 1st, full, booster])
+            return frac
+        
+        return stage_frac
         
     
     def waning_exp_delay(self, days, onset_days, E_init, E_best, E_waned):
