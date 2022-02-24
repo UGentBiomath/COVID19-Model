@@ -133,7 +133,7 @@ def jit_main_function_spatial(place, S, beta, Nc, I_dens):
     """
     G = S.shape[0]
     N = S.shape[1]
-    Sdot = np.zeros([G,N], np.float64)
+    Sdot = np.zeros((G,N), np.float64)
     for i in range(N):
         for g in range(G):
             value = 0
