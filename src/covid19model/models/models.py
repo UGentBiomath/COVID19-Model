@@ -1138,11 +1138,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        
-        # commented out for now (but probably to be deleted)
-        # e_i = f_VOC @ e_i
-        # e_s = f_VOC @ e_s
-        # e_h = f_VOC @ e_h
 
         ################################
         ## calculate total population ##
@@ -1154,6 +1149,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ## Expand dims on first stratification axis (age) ##
         ####################################################
 
+        # ... such that the dimensions are correct in the set of ODEs. This looks like the wrong dimension though ..?
         a = np.expand_dims(a, axis=1)
         h = np.expand_dims(h, axis=1)
         c = np.expand_dims(c, axis=1)
@@ -1193,7 +1189,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         h[h > 1] = 1
         
         # Rescale h according to vaccination status per region (needs dimensional attention)
-        h = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
+        h_bar = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
@@ -1233,36 +1229,16 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         dE  = dS_inf - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
-        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+        dM = ((1-a)/omega)*I - M*((1-h_bar)/dm) - M*h_bar/dhospital
+        dC = M*(h_bar/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_bar/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
 
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
+        dR  = A/da + ((1-h_bar)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
-        dH_in = M*(h_acc/dhospital) - H_in
+        dH_in = M*(h_bar/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
-
-        ########################
-        ## Waning of immunity ##
-        ########################
-
-        # Waning of second dose
-        # THIS IS NOW INCLUDED IN THE NEW IMPLEMENTATION
-        # r_waning_vacc = 1/((6/12)*365)
-        # dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
-        # dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
-        # dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
-        # dR[:,:,3] = dR[:,:,3] + r_waning_vacc*R_post_vacc[:,:,2]
-        
-        # Waning of booster dose
-        # No waning of booster dose
-
-        # Waning of natural immunity
-        # THIS IS NOW INCLUDED IN THE NEW IMPLEMENTATION
-        # dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
-        # dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
+        dH_tot = M*(h_bar/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec)       
 
         # Immune escape
         # ~~~~~~~~~~~~~
