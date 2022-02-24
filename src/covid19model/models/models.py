@@ -110,7 +110,7 @@ def jit_matmul_3D_2D(A, B):
     return out
 
 @jit(nopython=True)
-def jit_main_function_spatial(place, S, beta, Nc, I_dens)
+def jit_main_function_spatial(place, S, beta, Nc, I_dens):
     """
     Function determining the infection pressure in the spatial context.
     
@@ -140,7 +140,7 @@ def jit_main_function_spatial(place, S, beta, Nc, I_dens)
             for h in range(G):
                 for j in range(N):
                      value += place[g,h] * S[g,i] * beta[g,h] * Nc[g,h,i,j] * I_dens[h,j]
-            Sdot[i,g] += value
+            Sdot[g,i] += value
     return Sdot
     
 
