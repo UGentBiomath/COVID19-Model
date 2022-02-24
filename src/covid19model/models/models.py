@@ -1127,9 +1127,12 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # Remove negative derivatives to ease further computation
         # Note: this model will only use the fraction itself, not its derivative
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
-        # Split derivatives and fraction
-        d_VOC = f_VOC[1,:]
-        f_VOC = f_VOC[0,:]
+        # Split derivatives and fraction - this is wrong?
+        d_VOC = f_VOC[:,1]
+        f_VOC = f_VOC[:,0]
+        
+        # DELETE
+        print('f_VOC:', f_VOC)
 
         #################################################
         ## Compute variant weighted-average properties ##
@@ -1208,7 +1211,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         #   - axis=0 : infectivity is calibrated depending on the pop densitiy of the visited province 
         #   - axis=1 : infectivity is calibrated depending on the pop densitiy of the province or origin
         # In practice the difference will be rather minor. Result is beta[g,h] of dimension (G,G)
-        beta = np.expand_dims(beta, axis=0) * np.expand_dims(E_susc, axis=1) * np.expand_dims(E_inf_eff, axis=0)
+        beta_bar = np.expand_dims(beta, axis=0) * np.expand_dims(E_susc, axis=1) * np.expand_dims(E_inf_eff, axis=0)
         
         # Calculate Nc^gh_ij. It would be more efficient to take this out of the class altogether
         kroneckerG = np.diag(np.ones(G))
@@ -1216,10 +1219,10 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         kroneckerG = np.expand_dims(kroneckerG, axis=2)
         Nc_g_total = np.expand_dims(Nc, axis=1)
         Nc_g_work = np.expand_dims(Nc_work, axis=1)
-        Nc_gh = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work
+        Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work
         
         # Use all input in the jit-defined loop function
-        dS_inf = jit_main_function_spatial(place, S, beta, Nc_gh, I_dens)
+        dS_inf = jit_main_function_spatial(place, S, beta_bar, Nc_bar, I_dens)
 
         ############################
         ## Compute system of ODEs ##
@@ -1232,7 +1235,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         dM = ((1-a)/omega)*I - M*((1-h_bar)/dm) - M*h_bar/dhospital
         dC = M*(h_bar/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
         dICUstar = M*(h_bar/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-
         dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
         dR  = A/da + ((1-h_bar)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec) - zeta*R
         dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
