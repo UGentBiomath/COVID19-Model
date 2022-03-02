@@ -625,7 +625,7 @@ class make_vaccination_rescaling_functions():
         # take this from vaccination_function method
 
         # Make cumulative fractions by comparing with relevant initN
-        df_new = pd.DataFrame(vacc_function.df).reset_index()
+        df_new = pd.DataFrame(vacc_data).reset_index()
         df_new = df_new.merge(initN.unstack().reset_index(), left_on=['NIS', 'age'], right_on=['NIS', 'age_class'])
         df_new['fraction'] = df_new['0_x'] / df_new['0_y']
 
