@@ -591,7 +591,8 @@ class make_vaccination_rescaling_functions():
         return E_susc, E_inf, E_hosp
     
     def smooth_vacc_stage_fraction(self, vacc_data, initN):
-        """Desired output: DataFrame per week with fractions of vaccination stage per age class and per province NIS
+        """Desired output: DataFrame per week with fractions of vaccination stage per age class and per province NIS.
+        Note: df_cum = df_inc.groupby(level=[1,2,3]).cumsum().
 
         TO DO: resample this dataframe to daily data. It's not 'smooth' yet.
 
