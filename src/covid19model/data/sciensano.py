@@ -344,6 +344,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
     # Load necessary functions
     from ..models.utils import read_coordinates_nis
     # Actually, the first age group is 0-18 but no jabs were given < 12 yo before Jan. 2022
+    # age_groups_data = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
     age_groups_data = pd.IntervalIndex.from_tuples([(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
 
     if update==True:
@@ -361,6 +362,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
 
         start=[]
         end=[]
+        # pretty inefficient loop
         for year_week in df["YEAR_WEEK"].values:
             year = '20'+year_week[0:2]
             week = year_week[3:]
