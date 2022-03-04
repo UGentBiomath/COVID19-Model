@@ -594,9 +594,9 @@ class make_vaccination_rescaling_function():
                 "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
         
         t = pd.Timestamp(t)
-        t = pd.Timestamp(dates[np.argmax(dates >=t)])
+        t = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
         
-        E_values = rescaling_df.loc[t, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+        E_values = self.rescaling_df.loc[t, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
         E = np.reshape(E_values, (11, 10))
         
         return E
