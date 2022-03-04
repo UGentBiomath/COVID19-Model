@@ -615,4 +615,18 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
                 
     return df
 
+def get_vaccination_rescaling_values():
+    """
+    To be generalised
+    """
+    # Data location
+    abs_dir = os.path.dirname(__file__)
+    dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values.csv"
+    dir_abs = os.path.join(abs_dir, dir_rel)
+
+    # Load and format data
+    df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
+
+    return df
+        
     
