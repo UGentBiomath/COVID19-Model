@@ -520,7 +520,7 @@ class make_vaccination_function():
 ## Rescaling function due to vaccination ##
 ###########################################
 
-class make_vaccination_rescaling_functions():
+class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
     
@@ -565,142 +565,43 @@ class make_vaccination_rescaling_functions():
     
     """
     
-    def __init__(self, vacc_data_cum, vacc_data_inc, initN, VOC_function, VOC_params):
-        self.vacc_data_cum = vacc_data_cum
-        self.vacc_data_inc = vacc_data_inc
-        self.initN = initN
-        
-        # dimension [type] with type in {susc, inf, hosp}
-        self.onset_days = VOC_params['onset_days']
-        
-        # dimension [VOC, dose] with dose in {none, 1st, full, waned, booster}
-        self.E_susc = 1-VOC_params['e_s']
-        self.E_inf = 1-VOC_params['e_i']
-        self.E_hosp = 1-VOC_params['e_h']
-        self.VOC_function = VOC_function
-        
-        # create vaccination stage fraction function with dose in {none, first, full, booster}
-        self.df_fraction = smooth_vacc_stage_fraction(self.vacc_data_cum, self.initN)
+    def __init__(self, rescaling_df):
+        self.rescaling_df = rescaling_df
+        self.available_dates = rescaling_df.reset_index().date.unique()
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t):
+    def __call__(self, t, rescaling_type):
         """
-        ...
-        """
+        Returns rescaling value matrix [G,N] for the requested time t.
         
-        return E_susc, E_inf, E_hosp
-    
-    def smooth_vacc_stage_fraction(self, vacc_data, initN):
-        """Desired output: DataFrame per week with fractions of vaccination stage per age class and per province NIS.
-        Note: df_cum = df_inc.groupby(level=[1,2,3]).cumsum().
-
-        TO DO: resample this dataframe to daily data. It's not 'smooth' yet.
-
-        Input
-        -----
-
-        vacc_data: pd.DataFrame
-            Output of make_vaccination_function(vacc_data['CUMULATIVE']).df with the default age intervals
-        initN: pd.DataFrame
-            Output of model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
-
-        Output
-        ------
-
-        df_new : pd.DataFrame
-            MultiIndex DataFrame with indices date (weekly), NIS, age, dose.
-            Values are 'fraction', which always sum to unity (a subject is in only one of four vaccination stages)
-
-        """
-
-        # set initN column names to pd.Interval objects
-        intervals = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
-        intervals_str = np.array(['[0, 12)', '[12, 18)', '[18, 25)', '[25, 35)', '[35, 45)', '[45, 55)', '[55, 65)', '[65, 75)', '[75, 85)', '[85, 120)'])
-        intervals_dict = dict({intervals_str[i] : intervals[i] for i in range(len(intervals))})
-        initN = initN.rename(columns=intervals_dict)
-
-        # Drop 'INCIDENCE' column
-        vacc_data = vacc_data.drop(columns=['INCIDENCE'])
-
-        # Fill all missing age categories
-        # take this from vaccination_function method
-
-        # Make cumulative fractions by comparing with relevant initN
-        df_new = pd.DataFrame(vacc_data).reset_index()
-        df_new = df_new.merge(initN.unstack().reset_index(), left_on=['NIS', 'age'], right_on=['NIS', 'age_class'])
-        df_new['fraction'] = df_new['0_x'] / df_new['0_y']
-
-        # Start redefining vaccination stage fractions
-        df_new = df_new.set_index('date') # make sure we don't get NaN values because of mismatching indices
-        df_new_copy = df_new.copy()
-
-        # first-only: dose A (first) - dose B (second)
-        df_new.loc[df_new['dose']=='B','fraction'] = (df_new_copy.loc[df_new_copy['dose']=='A','fraction'] \
-            - df_new_copy.loc[df_new_copy['dose']=='B','fraction']).clip(lower=0, upper=1)
-
-        # full: dose B (second) + dose C (Jansen) - dose E (booster)
-        df_new.loc[df_new['dose']=='C','fraction'] = (df_new_copy.loc[df_new_copy['dose']=='B','fraction'] \
-            + df_new_copy.loc[df_new_copy['dose']=='C','fraction'] - df_new_copy.loc[df_new_copy['dose']=='E','fraction']).clip(lower=0, upper=1)
-
-        # booster: clip between 0 and 1. This is currently the latest stage
-        df_new.loc[df_new['dose']=='E','fraction'] = df_new_copy.loc[df_new_copy['dose']=='E', 'fraction'].clip(lower=0, upper=1)
-
-        # none. Rest category. Make sure all exclusive categories adds up to 1.
-        df_new.loc[df_new['dose']=='A','fraction'] = 1 - df_new.loc[df_new['dose']=='B','fraction'] \
-            - df_new.loc[df_new['dose']=='C','fraction'] - df_new.loc[df_new['dose']=='E','fraction']
-
-        # Return to multiindex
-        df_new = df_new.reset_index()
-        df_new = df_new.drop(columns=['age_class', '0_x', '0_y'])
-        df_new = df_new.set_index(['date','NIS', 'age', 'dose'])
-
-        # rename indices to clearly understandable categories
-        rename_indices = dict({'A' : 'none', 'B' : 'first', 'C' : 'full', 'E' : 'booster'})
-        df_new = df_new.rename(index=rename_indices)
-
-        # resample time steps
-        # something for later, perhaps?
-
-        return df_new
-        
-    
-    def waning_exp_delay(self, days, onset_days, E_init, E_best, E_waned):
-        """
-        Function that implements time-dependence of vaccine effect.
+        NOTE: this is currently hard-coded on dimensions [11,10]
         
         Input
         -----
-        days : float
-            number of days after the novel vaccination
-        onset_days : float
-            number of days it takes for the vaccine to take full effect
-        E_init : float
-            vaccine-related rescaling value right before vaccination
-        E_best : float
-            rescaling value related to the best possible protection by the currently injected vaccine
-        E_waned : float
-            rescaling value related to the vaccine protection after a waning period.
+        t : pd.Timestamp
+            Time at which you want to know the rescaling parameter matrix
+        rescaling_type : str
+            Either 'susc', 'inf' or 'hosp'
             
         Output
         ------
-        E_eff : float
-            effective rescaling value associated with the newly administered vaccine
-        
+        E : np.array
+            Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
         """
-        waning_days = 183 # hard-coded to half a year
-        if days <= 0:
-            return E_init
-        elif days < onset_days:
-            E_eff = (E_best - E_init)/onset_days*days + E_init
-            return E_eff
-        else:
-            if E_best == E_waned:
-                return E_best
-            halftime_days = waning_days - onset_days
-            A = 1-E_best
-            beta = -np.log((1-E_waned)/A)/halftime_days
-            E_eff = -A*np.exp(-beta*(days-onset_days))+1
-        return E_eff
+        
+        if rescaling_type not in ['susc', 'inf', 'hosp']:
+            raise ValueError(
+                "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
+        
+        t = pd.Timestamp(t)
+        t = pd.Timestamp(dates[np.argmax(dates >=t)])
+        
+        E_values = rescaling_df.loc[t, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+        E = np.reshape(E_values, (11, 10))
+        
+        return E
+    
+    
 
                 
 ###################################
