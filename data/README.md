@@ -80,6 +80,7 @@ A folder containing all raw simulations used for the RESTORE reports, the report
    were tested)
 + `ObsDeceased.txt` contains cumulative observed deaths from 1 March on
 + `ObsRecovered.txt` contains cumulative observed recovered (from hospital) from 1 March on
++ `vacc_rescaling_values.csv` contains weekly rescaling values per NIS, per age, per effect (susc, inf, hosp), resulting from vaccination data. Calculated with Notebooks/preprocessing/MR-calculate-effective-rescalings.ipynb
 
 #### Model parameters
 
