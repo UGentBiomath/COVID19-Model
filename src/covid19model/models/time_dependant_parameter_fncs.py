@@ -567,7 +567,7 @@ class make_vaccination_rescaling_function():
     
     def __init__(self, rescaling_df):
         self.rescaling_df = rescaling_df
-        self.available_dates = rescaling_df.reset_index().date.unique()
+        self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, rescaling_type):
@@ -589,20 +589,41 @@ class make_vaccination_rescaling_function():
             Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
         """
         
+        G = 11
+        N = 10
+        
         if rescaling_type not in ['susc', 'inf', 'hosp']:
             raise ValueError(
                 "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
         
         t = pd.Timestamp(t)
-        t = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
         
-        E_values = self.rescaling_df.loc[t, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-        E = np.reshape(E_values, (11, 10))
+        if t <= self.available_dates[0]:
+            # Take unity matrix
+            E = np.ones([G,N])
+            
+        elif t < self.available_dates[-1]:
+            # Take interpolation between to dates for which data is available
+            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
+            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
+            
+            E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_first = np.reshape(E_values_first, (G,N))
+            
+            E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_second = np.reshape(E_values_second, (G,N))
+            
+            # linear interpolation
+            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
+            
+        elif t >= self.available_dates[-1]:
+            # Take latest data point
+            t_data = pd.Timestamp(self.available_dates[-1])
+            E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E = np.reshape(E_values, (G,N))
         
         return E
     
-    
-
                 
 ###################################
 ## Google social policy function ##
