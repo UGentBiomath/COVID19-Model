@@ -531,20 +531,11 @@ class make_vaccination_rescaling_function():
     
     Input
     -----
-    vacc_data_cum : pd.DataFrame
-        DataFrame with cumulative values per day, province, age, and dose. Output of make_vaccination_function(vacc_data['CUMULATIVE']).df
-
-    vacc_data_inc : pd.DataFrame
-        DataFrame with incidence values per day, province, age, and dose. Output of make_vaccination_function(vacc_data['INCIDENCE']).df
-
-    initN : pd.DataFrame
-        Total population in Belgium per province (indices) and age (columns). Required for calculating vacc stage fractions
+    rescaling_df : pd.DataFrame
+        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values()
         
-    VOC_function : custom function
-        Output of make_VOC_function. Takes arguments time t, states, param and outputs f_VOC (fraction per VOC at time t) and d_VOC (differentated value at time t)
-    
-    VOC_params : dict
-        Dict with all VOC-related parameters. We will use keys e_s, e_i, e_h. Each of these keys holds an np.array with vaccine properties (rescaling parameters per vaccine stage), for every VOC provided. The number of VOCs should match with those given in 
+    spatial : Boolean
+        if True: return provincially stratified rescaling values. False by default, returning nationally aggregated data.
     
     Output
     ------
@@ -553,15 +544,7 @@ class make_vaccination_rescaling_function():
     
     Example use
     -----------
-    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
-    VOCs = ['WT', 'abc', 'delta']
-    VOC_logistic_growth_parameters, VOC_params = \
-        model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
-    VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
-    public_spatial_vaccination_data = \
-        sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
-    E_susc_function, E_inf_function, E_hosp_function = \
-        make_vaccination_rescaling_functions(public_spatial_vaccination_data, initN, VOC_function, VOC_params)
+
     
     """
     
