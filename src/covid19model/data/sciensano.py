@@ -633,11 +633,14 @@ def get_vaccination_rescaling_values(spatial=False):
     abs_dir = os.path.dirname(__file__)
     
     if spatial==False:
-        # ...
-        df = 1
+        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+        dir_abs = os.path.join(abs_dir, dir_rel)
+        
+        # Load and format data
+        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
     
     if spatial==True:
-        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values.csv"
+        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
         dir_abs = os.path.join(abs_dir, dir_rel)
 
         # Load and format data
