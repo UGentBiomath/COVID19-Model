@@ -1205,7 +1205,30 @@ class make_seasonality_function():
     """
     Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
     """
-    def __call__(self, t, states, param, amplitude, peak_shift):
+#     def __call__(self, t, states, param, amplitude, peak_shift):
+#         """
+#         Default output function. Returns a sinusoid with average value 1.
+        
+#         t : Timestamp
+#             simulation time
+#         states : xarray
+#             model states
+#         param : dict
+#             model parameter dictionary
+#         amplitude : float
+#             maximum deviation of output with respect to the average (1)
+#         peak_shift : float
+#             phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+#         """
+#         ref_date = pd.to_datetime('2021-01-01')
+#         # If peak_shift = 0, the max is on the first of January
+#         maxdate = ref_date + pd.Timedelta(days=peak_shift)
+#         # One period is one year long (seasonality)
+#         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+#         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
+#         return param*rescaling
+
+    def __call__(self, t, amplitude, peak_shift):
         """
         Default output function. Returns a sinusoid with average value 1.
         
@@ -1226,7 +1249,7 @@ class make_seasonality_function():
         # One period is one year long (seasonality)
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
-        return param*rescaling
+        return rescaling
 
 ####################
 ## Economic model ##
