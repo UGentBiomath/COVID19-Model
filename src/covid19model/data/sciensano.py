@@ -615,17 +615,33 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
                 
     return df
 
-def get_vaccination_rescaling_values():
+def get_vaccination_rescaling_values(spatial=False):
     """
-    To be generalised
+    Loads vaccination dataframe, which is manually created in the Notebook preprocessing/MR-calculate-effective-rescalings.ipynb.
+    
+    Input
+    -----
+    spatial : Boolean
+        Returns provincially stratified vaccination data if spatial==True. False by default.
+        
+    Output
+    ------
+    df : pd.DataFrame
+        Dataframe with three (four) levels of indices: date, (NIS), age, dose. Dates start at 28 December 2020.
     """
     # Data location
     abs_dir = os.path.dirname(__file__)
-    dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values.csv"
-    dir_abs = os.path.join(abs_dir, dir_rel)
+    
+    if spatial==False:
+        # ...
+        df = 1
+    
+    if spatial==True:
+        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values.csv"
+        dir_abs = os.path.join(abs_dir, dir_rel)
 
-    # Load and format data
-    df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
+        # Load and format data
+        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
 
     return df
         
