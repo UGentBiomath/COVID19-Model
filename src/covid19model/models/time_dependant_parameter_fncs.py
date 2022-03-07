@@ -553,7 +553,7 @@ class make_vaccination_rescaling_function():
         self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t, rescaling_type):
+    def __call__(self, t, states, param, rescaling_type):
         """
         Returns rescaling value matrix [G,N] for the requested time t.
         
