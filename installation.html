@@ -100,17 +100,22 @@
 <h2>Install Python (conda) and packages<a class="headerlink" href="#install-python-conda-and-packages" title="Permalink to this headline">¶</a></h2>
 <p>To use the code, make sure you have Python (conda) and the required dependency packages installed. We recommend using <code class="docutils literal notranslate"><span class="pre">Anaconda</span></code> to manage your Python packages. See the <a class="reference external" href="https://docs.anaconda.com/anaconda/install/">conda installation instructions</a> and make sure you have conda up and running. Next:</p>
 <ul>
-<li><p>Setup/update the <code class="docutils literal notranslate"><span class="pre">environment</span></code>: Dependencies are collected in the conda <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file (inside the root folder), so anybody can recreate the required environment using:</p>
+<li><p>Update conda after the installation to make sure your version is up-to-date,</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">update</span> <span class="n">conda</span>
+</pre></div>
+</div>
+</li>
+<li><p>Setup/update the <code class="docutils literal notranslate"><span class="pre">environment</span></code>: Dependencies are collected in the conda <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file (inside the root folder), so anybody can recreate the required environment using,</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">env</span> <span class="n">create</span> <span class="o">-</span><span class="n">f</span> <span class="n">environment</span><span class="o">.</span><span class="n">yml</span>
 <span class="n">conda</span> <span class="n">activate</span> <span class="n">COVID_MODEL</span>
 </pre></div>
 </div>
-<p>or when the environment was previously created,</p>
+<p>or alternatively, to update the environment (needed after adding a dependency),</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">COVID_MODEL</span>
 <span class="n">conda</span> <span class="n">env</span> <span class="n">update</span> <span class="n">environment</span><span class="o">.</span><span class="n">yml</span>
 </pre></div>
 </div>
-<p>See the <a class="reference external" href="https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment">Anaconda navigator documentation</a> how you can import the <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file using the GUI.</p>
+<p>Mind that <strong>“solving the environment” can take up to a few hours</strong> if none of the package have previously been installed. See the <a class="reference external" href="https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment">Anaconda navigator documentation</a> how you can import the <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file using the GUI.</p>
 </li>
 <li><p>Install the code developed specifically for the project (lives inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> folder) in the environment (in <code class="docutils literal notranslate"><span class="pre">-e</span></code> edit mode):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">COVID_MODEL</span>
