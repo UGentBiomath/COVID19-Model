@@ -118,7 +118,7 @@ def jit_main_function_spatial(place, S, beta, Nc, I_dens):
     -----
     place : np.array for mobility matrix P^gh. Dimensions [G,G]
     S : np.array for susceptible compartment S^g_i. Dimensions [G,N]
-    beta : np.array for effective transmission coefficient beta^gh (rescaled local beta with E_inf and E_susc). Dimensions [G,G]
+    beta : np.array for effective transmission coefficient beta^gh_ij (rescaled local beta with E_inf and E_susc). Dimensions [G,G,N,N]
     Nc : np.array for effective local social contact N^gh_ij. Dimensions [G,G,N,N]
     I_dens : np.array for density of infectious subjects. This is the fraction (A_eff^h_j + I_eff^h_j)/T_eff^h_j. Dimensions [G,N]
     
@@ -134,12 +134,13 @@ def jit_main_function_spatial(place, S, beta, Nc, I_dens):
     G = S.shape[0]
     N = S.shape[1]
     Sdot = np.zeros((G,N), np.float64)
+    
     for i in range(N):
         for g in range(G):
             value = 0
             for h in range(G):
                 for j in range(N):
-                     value += place[g,h] * S[g,i] * beta[g,h] * Nc[g,h,i,j] * I_dens[h,j]
+                     value += place[g,h] * S[g,i] * beta[g,h,i,j] * Nc[g,h,i,j] * I_dens[h,j]
             Sdot[g,i] += value
     return Sdot
     
@@ -1106,8 +1107,8 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work']
-    parameters_stratified_names = [['area', 'p', 'E_susc', 'E_inf', 'E_hosp'], ['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work', 'seasonality', 'E_susc', 'E_inf', 'E_hosp']
+    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
 
@@ -1115,8 +1116,8 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
-                  area, p, E_susc, E_inf, E_hosp, # spatially stratified parameters. 
+                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work, seasonality, E_susc, E_inf, E_hosp,# SEIRD parameters
+                  area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
@@ -1126,10 +1127,10 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         # Remove negative derivatives to ease further computation
         # Note: this model will only use the fraction itself, not its derivative
-        f_VOC[1,:][f_VOC[1,:] < 0] = 0
-        # Split derivatives and fraction - this is wrong?
-        d_VOC = f_VOC[:,1]
-        f_VOC = f_VOC[:,0]
+        f_VOC[:,1][f_VOC[:,1] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]
 
         #################################################
         ## Compute variant weighted-average properties ##
@@ -1137,7 +1138,8 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        # K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        K_hosp = np.ones(3)
 
         ################################
         ## calculate total population ##
@@ -1160,11 +1162,11 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
         
         ### RESCALING INFECTIVITY ###
-        # Rescale beta according to the prevalence of the VOCs (nationally aggregated)
+        # Rescale all local beta according to the nationally-aggregated prevalence of the VOCs
         beta *= np.sum(f_VOC*K_inf)
         
         # Rescale beta according to seasonality (nationally aggregated)
-        # beta *= seasonality
+        beta *= seasonality
         
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
@@ -1172,8 +1174,8 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         # ... and force ceiling for numerical safety
         h[h > 1] = 1
         
-        # Rescale h according to vaccination status per region (needs dimensional attention)
-        h_bar = np.expand_dims(h, axis=0) * np.expand_dims(E_hosp, axis=1)
+        # Rescale h according to vaccination status per region and age
+        h_bar = np.expand_dims(h, axis=0) * E_hosp
         
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
@@ -1185,25 +1187,25 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         I_eff = np.transpose(place_eff) @ I # presymptomatic I_presy
         A_eff = np.transpose(place_eff) @ A # asymptomatic I_asy
         I_dens = (I_eff+A_eff) / T_eff
-        E_inf_eff = place_eff @ E_inf / np.sum(place_eff,axis=0)
+        E_inf_eff = place_eff @ E_inf / np.expand_dims(np.sum(place_eff,axis=0),axis=1)
         
-        # Rescale beta according to vaccination status per region - maybe best to only rescale with E_susc here and leave E_inf for later
-        # Important! In the first expand_dims we have two choices:
-        #   - axis=0 : infectivity is calibrated depending on the pop densitiy of the visited province 
-        #   - axis=1 : infectivity is calibrated depending on the pop densitiy of the province or origin
-        # In practice the difference will be rather minor. Result is beta[g,h] of dimension (G,G)
-        beta_bar = np.expand_dims(beta, axis=0) * np.expand_dims(E_susc, axis=1) * np.expand_dims(E_inf_eff, axis=0)
+        # Rescale beta according to vaccination status per region and age. Result is beta[g,h,i,j] of dimension (G,G,N,N)
+        # only second index of beta is iterated over. Add empty age indices.
+        beta_bar = np.expand_dims(np.expand_dims(np.expand_dims(beta, axis=0),axis=2),axis=2) # shape = (1, 11, 1, 1)
+        # First and third index of E_susc is iterated over
+        E_susc = np.expand_dims(np.expand_dims(E_susc, axis=2),axis=1) # shape = (11, 1, 10, 1)
+        E_inf_eff = np.expand_dims(np.expand_dims(E_inf_eff, axis=0),axis=2) # shape = (1, 11, 1, 10)
+        beta_bar = beta_bar * E_susc * E_inf_eff
         
         # Calculate Nc^gh_ij. It would be more efficient to take this out of the class altogether
         kroneckerG = np.diag(np.ones(G))
-        kroneckerG = np.expand_dims(kroneckerG, axis=2)
-        kroneckerG = np.expand_dims(kroneckerG, axis=2)
-        Nc_g_total = np.expand_dims(Nc, axis=1)
-        Nc_g_work = np.expand_dims(Nc_work, axis=1)
+        kroneckerG = np.expand_dims(np.expand_dims(kroneckerG, axis=2), axis=2)
+        Nc_g_total = np.expand_dims(Nc, axis=1) # shape (11, 1, 10, 10)
+        Nc_g_work = np.expand_dims(Nc_work, axis=0) # shape (1, 11, 10, 10)
         Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work
         
         # Use all input in the jit-defined loop function
-        dS_inf = jit_main_function_spatial(place, S, beta_bar, Nc_bar, I_dens)
+        dS_inf = jit_main_function_spatial(place_eff, S, beta_bar, Nc_bar, I_dens)
         
         ####################################################
         ## Add spatial dimension to age-stratified params ##
