@@ -461,8 +461,9 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # TDPF parameters
         pars_dict['default_mobility'] = None
 
-        # Add Nc_work to parameters
-        pars_dict['Nc_work'] = Nc_dict['work']
+        # Add Nc_work and Nc to parameters
+        pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
+        pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
 
     return initN, Nc_dict, pars_dict, CORE_samples_dict
 
