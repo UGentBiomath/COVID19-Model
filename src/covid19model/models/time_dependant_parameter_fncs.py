@@ -684,7 +684,7 @@ class make_contact_matrix_function():
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
                 # Extract last 7 days and take the mean
-                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].mean(level='NIS')/100
+                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].groupby(level='NIS').mean()/100
 
             # Sort NIS codes from low to high
             row.sort_index(level='NIS', ascending=True, inplace=True)
