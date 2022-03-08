@@ -462,8 +462,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         pars_dict['default_mobility'] = None
 
         # Add Nc_work to parameters
-        pars_dict['Nc_work'] = np.zeros(
-            [age_stratification_size, age_stratification_size])
+        pars_dict['Nc_work'] = Nc_dict['work']
 
     return initN, Nc_dict, pars_dict, CORE_samples_dict
 
