@@ -553,7 +553,7 @@ class make_vaccination_rescaling_function():
         self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t, states, param, rescaling_type):
+    def __call__(self, t, rescaling_type):
         """
         Returns rescaling value matrix [G,N] for the requested time t.
         
@@ -606,6 +606,15 @@ class make_vaccination_rescaling_function():
             E = np.reshape(E_values, (G,N))
         
         return E
+    
+    def E_susc(self, t, states, param):
+        return self.__call__(t, 'susc')
+    
+    def E_inf(self, t, states, param):
+        return self.__call__(t, 'inf')
+    
+    def E_hosp(self, t, states, param):
+        return self.__call__(t, 'hosp')
     
                 
 ###################################
@@ -1234,7 +1243,7 @@ class make_seasonality_function_NEW():
     
     Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
     """
-    def __call__(self, t, amplitude, peak_shift):
+    def __call__(self, t, states, param, amplitude, peak_shift):
         """
         Default output function. Returns a sinusoid with average value 1.
         
