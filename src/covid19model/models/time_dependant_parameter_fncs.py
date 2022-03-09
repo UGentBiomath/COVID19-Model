@@ -116,7 +116,7 @@ class make_mobility_update_function():
         Average mobility matrix over all matrices
     """
     def __init__(self, proximus_mobility_data):
-        self.proximus_mobility_data = proximus_mobility_data
+        self.proximus_mobility_data = proximus_mobility_data.sort_index()
 
     @lru_cache()
     # Define mobility_update_func
