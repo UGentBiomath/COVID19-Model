@@ -78,12 +78,12 @@ def get_serological_data():
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["abs/rel", "data"])
     df = pd.DataFrame(index=data.index, columns=columns)
-    df['abs','mean'] = data['mean']*sum(initN) 
-    df['abs','LL'] = data['LL']*sum(initN)
-    df['abs','UL'] = data['UL']*sum(initN)
-    df['rel','mean'] = data['mean']
-    df['rel','LL'] = data['LL']
-    df['rel','UL'] = data['UL']
+    df['abs','mean'] = data['Seroprevalence']*sum(initN) 
+    df['abs','LL'] = data['Lower CI']*sum(initN)
+    df['abs','UL'] = data['Upper CI']*sum(initN)
+    df['rel','mean'] = data['Seroprevalence']
+    df['rel','LL'] = data['Lower CI']
+    df['rel','UL'] = data['Upper CI']
     df_sero_sciensano = df
 
     return df_sero_herzog, df_sero_sciensano
@@ -344,6 +344,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
     # Load necessary functions
     from ..models.utils import read_coordinates_nis
     # Actually, the first age group is 0-18 but no jabs were given < 12 yo before Jan. 2022
+    # age_groups_data = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
     age_groups_data = pd.IntervalIndex.from_tuples([(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
 
     if update==True:
@@ -361,6 +362,7 @@ def get_public_spatial_vaccination_data(update=False, agg='arr'):
 
         start=[]
         end=[]
+        # pretty inefficient loop
         for year_week in df["YEAR_WEEK"].values:
             year = '20'+year_week[0:2]
             week = year_week[3:]
@@ -613,4 +615,37 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
                 
     return df
 
+def get_vaccination_rescaling_values(spatial=False):
+    """
+    Loads vaccination dataframe, which is manually created in the Notebook preprocessing/MR-calculate-effective-rescalings.ipynb.
+    
+    Input
+    -----
+    spatial : Boolean
+        Returns provincially stratified vaccination data if spatial==True. False by default.
+        
+    Output
+    ------
+    df : pd.DataFrame
+        Dataframe with three (four) levels of indices: date, (NIS), age, dose. Dates start at 28 December 2020.
+    """
+    # Data location
+    abs_dir = os.path.dirname(__file__)
+    
+    if spatial==False:
+        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+        dir_abs = os.path.join(abs_dir, dir_rel)
+        
+        # Load and format data
+        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
+    
+    if spatial==True:
+        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+        dir_abs = os.path.join(abs_dir, dir_rel)
+
+        # Load and format data
+        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
+
+    return df
+        
     

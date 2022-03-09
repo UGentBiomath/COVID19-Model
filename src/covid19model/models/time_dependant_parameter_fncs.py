@@ -515,6 +515,108 @@ class make_vaccination_function():
                 else:
                     return self.unidose_2021_vaccination_campaign(states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal)
 
+                
+###########################################
+## Rescaling function due to vaccination ##
+###########################################
+
+class make_vaccination_rescaling_function():
+    """
+    Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
+    
+    TO DO
+    -----
+    
+    vacc_data_cum and vacc_data_inc are currently loaded very slowly. This can be vastly improved.
+    
+    Input
+    -----
+    rescaling_df : pd.DataFrame
+        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values()
+        
+    spatial : Boolean
+        if True: return provincially stratified rescaling values. False by default, returning nationally aggregated data.
+    
+    Output
+    ------
+    __class__ : default function
+        Default output function with arguments t (datetime object), which returns spatially stratified parameters E_susc, E_inf, E_hosp
+    
+    Example use
+    -----------
+
+    
+    """
+    
+    def __init__(self, rescaling_df):
+        self.rescaling_df = rescaling_df
+        self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
+        
+    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def __call__(self, t, rescaling_type):
+        """
+        Returns rescaling value matrix [G,N] for the requested time t.
+        
+        NOTE: this is currently hard-coded on dimensions [11,10]
+        
+        Input
+        -----
+        t : pd.Timestamp
+            Time at which you want to know the rescaling parameter matrix
+        rescaling_type : str
+            Either 'susc', 'inf' or 'hosp'
+            
+        Output
+        ------
+        E : np.array
+            Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
+        """
+        
+        G = 11
+        N = 10
+        
+        if rescaling_type not in ['susc', 'inf', 'hosp']:
+            raise ValueError(
+                "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
+        
+        t = pd.Timestamp(t)
+        
+        if t <= self.available_dates[0]:
+            # Take unity matrix
+            E = np.ones([G,N])
+            
+        elif t < self.available_dates[-1]:
+            # Take interpolation between to dates for which data is available
+            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
+            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
+            
+            E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_first = np.reshape(E_values_first, (G,N))
+            
+            E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_second = np.reshape(E_values_second, (G,N))
+            
+            # linear interpolation
+            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
+            
+        elif t >= self.available_dates[-1]:
+            # Take latest data point
+            t_data = pd.Timestamp(self.available_dates[-1])
+            E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E = np.reshape(E_values, (G,N))
+        
+        return E
+    
+    def E_susc(self, t, states, param):
+        return self.__call__(t, 'susc')
+    
+    def E_inf(self, t, states, param):
+        return self.__call__(t, 'inf')
+    
+    def E_hosp(self, t, states, param):
+        return self.__call__(t, 'hosp')
+    
+                
 ###################################
 ## Google social policy function ##
 ###################################
@@ -525,10 +627,10 @@ class make_contact_matrix_function():
 
     Input
     -----
-    Nc_all : dictionnary
-        contact matrices for home, schools, work, transport, leisure and others
     df_google : dataframe
         google mobility data
+    Nc_all : dictionnary
+        contact matrices for home, schools, work, transport, leisure and others
 
     Output
     ------
@@ -582,7 +684,7 @@ class make_contact_matrix_function():
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
                 # Extract last 7 days and take the mean
-                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].mean(level='NIS')/100
+                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].groupby(level='NIS').mean()/100
 
             # Sort NIS codes from low to high
             row.sort_index(level='NIS', ascending=True, inplace=True)
@@ -1134,6 +1236,31 @@ class make_seasonality_function():
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
+    
+class make_seasonality_function_NEW():
+    """
+    NOTE: may replace other seasonality TDPF if deemed better.
+    
+    Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
+    """
+    def __call__(self, t, states, param, amplitude, peak_shift):
+        """
+        Default output function. Returns a sinusoid with average value 1.
+        
+        t : Timestamp
+            simulation time
+        amplitude : float
+            maximum deviation of output with respect to the average (1)
+        peak_shift : float
+            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+        """
+        ref_date = pd.to_datetime('2021-01-01')
+        # If peak_shift = 0, the max is on the first of January
+        maxdate = ref_date + pd.Timedelta(days=peak_shift)
+        # One period is one year long (seasonality)
+        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+        rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
+        return rescaling
 
 ####################
 ## Economic model ##
