@@ -172,10 +172,10 @@ class make_mobility_update_function():
                     # it's not a holiday. Take average of two months before summer vacation
                     if t.dayofweek < 5:
                         # business day
-                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 6, 1):pd.Timestamp(2021, 6, 30)].mean()
                     elif t.dayofweek >= 5:
                         # regular weekend
-                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 6, 1):pd.Timestamp(2021, 6, 30)].mean()
                 
         return place
 
