@@ -5,8 +5,8 @@ setup(
     packages=find_packages("src", exclude=["*.tests"]),
     package_dir={'': 'src'},
     version='0.1',
-    description='COVID modelling package',
-    author='Biomath',
+    description='COVID-19 modelling package',
+    author='Tijs Alleman, BIOMATH, Ghent University',
     license='MIT',
     install_requires=[
         'matplotlib',

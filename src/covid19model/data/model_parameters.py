@@ -461,9 +461,9 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # TDPF parameters
         pars_dict['default_mobility'] = None
 
-        # Add Nc_work to parameters
-        pars_dict['Nc_work'] = np.zeros(
-            [age_stratification_size, age_stratification_size])
+        # Add Nc_work and Nc to parameters
+        pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
+        pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
 
     return initN, Nc_dict, pars_dict, CORE_samples_dict
 
@@ -549,6 +549,7 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
         'delay_immunity': 14,
         'vacc_order': list(range(age_stratification_size))[::-1],
         'stop_idx': 8,
-        'refusal': 0.10*np.ones(age_stratification_size)
+        'refusal': 0.10*np.ones(age_stratification_size),
+        'onset_days': np.array([21, 14, 21]) # for effect of *full* vaccination on resp. susceptibility, infectivity, hospitalisation propensity (days)
     })
     return VOC_parameters['logistic_growth'], pars_dict

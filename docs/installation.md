@@ -12,19 +12,24 @@ When all went fine, you should have the code on your computer in a directory cal
 
 To use the code, make sure you have Python (conda) and the required dependency packages installed. We recommend using `Anaconda` to manage your Python packages. See the [conda installation instructions](https://docs.anaconda.com/anaconda/install/) and make sure you have conda up and running. Next:
 
-- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file (inside the root folder), so anybody can recreate the required environment using:
+- Update conda after the installation to make sure your version is up-to-date,
+     ```
+     conda update conda
+     ```
+
+- Setup/update the `environment`: Dependencies are collected in the conda `environment.yml` file (inside the root folder), so anybody can recreate the required environment using,
 
      ```
      conda env create -f environment.yml
      conda activate COVID_MODEL
      ```
-     or when the environment was previously created,
+     or alternatively, to update the environment (needed after adding a dependency),
      ```
      conda activate COVID_MODEL
      conda env update environment.yml
      ```
      
-     See the [Anaconda navigator documentation](https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment) how you can import the `environment.yml` file using the GUI.
+     Mind that **"solving the environment" can take up to a few hours** if none of the package have previously been installed. See the [Anaconda navigator documentation](https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment) how you can import the `environment.yml` file using the GUI.
 
 - Install the code developed specifically for the project (lives inside the `src/covid19model` folder) in the environment (in `-e` edit mode):
 

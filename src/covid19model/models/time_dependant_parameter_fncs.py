@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import itertools
 from functools import lru_cache
+from covid19model.visualization.output import school_vacations_dict
 
 ##########################
 ## Compliance functions ##
@@ -114,13 +115,12 @@ class make_mobility_update_function():
     proximus_mobility_data_avg : np.array
         Average mobility matrix over all matrices
     """
-    def __init__(self, proximus_mobility_data, proximus_mobility_data_avg):
+    def __init__(self, proximus_mobility_data):
         self.proximus_mobility_data = proximus_mobility_data
-        self.proximus_mobility_data_avg = proximus_mobility_data_avg
 
     @lru_cache()
     # Define mobility_update_func
-    def __call__(self, t, default_mobility=None):
+    def __call__(self, t):
         """
         time-dependent function which has a mobility matrix of type dtype for every date.
         Note: only works with datetime input (no integer time steps). This
@@ -129,12 +129,6 @@ class make_mobility_update_function():
         -----
         t : timestamp
             current date as datetime object
-        states : str
-            formal necessity
-        param : str
-            formal necessity
-        default_mobility : np.array or None
-            If None (default), returns average mobility over all available dates. Else, return user-defined mobility
 
         Returns
         -------
@@ -142,22 +136,52 @@ class make_mobility_update_function():
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
         t = pd.Timestamp(t.date())
-        try: # if there is data available for this date (if the key exists)
+        try: # simplest case: there is data available for this date (the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
-            if default_mobility: # If there is no data available and a user-defined input is given
-                place = self.default_mobility
-            else: # No data and no user input: fall back on average mobility
-                place = self.proximus_mobility_data_avg
+            if t < pd.Timestamp(2020, 2, 10):
+                # prepandemic default mobility. Take average of first 20-ish days
+                if t.dayofweek < 5:
+                    # business days
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+                elif t.dayofweek >= 5:
+                    # weekend
+                    place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
+            elif t == pd.Timestamp(2020, 2, 21):
+                # first missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 20)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 22)])/2
+            elif t == pd.Timestamp(2020, 12, 18):
+                # second missing date in Proximus data. Just take average
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] + 
+                          self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 19)])/2
+            elif t > pd.Timestamp(2021, 8, 31):
+                # beyond Proximus service. Make a distinction between holiday/non-holiday and weekend/business day
+                holiday = False
+                for first, duration in school_vacations_dict().items():
+                    if (t >= first) and (t < (first + pd.Timedelta(days=duration))):
+                        holiday = True
+                        # it's a holiday. Take average of summer vacation behaviour
+                        if t.dayofweek < 5:
+                            # non-weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                        elif t.dayofweek >= 5:
+                            # weekend holiday
+                            place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 7, 1):pd.Timestamp(2021, 8, 31)].mean()
+                if not holiday:
+                    # it's not a holiday. Take average of two months before summer vacation
+                    if t.dayofweek < 5:
+                        # business day
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek < 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                    elif t.dayofweek >= 5:
+                        # regular weekend
+                        place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 5, 1):pd.Timestamp(2021, 6, 30)].mean()
+                
         return place
 
-    def mobility_wrapper_func(self, t, states, param, default_mobility=None):
+    def mobility_wrapper_func(self, t, states, param):
         t = pd.Timestamp(t.date())
-        if t <= pd.Timestamp('2020-03-17'):
-            place = self.__call__(t, default_mobility=default_mobility)
-            return np.eye(place.shape[0])
-        else:
-            return self.__call__(t, default_mobility=default_mobility)
+        return self.__call__(t)
 
 ###################
 ## VOC functions ##
@@ -491,6 +515,108 @@ class make_vaccination_function():
                 else:
                     return self.unidose_2021_vaccination_campaign(states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal)
 
+                
+###########################################
+## Rescaling function due to vaccination ##
+###########################################
+
+class make_vaccination_rescaling_function():
+    """
+    Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
+    
+    TO DO
+    -----
+    
+    vacc_data_cum and vacc_data_inc are currently loaded very slowly. This can be vastly improved.
+    
+    Input
+    -----
+    rescaling_df : pd.DataFrame
+        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values()
+        
+    spatial : Boolean
+        if True: return provincially stratified rescaling values. False by default, returning nationally aggregated data.
+    
+    Output
+    ------
+    __class__ : default function
+        Default output function with arguments t (datetime object), which returns spatially stratified parameters E_susc, E_inf, E_hosp
+    
+    Example use
+    -----------
+
+    
+    """
+    
+    def __init__(self, rescaling_df):
+        self.rescaling_df = rescaling_df
+        self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
+        
+    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def __call__(self, t, rescaling_type):
+        """
+        Returns rescaling value matrix [G,N] for the requested time t.
+        
+        NOTE: this is currently hard-coded on dimensions [11,10]
+        
+        Input
+        -----
+        t : pd.Timestamp
+            Time at which you want to know the rescaling parameter matrix
+        rescaling_type : str
+            Either 'susc', 'inf' or 'hosp'
+            
+        Output
+        ------
+        E : np.array
+            Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
+        """
+        
+        G = 11
+        N = 10
+        
+        if rescaling_type not in ['susc', 'inf', 'hosp']:
+            raise ValueError(
+                "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
+        
+        t = pd.Timestamp(t)
+        
+        if t <= self.available_dates[0]:
+            # Take unity matrix
+            E = np.ones([G,N])
+            
+        elif t < self.available_dates[-1]:
+            # Take interpolation between to dates for which data is available
+            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
+            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
+            
+            E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_first = np.reshape(E_values_first, (G,N))
+            
+            E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E_second = np.reshape(E_values_second, (G,N))
+            
+            # linear interpolation
+            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
+            
+        elif t >= self.available_dates[-1]:
+            # Take latest data point
+            t_data = pd.Timestamp(self.available_dates[-1])
+            E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+            E = np.reshape(E_values, (G,N))
+        
+        return E
+    
+    def E_susc(self, t, states, param):
+        return self.__call__(t, 'susc')
+    
+    def E_inf(self, t, states, param):
+        return self.__call__(t, 'inf')
+    
+    def E_hosp(self, t, states, param):
+        return self.__call__(t, 'hosp')
+    
+                
 ###################################
 ## Google social policy function ##
 ###################################
@@ -501,10 +627,10 @@ class make_contact_matrix_function():
 
     Input
     -----
-    Nc_all : dictionnary
-        contact matrices for home, schools, work, transport, leisure and others
     df_google : dataframe
         google mobility data
+    Nc_all : dictionnary
+        contact matrices for home, schools, work, transport, leisure and others
 
     Output
     ------
@@ -558,7 +684,7 @@ class make_contact_matrix_function():
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
                 # Extract last 7 days and take the mean
-                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].mean(level='NIS')/100
+                row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].groupby(level='NIS').mean()/100
 
             # Sort NIS codes from low to high
             row.sort_index(level='NIS', ascending=True, inplace=True)
@@ -1110,6 +1236,31 @@ class make_seasonality_function():
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
+    
+class make_seasonality_function_NEW():
+    """
+    NOTE: may replace other seasonality TDPF if deemed better.
+    
+    Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
+    """
+    def __call__(self, t, states, param, amplitude, peak_shift):
+        """
+        Default output function. Returns a sinusoid with average value 1.
+        
+        t : Timestamp
+            simulation time
+        amplitude : float
+            maximum deviation of output with respect to the average (1)
+        peak_shift : float
+            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+        """
+        ref_date = pd.to_datetime('2021-01-01')
+        # If peak_shift = 0, the max is on the first of January
+        maxdate = ref_date + pd.Timedelta(days=peak_shift)
+        # One period is one year long (seasonality)
+        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+        rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
+        return rescaling
 
 ####################
 ## Economic model ##
