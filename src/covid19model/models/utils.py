@@ -5,7 +5,7 @@ from numba import jit
 import numpy as np
 import pandas as pd
 import xarray as xr
-import ujson as json
+import json
 import pickle
 
 abs_dir = os.path.dirname(__file__)
