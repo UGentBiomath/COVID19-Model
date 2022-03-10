@@ -1171,12 +1171,11 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
         h *= np.sum(f_VOC*K_hosp)
-        # ... and force ceiling for numerical safety
-        h[h > 1] = 1
-        
         # Rescale h according to vaccination status per region and age
         h_bar = np.expand_dims(h, axis=0) * E_hosp
-        
+        # ... and force ceiling for numerical safety
+        #h_bar[h_bar > 1] = 1
+
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
         sigma = np.sum(f_VOC*sigma)
