@@ -1138,8 +1138,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
 
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        # K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        K_hosp = np.ones(3)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
 
         ################################
         ## calculate total population ##
@@ -1170,12 +1169,10 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
-        h *= np.sum(f_VOC*K_hosp)
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         # Rescale h according to vaccination status per region and age
         h_bar = np.expand_dims(h, axis=0) * E_hosp
-        # ... and force ceiling for numerical safety
-        #h_bar[h_bar > 1] = 1
-
+        
         ### RESCALING LATENT PERIOD ###
         # rescale sigma according to the prevalence of the VOCs
         sigma = np.sum(f_VOC*sigma)
