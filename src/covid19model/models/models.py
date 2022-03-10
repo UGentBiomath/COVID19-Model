@@ -1137,9 +1137,8 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         #################################################
 
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
-        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        # K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        K_hosp = np.ones(3)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64) # calibrated. [1, 1.4, 2.1] is much too high
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64) # from literature data
 
         ################################
         ## calculate total population ##
