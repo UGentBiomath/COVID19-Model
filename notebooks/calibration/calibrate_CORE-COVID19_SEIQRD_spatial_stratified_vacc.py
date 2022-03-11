@@ -135,7 +135,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 #model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-
+print(model.parameters['K_hosp'])
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
 
@@ -209,7 +209,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 16.0, 11.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.32, 0.0030] # A calibration I'm happy with
+    theta = [0.0267, 0.0257, 0.0337, 14.0, 14.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.2, 0.003] # A calibration I'm happy with
 
     ####################################
     ## Local Nelder-mead optimization ##
