@@ -134,8 +134,11 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model.parameters['l1'] = 14
+model.parameters['l2'] = 14
+model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
 #model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-print(model.parameters['K_hosp'])
+
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
 
@@ -164,7 +167,7 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 20
+    print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
@@ -187,15 +190,15 @@ if __name__ == '__main__':
     pars1 = ['beta_R', 'beta_U', 'beta_M']
     bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
     # Social intertia
-    pars2 = ['l1',   'l2']
-    bounds2=((1,21), (1,21))
+    #pars2 = ['l1',   'l2']
+    #bounds2=((1,21), (1,21))
     # Effectivity parameters
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     bounds3=((0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99))
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
-    bounds4 = ((1.25,1.6),(1.65,2.4))
+    bounds4 = ((1.30,1.70),(1.70,2.4))
     # Seasonality
     pars5 = ['amplitude',]
     bounds5 = ((0,0.40),)
@@ -203,20 +206,20 @@ if __name__ == '__main__':
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
-
+    pars = pars1 + pars3 + pars4 + pars5 + pars6
+    bounds = bounds1 + bounds3 + bounds4 + bounds5 + bounds6
+    
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 14.0, 14.0, 0.11, 0.47, 0.53, 0.265, 0.4, 1.52, 1.8, 0.2, 0.003] # A calibration I'm happy with
-
+    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2, 0.003] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
+    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
-    step = [0.05, 0.05, 0.05, 0.2, 0.2, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1]
-    step = 14*[0.05,]
+    step = [0.05, 0.05, 0.05, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1]
+    step = 12*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -282,11 +285,10 @@ if __name__ == '__main__':
     print(f'\nPSO RESULTS:')
     print(f'------------')
     print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
-    print(f'social intertia {pars[3:5]}: {theta[3:5]}.')
-    print(f'effectivity parameters {pars[5:10]}: {theta[5:10]}.')
-    print(f'VOC effects {pars[10:11]}: {theta[10:12]}.')
-    print(f'Seasonality {pars[11:12]}: {theta[12:13]}')
-    print(f'Waning antibodies {pars[12:]}: {theta[13:]}')
+    print(f'effectivity parameters {pars[3:8]}: {theta[3:8]}.')
+    print(f'VOC effects {pars[8:9]}: {theta[8:10]}.')
+    print(f'Seasonality {pars[9:10]}: {theta[10:11]}')
+    print(f'Waning antibodies {pars[10:]}: {theta[11:]}')
     sys.stdout.flush()
 
     ########################
@@ -296,26 +298,26 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Define simple uniform priors based on the PSO bounds
-    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
+    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.25, 0.25, 0.25]
+    pert1=[0.10, 0.10, 0.10]
     # pars2 = ['l1', 'l2']
-    pert2=[0.10, 0.10]
+    #pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.80, 0.50, 0.50, 0.20, 0.50]
+    pert3=[0.80, 0.50, 0.50, 0.50, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.10, 0.10]
+    pert4=[0.05, 0.05]
     # pars5 = ['amplitude']
-    pert5 = [0.40,] 
+    pert5 = [0.50,] 
     # pars6 = ['zeta']
     pert6 = [0.20,]     
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
+    pert = pert1 + pert3 + pert4 + pert5 + pert6
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
@@ -328,8 +330,8 @@ if __name__ == '__main__':
         backend.reset(nwalkers, ndim)
 
     # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$',
-                '$l_1$', '$l_2$', \
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
+                #'$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$',
