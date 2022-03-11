@@ -74,7 +74,7 @@ def convert_age_stratified_property(data, age_classes):
     """
 
     # Pre-allocate new series
-    out = pd.Series(index = age_classes)
+    out = pd.Series(index = age_classes, dtype=float)
     out_n_individuals = construct_initN(age_classes)
     # Extract demographics for all ages
     demographics = construct_initN(None,None)

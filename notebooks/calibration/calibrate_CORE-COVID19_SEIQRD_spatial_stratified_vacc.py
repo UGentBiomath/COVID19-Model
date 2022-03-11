@@ -17,7 +17,7 @@ import sys
 import datetime
 import argparse
 import pandas as pd
-import ujson as json
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
@@ -25,7 +25,7 @@ import multiprocessing as mp
 # Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
 from covid19model.models import models
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc, initialize_COVID19_SEIQRD_spatial_rescaling
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
@@ -133,8 +133,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 ## Initialize the model ##
 ##########################
-
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+#model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -157,17 +157,17 @@ if __name__ == '__main__':
     else:
         end_calibration = str(args.enddate)
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 4
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 20
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
     states = ["H_in", "R", "R"]
     weights = [1, 1e-4, 1e-4]
 
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, processes, agg=agg)
 
     #####################
     ## Process results ##

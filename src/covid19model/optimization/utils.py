@@ -14,7 +14,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, processes, agg=None, progress=True):
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -35,7 +35,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
 
-    with get_context("spawn").Pool() as pool:
+    with get_context("spawn").Pool(processes=processes) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
                         args=objective_fcn_args, kwargs=objective_fcn_kwargs,
                         moves=[(emcee.moves.DEMove(), 0.8),(emcee.moves.DESnookerMove(), 0.2)])
@@ -326,6 +326,11 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
 
     fig: plt figure
     """
+    
+    # Reduce all dimensions except time and space
+    for dimension in output.dims:
+        if ((dimension != 'time') & (dimension != 'place')):
+            output = output.sum(dim=dimension)
 
     if agg == 'reg':
         fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12), sharex=True)
@@ -336,7 +341,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
             model_vals = 0
             data_vals= 0
             for NIS in NIS_list:
-                model_vals = model_vals + output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
+                model_vals = model_vals + output['H_in'].sel(place=NIS).values
                 data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
             ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
@@ -351,7 +356,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     elif agg == 'prov':
         fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
         for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
-            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS),'--', color='blue')
             ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax[idx].set_xlim([start_calibration, end_calibration])
             ax[idx].set_ylim([0, 150])
