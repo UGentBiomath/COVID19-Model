@@ -167,7 +167,7 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 10
+    print_n = 20
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
@@ -311,9 +311,9 @@ if __name__ == '__main__':
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert3=[0.80, 0.50, 0.50, 0.50, 0.50]
     # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.05, 0.05]
+    pert4=[0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.50,] 
+    pert5 = [0.80,] 
     # pars6 = ['zeta']
     pert6 = [0.20,]     
     # Add them together
