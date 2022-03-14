@@ -134,6 +134,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model.parameters['zeta'] = 0.003
 model.parameters['l1'] = 14
 model.parameters['l2'] = 14
 model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
