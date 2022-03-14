@@ -32,7 +32,7 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 
 import os
 import sys, getopt
-import ujson as json
+import json
 import argparse
 import numpy as np
 import pandas as pd
@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, output_to_visuals, add_poisson
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
@@ -66,7 +66,7 @@ agg = args.agg
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2021-02-01'
+end_sim = '2021-10-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -112,13 +112,58 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+model.parameters['l1'] = 14
+model.parameters['l2'] = 14
+model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
 
 #######################
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fcn
+#from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fcn
+
+import random
+def draw_fcn(param_dict,samples_dict):
+
+    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
+    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
+    param_dict['beta_M'] = samples_dict['beta_M'][idx]  
+    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
+    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['zeta'] = samples_dict['zeta'][idx]
+
+    # Hospitalization
+    # ---------------
+    # Fractions
+    names = ['c','m_C','m_ICU']
+    for idx,name in enumerate(names):
+        par=[]
+        for jdx in range(len(param_dict['c'])):
+            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
+        param_dict[name] = np.array(par)
+    # Residence times
+    n=20
+    distributions = [samples_dict['residence_times']['dC_R'],
+                     samples_dict['residence_times']['dC_D'],
+                     samples_dict['residence_times']['dICU_R'],
+                     samples_dict['residence_times']['dICU_D'],
+                     samples_dict['residence_times']['dICUrec']]
+
+    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
+    for idx,dist in enumerate(distributions):
+        param_val=[]
+        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
+            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
+            param_val.append(np.mean(draw))
+        param_dict[names[idx]] = np.array(param_val)
+
+    return param_dict
 
 #########################
 ## Perform simulations ##
