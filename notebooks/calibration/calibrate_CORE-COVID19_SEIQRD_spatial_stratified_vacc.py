@@ -165,9 +165,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 3
     max_n = n_mcmc
-    print_n = 20
+    print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp] #, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars3 + pars4 + pars5 
     bounds = bounds1 + bounds3 + bounds4 + bounds5
-    
+
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
@@ -320,6 +320,20 @@ if __name__ == '__main__':
     # Add them together
     pert = pert1 + pert3 + pert4 + pert5
 
+    # Labels for traceplots
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
+                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
+                '$K_{inf, abc}$', '$K_{inf, delta}$', \
+                '$A$']
+
+    # Append one dispersion parameter
+    theta += [0.5,]
+    pars += ['dispersion',]
+    bounds += ((0,1),)
+    log_prior_fcn_args = bounds
+    pert += [0.05]
+    labels += ['dispersion',]
+
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
 
@@ -330,17 +344,11 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
 
-    # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
-                '$K_{inf, abc}$', '$K_{inf, delta}$', \
-                '$A$']
-
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
     objective_fcn_kwargs = {'weights': weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+                            'warmup':warmup, 'dist':'negative_binomial', 'poisson_offset':poisson_offset, 'agg':agg}
 
     ######################
     ## Run MCMC sampler ##

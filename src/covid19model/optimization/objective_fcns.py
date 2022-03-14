@@ -2,6 +2,7 @@ import numpy as np
 import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
+import sys
 
 def thetas_to_model_pars(thetas, parNames, model_parameters_dict):
     dict={}
@@ -22,7 +23,6 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
 
     """
     A function to return the maximum likelihood estimator given a model object and a dataset.
-    NOTE: if dist='gaussian' and len(data)>1, this code is probably not correct.
 
     Parameters
     -----------
@@ -64,8 +64,8 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # perform input checks
     # ~~~~~~~~~~~~~~~~~~~~ 
 
-    if dist not in ['gaussian', 'poisson']:
-        raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian' and 'poisson'")
+    if dist not in ['gaussian', 'poisson', 'negative_binomial']:
+        raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian', 'poisson' or 'negative_binomial'")
     if agg and (agg not in ['prov', 'arr', 'mun']):
         raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
     # Check if data contains NaN values anywhere
@@ -77,11 +77,17 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # assign estimates to correct variable
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    if dist == 'negative_binomial':
+        idx = parNames.index('dispersion')
+        dispersion = thetas[idx]
+        parNames.pop(idx)
+        thetas = np.delete(thetas,idx)
+
     # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
     thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
-
+    
     for i, (param,value) in enumerate(thetas_dict.items()):
-        if param == 'warmup':
+        if param == 'warmup': #TODO: will give an error similar to dispersion
             warmup = int(round(value))
         else:
             model.parameters.update({param : value})
@@ -119,7 +125,10 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                         if ((dimension != 'time') & (dimension != 'place')):
                             new_xarray = new_xarray.sum(dim=dimension)
                     ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                    MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
+                    if dist == 'poisson':
+                        MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
+                    elif dist == 'negative_binomial':
+                        MLE_add = weights[idx]*ll_negative_binomial(ymodel, df.loc[slice(None), NIS].values, dispersion, offset=poisson_offset)
                     MLE += MLE_add
             else:
                 # National data
@@ -128,7 +137,10 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
                     if dimension != 'time':
                         new_xarray = new_xarray.sum(dim=dimension)
                 ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                MLE += weights[idx]*ll_poisson(ymodel, df.values, offset=poisson_offset)                
+                if dist == 'poisson':
+                    MLE += weights[idx]*ll_poisson(ymodel, df.values, offset=poisson_offset)   
+                elif dist == 'negative_binomial':   
+                    MLE += weights[idx]*ll_negative_binomial(ymodel, df.values, dispersion, offset=poisson_offset)   
         else:
             raise ValueError("The dimensions of your {0}th dataframe did not contain dimension 'date'.".format(idx))
 
@@ -200,7 +212,7 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
 
 def ll_negative_binomial(ymodel, ydata, dispersion, offset='auto', complete=False):
     """Loglikelihood of negative binomial distribution
-
+        https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
     Parameters
     ----------
     ymodel: list of floats
@@ -227,8 +239,8 @@ def ll_negative_binomial(ymodel, ydata, dispersion, offset='auto', complete=Fals
     if offset == 'auto':
         if min(ymodel) <= 0:
             offset_value = - min(ymodel) + 1e-3
-            ymodel += offset_value
             warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+            ymodel += offset_value
     else:
         ymodel += offset
     # Compute log-likelihood (without constant terms)
