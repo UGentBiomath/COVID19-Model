@@ -842,7 +842,7 @@ def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
 
     return param_dict
 
-def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+def output_to_visuals(output, states, dispersion=0.9999, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
     A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
     and format the model output in a pandas dataframe for easy acces
@@ -856,6 +856,9 @@ def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.
 
     states : xarray
         Model states on which to add the a-posteriori poisson uncertainty
+
+    dispersion: float
+        Probability of succes (p in np.random.negative_binomial(n, p)). For dispersion --> 1, the negative binomial converges to the poisson distribution.
 
     n_draws_per_sample : int
         Number of poisson experiments to be added to each simulated trajectory (default: 1)
@@ -908,14 +911,43 @@ def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.
         for dimension in output.dims:
             if ((dimension != 'time') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
-        # Add Poisson draws
-        mean, median, lower, upper = add_poisson(copy[state_name].values, n_draws_per_sample, UL, LL)
+        # Add negative binomial draws (for dispersion --> 1, negative binomial converges to poisson)
+        #mean, median, lower, upper = add_poisson(copy[state_name].values, n_draws_per_sample, UL, LL)
+        mean, median, lower, upper = add_negative_binomial(copy[state_name].values, dispersion, n_draws_per_sample, UL, LL)
         # Add to dataframe
         df[state_name,'mean'] = mean
         df[state_name,'median'] = median
         df[state_name,'lower'] = lower
         df[state_name,'upper'] = upper
     return df
+
+def add_negative_binomial(output_array, dispersion, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+    """ A function to add a-posteriori negative binomial uncertainty on the relationship between the model output and data
+    # TODO: add description
+    """
+
+    # Determine number of samples and number of timesteps
+    simtime = output_array.shape[1]
+    n_samples = output_array.shape[0]
+    # Initialize a column vector to append to
+    vector = np.zeros((simtime,1))
+    # Loop over dimension draws
+    for n in range(n_samples):
+        try:
+            result = np.random.negative_binomial( (dispersion/(1-dispersion))*np.expand_dims(output_array[n,:],axis=1), dispersion, size = (output_array.shape[1],n_draws_per_sample))
+            vector = np.append(vector, result, axis=1)
+        except:
+            warnings.warn("I had to remove a simulation result from the output because there was a negative value in it..")
+    # Remove first column
+    vector = np.delete(vector, 0, axis=1)
+    #  Compute mean and median
+    mean = np.mean(vector,axis=1)
+    median = np.median(vector,axis=1)    
+    # Compute quantiles
+    lower = np.quantile(vector, q = LL, axis = 1)
+    upper = np.quantile(vector, q = UL, axis = 1)
+
+    return mean, median, lower, upper
 
 def add_poisson(output_array, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """ A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
