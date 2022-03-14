@@ -23,17 +23,19 @@ Cornerplot of MCMC chains.
 
 Example use:
 ------------
-python emcee-manual-thinning.py -f BE_WAVE1_R0_COMP_EFF_2021-04-27.json -n 14 -k 'beta' 'l' 'tau' 'prev_schools' 'prev_work' 'prev_rest' 'prev_home' -l '$\beta$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$' -r '(0,0.12)' '(0,15)' '(0,1)' '(0,1)' '(0,1)' '(0,0.01)' -d 1000 -t 20
 
 python emcee-manual-thinning.py 
-    -f BE_WAVE1_R0_COMP_EFF_2021-04-27.json
-    -n 14
-    -k 'beta' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
-    -l '$\beta$' '$d_{a}$' 'l' '$\Omega_{work}$' '$\Omega_{rest}$' '$\Omega_{home}$' '$\zeta$'
-    -r '(0,0.12)' '(0,15)' '(0,1)' '(0,1)' '(0,1)' '(0,0.01)'
+    -f BE_CORE_SAMPLES_2022-01-28.json
+    -n 60
+    -k 'beta' 'eff_schools' 'eff_work' 'eff_rest' 'mentality' 'eff_home' 'K_inf_abc' 'K_inf_delta' 'amplitude' 'zeta'
+    -l '$\beta$' '$\Omega_{schools}$' '$\Omega_{work}$' '$\Omega_{rest}$' 'M' '$\Omega_{home}$' '$K_{inf,alpha}$' '$K_{inf,delta}$' 'A' '$\zeta$'
+    -r '(0,0.05)' '(0,0.05)' '(0,0.05)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(1,2.4)' '(1,2.4)' '(0,0.40)' '(0.0001, 0.007)'
     -d 1000
     -t 20
     -s
+
+To do's:
+    - Auto-detect ranges of parameters
 
 """
 
