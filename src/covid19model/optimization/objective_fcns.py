@@ -78,13 +78,11 @@ def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     if dist == 'negative_binomial':
-        idx = parNames.index('dispersion')
-        dispersion = thetas[idx]
-        parNames.pop(idx)
-        thetas = np.delete(thetas,idx)
-
-    # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
-    thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
+        # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
+        dispersion = thetas[-1]
+        thetas_dict = thetas_to_model_pars(thetas[:-1], parNames[:-1], model.parameters)
+    else:
+        thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
     
     for i, (param,value) in enumerate(thetas_dict.items()):
         if param == 'warmup': #TODO: will give an error similar to dispersion
@@ -210,9 +208,12 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
         ll -= np.sum(gammaln(ydata+offset_value))
     return ll
 
-def ll_negative_binomial(ymodel, ydata, dispersion, offset='auto', complete=False):
+def ll_negative_binomial(ymodel, ydata, alpha, offset='auto', complete=False):
     """Loglikelihood of negative binomial distribution
         https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
+        https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
+        https://www2.karlin.mff.cuni.cz/~pesta/NMFM404/NB.html
+        https://www.jstor.org/stable/pdf/2532104.pdf
     Parameters
     ----------
     ymodel: list of floats
@@ -244,10 +245,10 @@ def ll_negative_binomial(ymodel, ydata, dispersion, offset='auto', complete=Fals
     else:
         ymodel += offset
     # Compute log-likelihood (without constant terms)
-    ll = np.sum(ydata*np.log(dispersion*ymodel/(1+dispersion*ymodel)) - (1/dispersion)*np.log(1+dispersion*ymodel))
+    ll = np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel))
     # Add constant terms if desired
     if complete == True:
-        ll += np.sum(gammaln(ydata+1/dispersion) - gammaln(ydata+1)) - len(ydata)*gammaln(1/dispersion)
+        ll += np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - len(ydata)*gammaln(1/alpha)
     return ll
 
 
