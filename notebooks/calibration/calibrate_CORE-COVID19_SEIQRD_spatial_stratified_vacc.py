@@ -170,9 +170,9 @@ if __name__ == '__main__':
     print_n = 20
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
-    states = ["H_in", "R", "R"]
-    weights = [1, 1e-4, 1e-4]
+    data=[df_hosp] #, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
+    states = ["H_in"]#, "R", "R"]
+    weights = [1]#, 1e-4, 1e-4]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -206,20 +206,21 @@ if __name__ == '__main__':
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars3 + pars4 + pars5 + pars6
-    bounds = bounds1 + bounds3 + bounds4 + bounds5 + bounds6
+    pars = pars1 + pars3 + pars4 + pars5 
+    bounds = bounds1 + bounds3 + bounds4 + bounds5
     
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2, 0.003] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
+    model.parameters['zeta'] = 0.003
+    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
     
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
-    step = [0.05, 0.05, 0.05, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1, 0.1]
-    step = 12*[0.05,]
+    step = [0.05, 0.05, 0.05, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1]
+    step = 11*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     print(f'effectivity parameters {pars[3:8]}: {theta[3:8]}.')
     print(f'VOC effects {pars[8:9]}: {theta[8:10]}.')
     print(f'Seasonality {pars[9:10]}: {theta[10:11]}')
-    print(f'Waning antibodies {pars[10:]}: {theta[11:]}')
+    #print(f'Waning antibodies {pars[10:]}: {theta[11:]}')
     sys.stdout.flush()
 
     ########################
@@ -300,7 +301,7 @@ if __name__ == '__main__':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+                        prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
@@ -317,7 +318,7 @@ if __name__ == '__main__':
     # pars6 = ['zeta']
     pert6 = [0.20,]     
     # Add them together
-    pert = pert1 + pert3 + pert4 + pert5 + pert6
+    pert = pert1 + pert3 + pert4 + pert5
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
@@ -331,11 +332,9 @@ if __name__ == '__main__':
 
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                #'$l_1$', '$l_2$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
-                '$A$',
-                '$\zeta$']
+                '$A$']
 
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
