@@ -166,7 +166,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -202,27 +202,28 @@ if __name__ == '__main__':
     bounds4 = ((1.30,1.70),(1.70,2.4))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.40),)
+    bounds5 = ((0,0.30),)
     # Waning antibody immunity
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
     # Join them together
     pars = pars1 + pars3 + pars4 + pars5 
     bounds = bounds1 + bounds3 + bounds4 + bounds5
+    # Add dispersion for negative binomial estimator
 
     # Perform PSO optimization
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    model.parameters['zeta'] = 0.003
     theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
-    
+
+
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
         
     step = [0.05, 0.05, 0.05, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1]
-    step = 11*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
+    step = 10*[0.05,]
+    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup, 'negative_binomial', 'auto', agg)
     #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
 
     #######################################
@@ -311,13 +312,13 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
     #pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.80, 0.50, 0.50, 0.50, 0.50]
+    pert3=[0.10, 0.10, 0.10, 0.10, 0.10]
     # pars4 = ['K_inf_abc','K_inf_delta']
     pert4=[0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.80,] 
+    pert5 = [0.10,] 
     # pars6 = ['zeta']
-    pert6 = [0.20,]     
+    pert6 = [0.10,]     
     # Add them together
     pert = pert1 + pert3 + pert4 + pert5
 
@@ -327,13 +328,14 @@ if __name__ == '__main__':
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$']
 
-    # Append one dispersion parameter
-    theta += [0.5,]
-    pars += ['dispersion',]
-    bounds += ((0,1),)
-    log_prior_fcn_args = bounds
-    pert += [0.05]
+    # Append the dispersion parameter for the negative binomial
+    theta += [2e-2,]
+    pert += [0.50,]
     labels += ['dispersion',]
+    pars += ['dispersion',]
+    bounds += ((1e-3,1),)
+
+    log_prior_fcn_args = bounds
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)

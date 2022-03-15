@@ -66,7 +66,7 @@ agg = args.agg
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2021-10-01'
+end_sim = '2022-01-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -113,13 +113,14 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['l1'] = 14
+model.parameters['zeta'] = 0.003
+model.parameters['l1'] = 21
 model.parameters['l2'] = 14
 model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
 try:
     dispersion = np.mean(samples_dict['dispersion'])
 except:
-    dispersion = 0.999
+    dispersion = 1e-6
 
 #######################
 ## Sampling function ##
@@ -140,7 +141,7 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]
+    #param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Hospitalization
     # ---------------
