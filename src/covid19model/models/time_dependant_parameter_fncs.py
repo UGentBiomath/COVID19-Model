@@ -1053,7 +1053,7 @@ class make_contact_matrix_function():
                                                 0.5, # W
                                                 1, # Bxl
                                                 0.4, 0.85, # F
-                                                1.4, 1.4, # W
+                                                1.3, 1.3, # W
                                                 0.5, # F
                                                 0.5, 0.5]) # W
 
