@@ -1049,13 +1049,13 @@ class make_contact_matrix_function():
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        mentality_summer_2020_lockdown = np.array([2*mentality, mentality, # F
+        mentality_summer_2020_lockdown = np.array([2.5*mentality, mentality, # F
                                                 2*mentality, # W
-                                                2.5*mentality, # Bxl
-                                                mentality, mentality, # F
-                                                2*mentality, 2*mentality, # W
-                                                mentality, # F
-                                                2*mentality, 2*mentality]) # W
+                                                2*mentality, # Bxl
+                                                0.5*mentality, 2.5*mentality, # F
+                                                3*mentality, 3*mentality, # W
+                                                0.5*mentality, # F
+                                                1.5*mentality, 2*mentality]) # W
 
         co_F = 1
         co_W = 1

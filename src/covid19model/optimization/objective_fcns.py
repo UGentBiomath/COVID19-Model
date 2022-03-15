@@ -208,7 +208,7 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
         ll -= np.sum(gammaln(ydata+offset_value))
     return ll
 
-def ll_negative_binomial(ymodel, ydata, alpha, offset='auto', complete=True):
+def ll_negative_binomial(ymodel, ydata, alpha, offset='auto'):
     """Loglikelihood of negative binomial distribution
         https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
         https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
@@ -244,16 +244,11 @@ def ll_negative_binomial(ymodel, ydata, alpha, offset='auto', complete=True):
             ymodel += offset_value
     else:
         ymodel += offset
-
-    # Compute log-likelihood (without constant terms; positive)
+    # Compute log-likelihood
     if alpha > 0:
         ll = np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - len(ydata)*gammaln(1/alpha)
     else:
         ll = -np.inf
-
-    # Add constant terms (negative)
-    #if complete == True:
-    #    ll += np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - len(ydata)*gammaln(1/alpha)
 
     return ll
 
@@ -320,16 +315,15 @@ def prior_normal(x,norm_params):
     x: float
         Parameter value whos likelihood we want to test.
     norm_params: tuple
-        Tuple containg mu and sigma.
+        Tuple containg mu and stdev.
 
     Returns
     -------
     Log likelihood of sample x in light of a normal prior distribution.
 
     """
-    #mu,sigma=norm_params
-    norm_params = np.array(norm_params).reshape(2,9)
-    return np.sum(norm.logpdf(x, loc = norm_params[:,0], scale = norm_params[:,1]))
+    mu,stdev=norm_params
+    return np.sum(norm.logpdf(x, loc = mu, scale = stdev))
 
 def prior_triangle(x,triangle_params):
     """ Triangle prior distribution

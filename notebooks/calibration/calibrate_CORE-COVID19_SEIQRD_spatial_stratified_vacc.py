@@ -31,7 +31,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson, MLE
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, prior_normal, ll_poisson, MLE
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     # Variants
     pars4 = ['K_inf',]
     # Must supply the bounds
-    bounds4 = ((1.30,1.70),(1.70,2.4))
+    bounds4 = ((1.30,1.75),(1.75,2.4))
     # Seasonality
     pars5 = ['amplitude',]
     bounds5 = ((0,0.30),)
@@ -214,8 +214,7 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
-
+    theta = [0.0267, 0.0257, 0.0337, 0.08, 0.5, 0.49, 0.33, 0.4, 1.7, 2.0, 0.2]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -329,12 +328,12 @@ if __name__ == '__main__':
                 '$A$']
 
     # Append the dispersion parameter for the negative binomial
-    theta += [2e-2,]
-    pert += [0.50,]
+    theta += [0.05,]
+    pert += [0.5,]
     labels += ['dispersion',]
     pars += ['dispersion',]
-    bounds += ((1e-3,1),)
-
+    log_prior_fcn += [prior_uniform,]
+    bounds += ((1e-4,0.20),) # mu, stdev
     log_prior_fcn_args = bounds
 
     # Use perturbation function
