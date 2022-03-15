@@ -615,36 +615,58 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
                 
     return df
 
-def get_vaccination_rescaling_values(spatial=False):
+def get_vaccination_rescaling_values(spatial=False, update=False, params=None):
     """
     Loads vaccination dataframe, which is manually created in the Notebook preprocessing/MR-calculate-effective-rescalings.ipynb.
+    Note: updating takes a long time.
     
     Input
     -----
     spatial : Boolean
         Returns provincially stratified vaccination data if spatial==True. False by default.
+    update : Boolean
+        If True, update with new rescaling values
+    params : dict
+        dict with keys e_s, e_i, e_h (reduced effectivity due to vaccination), and initN (matrix with population per age and region)
         
     Output
     ------
     df : pd.DataFrame
         Dataframe with three (four) levels of indices: date, (NIS), age, dose. Dates start at 28 December 2020.
+        
+    Example use
+    ------------
+    
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
+    VOCs = ['WT', 'abc', 'delta']
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
+    rescaling_df = get_vaccination_rescaling_values(spatial=True, update=True, params=VOC_params)
     """
+    
     # Data location
     abs_dir = os.path.dirname(__file__)
     
-    if spatial==False:
-        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
-        dir_abs = os.path.join(abs_dir, dir_rel)
+    if update:
+        # Input validation
+        if not params:
+            raise Exception(f"Updating the rescaling CSVs requires a params dictionary")
+        if not set(['e_i', 'e_h', 'e_s', 'initN']).issubset(set(params.keys())):
+            raise Exception(f"The provided parameter dict should contain keys 'e_i', 'e_h', 'e_s', 'initN'.")
         
-        # Load and format data
-        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
-    
-    if spatial==True:
-        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
-        dir_abs = os.path.join(abs_dir, dir_rel)
+    else:    
+        if spatial==False:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+            dir_abs = os.path.join(abs_dir, dir_rel)
 
-        # Load and format data
-        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
+            # Load and format data
+            df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
+
+        if spatial==True:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+            dir_abs = os.path.join(abs_dir, dir_rel)
+
+            # Load and format data
+            df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
 
     return df
         
