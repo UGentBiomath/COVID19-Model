@@ -524,18 +524,10 @@ class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
     
-    TO DO
-    -----
-    
-    vacc_data_cum and vacc_data_inc are currently loaded very slowly. This can be vastly improved.
-    
     Input
     -----
     rescaling_df : pd.DataFrame
-        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values()
-        
-    spatial : Boolean
-        if True: return provincially stratified rescaling values. False by default, returning nationally aggregated data.
+        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values(). Spatial aggregation depends on this input.
     
     Output
     ------
@@ -544,13 +536,17 @@ class make_vaccination_rescaling_function():
     
     Example use
     -----------
-
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True)
+    E_susc_function = make_vaccination_rescaling_function(rescaling_df).E_susc
+    E_inf_function = make_vaccination_rescaling_function(rescaling_df).E_inf
+    E_hosp_function = make_vaccination_rescaling_function(rescaling_df).E_hosp
+    E_susc_function(pd.Timestamp(2021, 10, 1), 0, 0)
     
     """
     
     def __init__(self, rescaling_df):
         self.rescaling_df = rescaling_df
-        self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
+        self.available_dates = rescaling_df.reset_index().set_index('date').sort_index().index.unique() # demands chronological order
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, rescaling_type):
@@ -572,6 +568,10 @@ class make_vaccination_rescaling_function():
             Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
         """
         
+        spatial=False
+        if 'NIS' in self.rescaling_df.reset_index().columns:
+            spatial=True
+        
         G = 11
         N = 10
         
@@ -583,27 +583,38 @@ class make_vaccination_rescaling_function():
         
         if t <= self.available_dates[0]:
             # Take unity matrix
-            E = np.ones([G,N])
+            if spatial:
+                E = np.ones([G,N])
+            else:
+                E = np.ones(N)
             
         elif t < self.available_dates[-1]:
             # Take interpolation between to dates for which data is available
             t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
             t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
             
-            E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E_first = np.reshape(E_values_first, (G,N))
-            
-            E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E_second = np.reshape(E_values_second, (G,N))
-            
+            if spatial:
+                E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_first = np.reshape(E_values_first, (G,N))
+
+                E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_second = np.reshape(E_values_second, (G,N))
+                
+            else:
+                E_first = self.rescaling_df.loc[t_data_first, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_second = self.rescaling_df.loc[t_data_second, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
             
         elif t >= self.available_dates[-1]:
             # Take latest data point
             t_data = pd.Timestamp(self.available_dates[-1])
-            E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E = np.reshape(E_values, (G,N))
+            if spatial:
+                E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E = np.reshape(E_values, (G,N))
+            else:
+                E = self.rescaling_df.loc[t_data, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
         
         return E
     
