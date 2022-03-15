@@ -80,8 +80,8 @@ A folder containing all raw simulations used for the RESTORE reports, the report
    were tested)
 + `ObsDeceased.txt` contains cumulative observed deaths from 1 March on
 + `ObsRecovered.txt` contains cumulative observed recovered (from hospital) from 1 March on
-+ `vacc_rescaling_values_provincial.csv` contains weekly rescaling values per NIS, per age, per effect (susc, inf, hosp), resulting from vaccination data. Calculated with Notebooks/preprocessing/MR-calculate-effective-rescalings.ipynb
-+ `vacc_rescaling_values_national.csv` contains weekly rescaling values per age, per effect (susc, inf, hosp), resulting from national vaccination data. Calculated with Notebooks/preprocessing/MR-calculate-effective-rescalings.ipynb
++ `vacc_rescaling_values_provincial.csv` contains weekly rescaling values per NIS, per age, per effect (susc, inf, hosp), resulting from vaccination data. Calculated with Notebooks/preprocessing/MR-calculate-effective-rescalings.ipynb and in sciensano.get_vaccination_rescaling_values(... update=True ...)
++ `vacc_rescaling_values_national.csv` contains weekly rescaling values per age, per effect (susc, inf, hosp), resulting from national vaccination data. Calculated with Notebooks/preprocessing/MR-calculate-effective-rescalings.ipynb and in sciensano.get_vaccination_rescaling_values(... update=True ...)
 
 #### Model parameters
 
