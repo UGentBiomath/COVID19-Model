@@ -1051,9 +1051,9 @@ class make_contact_matrix_function():
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
         mentality_summer_2020_lockdown = np.array([0.85, 0.5, # F
                                                 0.5, # W
-                                                0.85, # Bxl
+                                                1, # Bxl
                                                 0.4, 0.85, # F
-                                                1, 1, # W
+                                                1.4, 1.4, # W
                                                 0.5, # F
                                                 0.5, 0.5]) # W
 
