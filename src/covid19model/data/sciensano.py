@@ -77,14 +77,14 @@ def get_serological_data():
     columns = [[],[]]
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["abs/rel", "data"])
-    df = pd.DataFrame(index=data.index, columns=columns)
+    df = pd.DataFrame(index=data.index, columns=columns, dtype=float)
     df['abs','mean'] = data['Seroprevalence']*sum(initN) 
     df['abs','LL'] = data['Lower CI']*sum(initN)
     df['abs','UL'] = data['Upper CI']*sum(initN)
     df['rel','mean'] = data['Seroprevalence']
     df['rel','LL'] = data['Lower CI']
     df['rel','UL'] = data['Upper CI']
-    df_sero_sciensano = df
+    df_sero_sciensano = df.dropna()
 
     return df_sero_herzog, df_sero_sciensano
 
@@ -220,14 +220,14 @@ def get_sciensano_COVID19_data(update=True):
     interval_index = pd.IntervalIndex.from_tuples([(25,45),(45,65),(65,75),(75,85),(85,120)], closed='left')
     iterables = [df_mort['DATE'].unique(), corresponding_NIS, interval_index]
     index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
-    df = pd.Series(index=index)
+    df = pd.Series(index=index, dtype=float)
 
     for idx, age_group in enumerate(['25-44', '45-64','65-74', '75-84', '85+']):
         for jdx, NIS in enumerate(corresponding_NIS):
             # Resample data: A problem occurs: only dates on which date is available are returned
             series = df_mort.loc[((df_mort['AGEGROUP'] == age_group)&(df_mort['REGION'] == NIS))].resample('D',on='DATE')['DEATHS'].sum()
             # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
-            dummy = pd.Series(index = df_mort['DATE'].unique())
+            dummy = pd.Series(index = df_mort['DATE'].unique(), dtype=float)
             C = dummy.to_frame().join(series.to_frame()).fillna(0)['DEATHS']
             # Assign data
             df.loc[(slice(None), NIS, interval_index[idx])] = C.values
@@ -248,14 +248,14 @@ def get_sciensano_COVID19_data(update=True):
     interval_index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,90),(90,120)], closed='left')
     iterables = [df_cases['DATE'].unique()[:-1], corresponding_NIS, interval_index]
     index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age"])
-    df = pd.Series(index=index)
+    df = pd.Series(index=index, dtype=float)
 
     # Loop over age groups and NIS codes in dataframe
     for idx, age_group in enumerate(['0-9', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-79', '80-89', '90+']):
         for jdx, NIS in enumerate(corresponding_NIS):
             series = df_cases.loc[((df_cases['AGEGROUP'] == age_group) & (df_cases['PROVINCE'] == NIS))].resample('D',on='DATE')['CASES'].sum()
             # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
-            dummy = pd.Series(index = df_cases['DATE'].unique()[:-1])
+            dummy = pd.Series(index = df_cases['DATE'].unique()[:-1], dtype=float)
             C = dummy.to_frame().join(series.to_frame()).fillna(0)['CASES']
             # Assign data
             df.loc[(slice(None), corresponding_NIS[jdx], interval_index[idx])] = C.values
@@ -277,14 +277,14 @@ def get_sciensano_COVID19_data(update=True):
     interval_index = pd.IntervalIndex.from_tuples([(0,12),(12,16),(16,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
     iterables = [df_vacc['DATE'].unique(), df_vacc['REGION'].unique(), interval_index, ['A', 'B', 'C','E']] # Leave dose 'E' out
     index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
-    df = pd.Series(index=index)
+    df = pd.Series(index=index, dtype=float)
 
     for idx, age_group in enumerate(['00-11', '12-15', '16-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65-74', '75-84','85+']):
         for jdx, NIS in enumerate(corresponding_NIS):
             for kdx, dose in enumerate(['A', 'B', 'C','E']):
                 series = df_vacc.loc[((df_vacc['AGEGROUP'] == age_group) & (df_vacc['REGION'] == NIS) & (df_vacc['DOSE'] == dose))].resample('D',on='DATE')['COUNT'].sum()
                 # Solution: define a dummy df with all desired dates, perform a join operation and extract the right column
-                dummy = pd.Series(index = df_vacc['DATE'].unique())
+                dummy = pd.Series(index = df_vacc['DATE'].unique(), dtype=float)
                 C = dummy.to_frame().join(series.to_frame()).fillna(0)['COUNT']
                 # Assign data
                 df.loc[(slice(None), corresponding_NIS[jdx], interval_index[idx], dose)] = C.values

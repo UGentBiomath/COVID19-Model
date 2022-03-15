@@ -177,7 +177,7 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
     Returns
     -------
     ll: float
-        Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
+        Loglikelihood belonging to the comparison of the data points and the model prediction.
     """
     
     if len(ymodel) != len(ydata):
@@ -197,6 +197,47 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
     if complete == True:
         ll -= np.sum(gammaln(ydata+offset_value))
     return ll
+
+def ll_negative_binomial(ymodel, ydata, dispersion, offset='auto', complete=False):
+    """Loglikelihood of negative binomial distribution
+
+    Parameters
+    ----------
+    ymodel: list of floats
+        List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
+    ydata: list of floats
+        List with actual time series values at a particlar time that are to be fitted to the model
+    dispersion: float
+        Dispersion factor. The variance in the dataseries is equal to 1/dispersion and hence dispersion is bounded [0,1].
+    offset: float
+        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
+    complete: boolean
+        If True all terms are included in the logliklihood rather than only the terms that vary with varying model parameter values.
+
+    Returns
+    -------
+    ll: float
+        Loglikelihood belonging to the comparison of the data points and the model prediction.
+    """
+
+    # Input check: do length of model prediction and data series match?
+    if len(ymodel) != len(ydata):
+        raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
+    # Set offset
+    if offset == 'auto':
+        if min(ymodel) <= 0:
+            offset_value = - min(ymodel) + 1e-3
+            ymodel += offset_value
+            warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+    else:
+        ymodel += offset
+    # Compute log-likelihood (without constant terms)
+    ll = np.sum(ydata*np.log(dispersion*ymodel/(1+dispersion*ymodel)) - (1/dispersion)*np.log(1+dispersion*ymodel))
+    # Add constant terms if desired
+    if complete == True:
+        ll += np.sum(gammaln(ydata+1/dispersion) - gammaln(ydata+1)) - len(ydata)*gammaln(1/dispersion)
+    return ll
+
 
 def prior_uniform(x, bounds):
     """ Uniform prior distribution
