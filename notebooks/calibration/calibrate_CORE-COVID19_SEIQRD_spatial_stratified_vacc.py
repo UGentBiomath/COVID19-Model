@@ -328,7 +328,7 @@ if __name__ == '__main__':
                 '$A$']
 
     # Append the dispersion parameter for the negative binomial
-    theta += [0.05,]
+    theta += [0.01,]
     pert += [0.5,]
     labels += ['dispersion',]
     pars += ['dispersion',]

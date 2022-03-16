@@ -191,6 +191,8 @@ fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 # National
 mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
 ax[0].plot(simtime, mean, '--', color='blue')
+ax[0].fill_between(simtime, lower, upper, alpha=0.1, color='blue')
+mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/np.sum(np.sum(initN,axis=0))*100000
 ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
 ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
@@ -215,6 +217,8 @@ for idx,NIS_list in enumerate(NIS_lists):
     mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample)/pop*100000
 
     ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
+    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.1)
+    mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/pop*100000
     ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
     ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx+1].set_title(title_list[idx])
