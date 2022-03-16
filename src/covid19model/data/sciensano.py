@@ -615,36 +615,147 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
                 
     return df
 
-def get_vaccination_rescaling_values(spatial=False):
+def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, initN=None, VOC_params=None, VOC_logistic_growth_parameters=None):
     """
     Loads vaccination dataframe, which is manually created in the Notebook preprocessing/MR-calculate-effective-rescalings.ipynb.
+    Note: updating takes a long time (over an hour for non-spatial, up to 10 minutes for spatial)
+    Note: Omicron variant currently *not* included
+    Note: only province-level vaccinations have been included (not arr or mun)
+    Note: PerformanceWarning: indexing past lexsort depth may impact performance.
     
     Input
     -----
     spatial : Boolean
         Returns provincially stratified vaccination data if spatial==True. False by default.
+    update : Boolean
+        If True, update with new rescaling values
+    df_inc : pd.Series
+        Multiindex Series with indices resp. date, (NIS), age, vaccination dose
+    initN : pd.Series or pd.DataFrame
+        Series (if not spatial) or DataFrame (if spatial) with population per age class and (if spatial) per NIS. First output of model_parameters.get_COVID19_SEIQRD_parameters()
+    VOC_params : dict
+        dict with keys e_s, e_i, e_h (reduced effectivity due to vaccination), and initN (matrix with population per age and region)
+    VOC_logistic_growth_parameters: pd.DataFrame
+        DataFrame with parameters that determine the logistic growth of the fraction of VOCs
         
     Output
     ------
     df : pd.DataFrame
         Dataframe with three (four) levels of indices: date, (NIS), age, dose. Dates start at 28 December 2020.
+        
+    Example use
+    ------------
+    
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
+    VOCs = ['WT', 'abc', 'delta']
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
+    public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
+    df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE']).df
+    rescaling_df = get_vaccination_rescaling_values(spatial=True, update=True, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
     """
+    
     # Data location
     abs_dir = os.path.dirname(__file__)
     
-    if spatial==False:
-        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
-        dir_abs = os.path.join(abs_dir, dir_rel)
-        
-        # Load and format data
-        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
-    
-    if spatial==True:
-        dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
-        dir_abs = os.path.join(abs_dir, dir_rel)
+    if update:
+        # Input validation
+        if not set(['e_i', 'e_h', 'e_s']).issubset(set(VOC_params.keys())):
+            raise Exception(f"The provided parameter dict should contain keys 'e_i', 'e_h', 'e_s'.")
+            
+        # rescaling values from VOC_params. Values [none, first, full, waned, booster]
+        e_s = 1-VOC_params['e_s']
+        e_i = 1-VOC_params['e_i']
+        e_h = 1-VOC_params['e_h']
 
-        # Load and format data
-        df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
+        ### Wild type values
+        # hard-coded
+        onset_days_WT = dict({'E_susc' : {'first' : 21, 'full' : 21, 'booster' : 21},
+                       'E_inf' : {'first' : 14, 'full' : 14, 'booster' : 14},
+                       'E_hosp' : {'first' : 21, 'full' : 21, 'booster' : 21}})
+        # E_init is the value of the previous waned vaccine
+        E_init_WT = dict({'E_susc' : {'first' : e_s[0,0], 'full' : e_s[0,1], 'booster' : e_s[0,3]},
+                       'E_inf' : {'first' : e_i[0,0], 'full' : e_i[0,1], 'booster' : e_s[0,3]},
+                       'E_hosp' : {'first' : e_h[0,0], 'full' : e_h[0,1], 'booster' : e_h[0,3]}})
+        E_best_WT = dict({'E_susc' : {'first' : e_s[0,1], 'full' : e_s[0,2], 'booster' : e_s[0,4]},
+                       'E_inf' : {'first' : e_i[0,1], 'full' : e_i[0,2], 'booster' : e_i[0,4]},
+                       'E_hosp' : {'first' : e_h[0,1], 'full' : e_h[0,2], 'booster' : e_h[0,4]}})
+        E_waned_WT = dict({'E_susc' : {'first' : e_s[0,1], 'full' : e_s[0,3], 'booster' : e_s[0,4]},
+                       'E_inf' : {'first' : e_i[0,1], 'full' : e_i[0,3], 'booster' : e_i[0,4]},
+                       'E_hosp' : {'first' : e_h[0,1], 'full' : e_h[0,3], 'booster' : e_h[0,4]}})
+        
+        ### alpha/beta/gamma values
+        # hard-coded
+        onset_days_abc = dict({'E_susc' : {'first' : 21, 'full' : 21, 'booster' : 21},
+                       'E_inf' : {'first' : 14, 'full' : 14, 'booster' : 14},
+                       'E_hosp' : {'first' : 21, 'full' : 21, 'booster' : 21}})
+        # E_init is the value of the previous waned vaccine
+        E_init_abc = dict({'E_susc' : {'first' : e_s[1,0], 'full' : e_s[1,1], 'booster' : e_s[1,3]},
+                       'E_inf' : {'first' : e_i[1,0], 'full' : e_i[1,1], 'booster' : e_s[1,3]},
+                       'E_hosp' : {'first' : e_h[1,0], 'full' : e_h[1,1], 'booster' : e_h[1,3]}})
+        E_best_abc = dict({'E_susc' : {'first' : e_s[1,1], 'full' : e_s[1,2], 'booster' : e_s[1,4]},
+                       'E_inf' : {'first' : e_i[1,1], 'full' : e_i[1,2], 'booster' : e_i[1,4]},
+                       'E_hosp' : {'first' : e_h[1,1], 'full' : e_h[1,2], 'booster' : e_h[1,4]}})
+        E_waned_abc = dict({'E_susc' : {'first' : e_s[1,1], 'full' : e_s[1,3], 'booster' : e_s[1,4]},
+                       'E_inf' : {'first' : e_i[1,1], 'full' : e_i[1,3], 'booster' : e_i[1,4]},
+                       'E_hosp' : {'first' : e_h[1,1], 'full' : e_h[1,3], 'booster' : e_h[1,4]}})
+
+        ### delta values
+        # hard-coded
+        onset_days_delta = dict({'E_susc' : {'first' : 21, 'full' : 21, 'booster' : 21},
+                       'E_inf' : {'first' : 14, 'full' : 14, 'booster' : 14},
+                       'E_hosp' : {'first' : 21, 'full' : 21, 'booster' : 21}})
+        # E_init is the value of the previous waned vaccine
+        E_init_delta = dict({'E_susc' : {'first' : e_s[2,0], 'full' : e_s[2,1], 'booster' : e_s[2,3]},
+                       'E_inf' : {'first' : e_i[2,0], 'full' : e_i[2,1], 'booster' : e_s[2,3]},
+                       'E_hosp' : {'first' : e_h[2,0], 'full' : e_h[2,1], 'booster' : e_h[2,3]}})
+        E_best_delta = dict({'E_susc' : {'first' : e_s[2,1], 'full' : e_s[2,2], 'booster' : e_s[2,4]},
+                       'E_inf' : {'first' : e_i[2,1], 'full' : e_i[2,2], 'booster' : e_i[2,4]},
+                       'E_hosp' : {'first' : e_h[2,1], 'full' : e_h[2,2], 'booster' : e_h[2,4]}})
+        E_waned_delta = dict({'E_susc' : {'first' : e_s[2,1], 'full' : e_s[2,3], 'booster' : e_s[2,4]},
+                       'E_inf' : {'first' : e_i[2,1], 'full' : e_i[2,3], 'booster' : e_i[2,4]},
+                       'E_hosp' : {'first' : e_h[2,1], 'full' : e_h[2,3], 'booster' : e_h[2,4]}})
+
+        # Combine them
+        onset_days = dict({'WT' : onset_days_WT, 'abc' : onset_days_abc, 'delta' : onset_days_delta})
+        E_init = dict({'WT' : E_init_WT, 'abc' : E_init_abc, 'delta' : E_init_delta})
+        E_best = dict({'WT' : E_best_WT, 'abc' : E_best_abc, 'delta' : E_best_delta})
+        E_waned = dict({'WT' : E_waned_WT, 'abc' : E_waned_abc, 'delta' : E_waned_delta})
+        
+        # Make VOC fraction function. VOC_function(date)[0] is the fraction of each variant at date
+        from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+        VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
+        
+        # Make new DataFrame
+        verbose=True
+        df = make_rescaling_dataframe(df_inc, initN, VOC_function, onset_days, E_init, E_best, E_waned, verbose=verbose)
+        df = df.drop(columns=['INCIDENCE', 'CUMULATIVE', 'E_susc_WT', 'E_inf_WT', 'E_hosp_WT', \
+                      'E_susc_abc', 'E_inf_abc', 'E_hosp_abc', \
+                      'E_susc_delta', 'E_inf_delta', 'E_hosp_delta'])
+        df = df.fillna(1)
+        
+        # Save new DataFrame
+        if spatial:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+        else:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+        dir_abs = os.path.join(abs_dir, dir_rel)
+        df.to_csv(dir_abs)
+        
+    # no update
+    else:    
+        if spatial==False:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+            dir_abs = os.path.join(abs_dir, dir_rel)
+
+            # Load and format data
+            df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
+
+        if spatial==True:
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+            dir_abs = os.path.join(abs_dir, dir_rel)
+
+            # Load and format data
+            df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
 
     return df
         
