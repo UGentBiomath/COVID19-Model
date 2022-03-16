@@ -1127,7 +1127,7 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
 
         # Remove negative derivatives to ease further computation
         # Note: this model will only use the fraction itself, not its derivative
-        f_VOC[:,1][f_VOC[:,1] < 0] = 0
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0 # Note: changed index order
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]
@@ -1196,9 +1196,17 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
         # Calculate Nc^gh_ij. It would be more efficient to take this out of the class altogether
         kroneckerG = np.diag(np.ones(G))
         kroneckerG = np.expand_dims(np.expand_dims(kroneckerG, axis=2), axis=2)
-        Nc_g_total = np.expand_dims(Nc, axis=1) # shape (11, 1, 10, 10)
-        Nc_g_work = np.expand_dims(Nc_work, axis=0) # shape (1, 11, 10, 10)
-        Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work
+        
+        # in case Nc is not altered by the time-dependent parameter function
+        # NOTE: jit doesn't support if statements, so this is hard-coded *for when Nc has no time-dependent function*
+        # if Nc.ndim == 2: # shape (10, 10)
+        Nc = np.expand_dims(Nc, axis=0) # shape (1, 10, 10)
+        # if Nc_work.ndim == 2: # shape (10, 10)
+        Nc_work = np.expand_dims(Nc_work, axis=0) # shape (1, 10, 10)
+        
+        Nc_g_total = np.expand_dims(Nc, axis=1) # shape (11, 1, 10, 10) or (1, 1, 10, 10)
+        Nc_g_work = np.expand_dims(Nc_work, axis=0) # shape (1, 11, 10, 10) or (1, 1, 10, 10)
+        Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work # shape (11, 11, 10, 10)
 
         # Use all input in the jit-defined loop function
         dS_inf = jit_main_function_spatial(place_eff, S, beta_bar, Nc_bar, I_dens)
