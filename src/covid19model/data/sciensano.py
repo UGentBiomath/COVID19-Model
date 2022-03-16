@@ -759,4 +759,235 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
 
     return df
         
+    # help function for get_vaccination_rescaling_values if update==True (1/2)
+def waning_exp_delay(days, onset_days, E_init, E_best, E_waned):
+    """
+    Function that implements time-dependence of vaccine effect based on the time it takes for the vaccine to linearly reach full efficacy, and a subsequent asymptotic waning of the vaccine.
+
+    Input
+    -----
+    days : float
+        number of days after the novel vaccination
+    onset_days : float
+        number of days it takes for the vaccine to take full effect
+    E_init : float
+        vaccine-related rescaling value right before vaccination
+    E_best : float
+        rescaling value related to the best possible protection by the currently injected vaccine
+    E_waned : float
+        rescaling value related to the vaccine protection after a waning period.
+
+    Output
+    ------
+    E_eff : float
+        effective rescaling value associated with the newly administered vaccine
+
+    """
+    waning_days = 183 # hard-coded to half a year
+    if days <= 0:
+        return E_init
+    elif days < onset_days:
+        E_eff = (E_best - E_init)/onset_days*days + E_init
+        return E_eff
+    else:
+        if E_best == E_waned:
+            return E_best
+        halftime_days = waning_days - onset_days
+        A = 1-E_best
+        beta = -np.log((1-E_waned)/A)/halftime_days
+        E_eff = -A*np.exp(-beta*(days-onset_days))+1
+    return E_eff
+
+# help function for get_vaccination_rescaling_values if update==True (2/2)
+def make_rescaling_dataframe(vacc_data, initN, VOC_func, onset_days, E_init, E_best, E_waned, verbose=False):
+    """
+    Ouputs DataFrame per week with fractions of vaccination stage per age class and per province NIS
+    Note: the parameters onset_days, E_init, E_best, E_waned are currently quasi-hardcoded in get_vaccination_rescaling_values
+    
+    Input
+    -----
+    
+    vacc_data : pd.DataFrame
+        Output of make_vaccination_function(df_vacc).df (non-spatial) or make_vaccination_function(vacc_data['INCIDENCE']).df (spatial) with the default age intervals. The former has daily data, the latter has weekly data at the provincial level.
+    initN : pd.DataFrame
+        Output of model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
+    VOC_func : covid19model.models.time_dependant_parameter_fncs.make_VOC_function
+        Function whose first element provides the national fraction of every VOC at a particular time
+    onset_days : dict
+        Dict of dicts with elements onset_days[VOC_type][rescaling_type][dose], where VOC_type in {'WT', 'abc', 'delta'}, rescaling_type in {'E_susc', 'E_inf', 'E_hosp'}, and dose in {'first', 'full', 'booster'}
+    E_init : dict
+        Dict of dicts with elements E_init[VOC_type][rescaling_type][dose]. Represents the rescaling value at the exact moment of vaccination (so before vaccination takes effect). Typically E_init[VOC_type][rescaling_type][dose] = E_waned[VOC_type][rescaling_type][dose-1]
+    E_best : dict
+        Dict of dicts with elements E_best[VOC_type][rescaling_type][dose]. Represents the lowest rescaling value due to vaccination (so the best-possible vaccination effect).
+    E_waned : dict
+        Dict of dicts with elements E_waned[VOC_type][rescaling_type][dose]. Represents the rescaling value six months after vaccination (so the waned vaccination effect)
+        
+    Output
+    ------
+    
+    df_new : pd.DataFrame
+        MultiIndex DataFrame with indices date (weekly), NIS, age, dose.
+        Values are 'fraction', which always sum to unity (a subject is in only one of four vaccination stages)
+    
+    """
+    spatial=False
+    if 'NIS' in vacc_data.reset_index().columns:
+        spatial=True
+    
+    # set initN column names to pd.Interval objects
+    intervals = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    intervals_str = np.array(['[0, 12)', '[12, 18)', '[18, 25)', '[25, 35)', '[35, 45)', '[45, 55)', '[55, 65)', '[65, 75)', '[75, 85)', '[85, 120)'])
+    intervals_dict = dict({intervals_str[i] : intervals[i] for i in range(len(intervals))})
+    if spatial:
+        initN = initN.rename(columns=intervals_dict)
+        initN = initN.unstack().reset_index().rename(columns={0 : 'population'})
+    else:
+        initN = initN.rename(index=intervals_dict)
+        initN = pd.DataFrame(initN).rename(columns={0 : 'population'})
+    
+    # Name nameless column to 'INCIDENCE' and add 'CUMULATIVE' column
+    df_new = pd.DataFrame(vacc_data).rename(columns={0 : 'INCIDENCE'})
+    if spatial:
+        df_new['CUMULATIVE'] = df_new.groupby(level=[1,2,3]).cumsum()
+    else:
+        df_new['CUMULATIVE'] = df_new.groupby(level=[1, 2]).cumsum()
+    
+    # Make cumulative fractions by comparing with relevant initN
+    df_new = pd.DataFrame(df_new).reset_index()
+    if spatial:
+        df_new = df_new.merge(initN, left_on=['NIS', 'age'], right_on=['NIS', 'age_class'])
+    else:
+        df_new = df_new.merge(initN, left_on=['age'], right_on=['age_class'])
+    df_new['fraction'] = df_new['CUMULATIVE'] / df_new['population']
+    
+    # Start redefining vaccination stage fractions
+    df_new = df_new.set_index('date') # make sure we don't get NaN values because of mismatching indices
+    df_new_copy = df_new.copy()
+
+    # first-only: dose A (first) - dose B (second)
+    df_new.loc[df_new['dose']=='B','fraction'] = (df_new_copy.loc[df_new_copy['dose']=='A','fraction'] \
+        - df_new_copy.loc[df_new_copy['dose']=='B','fraction']).clip(lower=0, upper=1)
+
+    # full: dose B (second) + dose C (Jansen) - dose E (booster)
+    df_new.loc[df_new['dose']=='C','fraction'] = (df_new_copy.loc[df_new_copy['dose']=='B','fraction'] \
+        + df_new_copy.loc[df_new_copy['dose']=='C','fraction'] - df_new_copy.loc[df_new_copy['dose']=='E','fraction']).clip(lower=0, upper=1)
+    
+    # booster: clip between 0 and 1. This is currently the latest stage
+    df_new.loc[df_new['dose']=='E','fraction'] = df_new_copy.loc[df_new_copy['dose']=='E', 'fraction'].clip(lower=0, upper=1)
+    
+    # none. Rest category. Make sure all exclusive categories adds up to 1.
+    df_new.loc[df_new['dose']=='A','fraction'] = 1 - df_new.loc[df_new['dose']=='B','fraction'] \
+        - df_new.loc[df_new['dose']=='C','fraction'] - df_new.loc[df_new['dose']=='E','fraction']
+    
+    ### Make sure all incidence and cumulative data are in the right columns
+    # full = second + janssen
+    df_new.loc[df_new['dose']=='C', 'INCIDENCE'] += df_new.loc[df_new['dose']=='B', 'INCIDENCE']
+    df_new.loc[df_new['dose']=='C', 'CUMULATIVE'] += df_new.loc[df_new['dose']=='B', 'CUMULATIVE']
+    # first is moved from 'A' to 'B'
+    df_new.loc[df_new['dose']=='B', 'INCIDENCE'] = df_new.loc[df_new['dose']=='A', 'INCIDENCE']
+    df_new.loc[df_new['dose']=='B', 'CUMULATIVE'] = df_new.loc[df_new['dose']=='A', 'CUMULATIVE']
+    # 'A' becomes the empty category and is nullified
+    df_new.loc[df_new['dose']=='A', 'INCIDENCE'] = 0
+    df_new.loc[df_new['dose']=='A', 'CUMULATIVE'] = 0
+    
+    
+    # Initialise rescaling parameter columns
+    all_rescaling = ['E_susc_WT', 'E_inf_WT', 'E_hosp_WT', \
+                      'E_susc_abc', 'E_inf_abc', 'E_hosp_abc', \
+                      'E_susc_delta', 'E_inf_delta', 'E_hosp_delta', \
+                      'E_susc',  'E_inf', 'E_hosp'] # averaged values
+    for rescaling in all_rescaling:
+        df_new[rescaling] = 0
+        df_new.loc[df_new['dose']=='A', rescaling] = 1
+    
+
+    # Return to multiindex
+    df_new = df_new.reset_index()
+    if spatial:
+        df_new = df_new.drop(columns=['age_class', 'population'])
+        df_new = df_new.set_index(['date', 'NIS', 'age', 'dose'])
+    else:
+        df_new = df_new.drop(columns=['population'])
+        df_new = df_new.set_index(['date',        'age', 'dose'])
+
+    # rename indices to clearly understandable categories
+    rename_indices = dict({'A' : 'none', 'B' : 'first', 'C' : 'full', 'E' : 'booster'})
+    df_new = df_new.rename(index=rename_indices)
+    
+    # reset indices for next line of calculations
+    df_new = df_new.reset_index()
+    all_available_dates = df_new.date.unique()
+    df_new = df_new.set_index(['date', 'dose']).sort_index()
+    for rescaling in ['E_susc', 'E_inf', 'E_hosp']:
+        for VOC in ['WT', 'abc', 'delta']:
+            for dose in ['first', 'full', 'booster']:
+                # Calculate E values for this rescaling type and dose
+                onset_days_temp = onset_days[VOC][rescaling][dose]
+                E_init_temp = E_init[VOC][rescaling][dose]
+                E_best_temp = E_best[VOC][rescaling][dose]
+                E_waned_temp = E_waned[VOC][rescaling][dose]
+                for date in all_available_dates:
+                    if verbose:
+                        print(f"working on rescaling {rescaling}, VOC {VOC}, dose {dose}, date {pd.Timestamp(date).date()}.")
+                    # run over all dates before this date
+                    for d in all_available_dates[all_available_dates<=date]:
+                        # Calculate how many days there are in between
+                        delta_days = pd.Timedelta(date - d).days
+                        # Sum over previous days with a weight depending on incidence, dose type, and waning of vaccines
+                        weight = waning_exp_delay(delta_days, onset_days_temp, E_init_temp, E_best_temp, E_waned_temp)
+                        df_new.loc[(date, dose), f'{rescaling}_{VOC}'] += df_new.loc[(d, dose),'INCIDENCE'].to_numpy() * weight
+                    # normalise over total number of vaccinated subjects up to that point
+                    df_new.loc[(date,dose), f'{rescaling}_{VOC}'] /= df_new.loc[(date,dose), 'CUMULATIVE']
+            # Get rid of all division-by-zero results
+            df_new.loc[df_new[f'{rescaling}_{VOC}']==np.inf, rescaling] = 1
+            df_new[f'{rescaling}_{VOC}'].fillna(1, inplace=True)
+        
+    if spatial:
+        df_new = df_new.groupby(['date', 'NIS', 'age', 'dose']).first()
+    else:
+        df_new = df_new.groupby(['date', 'age', 'dose']).first()
+        
+    # Calculate weighted average from fractions and current rescaling factor
+    if spatial:
+        all_available_NIS = initN.NIS.unique()
+        for date in all_available_dates:
+            if verbose:
+                print("working on day ", pd.Timestamp(date).date())
+            for NIS in all_available_NIS:
+                for interval in intervals:
+                    for rescaling in ['E_susc', 'E_inf', 'E_hosp']:
+                        for VOC in ['WT', 'abc', 'delta']:
+                            df_new.loc[(date,NIS,interval, 'weighted_sum'), f'{rescaling}_{VOC}'] = \
+                                (df_new.loc[(date,NIS,interval), f'{rescaling}_{VOC}'] * \
+                                 df_new.loc[(date,NIS,interval), 'fraction']).sum()
+                        df_new.loc[(date,NIS,interval, 'weighted_sum'), rescaling] = 0
+                        for i, VOC in enumerate(['WT', 'abc', 'delta']):
+                            df_new.loc[(date,NIS,interval, 'weighted_sum'), rescaling] += \
+                                (df_new.loc[(date,NIS,interval, 'weighted_sum'), f'{rescaling}_{VOC}']) * \
+                                VOC_func(pd.Timestamp(date), 0, 0)[0][i]
+
+    else:
+        # Note: takes much longer because there is at least 7 times more data available
+        for date in all_available_dates:
+            if verbose:
+                print("working on day ", pd.Timestamp(date).date())
+            for interval in intervals:
+                for rescaling in ['E_susc', 'E_inf', 'E_hosp']:
+                    for VOC in ['WT', 'abc', 'delta']:
+                        df_new.loc[(date,interval, 'weighted_sum'), f'{rescaling}_{VOC}'] = \
+                            (df_new.loc[(date,interval), f'{rescaling}_{VOC}'] * \
+                             df_new.loc[(date,interval), 'fraction']).sum()
+                    df_new.loc[(date,interval, 'weighted_sum'), rescaling] = 0
+                    for i, VOC in enumerate(['WT', 'abc', 'delta']):
+                        df_new.loc[(date,interval, 'weighted_sum'), rescaling] += \
+                            (df_new.loc[(date,interval, 'weighted_sum'), f'{rescaling}_{VOC}']) * \
+                            VOC_func(pd.Timestamp(date), 0, 0)[0][i]  
+                    
+    if spatial:
+        df_new = df_new.groupby(['date', 'NIS', 'age', 'dose']).first()
+    else:
+        df_new = df_new.groupby(['date', 'age', 'dose']).first()
+    
+    return df_new
+
     
