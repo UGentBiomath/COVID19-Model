@@ -1053,7 +1053,7 @@ class make_contact_matrix_function():
                                                 2*mentality, # W
                                                 2*mentality, # Bxl
                                                 0.5*mentality, 2.5*mentality, # F
-                                                3*mentality, 3*mentality, # W
+                                                4*mentality, 3.5*mentality, # W
                                                 0.5*mentality, # F
                                                 1.5*mentality, 2*mentality]) # W
 
