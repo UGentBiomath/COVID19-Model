@@ -324,7 +324,12 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
     params.update(VOC_params)
     # Load and format local vaccination-induced rescaling data, which is also under the sciensano object
-    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True)
+    public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
+    # Tryout rescaling
+    from covid19model.models.time_dependant_parameter_fncs import make_vaccination_function
+    df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=True, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
+
 
     ###################
     ## TO DO: REMOVE ##

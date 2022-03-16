@@ -306,7 +306,7 @@ class make_vaccination_function():
             else:
                 iterables += [age_classes]
         index = pd.MultiIndex.from_product(iterables, names=self.df.index.names)
-        self.new_df = pd.Series(index=index)
+        self.new_df = pd.Series(index=index, dtype=float)
 
         # Four possibilities exist: can this be sped up?
         if self.spatial:
