@@ -526,7 +526,7 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     # Assign all parameters to a dictionary
     pars_dict = {
         'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
-        'f_VOC': np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64),
+        'f_VOC': np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64).T, # tranposed to fit the model def
         'f_immune_escape': np.array(VOC_parameters['variant_properties', 'f_immune_escape'], np.float64),
         # Assumes the first variant is the reference variant (#TODO: generalize further?)
         'K_inf': np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64),
