@@ -214,8 +214,9 @@ if __name__ == '__main__':
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0267, 0.0257, 0.0337, 0.08, 0.5, 0.49, 0.33, 0.4, 1.7, 2.0, 0.2]
-
+    #theta = [0.0267, 0.0257, 0.0337, 0.08, 0.5, 0.49, 0.33, 0.4, 1.7, 2.0, 0.2]
+    theta = [0.0267, 0.0257, 0.0337, 0.08, 0.75, 0.3, 0.32, 0.4, 1.65, 1.9, 0.24]
+    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
@@ -311,11 +312,11 @@ if __name__ == '__main__':
     # pars2 = ['l1', 'l2']
     #pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.10, 0.10, 0.10, 0.10, 0.10]
+    pert3=[0.20, 0.20, 0.20, 0.20, 0.20]
     # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.10, 0.10]
+    pert4=[0.20, 0.20]
     # pars5 = ['amplitude']
-    pert5 = [0.10,] 
+    pert5 = [0.20,] 
     # pars6 = ['zeta']
     pert6 = [0.10,]     
     # Add them together
@@ -328,12 +329,12 @@ if __name__ == '__main__':
                 '$A$']
 
     # Append the dispersion parameter for the negative binomial
-    theta += [0.01,]
-    pert += [0.5,]
+    theta += [1e-3,]
+    pert += [0.1,]
     labels += ['dispersion',]
     pars += ['dispersion',]
     log_prior_fcn += [prior_uniform,]
-    bounds += ((1e-4,0.20),) # mu, stdev
+    bounds += ((1e-4,0.30),) # mu, stdev
     log_prior_fcn_args = bounds
 
     # Use perturbation function
