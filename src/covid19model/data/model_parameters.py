@@ -514,7 +514,7 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
 
     VOC_parameters['vaccine_properties', 'e_h'] = [[0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32],  # WT
                                                    [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32], # alpha
-                                                   [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32], # delta
+                                                   [0, (1-0.32)/2, 1-0.18, 1-0.11, 1-0.18], # delta
                                                    [0, 0.767, 0.837, 0.676, 0.933]]  # omicron
 
     VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.70/2, 0.70, 0.33, 0.70],  # WT
