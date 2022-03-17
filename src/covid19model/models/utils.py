@@ -328,7 +328,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Tryout rescaling
     from covid19model.models.time_dependant_parameter_fncs import make_vaccination_function
     df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
-    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=True, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=False, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
 
 
     ###################
