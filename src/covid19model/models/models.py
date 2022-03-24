@@ -1107,8 +1107,8 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work', 'seasonality', 'E_susc', 'E_inf', 'E_hosp']
-    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work', 'Nc_home', 'seasonality', 'E_susc', 'E_inf', 'E_hosp']
+    parameters_stratified_names = [['area', 'p', 'nc'], ['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
     coordinates = ['place', None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
 
@@ -1116,8 +1116,8 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work, seasonality, E_susc, E_inf, E_hosp,# SEIRD parameters
-                  area, p, # spatially stratified parameters.
+                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work, Nc_home, seasonality, E_susc, E_inf, E_hosp,# SEIRD parameters
+                  area, p, nc,# spatially stratified parameters.
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
@@ -1154,7 +1154,7 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
         G = place.shape[0] # spatial stratification
         N = Nc.shape[1] # age stratification
 
-        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        # Define rescaled mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
 
         # Expand beta to size G based on local population density
@@ -1197,16 +1197,25 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
         kroneckerG = np.diag(np.ones(G))
         kroneckerG = np.expand_dims(np.expand_dims(kroneckerG, axis=2), axis=2)
         
-        # in case Nc is not altered by the time-dependent parameter function
+        # in case Nc is not altered by the time-dependent parameter function, uncomment below
+        # used when creating plots in notebooks/scratch/MR-show-effect-of-altering-local-mobility.ipynb
         # NOTE: jit doesn't support if statements, so this is hard-coded *for when Nc has no time-dependent function*
         # if Nc.ndim == 2: # shape (10, 10)
-        Nc = np.expand_dims(Nc, axis=0) # shape (1, 10, 10)
+        # Nc = np.expand_dims(Nc, axis=0) # shape (1, 10, 10)
         # if Nc_work.ndim == 2: # shape (10, 10)
-        Nc_work = np.expand_dims(Nc_work, axis=0) # shape (1, 10, 10)
+        # Nc_work = np.expand_dims(Nc_work, axis=0) # shape (1, 10, 10)
+        # Nc_home = np.expand_dims(Nc_home, axis=0) # shape (1, 10, 10)
         
         Nc_g_total = np.expand_dims(Nc, axis=1) # shape (11, 1, 10, 10) or (1, 1, 10, 10)
         Nc_g_work = np.expand_dims(Nc_work, axis=0) # shape (1, 11, 10, 10) or (1, 1, 10, 10)
         Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work # shape (11, 11, 10, 10)
+        
+        # used when creating plots in notebooks/scratch/MR-show-effect-of-altering-local-mobility.ipynb
+        # Define rescaled social contact tensor Nc_bar from user-defined parameter nc[patch]
+        # IMPORTANT: ONLY WORKS WHEN Nc_work = Nc WHEN INITIALISING THE MODEL (no distinction between being in home province vs. visiting)
+        # nc = np.expand_dims(np.expand_dims(np.expand_dims(nc, axis=0), axis=2), axis=2) # (1, 11, 1, 1)
+        # Nc_g_home = np.expand_dims(Nc_home, axis=0) # shape (1, 1, 10, 10)
+        # Nc_bar = nc * (Nc_bar - Nc_g_home) + Nc_g_home # shape (11, 11, 10, 10)
 
         # Use all input in the jit-defined loop function
         dS_inf = jit_main_function_spatial(place_eff, S, beta_bar, Nc_bar, I_dens)
