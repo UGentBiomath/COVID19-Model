@@ -1199,6 +1199,8 @@ class make_contact_matrix_function():
         """
         TDPF for social contact based on policies_all_spatial function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
         
+        NOTE: this code is not written very efficiently. It is not used for calibrations, so it's quite OK.
+        
         Input
         -----
         [same as in policies_all_spatial]
@@ -1210,6 +1212,9 @@ class make_contact_matrix_function():
         # validate
         if scenario not in ['S0', 'S1', 'S2', 'S3']:
             raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
+        
+        # hard-code adaption period for people to switch behaviour
+        slope_duration = 60 # days
         
         if t < pd.Timestamp(2021, 2, 23):
             return self.policies_all_spatial(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
@@ -1232,7 +1237,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 3, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 3, 1)).days
+                        feb_policy = self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
             elif scenario=='S2':
                 if t < pd.Timestamp(2021, 4, 1):
                     return self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
@@ -1242,7 +1254,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 4, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 4, 1)).days
+                        feb_policy = self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
             elif scenario=='S3':
                 if t < pd.Timestamp(2021, 5, 1):
                     return self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
@@ -1252,7 +1271,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 5, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 5, 1)).days
+                        feb_policy = self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
         
     def policies_all_work_only(self, t, states, param, eff_work, mentality):
             '''
@@ -1283,6 +1309,8 @@ class make_contact_matrix_function():
     def policies_all_work_only_scenarios(self, t, states, param, eff_work, mentality, scenario):
         """
         TDPF for social contact based on policies_all_work_only function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
+        
+        NOTE: this code is not written very efficiently. It is not used for calibrations, so it's quite OK.
         
         Input
         -----
