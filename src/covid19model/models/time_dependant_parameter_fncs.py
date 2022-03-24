@@ -1296,6 +1296,9 @@ class make_contact_matrix_function():
         if scenario not in ['S0', 'S1', 'S2', 'S3']:
             raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
         
+        # hard-code adaption period for people to switch behaviour
+        slope_duration = 60 # days
+        
         if t < pd.Timestamp(2021, 2, 23):
             return self.policies_all_work_only(t, states, param, eff_work, mentality)
         
@@ -1317,7 +1320,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 3, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 3, 1)).days
+                        feb_policy = self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
             elif scenario=='S2':
                 if t < pd.Timestamp(2021, 4, 1):
                     return self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
@@ -1327,7 +1337,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 4, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 4, 1)).days
+                        feb_policy = self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
             else:
                 if t < pd.Timestamp(2021, 5, 1):
                     return self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
@@ -1337,7 +1354,14 @@ class make_contact_matrix_function():
                         day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
                         avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
                     avg_policy /= 30
-                    return avg_policy
+                    if t < pd.Timestamp(2021, 5, 1) + pd.Timedelta(days=slope_duration):
+                        t_since_start = (t-pd.Timestamp(2021, 5, 1)).days
+                        feb_policy = self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                        sloped_policy = feb_policy + \
+                            (t_since_start/slope_duration)*(avg_policy - feb_policy)
+                        return sloped_policy
+                    else:
+                        return avg_policy
         
 ##########################
 ## Seasonality function ##
