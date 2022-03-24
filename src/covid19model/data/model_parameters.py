@@ -248,12 +248,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        p : mobility parameter per region. Only loads when spatial is not None
 
         Spatially stratified parameters
         -------------------------------
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
+        p : mobility rescaling parameter per region. Only loads when spatial is not None. Used for artificial scenario analysis
+        nc : social contact rescaling parameter per region. Only loads when spatial is not None. Used for artificial scenario analysis
 
         Other stratified parameters
         ---------------------------
@@ -454,16 +455,21 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
 
-        # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
+        # Load mobility rescaling parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['place'].shape[0])
         pars_dict['p'] = p
 
         # TDPF parameters
         pars_dict['default_mobility'] = None
 
-        # Add Nc_work and Nc to parameters
+        # Add Nc_work, Nc_home, and Nc to parameters
         pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
         pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
+        pars_dict['Nc_home'] = Nc_dict['home']
+        
+        # Add social contact rescaling parameter
+        nc = np.ones(pars_dict['place'].shape[0])
+        pars_dict['nc'] = nc
 
     return initN, Nc_dict, pars_dict, CORE_samples_dict
 
