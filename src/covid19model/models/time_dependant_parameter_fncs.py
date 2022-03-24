@@ -1195,6 +1195,65 @@ class make_contact_matrix_function():
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 
+    def policies_all_spatial_scenarios(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, scenario):
+        """
+        TDPF for social contact based on policies_all_spatial function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
+        
+        Input
+        -----
+        [same as in policies_all_spatial]
+        
+        scenario : str
+            Either 'S0', 'S1', 'S2', or 'S3'
+        """
+        
+        # validate
+        if scenario not in ['S0', 'S1', 'S2', 'S3']:
+            raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
+        
+        if t < pd.Timestamp(2021, 2, 23):
+            return self.policies_all_spatial(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
+        
+        else:
+            if scenario=='S0':
+                avg_policy = 0
+                for d in range(23):
+                    # average February value
+                    day = pd.Timestamp(2021, 2, 1) + pd.Timedelta(days=d)
+                    avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
+                avg_policy /= 23
+                return avg_policy
+            elif scenario=='S1':
+                if t < pd.Timestamp(2021, 3, 1):
+                    return self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+            elif scenario=='S2':
+                if t < pd.Timestamp(2021, 4, 1):
+                    return self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+            elif scenario=='S3':
+                if t < pd.Timestamp(2021, 5, 1):
+                    return self.policies_all_spatial_scenarios(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+        
     def policies_all_work_only(self, t, states, param, eff_work, mentality):
             '''
             Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
@@ -1221,6 +1280,65 @@ class make_contact_matrix_function():
 
             return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
 
+    def policies_all_work_only_scenarios(self, t, states, param, eff_work, mentality, scenario):
+        """
+        TDPF for social contact based on policies_all_work_only function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
+        
+        Input
+        -----
+        [same as in policies_all_work_only]
+        
+        scenario : str
+            Either 'S0', 'S1', 'S2', or 'S3'
+        """
+        
+        # validate
+        if scenario not in ['S0', 'S1', 'S2', 'S3']:
+            raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
+        
+        if t < pd.Timestamp(2021, 2, 23):
+            return self.policies_all_work_only(t, states, param, eff_work, mentality)
+        
+        else:
+            if scenario=='S0':
+                avg_policy = 0
+                for d in range(23):
+                    # average February value
+                    day = pd.Timestamp(2021, 2, 1) + pd.Timedelta(days=d)
+                    avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
+                avg_policy /= 23
+                return avg_policy
+            elif scenario=='S1':
+                if t < pd.Timestamp(2021, 3, 1):
+                    return self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+            elif scenario=='S2':
+                if t < pd.Timestamp(2021, 4, 1):
+                    return self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+            else:
+                if t < pd.Timestamp(2021, 5, 1):
+                    return self.policies_all_work_only_scenarios(t, states, param, eff_work, mentality, 'S0')
+                else:
+                    avg_policy = 0
+                    for d in range(30):
+                        day = pd.Timestamp(2020, 9, 1) + pd.Timedelta(days=d)
+                        avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
+                    avg_policy /= 30
+                    return avg_policy
+        
 ##########################
 ## Seasonality function ##
 ##########################
