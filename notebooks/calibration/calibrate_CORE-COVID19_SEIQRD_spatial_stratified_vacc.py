@@ -172,9 +172,9 @@ if __name__ == '__main__':
     print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp] #, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
-    states = ["H_in"]#, "R", "R"]
-    weights = [1]#, 1e-4, 1e-4]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    states = ["H_in", "R", "R"]
+    weights = [1, 1, 1]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -240,7 +240,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
