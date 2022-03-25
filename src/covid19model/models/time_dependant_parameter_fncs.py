@@ -1215,18 +1215,19 @@ class make_contact_matrix_function():
         
         # hard-code adaption period for people to switch behaviour
         slope_duration = 60 # days
+        scenario_start = pd.Timestamp(2021, 3, 1)
         
-        if t < pd.Timestamp(2021, 2, 23):
+        if t <= scenario_start:
             return self.policies_all_spatial(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
         
         else:
             if scenario=='S0':
                 avg_policy = 0
-                for d in range(23):
+                for d in range(28):
                     # average February value
                     day = pd.Timestamp(2021, 2, 1) + pd.Timedelta(days=d)
                     avg_policy += self.policies_all_spatial(day, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
-                avg_policy /= 23
+                avg_policy /= 28
                 return avg_policy
             elif scenario=='S1':
                 if t < pd.Timestamp(2021, 3, 1):
@@ -1327,17 +1328,19 @@ class make_contact_matrix_function():
         # hard-code adaption period for people to switch behaviour
         slope_duration = 60 # days
         
-        if t < pd.Timestamp(2021, 2, 23):
+        scenario_start = pd.Timestamp(2021, 3, 1)
+        
+        if t <= scenario_start:
             return self.policies_all_work_only(t, states, param, eff_work, mentality)
         
         else:
             if scenario=='S0':
                 avg_policy = 0
-                for d in range(23):
+                for d in range(28):
                     # average February value
                     day = pd.Timestamp(2021, 2, 1) + pd.Timedelta(days=d)
                     avg_policy += self.policies_all_work_only(day, states, param, eff_work, mentality)
-                avg_policy /= 23
+                avg_policy /= 28
                 return avg_policy
             elif scenario=='S1':
                 if t < pd.Timestamp(2021, 3, 1):
