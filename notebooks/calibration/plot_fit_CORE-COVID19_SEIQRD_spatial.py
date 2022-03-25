@@ -116,7 +116,8 @@ model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(ag
 model.parameters['zeta'] = 0.003
 model.parameters['l1'] = 21
 model.parameters['l2'] = 14
-model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
+#https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
+model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
 try:
     dispersion = np.mean(samples_dict['dispersion'])
 except:
