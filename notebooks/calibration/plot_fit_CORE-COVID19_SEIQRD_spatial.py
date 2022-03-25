@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
@@ -66,7 +66,7 @@ agg = args.agg
 
 # Start and end of simulation
 start_sim = '2020-09-01'
-end_sim = '2021-10-01'
+end_sim = '2022-01-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -113,9 +113,15 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['l1'] = 14
+model.parameters['zeta'] = 0.003
+model.parameters['l1'] = 21
 model.parameters['l2'] = 14
-model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
+#https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
+model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
+try:
+    dispersion = np.mean(samples_dict['dispersion'])
+except:
+    dispersion = 1e-6
 
 #######################
 ## Sampling function ##
@@ -136,7 +142,7 @@ def draw_fcn(param_dict,samples_dict):
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]
+    #param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Hospitalization
     # ---------------
@@ -184,8 +190,10 @@ print('2) Visualizing regional fit')
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-mean, median, lower, upper = add_poisson(out['H_in'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
+mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
 ax[0].plot(simtime, mean, '--', color='blue')
+ax[0].fill_between(simtime, lower, upper, alpha=0.1, color='blue')
+mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/np.sum(np.sum(initN,axis=0))*100000
 ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
 ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax[0].set_title('Belgium')
@@ -207,9 +215,11 @@ for idx,NIS_list in enumerate(NIS_lists):
         data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
         pop = pop + sum(initN.loc[NIS].values)
 
-    mean, median, lower, upper = add_poisson(aggregate, args.n_draws_per_sample)/pop*100000
+    mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample)/pop*100000
 
     ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
+    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.1)
+    mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/pop*100000
     ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
     ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx+1].set_title(title_list[idx])
@@ -228,7 +238,7 @@ print('3) Visualizing provincial fit')
 fig,ax = plt.subplots(nrows=int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coords['place'])/2)+1)]):
     pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -246,7 +256,7 @@ plt.close()
 fig,ax = plt.subplots(nrows=len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1)+1):]):
     pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_poisson(out['H_in'].sel(place=NIS).sum(dim='Nc').values, args.n_draws_per_sample)/pop
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)

@@ -1196,7 +1196,7 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
         # Calculate Nc^gh_ij. It would be more efficient to take this out of the class altogether
         kroneckerG = np.diag(np.ones(G))
         kroneckerG = np.expand_dims(np.expand_dims(kroneckerG, axis=2), axis=2)
-        
+
         # in case Nc is not altered by the time-dependent parameter function, uncomment below
         # used when creating plots in notebooks/scratch/MR-show-effect-of-altering-local-mobility.ipynb
         # NOTE: jit doesn't support if statements, so this is hard-coded *for when Nc has no time-dependent function*
@@ -1205,11 +1205,11 @@ class COVID19_SEIQRD_spatial_rescaling(BaseModel):
         # if Nc_work.ndim == 2: # shape (10, 10)
         # Nc_work = np.expand_dims(Nc_work, axis=0) # shape (1, 10, 10)
         # Nc_home = np.expand_dims(Nc_home, axis=0) # shape (1, 10, 10)
-        
+
         Nc_g_total = np.expand_dims(Nc, axis=1) # shape (11, 1, 10, 10) or (1, 1, 10, 10)
         Nc_g_work = np.expand_dims(Nc_work, axis=0) # shape (1, 11, 10, 10) or (1, 1, 10, 10)
         Nc_bar = kroneckerG * Nc_g_total + (1-kroneckerG) * Nc_g_work # shape (11, 11, 10, 10)
-        
+
         # used when creating plots in notebooks/scratch/MR-show-effect-of-altering-local-mobility.ipynb
         # Define rescaled social contact tensor Nc_bar from user-defined parameter nc[patch]
         # IMPORTANT: ONLY WORKS WHEN Nc_work = Nc WHEN INITIALISING THE MODEL (no distinction between being in home province vs. visiting)

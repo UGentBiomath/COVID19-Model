@@ -375,7 +375,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
-    pars_dict['dhospital'] = 7.543
+    pars_dict['dhospital'] = 6.4 #7.543
 
     #################
     ## Seasonality ##
@@ -507,20 +507,24 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.61, 1.61*1.69, 1.61*1.69*0.30]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.40, 1.40*1.50, 1.40*1.50*1.80]
 
-    # Define vaccination properties                 0    1    2      W     B
-    VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
-                                                   [0, 0.48, 0.94, 0.48, 0.94], # alpha
-                                                   [0, 0.62, 0.80, 0.45, 0.91],# delta
+    # Define vaccination properties  
+    # Figures for e_s, e_i for WT, alpha, delta and 2 doses + waned from Toon Braeye
+    # 1 dose efficacies = 2 doses divided by 2
+    # Boosted vaccine efficacies = 2 doses efficacies
+    #                                               0    1    2      W     B
+    VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.84/2, 0.84, 0.68, 0.84],  # WT
+                                                   [0, 0.84/2, 0.84, 0.68, 0.84], # alpha
+                                                   [0, 0.72/2, 0.72, 0.55, 0.72],# delta
                                                    [0, 0.342, 0.441, 0.248, 0.659]]  # omicron
 
-    VOC_parameters['vaccine_properties', 'e_h'] = [[0, 0.90, 0.95, 0.90, 0.95],  # WT
-                                                   [0, 0.90, 0.95, 0.90, 0.95], # alpha
-                                                   [0, 0.92, 0.96, 0.842, 0.99], # delta
+    VOC_parameters['vaccine_properties', 'e_h'] = [[0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32],  # WT
+                                                   [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32], # alpha
+                                                   [0, (1-0.32)/2, 1-0.18, 1-0.11, 1-0.18], # delta
                                                    [0, 0.767, 0.837, 0.676, 0.933]]  # omicron
 
-    VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.225, 0.45, 0.225, 0.45],  # WT
-                                                   [0, 0.225, 0.45, 0.225, 0.45], # alpha
-                                                   [0, 0.24, 0.37, 0.24, 0.37], # delta
+    VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.70/2, 0.70, 0.33, 0.70],  # WT
+                                                   [0, 0.70/2, 0.70, 0.33, 0.70], # alpha
+                                                   [0, 0.41/2, 0.41, 0.17, 0.41], # delta
                                                    [0, 0.24, 0.37, 0.24, 0.37]]  # omicron
 
     ##############################################################

@@ -758,8 +758,8 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
             df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'NIS', 'age', 'dose']).first()
 
     return df
-
-# help function for get_vaccination_rescaling_values if update==True (1/2)
+        
+    # help function for get_vaccination_rescaling_values if update==True (1/2)
 def waning_exp_delay(days, onset_days, E_init, E_best, E_waned):
     """
     Function that implements time-dependence of vaccine effect based on the time it takes for the vaccine to linearly reach full efficacy, and a subsequent asymptotic waning of the vaccine.
