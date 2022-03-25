@@ -31,7 +31,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, ll_poisson, MLE
+from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, prior_normal, ll_poisson, MLE
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
@@ -134,10 +134,12 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['l1'] = 14
+model.parameters['zeta'] = 0.003
+model.parameters['l1'] = 21
 model.parameters['l2'] = 14
-model.parameters['K_hosp'] = np.array([1.61,1.61], np.float64)
-#model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_stratified_vacc(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
+# alpha variant: https://pubmed.ncbi.nlm.nih.gov/34487522/
+# alpha vs delta variant: https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00475-8/fulltext, https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext#sec1
+model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -167,7 +169,7 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 20
+    print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp] #, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
@@ -194,35 +196,36 @@ if __name__ == '__main__':
     #bounds2=((1,21), (1,21))
     # Effectivity parameters
     pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99),(0.03,0.99))
+    bounds3=((0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95))
     # Variants
     pars4 = ['K_inf',]
-    # Must supply the bounds
-    bounds4 = ((1.30,1.70),(1.70,2.4))
+    bounds4 = ((1.40, 1.80),(1.65,2.20))
     # Seasonality
     pars5 = ['amplitude',]
-    bounds5 = ((0,0.40),)
+    bounds5 = ((0,0.35),)
     # Waning antibody immunity
     pars6 = ['zeta',]
     bounds6 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars3 + pars4 + pars5 
-    bounds = bounds1 + bounds3 + bounds4 + bounds5
-    
+    pars = pars1 + pars3 + pars4 + pars5
+    bounds = bounds1 + bounds3 + bounds4 + bounds5 
+    # Add dispersion for negative binomial estimator
+
     # Perform PSO optimization
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='poisson',
+    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
-    model.parameters['zeta'] = 0.003
-    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.47, 0.49, 0.35, 0.4, 1.7, 2.0, 0.2] # Alpha variant is much too contagious --> check sensitivity influence first vacc dose efficacy
-    
+    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.5, 0.5, 0.32, 0.4, 1.62, 1.70, 0.23] # this has a more balanced work-leisure ratio to start things off (calibration 2022-03-24, enddate 2021-10-01, K_hosp=[1.62, 1.62+0.07])
+    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.197] # result of calibration 2022-03-24
+
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
-        
-    step = [0.05, 0.05, 0.05, 0.3, 0.3, 0.3, 0.3, 0.3, 0.1, 0.1]
-    step = 11*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', agg)
-    #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2)-1)
+    
+    #theta.append(0.20)
+    step = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
+    step = 12*[0.05,]
+    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup, 'negative_binomial', 'auto', agg)
+    #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2))
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -306,19 +309,34 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.10, 0.10, 0.10]
+    pert1=[0.05, 0.05, 0.05]
     # pars2 = ['l1', 'l2']
     #pert2=[0.10, 0.10]
     # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.80, 0.50, 0.50, 0.50, 0.50]
-    # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4=[0.10, 0.10]
+    pert3=[0.20, 0.20, 0.20, 0.20, 0.20]
+    # pars5 = ['K_inf_abc', 'K_inf_delta']
+    pert4 = [0.10, 0.10]
     # pars5 = ['amplitude']
-    pert5 = [0.80,] 
+    pert5 = [0.20,] 
     # pars6 = ['zeta']
-    pert6 = [0.20,]     
+    pert6 = [0.10,]     
     # Add them together
     pert = pert1 + pert3 + pert4 + pert5
+
+    # Labels for traceplots
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
+                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
+                '$K_{inf, abc}$', '$K_{inf, delta}$', \
+                '$A$']
+
+    # Append the dispersion parameter for the negative binomial
+    theta += [2e-1,]
+    pert += [0.1,]
+    labels += ['dispersion',]
+    pars += ['dispersion',]
+    log_prior_fcn += [prior_uniform,]
+    bounds += ((1e-4,0.30),) # mu, stdev
+    log_prior_fcn_args = bounds
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
@@ -330,17 +348,11 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
 
-    # Labels for traceplots
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
-                '$K_{inf, abc}$', '$K_{inf, delta}$', \
-                '$A$']
-
     # Arguments of chosen objective function
     objective_fcn = objective_fcns.log_probability
     objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
     objective_fcn_kwargs = {'weights': weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                            'warmup':warmup, 'dist':'poisson', 'poisson_offset':poisson_offset, 'agg':agg}
+                            'warmup':warmup, 'dist':'negative_binomial', 'poisson_offset':poisson_offset, 'agg':agg}
 
     ######################
     ## Run MCMC sampler ##
