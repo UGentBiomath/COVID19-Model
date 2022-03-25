@@ -374,7 +374,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
-    pars_dict['dhospital'] = 7.543
+    pars_dict['dhospital'] = 6.4 #7.543
 
     #################
     ## Seasonality ##
@@ -498,7 +498,6 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    # alpha variant: https://pubmed.ncbi.nlm.nih.gov/34487522/
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.61, 1.61*1.69, 1.61*1.69*0.30]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.40, 1.40*1.50, 1.40*1.50*1.80]
 
