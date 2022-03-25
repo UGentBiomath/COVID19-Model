@@ -324,7 +324,12 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
     params.update(VOC_params)
     # Load and format local vaccination-induced rescaling data, which is also under the sciensano object
-    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True)
+    public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
+    # Tryout rescaling
+    from covid19model.models.time_dependant_parameter_fncs import make_vaccination_function
+    df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=False, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
+
 
     ###################
     ## TO DO: REMOVE ##
@@ -842,7 +847,7 @@ def draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc(param_dict,samples_dict):
 
     return param_dict
 
-def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
     A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
     and format the model output in a pandas dataframe for easy acces
@@ -856,6 +861,9 @@ def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.
 
     states : xarray
         Model states on which to add the a-posteriori poisson uncertainty
+
+    alpha: float
+        Overdispersion factor of the negative binomial distribution. For alpha --> 0, the negative binomial converges to the poisson distribution.
 
     n_draws_per_sample : int
         Number of poisson experiments to be added to each simulated trajectory (default: 1)
@@ -908,14 +916,42 @@ def output_to_visuals(output, states, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.
         for dimension in output.dims:
             if ((dimension != 'time') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
-        # Add Poisson draws
-        mean, median, lower, upper = add_poisson(copy[state_name].values, n_draws_per_sample, UL, LL)
+        mean, median, lower, upper = add_negative_binomial(copy[state_name].values, alpha, n_draws_per_sample, UL, LL)
         # Add to dataframe
         df[state_name,'mean'] = mean
         df[state_name,'median'] = median
         df[state_name,'lower'] = lower
         df[state_name,'upper'] = upper
     return df
+
+def add_negative_binomial(output_array, alpha, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+    """ A function to add a-posteriori negative binomial uncertainty on the relationship between the model output and data
+    # TODO: add description
+    https://distribution-explorer.github.io/discrete/negative_binomial.html
+    """
+
+    # Determine number of samples and number of timesteps
+    simtime = output_array.shape[1]
+    n_samples = output_array.shape[0]
+    # Initialize a column vector to append to
+    vector = np.zeros((simtime,1))
+    # Loop over dimension draws
+    for n in range(n_samples):
+        try:
+            for draw in range(n_draws_per_sample):
+                vector = np.append(vector, np.expand_dims(np.random.negative_binomial(1/alpha, (1/alpha)/(output_array[n,:] + (1/alpha)), size = output_array.shape[1]), axis=1), axis=1)
+        except:
+            warnings.warn("I had to remove a simulation result from the output because there was a negative value in it..")
+    # Remove first column
+    vector = np.delete(vector, 0, axis=1)
+    #  Compute mean and median
+    mean = np.mean(vector,axis=1)
+    median = np.median(vector,axis=1)    
+    # Compute quantiles
+    lower = np.quantile(vector, q = LL, axis = 1)
+    upper = np.quantile(vector, q = UL, axis = 1)
+
+    return mean, median, lower, upper
 
 def add_poisson(output_array, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """ A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data

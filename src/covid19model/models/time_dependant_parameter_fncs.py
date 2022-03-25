@@ -306,7 +306,7 @@ class make_vaccination_function():
             else:
                 iterables += [age_classes]
         index = pd.MultiIndex.from_product(iterables, names=self.df.index.names)
-        self.new_df = pd.Series(index=index)
+        self.new_df = pd.Series(index=index, dtype=float)
 
         # Four possibilities exist: can this be sped up?
         if self.spatial:
@@ -524,18 +524,12 @@ class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
     
-    TO DO
-    -----
-    
-    vacc_data_cum and vacc_data_inc are currently loaded very slowly. This can be vastly improved.
+    Note: dimensions G (provinces) and N (ages) are hard-coded to (G,N)=(11,10)
     
     Input
     -----
     rescaling_df : pd.DataFrame
-        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values()
-        
-    spatial : Boolean
-        if True: return provincially stratified rescaling values. False by default, returning nationally aggregated data.
+        Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values(). Spatial aggregation depends on this input.
     
     Output
     ------
@@ -544,13 +538,22 @@ class make_vaccination_rescaling_function():
     
     Example use
     -----------
-
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True)
+    E_susc_function = make_vaccination_rescaling_function(rescaling_df).E_susc
+    E_inf_function = make_vaccination_rescaling_function(rescaling_df).E_inf
+    E_hosp_function = make_vaccination_rescaling_function(rescaling_df).E_hosp
+    E_susc_function(pd.Timestamp(2021, 10, 1), 0, 0)
     
     """
     
     def __init__(self, rescaling_df):
         self.rescaling_df = rescaling_df
-        self.available_dates = rescaling_df.reset_index().date.unique() # assumes chronological order
+        self.available_dates = rescaling_df.reset_index().set_index('date').sort_index().index.unique() # demands chronological order
+        # Check whether data is spatially explicit
+        self.spatial=False
+        if 'NIS' in self.rescaling_df.reset_index().columns:
+            self.spatial=True
+        
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, rescaling_type):
@@ -572,6 +575,7 @@ class make_vaccination_rescaling_function():
             Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
         """
         
+        # hard-coded dimensions
         G = 11
         N = 10
         
@@ -583,27 +587,38 @@ class make_vaccination_rescaling_function():
         
         if t <= self.available_dates[0]:
             # Take unity matrix
-            E = np.ones([G,N])
+            if self.spatial:
+                E = np.ones([G,N])
+            else:
+                E = np.ones(N)
             
         elif t < self.available_dates[-1]:
             # Take interpolation between to dates for which data is available
             t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
             t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
             
-            E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E_first = np.reshape(E_values_first, (G,N))
-            
-            E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E_second = np.reshape(E_values_second, (G,N))
-            
+            if self.spatial:
+                E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_first = np.reshape(E_values_first, (G,N))
+
+                E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_second = np.reshape(E_values_second, (G,N))
+                
+            else:
+                E_first = self.rescaling_df.loc[t_data_first, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_second = self.rescaling_df.loc[t_data_second, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
             
         elif t >= self.available_dates[-1]:
             # Take latest data point
             t_data = pd.Timestamp(self.available_dates[-1])
-            E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-            E = np.reshape(E_values, (G,N))
+            if self.spatial:
+                E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E = np.reshape(E_values, (G,N))
+            else:
+                E = self.rescaling_df.loc[t_data, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
         
         return E
     
@@ -615,7 +630,7 @@ class make_vaccination_rescaling_function():
     
     def E_hosp(self, t, states, param):
         return self.__call__(t, 'hosp')
-    
+        
                 
 ###################################
 ## Google social policy function ##
@@ -1012,7 +1027,7 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -1030,32 +1045,33 @@ class make_contact_matrix_function():
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t18 = pd.Timestamp('2021-06-01') # Start of relaxations
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+        t20 = pd.Timestamp('2021-08-01') # End of easing on mentality
 
         # Define key dates of winter 2021-2022
-        t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
-        t21 = pd.Timestamp('2021-09-21') # Opening of universities
-        t22 = pd.Timestamp('2021-10-01') # Flanders releases all measures
-        t23 = pd.Timestamp('2021-11-01') # Start of autumn break
-        t24 = pd.Timestamp('2021-11-07') # End of autumn break
-        t25 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-        t26 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-        t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
-        t28 = pd.Timestamp('2022-01-10') # End of Christmass break
-        t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t30 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t32 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t21 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t22 = pd.Timestamp('2021-09-21') # Opening of universities
+        t23 = pd.Timestamp('2021-10-01') # Flanders releases all measures
+        t24 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t25 = pd.Timestamp('2021-11-07') # End of autumn break
+        t26 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+        t27 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+        t28 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
+        t29 = pd.Timestamp('2022-01-10') # End of Christmass break
+        t30 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t31 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t32 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t33 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t34 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        mentality_summer_2020_lockdown = np.array([0.85, 0.5, # F
-                                                0.5, # W
-                                                0.85, # Bxl
-                                                0.4, 0.85, # F
-                                                1, 1, # W
-                                                0.5, # F
-                                                0.5, 0.5]) # W
+        mentality_summer_2020_lockdown = np.array([2.5*mentality, mentality, # F
+                                                2*mentality, # W
+                                                2*mentality, # Bxl
+                                                0.5*mentality, 2.5*mentality, # F
+                                                3*mentality, 3*mentality, # W
+                                                0.5*mentality, # F
+                                                1.5*mentality, 2*mentality]) # W
 
         co_F = 1
         co_W = 1
@@ -1148,34 +1164,36 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t22 < t <= t23:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+        elif t23 < t <= t24:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
-        elif t23 < t <= t24:    
+        elif t24 < t <= t25:    
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=0)  
-        elif t24 < t <= t25:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
         elif t25 < t <= t26:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
+        elif t26 < t <= t27:
             # Gradual re-introduction of mentality change during overlegcommites
-            l = (t26 - t25)/pd.Timedelta(days=1)
+            l = (t27 - t26)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t25, l)
-        elif t26 < t <= t27:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t26, l)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-        elif t28 < t <= t29:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+        elif t28 < t <= t29:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
         elif t32 < t <= t33:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+        elif t33 < t <= t34:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
