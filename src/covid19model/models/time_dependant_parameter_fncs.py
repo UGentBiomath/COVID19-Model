@@ -1027,7 +1027,7 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -1045,22 +1045,23 @@ class make_contact_matrix_function():
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
         t18 = pd.Timestamp('2021-06-01') # Start of relaxations
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
+        t20 = pd.Timestamp('2021-08-01') # End of easing on mentality
 
         # Define key dates of winter 2021-2022
-        t20 = pd.Timestamp('2021-09-01') # End of Summer holiday
-        t21 = pd.Timestamp('2021-09-21') # Opening of universities
-        t22 = pd.Timestamp('2021-10-01') # Flanders releases all measures
-        t23 = pd.Timestamp('2021-11-01') # Start of autumn break
-        t24 = pd.Timestamp('2021-11-07') # End of autumn break
-        t25 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-        t26 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-        t27 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
-        t28 = pd.Timestamp('2022-01-10') # End of Christmass break
-        t29 = pd.Timestamp('2022-02-28') # Start of Spring Break
-        t30 = pd.Timestamp('2022-03-06') # End of Spring Break
-        t31 = pd.Timestamp('2022-04-04') # Start of Easter Break
-        t32 = pd.Timestamp('2022-04-17') # End of Easter Break
-        t33 = pd.Timestamp('2022-07-01') # Start of summer holidays
+        t21 = pd.Timestamp('2021-09-01') # End of Summer holiday
+        t22 = pd.Timestamp('2021-09-21') # Opening of universities
+        t23 = pd.Timestamp('2021-10-01') # Flanders releases all measures
+        t24 = pd.Timestamp('2021-11-01') # Start of autumn break
+        t25 = pd.Timestamp('2021-11-07') # End of autumn break
+        t26 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+        t27 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+        t28 = pd.Timestamp('2021-12-20') # Start of Christmass break (one week earlier than normal)
+        t29 = pd.Timestamp('2022-01-10') # End of Christmass break
+        t30 = pd.Timestamp('2022-02-28') # Start of Spring Break
+        t31 = pd.Timestamp('2022-03-06') # End of Spring Break
+        t32 = pd.Timestamp('2022-04-04') # Start of Easter Break
+        t33 = pd.Timestamp('2022-04-17') # End of Easter Break
+        t34 = pd.Timestamp('2022-07-01') # Start of summer holidays
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
@@ -1068,7 +1069,7 @@ class make_contact_matrix_function():
                                                 2*mentality, # W
                                                 2*mentality, # Bxl
                                                 0.5*mentality, 2.5*mentality, # F
-                                                4*mentality, 3.5*mentality, # W
+                                                3*mentality, 3*mentality, # W
                                                 0.5*mentality, # F
                                                 1.5*mentality, 2*mentality]) # W
 
@@ -1163,34 +1164,36 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t22 < t <= t23:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+        elif t23 < t <= t24:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
-        elif t23 < t <= t24:    
+        elif t24 < t <= t25:    
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=0)  
-        elif t24 < t <= t25:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
         elif t25 < t <= t26:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
+        elif t26 < t <= t27:
             # Gradual re-introduction of mentality change during overlegcommites
-            l = (t26 - t25)/pd.Timedelta(days=1)
+            l = (t27 - t26)/pd.Timedelta(days=1)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t25, l)
-        elif t26 < t <= t27:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t26, l)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-        elif t28 < t <= t29:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+        elif t28 < t <= t29:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
         elif t32 < t <= t33:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+        elif t33 < t <= t34:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
