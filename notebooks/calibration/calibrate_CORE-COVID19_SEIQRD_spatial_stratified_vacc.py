@@ -215,7 +215,7 @@ if __name__ == '__main__':
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
     theta = [0.0267, 0.0257, 0.0337, 0.1, 0.5, 0.5, 0.32, 0.4, 1.62, 1.70, 0.23] # this has a more balanced work-leisure ratio to start things off (calibration 2022-03-24, enddate 2021-10-01, K_hosp=[1.62, 1.62+0.07])
-    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.197] # result of calibration 2022-03-24
+    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263] # result of calibration 2022-03-24
 
     ####################################
     ## Local Nelder-mead optimization ##
