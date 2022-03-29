@@ -355,7 +355,7 @@ class log_posterior_probability():
     @staticmethod
     def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, thetas_log_likelihood_extra_args, n_log_likelihood_extra_args):
     
-        MLE=0
+        total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
             # TODO: sum pd.Dataframe over all dimensions except date and NIS
@@ -369,8 +369,7 @@ class log_posterior_probability():
                             if ((dimension != 'time') & (dimension != 'place')):
                                 new_xarray = new_xarray.sum(dim=dimension)
                         ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                        MLE_add = weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
-                        MLE += MLE_add
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
                 else:
                     # National data
                     new_xarray = out[states[idx]]
@@ -378,9 +377,9 @@ class log_posterior_probability():
                         if dimension != 'time':
                             new_xarray = new_xarray.sum(dim=dimension)
                     ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                    MLE += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]]) 
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]]) 
 
-        return MLE
+        return total_ll
 
     def __call__(self, thetas, simulation_kwargs={}):
                 
