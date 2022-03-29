@@ -370,6 +370,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ###################################
 
     # Other parameters
+    pars_dict['l1'] = 21
+    pars_dict['l2'] = 14
     pars_dict['da'] = 7
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
@@ -395,8 +397,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             open(os.path.join(samples_path, core_dict_name)))
         pars_dict.update({
             'beta': np.mean(CORE_samples_dict['beta']),
-            'l1': np.mean(CORE_samples_dict['l1']),
-            'l2': np.mean(CORE_samples_dict['l2']),
+            #'l1': np.mean(CORE_samples_dict['l1']),
+            #'l2': np.mean(CORE_samples_dict['l2']),
             'zeta': np.mean(CORE_samples_dict['zeta']),
             'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
             'eff_work': np.mean(CORE_samples_dict['eff_work']),
@@ -416,8 +418,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'beta_U': np.mean(CORE_samples_dict['beta_U']),
             'beta_M': np.mean(CORE_samples_dict['beta_M']),
             'zeta': np.mean(CORE_samples_dict['zeta']),
-            'l1': np.mean(CORE_samples_dict['l1']),
-            'l2': np.mean(CORE_samples_dict['l2']),
+            #'l1': np.mean(CORE_samples_dict['l1']),
+            #'l2': np.mean(CORE_samples_dict['l2']),
             'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
             'eff_work': np.mean(CORE_samples_dict['eff_work']),
             'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
