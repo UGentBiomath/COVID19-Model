@@ -2,6 +2,7 @@ import gc
 import os
 import sys
 import emcee
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, get_context
@@ -14,7 +15,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, processes, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, processes, agg=None, progress=True):
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -24,7 +25,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     else:
         fig_path_agg = f'{fig_path}/national/'
         samples_path_agg = f'{samples_path}/national/'
-    
+    # Determine data of calibration
+    run_date = str(datetime.date.today())
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -176,7 +178,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-from .objective_fcns import thetas_to_model_pars
+from .objective_fcns import thetas_to_thetas_dict
 def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
@@ -211,7 +213,7 @@ def assign_PSO(param_dict, parNames, thetas):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    thetas_dict = thetas_to_model_pars(thetas, parNames, param_dict)
+    thetas_dict,n = thetas_to_thetas_dict(thetas, parNames, param_dict)
     for i, (param,value) in enumerate(thetas_dict.items()):
         if param == 'warmup':
             warmup = int(round(value))
