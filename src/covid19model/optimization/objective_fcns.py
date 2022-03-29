@@ -130,23 +130,23 @@ def ll_negative_binomial(ymodel, ydata, alpha):
 
     return ll
 
-#################################
-## Prior probability functions ##
-#################################
+#####################################
+## Log prior probability functions ##
+#####################################
 
-def prior_uniform(x, bounds):
+def log_prior_uniform(x, bounds):
     """ Uniform prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     bounds: tuple
         Tuple containg the upper and lower bounds of the parameter value.
 
     Returns
     -------
-    Log likelihood of sample x in light of a uniform prior distribution.
+    Log probability of sample x in light of a uniform prior distribution.
 
     """
     prob = 1/(bounds[1]-bounds[0])
@@ -157,20 +157,20 @@ def prior_uniform(x, bounds):
     else:
         return -np.inf
 
-def prior_custom(x, args):
-    """ Custom prior distribution: computes the likelihood of a sample in light of a list containing samples from a previous MCMC run
+def log_prior_custom(x, args):
+    """ Custom prior distribution: computes the probability of a sample in light of a list containing samples from a previous MCMC run
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     args: tuple
         Tuple containg the density of each bin in the first position and the bounds of the bins in the second position.
         Contains a weight given to the custom prior in the third position of the tuple.
 
     Returns
     -------
-    Log likelihood of sample x in light of a list with previously sampled parameter values.
+    Log probability of sample x in light of a list with previously sampled parameter values.
 
     Example use:
     ------------
@@ -188,73 +188,73 @@ def prior_custom(x, args):
         idx = np.digitize(x, bins)
         return weight*np.log(density[idx-1])
 
-def prior_normal(x,norm_params):
+def log_prior_normal(x,norm_params):
     """ Normal prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     norm_params: tuple
         Tuple containg mu and stdev.
 
     Returns
     -------
-    Log likelihood of sample x in light of a normal prior distribution.
+    Log probability of sample x in light of a normal prior distribution.
 
     """
     mu,stdev=norm_params
     return np.sum(norm.logpdf(x, loc = mu, scale = stdev))
 
-def prior_triangle(x,triangle_params):
+def log_prior_triangle(x,triangle_params):
     """ Triangle prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     triangle_params: tuple
         Tuple containg lower bound, upper bound and mode of the triangle distribution.
 
     Returns
     -------
-    Log likelihood of sample x in light of a triangle prior distribution.
+    Log probability of sample x in light of a triangle prior distribution.
 
     """
     low,high,mode = triangle_params
     return triang.logpdf(x, loc=low, scale=high, c=mode)
 
-def prior_gamma(x,gamma_params):
+def log_prior_gamma(x,gamma_params):
     """ Gamma prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     gamma_params: tuple
         Tuple containg gamma parameters alpha and beta.
 
     Returns
     -------
-    Log likelihood of sample x in light of a gamma prior distribution.
+    Log probability of sample x in light of a gamma prior distribution.
 
     """
     a,b = gamma_params
     return gamma.logpdf(x, a=a, scale=1/b)
 
-def prior_weibull(x,weibull_params):
+def log_prior_weibull(x,weibull_params):
     """ Weibull prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     weibull_params: tuple
         Tuple containg weibull parameters k and lambda.
 
     Returns
     -------
-    Log likelihood of sample x in light of a weibull prior distribution.
+    Log probability of sample x in light of a weibull prior distribution.
 
     """
     k,lam = weibull_params
@@ -265,10 +265,9 @@ def prior_weibull(x,weibull_params):
 #############################################
 
 class log_posterior_probability():
-
+    """ info
+    """
     def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, weights):
-        """ info
-        """
 
         # Some inputs must have the same length
         if any(len(lst) != len(log_prior_prob_fnc) for lst in [log_prior_prob_fnc_args]):
@@ -412,5 +411,5 @@ class log_posterior_probability():
 
         # Compute log likelihood
         lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, thetas_log_likelihood_extra_args, self.n_log_likelihood_extra_args)
-        print(lp)
+
         return lp

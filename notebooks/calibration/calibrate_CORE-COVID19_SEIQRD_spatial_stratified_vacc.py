@@ -31,7 +31,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
-from covid19model.optimization.objective_fcns import prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -299,9 +299,9 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Define simple uniform priors based on the PSO bounds
-    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
+    log_prior_fcn = [log_prior_uniform,log_prior_uniform, log_prior_uniform, log_prior_uniform, \
+                        log_prior_uniform, log_prior_uniform, log_prior_uniform, log_prior_uniform, \
+                        log_prior_uniform, log_prior_uniform, log_prior_uniform, log_prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     pert += [0.1,]
     labels += ['dispersion',]
     #pars += ['dispersion',]
-    log_prior_fcn += [prior_uniform,]
+    log_prior_fcn += [log_prior_uniform,]
     bounds += ((1e-4,0.30),) # mu, stdev
     log_prior_fcn_args = bounds
 
