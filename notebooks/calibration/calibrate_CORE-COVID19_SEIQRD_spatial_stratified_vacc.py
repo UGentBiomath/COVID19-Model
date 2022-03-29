@@ -163,7 +163,7 @@ if __name__ == '__main__':
         end_calibration = str(args.enddate)
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 4
+    multiplier_pso = 5
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
@@ -172,10 +172,10 @@ if __name__ == '__main__':
     print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:15]]
     states = ["H_in", "R", "R"]
-    weights = [1, 1e-3, 1e-3] # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fcn = [ll_negative_binomial, ll_poisson, ll_poisson]
+    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -204,29 +204,36 @@ if __name__ == '__main__':
     bounds4 = ((0,0.35),)
     # Waning antibody immunity
     pars5 = ['zeta',]
-    bounds5 = ((1e-6,1e-2),)
+    bounds5 = ((1e-4,5e-3),)
+    # Overdispersion of statistical model
+    bounds6 = ((1e-4,0.30),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
-
-    # Perform PSO optimization
-    #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
-    #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
+    # Setup objective function without priors and with negative weights 
+    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,-weights)
+    # Perform pso
+    #p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
+    #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
     theta = [0.0267, 0.0257, 0.0337, 0.1, 0.5, 0.5, 0.32, 0.4, 1.62, 1.70, 0.23] # this has a more balanced work-leisure ratio to start things off (calibration 2022-03-24, enddate 2021-10-01, K_hosp=[1.62, 1.62+0.07])
-    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.003] # result of calibration 2022-03-24
+    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.0025, 0.197] # result of calibration 2022-03-24
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
     
-    step = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
-    step = 12*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup, 'negative_binomial', 'auto', agg)
-    #sol = nelder_mead(objective_fcns.MLE, np.array(theta), step, f_args, processes=int(mp.cpu_count()/2))
+    # Define objective function
+    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,-weights)
+    # Run Nelder Mead optimization
+    step = len(bounds)*[0.05,]
+    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     #######################################
     ## Visualize fits on multiple levels ##
     #######################################
+
+    # Cut of overdispersion
+    theta = theta[:-1]
 
     if high_performance_computing:
         # Assign estimate.
@@ -237,7 +244,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:15]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -296,13 +303,14 @@ if __name__ == '__main__':
     ## Setup MCMC sampler ##
     ########################
 
+    # Reattach overdispersion
+    theta.append(0.197)
+
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Define simple uniform priors based on the PSO bounds
-    log_prior_fcn = [log_prior_uniform,log_prior_uniform, log_prior_uniform, log_prior_uniform, \
-                        log_prior_uniform, log_prior_uniform, log_prior_uniform, log_prior_uniform, \
-                        log_prior_uniform, log_prior_uniform, log_prior_uniform, log_prior_uniform]
-    log_prior_fcn_args = bounds
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
@@ -314,28 +322,22 @@ if __name__ == '__main__':
     # pars4 = ['amplitude']
     pert4 = [0.20,] 
     # pars5 = ['zeta']
-    pert5 = [0.10,]     
+    pert5 = [0.10,]
+    # overdispersion
+    pert6 = [0.10, ]     
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5 
+    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
 
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$', \
-                '$\zeta$']
-
-    # Append the dispersion parameter for the negative binomial
-    theta += [2e-1,]
-    pert += [0.1,]
-    labels += ['dispersion',]
-    #pars += ['dispersion',]
-    log_prior_fcn += [log_prior_uniform,]
-    bounds += ((1e-4,0.30),) # mu, stdev
-    log_prior_fcn_args = bounds
+                '$\zeta$',
+                'overdispersion']
 
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fcn_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
 
     # Set up the sampler backend if needed
     if backend:
@@ -345,10 +347,7 @@ if __name__ == '__main__':
         backend.reset(nwalkers, ndim)
 
     # initialize objective function
-    objective_function = log_posterior_probability(log_prior_fcn,log_prior_fcn_args,model,pars,data,states,log_likelihood_fcn,weights)
-    objective_function_args=()
-    objective_function_kwargs={}
-    objective_function(theta)
+    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,weights)
 
     ######################
     ## Run MCMC sampler ##
@@ -357,7 +356,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, objective_function_args, objective_function_kwargs, backend, identifier, processes, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes, agg=agg)
 
     #####################
     ## Process results ##
