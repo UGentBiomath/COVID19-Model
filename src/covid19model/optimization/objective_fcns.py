@@ -380,7 +380,7 @@ class log_posterior_probability():
                     ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
                     MLE += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]]) 
 
-        return -MLE
+        return MLE
 
     def __call__(self, thetas, simulation_kwargs={}):
                 
