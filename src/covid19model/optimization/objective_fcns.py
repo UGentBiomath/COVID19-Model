@@ -91,10 +91,12 @@ def ll_poisson(ymodel, ydata):
 
 def ll_negative_binomial(ymodel, ydata, alpha):
     """Loglikelihood of negative binomial distribution
-        https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
-        https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
-        https://www2.karlin.mff.cuni.cz/~pesta/NMFM404/NB.html
-        https://www.jstor.org/stable/pdf/2532104.pdf
+
+    https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
+    https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
+    https://www2.karlin.mff.cuni.cz/~pesta/NMFM404/NB.html
+    https://www.jstor.org/stable/pdf/2532104.pdf
+
     Parameters
     ----------
     ymodel: list of floats
@@ -135,7 +137,7 @@ def ll_negative_binomial(ymodel, ydata, alpha):
 #####################################
 
 def log_prior_uniform(x, bounds):
-    """ Uniform prior distribution
+    """ Uniform log prior distribution
 
     Parameters
     ----------
@@ -158,7 +160,7 @@ def log_prior_uniform(x, bounds):
         return -np.inf
 
 def log_prior_custom(x, args):
-    """ Custom prior distribution: computes the probability of a sample in light of a list containing samples from a previous MCMC run
+    """ Custom log prior distribution: computes the probability of a sample in light of a list containing samples from a previous MCMC run
 
     Parameters
     ----------
@@ -189,7 +191,7 @@ def log_prior_custom(x, args):
         return weight*np.log(density[idx-1])
 
 def log_prior_normal(x,norm_params):
-    """ Normal prior distribution
+    """ Normal log prior distribution
 
     Parameters
     ----------
@@ -207,7 +209,7 @@ def log_prior_normal(x,norm_params):
     return np.sum(norm.logpdf(x, loc = mu, scale = stdev))
 
 def log_prior_triangle(x,triangle_params):
-    """ Triangle prior distribution
+    """ Triangle log prior distribution
 
     Parameters
     ----------
@@ -225,7 +227,7 @@ def log_prior_triangle(x,triangle_params):
     return triang.logpdf(x, loc=low, scale=high, c=mode)
 
 def log_prior_gamma(x,gamma_params):
-    """ Gamma prior distribution
+    """ Gamma log prior distribution
 
     Parameters
     ----------
@@ -243,7 +245,7 @@ def log_prior_gamma(x,gamma_params):
     return gamma.logpdf(x, a=a, scale=1/b)
 
 def log_prior_weibull(x,weibull_params):
-    """ Weibull prior distribution
+    """ Weibull log prior distribution
 
     Parameters
     ----------
@@ -265,7 +267,32 @@ def log_prior_weibull(x,weibull_params):
 #############################################
 
 class log_posterior_probability():
-    """ info
+    """ Computation of log posterior probability
+
+    A generic implementation to compute the log posterior probability of a model given some data, computed as the sum of the log prior probabilities and the log likelihoods.
+    The class allows the user to compare model states to multiple datasets, using a different stochastic model (gaussian, poisson, neg. binomial) for each dataset.
+    The user must make sure that the log_likelihood functions provided have: 1) ymodel as their first argument, 2) ydata as their second argument. 
+    The user must make sure that the estimated values of the additional arguments of the log_likelihood functions (f.i. sigma for ll_gaussian) are attached in the respective order at the END of the vector of parameter estimates (theta).
+    
+    # Example: a model has two parameters and we wish to use a negative binomial model to compute the log likelihood of model output in light of data.
+          model pars         alpha
+    theta = [1, 2        |    0.1]
+    
+    # Example: a model has two parameters and we wish to match the model to two datasets. The model-data relationship is described by ll_negative_binomial and ll_gaussian respectively.
+          model pars         alpha            sigma
+    theta = [1, 2        |    0.1,              5]
+    
+    The user must make sure that every additional argument needed by the log_likelihood function has his prior function and arguments defined.
+
+    Example use:
+    ------------
+
+    # initialize class
+    objective_function = log_posterior_probability(log_prior_fcn, log_prior_fcn_args, model, pars, data, states, log_likelihood_fcn, weights)
+
+    # compute log_posterior_probability
+    log_posterior_probability(theta)
+
     """
     def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, weights):
 
@@ -301,10 +328,21 @@ class log_posterior_probability():
         self.start_sim = min(index_min)
         self.end_sim = max(index_max)
 
+        # Check that log_likelihood_fnc always has ymodel as the first argument and ydata as the second argument
         # Find out how many additional arguments are needed for the log_likelihood_fnc (f.i. sigma for gaussian model, alpha for negative binomial)
         n_log_likelihood_extra_args=[]
-        for fnc in log_likelihood_fnc:
-            extra_args = len([arg for arg in list(inspect.signature(fnc).parameters.keys()) if ((arg != 'ymodel')&(arg != 'ydata'))])
+        for idx,fnc in enumerate(log_likelihood_fnc):
+            sig = inspect.signature(fnc)
+            keywords = list(sig.parameters.keys())
+            if keywords[0] != 'ymodel':
+                raise ValueError(
+                "The first parameter of log_likelihood function in position {0} is not equal to 'ymodel' but {1}".format(idx, keywords[0])
+            )
+            if keywords[1] != 'ydata':
+                raise ValueError(
+                "The second parameter of log_likelihood function in position {0} is not equal to 'ymodel' but {1}".format(idx, keywords[1])
+            )
+            extra_args = len([arg for arg in keywords if ((arg != 'ymodel')&(arg != 'ydata'))])
             n_log_likelihood_extra_args.append(extra_args)
         self.n_log_likelihood_extra_args = n_log_likelihood_extra_args
 
@@ -325,6 +363,9 @@ class log_posterior_probability():
 
     @staticmethod
     def compute_log_prior_probability(thetas, log_prior_prob_fnc, log_prior_prob_fnc_args):
+        """
+        Loops over the log_prior_probability functions and their respective arguments to compute the prior probability of every model parameter in theta.
+        """
         lp=[]
         for idx,fnc in enumerate(log_prior_prob_fnc):
             theta = thetas[idx]
@@ -353,6 +394,9 @@ class log_posterior_probability():
 
     @staticmethod
     def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, thetas_log_likelihood_extra_args, n_log_likelihood_extra_args):
+        """
+        Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
+        """
     
         total_ll=0
         # Loop over dataframes
@@ -381,6 +425,9 @@ class log_posterior_probability():
         return total_ll
 
     def __call__(self, thetas, simulation_kwargs={}):
+        """
+        This function manages the internal bookkeeping (assignment of model parameters, model simulation) and then computes and sums the log prior probabilities and log likelihoods to compute the log posterior probability.
+        """
                 
         # Split thetas into thetas for model parameters and thetas for log_likelihood_fcn
         thetas_model_parameters = thetas[:-sum(self.n_log_likelihood_extra_args)]
