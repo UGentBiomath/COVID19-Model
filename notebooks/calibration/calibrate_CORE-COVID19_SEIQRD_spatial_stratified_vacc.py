@@ -31,7 +31,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization import pso, objective_fcns
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform, prior_normal, ll_poisson, MLE
+from covid19model.optimization.objective_fcns import prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
 
@@ -174,7 +174,8 @@ if __name__ == '__main__':
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
-    weights = [1, 1, 1]
+    weights = [1, 1e-3, 1e-3] # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fcn = [ll_negative_binomial, ll_poisson, ll_poisson]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -192,36 +193,32 @@ if __name__ == '__main__':
     pars1 = ['beta_R', 'beta_U', 'beta_M']
     bounds1=((0.005,0.060),(0.005,0.060),(0.005,0.060))
     # Social intertia
-    #pars2 = ['l1',   'l2']
-    #bounds2=((1,21), (1,21))
     # Effectivity parameters
-    pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95))
+    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    bounds2=((0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95),(0.03,0.95))
     # Variants
-    pars4 = ['K_inf',]
-    bounds4 = ((1.40, 1.80),(1.65,2.20))
+    pars3 = ['K_inf',]
+    bounds3 = ((1.40, 1.80),(1.65,2.20))
     # Seasonality
-    pars5 = ['amplitude',]
-    bounds5 = ((0,0.35),)
+    pars4 = ['amplitude',]
+    bounds4 = ((0,0.35),)
     # Waning antibody immunity
-    pars6 = ['zeta',]
-    bounds6 = ((1e-6,1e-2),)
+    pars5 = ['zeta',]
+    bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars3 + pars4 + pars5
-    bounds = bounds1 + bounds3 + bounds4 + bounds5 
-    # Add dispersion for negative binomial estimator
+    pars = pars1 + pars2 + pars3 + pars4 + pars5 
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
 
     # Perform PSO optimization
     #theta = pso.fit_pso(model, data, pars, states, bounds, weights=weights, maxiter=maxiter, popsize=popsize, dist='negative_binomial',
     #                    poisson_offset=poisson_offset, agg=agg, start_date=start_calibration, warmup=warmup, processes=processes)
     theta = [0.0267, 0.0257, 0.0337, 0.1, 0.5, 0.5, 0.32, 0.4, 1.62, 1.70, 0.23] # this has a more balanced work-leisure ratio to start things off (calibration 2022-03-24, enddate 2021-10-01, K_hosp=[1.62, 1.62+0.07])
-    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263] # result of calibration 2022-03-24
+    theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.003] # result of calibration 2022-03-24
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
     
-    #theta.append(0.20)
     step = [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
     step = 12*[0.05,]
     f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup, 'negative_binomial', 'auto', agg)
@@ -250,7 +247,7 @@ if __name__ == '__main__':
         plt.close()
         # Provincial fit
         ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
-        plt.show()
+        plt.show() 
         plt.close()
 
         ####################################
@@ -304,36 +301,35 @@ if __name__ == '__main__':
     # Define simple uniform priors based on the PSO bounds
     log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform, prior_uniform, \
                         prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform]
+                        prior_uniform, prior_uniform, prior_uniform, prior_uniform]
     log_prior_fcn_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.05, 0.05, 0.05]
-    # pars2 = ['l1', 'l2']
-    #pert2=[0.10, 0.10]
-    # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3=[0.20, 0.20, 0.20, 0.20, 0.20]
-    # pars5 = ['K_inf_abc', 'K_inf_delta']
-    pert4 = [0.10, 0.10]
-    # pars5 = ['amplitude']
-    pert5 = [0.20,] 
-    # pars6 = ['zeta']
-    pert6 = [0.10,]     
+    # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    pert2=[0.20, 0.20, 0.20, 0.20, 0.20]
+    # pars3 = ['K_inf_abc', 'K_inf_delta']
+    pert3 = [0.10, 0.10]
+    # pars4 = ['amplitude']
+    pert4 = [0.20,] 
+    # pars5 = ['zeta']
+    pert5 = [0.10,]     
     # Add them together
-    pert = pert1 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4 + pert5 
 
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
-                '$A$']
+                '$A$', \
+                '$\zeta$']
 
     # Append the dispersion parameter for the negative binomial
     theta += [2e-1,]
     pert += [0.1,]
     labels += ['dispersion',]
-    pars += ['dispersion',]
+    #pars += ['dispersion',]
     log_prior_fcn += [prior_uniform,]
     bounds += ((1e-4,0.30),) # mu, stdev
     log_prior_fcn_args = bounds
@@ -348,11 +344,11 @@ if __name__ == '__main__':
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
 
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights': weights, 'draw_fcn':None, 'samples':{}, 'start_date':start_calibration, \
-                            'warmup':warmup, 'dist':'negative_binomial', 'poisson_offset':poisson_offset, 'agg':agg}
+    # initialize objective function
+    objective_function = log_posterior_probability(log_prior_fcn,log_prior_fcn_args,model,pars,data,states,log_likelihood_fcn,weights)
+    objective_function_args=()
+    objective_function_kwargs={}
+    objective_function(theta)
 
     ######################
     ## Run MCMC sampler ##
@@ -361,7 +357,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, processes, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, objective_function_args, objective_function_kwargs, backend, identifier, processes, agg=agg)
 
     #####################
     ## Process results ##
