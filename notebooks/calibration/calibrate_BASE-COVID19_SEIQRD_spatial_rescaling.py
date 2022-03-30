@@ -22,15 +22,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 
-# Import the spatially explicit SEIQRD model with VOCs, vaccinations, seasonality
-from covid19model.models import models
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_stratified_vacc, initialize_COVID19_SEIQRD_spatial_rescaling
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization import pso, objective_fcns
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
