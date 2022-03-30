@@ -432,7 +432,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.

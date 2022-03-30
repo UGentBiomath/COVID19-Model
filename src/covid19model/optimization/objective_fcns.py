@@ -3,146 +3,29 @@ import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
 import sys
+import inspect
 
-def thetas_to_model_pars(thetas, parNames, model_parameters_dict):
+def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
     dict={}
     idx = 0
-    for param in parNames:
+    total_n_values = 0
+    for param in parameter_names:
         try:
-            dict[param] = np.array(thetas[idx:idx+len(model_parameters_dict[param])], np.float64)
-            idx = idx + len(model_parameters_dict[param])
+            dict[param] = np.array(thetas[idx:idx+len(model_parameter_dictionary[param])], np.float64)
+            total_n_values += len(dict[param])
+            idx = idx + len(model_parameter_dictionary[param])
         except:
-            if ((isinstance(model_parameters_dict[param], float)) | (isinstance(model_parameters_dict[param], int))):
+            if ((isinstance(model_parameter_dictionary[param], float)) | (isinstance(model_parameter_dictionary[param], int))):
                 dict[param] = thetas[idx]
+                total_n_values += 1
                 idx = idx + 1
             else:
                 raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
-    return dict
+    return dict, total_n_values
 
-def MLE(thetas,model,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0,dist='poisson',poisson_offset='auto',agg=None):
-
-    """
-    A function to return the maximum likelihood estimator given a model object and a dataset.
-
-    Parameters
-    -----------
-    thetas: np.array
-        vector containing estimated parameter values
-    model: model object
-        correctly initialised model to be fitted to the dataset
-    data: list
-        list containing dataseries
-    states: list
-        list containg the names of the model states to be fitted to data
-    parNames: list
-        names of parameters to be fitted
-    dist : str
-        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
-    poisson_offset : float
-        Offset to avoid infinities for Poisson loglikelihood around 0. Default poisson_offset='auto', which automatically computes the offset to avoid infinities and presents the user with a warning.
-    agg : str or None
-        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
-        None (default) if non-spatial model is used
-
-    Returns
-    -----------
-    -MLE : float
-        Negative loglikelihood based on available data and provided parameter values
-
-    Notes
-    -----------
-    An explanation of the difference between SSE and MLE can be found here: https://emcee.readthedocs.io/en/stable/tutorials/line/
-
-    Brief summary: if measurement noise is unbiased, Gaussian and independent than the MLE and SSE are identical.
-
-    Example use
-    -----------
-    MLE = MLE(model,thetas,data,parNames,positions)
-    """
-
-    # ~~~~~~~~~~~~~~~~~~~~
-    # perform input checks
-    # ~~~~~~~~~~~~~~~~~~~~ 
-
-    if dist not in ['gaussian', 'poisson', 'negative_binomial']:
-        raise Exception(f"'{dist} is not an acceptable distribution. Choose between 'gaussian', 'poisson' or 'negative_binomial'")
-    if agg and (agg not in ['prov', 'arr', 'mun']):
-        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
-    # Check if data contains NaN values anywhere
-    for idx, d in enumerate(data):
-        if (agg and np.isnan(d).any().any()) or (not agg and np.isnan(d).any()):
-            raise Exception(f"Data contains nans. Perhaps something went wrong with the moving average?")
-    
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # assign estimates to correct variable
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    if dist == 'negative_binomial':
-        # convert thetas (type: list) into a {parameter_name: parameter_value} dictionary
-        dispersion = thetas[-1]
-        thetas_dict = thetas_to_model_pars(thetas[:-1], parNames[:-1], model.parameters)
-    else:
-        thetas_dict = thetas_to_model_pars(thetas, parNames, model.parameters)
-    
-    for i, (param,value) in enumerate(thetas_dict.items()):
-        if param == 'warmup': #TODO: will give an error similar to dispersion
-            warmup = int(round(value))
-        else:
-            model.parameters.update({param : value})
-
-    # ~~~~~~~~~~~~~~
-    # Run simulation
-    # ~~~~~~~~~~~~~~
-
-    # Compute simulation time
-    index_max=[]
-    for idx, df in enumerate(data):
-        index_max.append(df.index.get_level_values('date').unique().max())
-    end_sim = max(index_max)
-    # Use previous samples
-    if draw_fcn:
-        model.parameters = draw_fcn(model.parameters,samples)
-    # Perform simulation and loose the first 'warmup' days
-    out = model.sim(end_sim, start_date=start_date, warmup=warmup)
-
-    # -------------
-    # calculate MLE
-    # -------------
-    
-    MLE=0
-    # Loop over dataframes
-    for idx,df in enumerate(data):
-        # TODO: sum pd.Dataframe over all dimensions except date and NIS
-        # Check the indices
-        if 'date' in list(df.index.names):
-            if 'NIS' in list(df.index.names):
-                # Spatial data (must have 'date' first and then 'NIS')
-                for NIS in df.index.get_level_values('NIS').unique():
-                    new_xarray = out[states[idx]].sel(place=NIS)
-                    for dimension in out.dims:
-                        if ((dimension != 'time') & (dimension != 'place')):
-                            new_xarray = new_xarray.sum(dim=dimension)
-                    ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                    if dist == 'poisson':
-                        MLE_add = weights[idx]*ll_poisson(ymodel, df.loc[slice(None), NIS].values, offset=poisson_offset)
-                    elif dist == 'negative_binomial':
-                        MLE_add = weights[idx]*ll_negative_binomial(ymodel, df.loc[slice(None), NIS].values, dispersion, offset=poisson_offset)
-                    MLE += MLE_add
-            else:
-                # National data
-                new_xarray = out[states[idx]]
-                for dimension in out.dims:
-                    if dimension != 'time':
-                        new_xarray = new_xarray.sum(dim=dimension)
-                ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                if dist == 'poisson':
-                    MLE += weights[idx]*ll_poisson(ymodel, df.values, offset=poisson_offset)   
-                elif dist == 'negative_binomial':   
-                    MLE += weights[idx]*ll_negative_binomial(ymodel, df.values, dispersion, offset=poisson_offset)   
-        else:
-            raise ValueError("The dimensions of your {0}th dataframe did not contain dimension 'date'.".format(idx))
-
-    return -MLE
+##############################
+## Log-likelihood functions ##
+##############################
 
 def ll_gaussian(ymodel, ydata, sigma):
     """Loglikelihood of Gaussian distribution (minus constant terms). NOTE: ymodel must not be zero anywhere.
@@ -170,7 +53,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     ll = - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
     return ll
 
-def ll_poisson(ymodel, ydata, offset='auto', complete=False):
+def ll_poisson(ymodel, ydata):
     """Loglikelihood of Poisson distribution
     
     Parameters
@@ -190,30 +73,30 @@ def ll_poisson(ymodel, ydata, offset='auto', complete=False):
         Loglikelihood belonging to the comparison of the data points and the model prediction.
     """
     
+    # Check consistency of sizes ymodel and ydata
     if len(ymodel) != len(ydata):
         raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
     
-    if offset == 'auto':
-        if min(ymodel) <= 0:
-            offset_value = - min(ymodel) + 1e-3 
-            warnings.warn(f"I automatically set the ofset to {offset_value} to prevent the probability function from returning NaN")
-        else:
-            offset_value = 0
+    # Raise ymodel if there are negative values present
+    if min(ymodel) <= 0:
+        offset_value = - min(ymodel) + 1e-3 
+        warnings.warn("I automatically set the ofset to {0} to prevent the probability function from returning NaN".format(offset_value))
     else:
-        offset_value = offset
-        
-    ll = - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value))
+        offset_value = 0
+    
+    # Compute log likelihood
+    ll = - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value)) - np.sum(gammaln(ydata+offset_value))
 
-    if complete == True:
-        ll -= np.sum(gammaln(ydata+offset_value))
     return ll
 
-def ll_negative_binomial(ymodel, ydata, alpha, offset='auto'):
+def ll_negative_binomial(ymodel, ydata, alpha):
     """Loglikelihood of negative binomial distribution
-        https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
-        https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
-        https://www2.karlin.mff.cuni.cz/~pesta/NMFM404/NB.html
-        https://www.jstor.org/stable/pdf/2532104.pdf
+
+    https://ncss-wpengine.netdna-ssl.com/wp-content/themes/ncss/pdf/Procedures/NCSS/Negative_Binomial_Regression.pdf
+    https://content.wolfram.com/uploads/sites/19/2013/04/Zwilling.pdf
+    https://www2.karlin.mff.cuni.cz/~pesta/NMFM404/NB.html
+    https://www.jstor.org/stable/pdf/2532104.pdf
+
     Parameters
     ----------
     ymodel: list of floats
@@ -237,13 +120,10 @@ def ll_negative_binomial(ymodel, ydata, alpha, offset='auto'):
     if len(ymodel) != len(ydata):
         raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
     # Set offset
-    if offset == 'auto':
-        if min(ymodel) <= 0:
-            offset_value = - min(ymodel) + 1e-3
-            warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
-            ymodel += offset_value
-    else:
-        ymodel += offset
+    if min(ymodel) <= 0:
+        offset_value = - min(ymodel) + 1e-3
+        warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+        ymodel += offset_value
     # Compute log-likelihood
     if alpha > 0:
         ll = np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - len(ydata)*gammaln(1/alpha)
@@ -252,20 +132,23 @@ def ll_negative_binomial(ymodel, ydata, alpha, offset='auto'):
 
     return ll
 
+#####################################
+## Log prior probability functions ##
+#####################################
 
-def prior_uniform(x, bounds):
-    """ Uniform prior distribution
+def log_prior_uniform(x, bounds):
+    """ Uniform log prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     bounds: tuple
         Tuple containg the upper and lower bounds of the parameter value.
 
     Returns
     -------
-    Log likelihood of sample x in light of a uniform prior distribution.
+    Log probability of sample x in light of a uniform prior distribution.
 
     """
     prob = 1/(bounds[1]-bounds[0])
@@ -276,20 +159,20 @@ def prior_uniform(x, bounds):
     else:
         return -np.inf
 
-def prior_custom(x, args):
-    """ Custom prior distribution: computes the likelihood of a sample in light of a list containing samples from a previous MCMC run
+def log_prior_custom(x, args):
+    """ Custom log prior distribution: computes the probability of a sample in light of a list containing samples from a previous MCMC run
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     args: tuple
         Tuple containg the density of each bin in the first position and the bounds of the bins in the second position.
         Contains a weight given to the custom prior in the third position of the tuple.
 
     Returns
     -------
-    Log likelihood of sample x in light of a list with previously sampled parameter values.
+    Log probability of sample x in light of a list with previously sampled parameter values.
 
     Example use:
     ------------
@@ -307,127 +190,273 @@ def prior_custom(x, args):
         idx = np.digitize(x, bins)
         return weight*np.log(density[idx-1])
 
-def prior_normal(x,norm_params):
-    """ Normal prior distribution
+def log_prior_normal(x,norm_params):
+    """ Normal log prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     norm_params: tuple
         Tuple containg mu and stdev.
 
     Returns
     -------
-    Log likelihood of sample x in light of a normal prior distribution.
+    Log probability of sample x in light of a normal prior distribution.
 
     """
     mu,stdev=norm_params
     return np.sum(norm.logpdf(x, loc = mu, scale = stdev))
 
-def prior_triangle(x,triangle_params):
-    """ Triangle prior distribution
+def log_prior_triangle(x,triangle_params):
+    """ Triangle log prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     triangle_params: tuple
         Tuple containg lower bound, upper bound and mode of the triangle distribution.
 
     Returns
     -------
-    Log likelihood of sample x in light of a triangle prior distribution.
+    Log probability of sample x in light of a triangle prior distribution.
 
     """
     low,high,mode = triangle_params
     return triang.logpdf(x, loc=low, scale=high, c=mode)
 
-def prior_gamma(x,gamma_params):
-    """ Gamma prior distribution
+def log_prior_gamma(x,gamma_params):
+    """ Gamma log prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     gamma_params: tuple
         Tuple containg gamma parameters alpha and beta.
 
     Returns
     -------
-    Log likelihood of sample x in light of a gamma prior distribution.
+    Log probability of sample x in light of a gamma prior distribution.
 
     """
     a,b = gamma_params
     return gamma.logpdf(x, a=a, scale=1/b)
 
-def prior_weibull(x,weibull_params):
-    """ Weibull prior distribution
+def log_prior_weibull(x,weibull_params):
+    """ Weibull log prior distribution
 
     Parameters
     ----------
     x: float
-        Parameter value whos likelihood we want to test.
+        Parameter value whos probability we want to test.
     weibull_params: tuple
         Tuple containg weibull parameters k and lambda.
 
     Returns
     -------
-    Log likelihood of sample x in light of a weibull prior distribution.
+    Log probability of sample x in light of a weibull prior distribution.
 
     """
     k,lam = weibull_params
     return gamma.logpdf(x, k, shape=lam, loc=0 )    
 
-def log_probability(thetas,model,log_prior_fnc,log_prior_fnc_args,data,states,parNames,weights=[1],draw_fcn=None,samples=None,start_date=None,warmup=0, dist='poisson', poisson_offset='auto', agg=None):
+#############################################
+## Computing the log posterior probability ##
+#############################################
 
-    """
-    A function to compute the total log probability of a parameter set in light of data, given some user-specified bounds.
+class log_posterior_probability():
+    """ Computation of log posterior probability
 
-    Parameters
-    -----------
-    model: model object
-        correctly initialised model to be fitted to the dataset
-    thetas: np.array
-        vector containing estimated parameter values
-    bounds: tuple
-        contains one tuples with the lower and upper bounds of each parameter theta
-    thetas: array
-        names of parameters to be fitted
-    data: array
-        list containing dataseries
-    states: array
-        list containg the names of the model states to be fitted to data
-    dist : str
-        Type of probability distribution presumed around the simulated value. Choice between 'poisson' (default) and 'gaussian'.
-    poisson_offset : float
-        Offset to avoid infinities for Poisson loglikelihood around 0. Default poisson_offset='auto', which automatically computes the offset to avoid infinities and presents the user with a warning.
-    agg : str or None
-        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
-        None (default) if non-spatial model is used
-
-    Returns
-    -----------
-    lp : float
-        returns the MLE if all parameters fall within the user-specified bounds
-        returns - np.inf if one parameter doesn't fall in the user-provided bounds
-
-    Example use
-    -----------
-    lp = log_probability(model,thetas,bounds,data,states,parNames,weights=weights,checkpoints=None,method='MLE')
-    """
-
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Check if all provided thetas are within the user-specified bounds
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    lp=[]
-    for idx,fnc in enumerate(log_prior_fnc):
-        theta = thetas[idx]
-        args = log_prior_fnc_args[idx]
-        lp.append(fnc(theta,args))
-    lp = sum(lp)
+    A generic implementation to compute the log posterior probability of a model given some data, computed as the sum of the log prior probabilities and the log likelihoods.
+    The class allows the user to compare model states to multiple datasets, using a different stochastic model (gaussian, poisson, neg. binomial) for each dataset.
+    The user must make sure that the log_likelihood functions provided have: 1) ymodel as their first argument, 2) ydata as their second argument. 
+    The user must make sure that the estimated values of the additional arguments of the log_likelihood functions (f.i. sigma for ll_gaussian) are attached in the respective order at the END of the vector of parameter estimates (theta).
     
-    if not np.isfinite(lp).all():
-        return - np.inf
-    else:
-        return lp - MLE(thetas, model, data, states, parNames, weights=weights, draw_fcn=draw_fcn, samples=samples, start_date=start_date, warmup=warmup, dist=dist, poisson_offset=poisson_offset, agg=agg) # must be negative for emcee
+    # Example: a model has two parameters and we wish to use a negative binomial model to compute the log likelihood of model output in light of data.
+          model pars         alpha
+    theta = [1, 2        |    0.1]
+    
+    # Example: a model has two parameters and we wish to match the model to two datasets. The model-data relationship is described by ll_negative_binomial and ll_gaussian respectively.
+          model pars         alpha            sigma
+    theta = [1, 2        |    0.1,              5]
+    
+    The user must make sure that every additional argument needed by the log_likelihood function has his prior function and arguments defined.
+
+    Example use:
+    ------------
+
+    # initialize class
+    objective_function = log_posterior_probability(log_prior_fcn, log_prior_fcn_args, model, pars, data, states, log_likelihood_fcn, weights)
+
+    # compute log_posterior_probability
+    log_posterior_probability(theta)
+
+    """
+    def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, weights):
+
+        # Some inputs must have the same length
+        if any(len(lst) != len(log_prior_prob_fnc) for lst in [log_prior_prob_fnc_args]):
+            raise ValueError(
+                "The number of prior functions ({0}) and the number of sets of prior function arguments ({1}) must be of equal length".format(len(log_prior_prob_fnc),len(log_prior_prob_fnc_args))
+                )
+        if any(len(lst) != len(data) for lst in [states, log_likelihood_fnc, weights]):
+            raise ValueError(
+                "The number of datasets ({0}), model states ({1}), log likelihood functions ({2}) and weights ({3}) must be of equal".format(len(data),len(states), len(log_likelihood_fnc), len(weights))
+                )
+
+        # Checks on data 
+        for idx, df in enumerate(data):
+            # Does data contain NaN values anywhere?
+            if np.isnan(df).any():
+                raise Exception(
+                    "Dataset {0} contains nans.".format(idx)
+                    )
+            # Does data have 'date' as index level? (required)
+            if 'date' not in df.index.names:
+                raise Exception(
+                    "Index of dataset {0} does not have 'date' as index level (index levels: {1}).".format(idx, df.index.names)
+                    )        
+
+        # Extract start- and enddate of simulations
+        index_min=[]
+        index_max=[]
+        for idx, df in enumerate(data):
+            index_min.append(df.index.get_level_values('date').unique().min())
+            index_max.append(df.index.get_level_values('date').unique().max())
+        self.start_sim = min(index_min)
+        self.end_sim = max(index_max)
+
+        # Check that log_likelihood_fnc always has ymodel as the first argument and ydata as the second argument
+        # Find out how many additional arguments are needed for the log_likelihood_fnc (f.i. sigma for gaussian model, alpha for negative binomial)
+        n_log_likelihood_extra_args=[]
+        for idx,fnc in enumerate(log_likelihood_fnc):
+            sig = inspect.signature(fnc)
+            keywords = list(sig.parameters.keys())
+            if keywords[0] != 'ymodel':
+                raise ValueError(
+                "The first parameter of log_likelihood function in position {0} is not equal to 'ymodel' but {1}".format(idx, keywords[0])
+            )
+            if keywords[1] != 'ydata':
+                raise ValueError(
+                "The second parameter of log_likelihood function in position {0} is not equal to 'ymodel' but {1}".format(idx, keywords[1])
+            )
+            extra_args = len([arg for arg in keywords if ((arg != 'ymodel')&(arg != 'ydata'))])
+            n_log_likelihood_extra_args.append(extra_args)
+        self.n_log_likelihood_extra_args = n_log_likelihood_extra_args
+
+        # Find out if 'warmup' needs to be estimated
+        self.warmup_position=None
+        if 'warmup' in parameter_names:
+            self.warmup_position=parameter_names.index('warmup')
+
+        # Assign attributes to class
+        self.log_prior_prob_fnc = log_prior_prob_fnc
+        self.log_prior_prob_fnc_args = log_prior_prob_fnc_args
+        self.model = model
+        self.data = data
+        self.states = states
+        self.parameter_names = parameter_names
+        self.log_likelihood_fnc = log_likelihood_fnc
+        self.weights = weights
+
+    @staticmethod
+    def compute_log_prior_probability(thetas, log_prior_prob_fnc, log_prior_prob_fnc_args):
+        """
+        Loops over the log_prior_probability functions and their respective arguments to compute the prior probability of every model parameter in theta.
+        """
+        lp=[]
+        for idx,fnc in enumerate(log_prior_prob_fnc):
+            theta = thetas[idx]
+            args = log_prior_prob_fnc_args[idx]
+            lp.append(fnc(theta,args))
+        return sum(lp)
+
+    @staticmethod
+    def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
+        dict={}
+        idx = 0
+        total_n_values = 0
+        for param in parameter_names:
+            try:
+                dict[param] = np.array(thetas[idx:idx+len(model_parameter_dictionary[param])], np.float64)
+                total_n_values += len(dict[param])
+                idx = idx + len(model_parameter_dictionary[param])
+            except:
+                if ((isinstance(model_parameter_dictionary[param], float)) | (isinstance(model_parameter_dictionary[param], int))):
+                    dict[param] = thetas[idx]
+                    total_n_values += 1
+                    idx = idx + 1
+                else:
+                    raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
+        return dict, total_n_values
+
+    @staticmethod
+    def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, thetas_log_likelihood_extra_args, n_log_likelihood_extra_args):
+        """
+        Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
+        """
+    
+        total_ll=0
+        # Loop over dataframes
+        for idx,df in enumerate(data):
+            # TODO: sum pd.Dataframe over all dimensions except date and NIS
+            # Check the indices
+            if 'date' in list(df.index.names):
+                if 'NIS' in list(df.index.names):
+                    # Spatial data (must have 'date' first and then 'NIS')
+                    for NIS in df.index.get_level_values('NIS').unique():
+                        new_xarray = out[states[idx]].sel(place=NIS)
+                        for dimension in out.dims:
+                            if ((dimension != 'time') & (dimension != 'place')):
+                                new_xarray = new_xarray.sum(dim=dimension)
+                        ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
+                else:
+                    # National data
+                    new_xarray = out[states[idx]]
+                    for dimension in out.dims:
+                        if dimension != 'time':
+                            new_xarray = new_xarray.sum(dim=dimension)
+                    ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]]) 
+
+        return total_ll
+
+    def __call__(self, thetas, simulation_kwargs={}):
+        """
+        This function manages the internal bookkeeping (assignment of model parameters, model simulation) and then computes and sums the log prior probabilities and log likelihoods to compute the log posterior probability.
+        """
+                
+        # Split thetas into thetas for model parameters and thetas for log_likelihood_fcn
+        thetas_model_parameters = thetas[:-sum(self.n_log_likelihood_extra_args)]
+        thetas_log_likelihood_extra_args = thetas[-sum(self.n_log_likelihood_extra_args):]
+
+        # Add exception for estimation of warmup
+        if self.warmup_position:
+            simulation_kwargs.update({'warmup': thetas_model_parameters[self.warmup_position]})
+
+        # Convert thetas for model parameters to a dictionary with key-value pairs
+        thetas_model_parameters_dict, n = self.thetas_to_thetas_dict(thetas_model_parameters, self.parameter_names, self.model.parameters)
+
+        # Input check
+        if len(thetas) != sum(self.n_log_likelihood_extra_args) + n:
+            raise ValueError(
+                "The total number of estimated parameters ({0}) must equal the sum of the number of model estimated parameters ({1}) plus the additional parameters of the log_likelihood functions ({2})".format(len(thetas),len(n), sum(self.log_likelihood_n_extra_args))
+                )
+
+        # Assign thetas for model parameters to the model object
+        for param,value in thetas_model_parameters_dict.items():
+            self.model.parameters.update({param : value})
+
+        # Perform simulation
+        out = self.model.sim(self.end_sim, start_date=self.start_sim, **simulation_kwargs)
+
+        # Compute log prior probability 
+        lp = self.compute_log_prior_probability(thetas, self.log_prior_prob_fnc, self.log_prior_prob_fnc_args)
+
+        # Compute log likelihood
+        lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, thetas_log_likelihood_extra_args, self.n_log_likelihood_extra_args)
+
+        return lp

@@ -2,6 +2,7 @@ import gc
 import os
 import sys
 import emcee
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, get_context
@@ -14,7 +15,7 @@ abs_dir = os.path.dirname(__file__)
 fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
 samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date, processes, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, processes, agg=None, progress=True):
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -24,7 +25,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     else:
         fig_path_agg = f'{fig_path}/national/'
         samples_path_agg = f'{samples_path}/national/'
-    
+    # Determine data of calibration
+    run_date = str(datetime.date.today())
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -176,7 +178,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-from .objective_fcns import thetas_to_model_pars
+from .objective_fcns import thetas_to_thetas_dict
 def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
@@ -211,7 +213,7 @@ def assign_PSO(param_dict, parNames, thetas):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    thetas_dict = thetas_to_model_pars(thetas, parNames, param_dict)
+    thetas_dict,n = thetas_to_thetas_dict(thetas, parNames, param_dict)
     for i, (param,value) in enumerate(thetas_dict.items()):
         if param == 'warmup':
             warmup = int(round(value))
@@ -366,7 +368,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
 
     return ax
 
-from covid19model.optimization.objective_fcns import prior_custom
+from covid19model.optimization.objective_fcns import log_prior_custom
 def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
     """
     A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
@@ -377,7 +379,7 @@ def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_f
     labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
     theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
     pert = pert + len(pars_prior)*[0.02,]
-    log_prior_fcn = log_prior_fcn + len(pars_prior)*[prior_custom,]
+    log_prior_fcn = log_prior_fcn + len(pars_prior)*[log_prior_custom,]
     for par in pars_prior:
         density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
         density_my_par_norm = density_my_par/np.sum(density_my_par)
