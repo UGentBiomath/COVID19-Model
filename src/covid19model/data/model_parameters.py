@@ -425,11 +425,18 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'zeta': np.mean(base_samples_dict['zeta']),
         })
 
-    ########################
-    ## Spatial parameters ##
-    ########################
+    #########################################################
+    ## Spatial parameters (default: vaccination rescaling) ##
+    #########################################################
 
     if spatial:
+
+        # Add vaccination rescaling parameters
+        pars_dict['E_susc'] = np.ones([11, 10]) # Value of one equals no vaccination --> value is modified in time-dependant parameter function
+        pars_dict['E_inf'] = np.ones([11, 10])
+        pars_dict['E_hosp'] = np.ones([11, 10])
+        # Add seasonality parameter
+        pars_dict['seasonality'] = 1 # Value of one equals no seasonality --> value is modified in time-dependant parameter function
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
@@ -443,7 +450,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         for i in range(NIS.shape[0]):
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
         pars_dict['place'] = NIS
-
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
         area_df = pd.read_csv(os.path.join(
@@ -457,9 +463,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         p = np.ones(pars_dict['place'].shape[0])
         pars_dict['p'] = p
 
-        # TDPF parameters
-        pars_dict['default_mobility'] = None
-
         # Add Nc_work and Nc to parameters
         pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
         pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
@@ -472,13 +475,17 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     A function to load all parameters that in some way depend on what VOCs you consider in the model.
     """
 
-    ##########################################################################
-    ## Define the core dataframe with properties that depend on the variant ##
-    ##########################################################################
+    abs_dir = os.path.dirname(__file__)
+    save_path = os.path.join(
+        abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs")
+
+    ######################################################################
+    ## Build a dataframe with all properties that depend on the variant ##
+    ######################################################################
 
     columns = [('logistic_growth', 't_introduction'), ('logistic_growth', 't_sigmoid'), ('logistic_growth', 'k'),
-               ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties',
-                                                                                  'f_immune_escape'), ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf'),
+               ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties','f_immune_escape'),
+               ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf'),
                ('vaccine_properties', 'e_s'), ('vaccine_properties', 'e_h'), ('vaccine_properties', 'e_i')]
     VOC_parameters = pd.DataFrame(
         index=['WT', 'abc', 'delta', 'omicron'], columns=pd.MultiIndex.from_tuples(columns))
@@ -519,40 +526,10 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
                                                    [0, 0.70/2, 0.70, 0.33, 0.70], # alpha
                                                    [0, 0.41/2, 0.41, 0.17, 0.41], # delta
                                                    [0, 0.24, 0.37, 0.24, 0.37]]  # omicron
-
-    ##############################################################
-    ## Select data and construct dictionary of model parameters ##
-    ##############################################################
-
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
-    # Assign all parameters to a dictionary
-    pars_dict = {
-        'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
-        'f_VOC': np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64),
-        'f_immune_escape': np.array(VOC_parameters['variant_properties', 'f_immune_escape'], np.float64),
-        # Assumes the first variant is the reference variant (#TODO: generalize further?)
-        'K_inf': np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64),
-        'K_hosp': np.array(VOC_parameters['variant_properties', 'K_hosp'].tolist()[1:], np.float64),
-        'e_s': np.array(VOC_parameters['vaccine_properties', 'e_s'].tolist(), np.float64),
-        'e_h': np.array(VOC_parameters['vaccine_properties', 'e_h'].tolist(), np.float64),
-        'e_i': np.array(VOC_parameters['vaccine_properties', 'e_i'].tolist(), np.float64),
-    }
-    if not pd.isnull(list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]):
-        pars_dict.update(
-            {'h': h*list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]})
-    # All other random parameters
-    dose_stratification_size = 5
-    pars_dict.update({
-        'doses': np.zeros([dose_stratification_size, dose_stratification_size]),
-        'd_vacc': 100*365,
-        'N_vacc': np.zeros(age_stratification_size),
-        'initN': initN.values,
-        'daily_doses': 50000,
-        'delay_immunity': 14,
-        'vacc_order': list(range(age_stratification_size))[::-1],
-        'stop_idx': 8,
-        'refusal': 0.10*np.ones(age_stratification_size),
-        'onset_days': np.array([21, 14, 21]) # for effect of *full* vaccination on resp. susceptibility, infectivity, hospitalisation propensity (days)
-    })
-    return VOC_parameters['logistic_growth'], pars_dict
+
+    # Save a copy in a pickle
+    VOC_parameters.to_pickle(os.path.join(save_path,'VOC_parameters.pkl'))
+
+    return VOC_parameters
