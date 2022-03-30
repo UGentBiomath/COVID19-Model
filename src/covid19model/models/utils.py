@@ -923,15 +923,55 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
         df[state_name,'upper'] = upper
     return df
 
-def add_negative_binomial(output_array, alpha, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
+def add_negative_binomial(output_array, alpha, n_draws_per_sample=100, LL=0.05*0.5, UL=1-0.05*0.5, add_to_mean=True):
     """ A function to add a-posteriori negative binomial uncertainty on the relationship between the model output and data
-    # TODO: add description
-    https://distribution-explorer.github.io/discrete/negative_binomial.html
+    
+    Parameters
+    ----------
+
+    output_array: np.array
+        2D numpy array containing the simulation result. First axis: draws, second axis: time.
+
+    alpha: float
+        Negative binomial overdispersion coefficient
+
+    n_draws_per_sample: int
+        Number of draws to take from the negative binomial distribution at each timestep and then average out.
+    
+    LL: float
+        Lower quantile limit.
+
+    UL: float
+        Upper quantile limit.
+
+    add_to_mean: boolean
+        If True, `n_draws_per_sample` negative binomial draws are added to the mean model prediction. If False, `n_draws_per_sample` negative binomial draws are added to each of the `n_samples` model predictions.
+        Both options converge for large `n_draws_per_sample`.
+
+    Returns
+    -------
+
+    mean: np.array
+        1D numpy array containing the mean model prediction at every timestep
+    
+    median: np.array
+        1D numpy array containing the mean model prediction at every timestep
+    
+    lower: np.array
+        1D numpy array containing the lower quantile of the model prediction at every timestep
+
+    upper: np.array
+        1D numpy array containing the upper quantile of the model prediction at every timestep
     """
 
     # Determine number of samples and number of timesteps
     simtime = output_array.shape[1]
-    n_samples = output_array.shape[0]
+    if add_to_mean:
+        output_array= np.mean(output_array, axis=0)
+        output_array=output_array[np.newaxis, :]
+        n_samples=1
+    else:
+        n_samples = output_array.shape[0]
     # Initialize a column vector to append to
     vector = np.zeros((simtime,1))
     # Loop over dimension draws
