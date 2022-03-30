@@ -113,63 +113,17 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['zeta'] = 0.003
-model.parameters['l1'] = 21
+model.parameters['l1'] = 14
 model.parameters['l2'] = 14
 #https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
 model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
-try:
-    dispersion = np.mean(samples_dict['dispersion'])
-except:
-    dispersion = 1e-6
+dispersion = np.mean(samples_dict['dispersion'])
 
 #######################
 ## Sampling function ##
 #######################
 
-#from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fcn
-
-import random
-def draw_fcn(param_dict,samples_dict):
-
-    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]  
-    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
-    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
-    param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    #param_dict['zeta'] = samples_dict['zeta'][idx]
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(len(param_dict['c'])):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=20
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D'],
-                     samples_dict['residence_times']['dICUrec']]
-
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-
-    return param_dict
+from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fcn
 
 #########################
 ## Perform simulations ##
@@ -186,42 +140,63 @@ simtime = out['time'].values
 
 print('2) Visualizing regional fit')
 
-# Visualize the regional fit
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
-mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100000
+# Visualize structural uncertainty
+mean = out['H_in'].sum(dim='Nc').sum(dim='place').mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
+lower = out['H_in'].sum(dim='Nc').sum(dim='place').quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
+upper = out['H_in'].sum(dim='Nc').sum(dim='place').quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
+ax[0].plot(simtime, mean, '--', color='blue', linewidth=1)
+ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
+# Visualize negative binomial uncertainty
+mean = out['H_in'].sum(dim='Nc').sum(dim='place').mean(dim='draws').values
+# Initialize a column vector to append to
+vector = np.zeros((len(simtime),1))
+# Loop over number of negative binomial draws
+for draw in range(args.n_draws_per_sample):
+    vector = np.append(vector, np.expand_dims(np.random.negative_binomial(1/dispersion, (1/dispersion)/(mean + (1/dispersion)), size = mean.shape), axis=1), axis=1)
+# Remove first column
+vector = np.delete(vector, 0, axis=1)
+#  Compute mean and median
+mean = np.mean(vector,axis=1)/np.sum(np.sum(initN,axis=0))*100000
+median = np.median(vector,axis=1)/np.sum(np.sum(initN,axis=0))*100000    
+# Compute quantiles
+lower = np.quantile(vector, q = 0.025, axis = 1)/np.sum(np.sum(initN,axis=0))*100000
+upper = np.quantile(vector, q = 0.975, axis = 1)/np.sum(np.sum(initN,axis=0))*100000
+# Visualize negative binomial uncertainty
 ax[0].plot(simtime, mean, '--', color='blue')
 ax[0].fill_between(simtime, lower, upper, alpha=0.1, color='blue')
-mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim='Nc').sum(dim='place').values, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/np.sum(np.sum(initN,axis=0))*100000
-ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
+# Add data
 ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp['H_in'].groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+# Set attributes
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,12])
 ax[0].grid(False)
 ax[0].set_ylabel('$H_{in}$ (-)')
 ax[0] = _apply_tick_locator(ax[0])
 
+# Regional
 NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
 title_list = ['Brussels', 'Flanders', 'Wallonia']
 color_list = ['blue', 'blue', 'blue']
 
 for idx,NIS_list in enumerate(NIS_lists):
-    aggregate=0
+    mean=0
     data = 0
     pop = 0
     for NIS in NIS_list:
-        aggregate = aggregate + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+        mean = mean + out['H_in'].sel(place=NIS).sum(dim='Nc').values
         data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
         pop = pop + sum(initN.loc[NIS].values)
 
-    mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample)/pop*100000
-
+    mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
+    # Visualize negative binomial uncertainty
     ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
-    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.1)
-    mean, median, lower, upper = add_negative_binomial(aggregate, dispersion, args.n_draws_per_sample, LL=(1-0.68)/2, UL=1-(1-0.68)/2)/pop*100000
     ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
+    # Add data
     ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    # Set attributes
     ax[idx+1].set_title(title_list[idx])
     ax[idx+1].set_ylim([0,12])
     ax[idx+1].grid(False)
@@ -237,11 +212,11 @@ print('3) Visualizing provincial fit')
 # Visualize the provincial result (pt. I)
 fig,ax = plt.subplots(nrows=int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coords['place'])/2)+1)]):
-    pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop
+    pop = sum(initN.loc[NIS].values)
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop*100000
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx].legend(['NIS: '+ str(NIS)])
     ax[idx] = _apply_tick_locator(ax[idx])
     ax[idx].grid(False)
@@ -255,11 +230,11 @@ plt.close()
 # Visualize the provincial result (pt. II)
 fig,ax = plt.subplots(nrows=len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1)+1):]):
-    pop = sum(initN.loc[NIS].values)/100000
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop
+    pop = sum(initN.loc[NIS].values)
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop*100000
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax[idx].legend(['NIS: '+ str(NIS)])
     ax[idx] = _apply_tick_locator(ax[idx])
     ax[idx].grid(False)
