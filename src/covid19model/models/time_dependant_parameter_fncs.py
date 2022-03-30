@@ -547,6 +547,16 @@ class make_vaccination_rescaling_function():
     """
     
     def __init__(self, rescaling_df):
+        # Is there a need to update the rescaling functions?
+        # If False: simply load the rescaling_df from a pickle or csv file, if True: start a sequence to update the rescaling functions
+            # Send VOC parameters and initN to this function
+            # Send vaccination dataframe to this function
+            # Convert vaccination dataframe to the model's age groups
+            # Call a function to update the rescaling dataframe
+                # `make_rescaling_dataframe` --> consists of two parts: (1) conversion of vaccination incidence dataframe to fractions, (2) computing weighted average rescaling functions
+                # Maybe (1) can be performed in the function where this is updated and saved as a .csv to save some time? (clock this to verify computational time)
+                # I see a lot of hardcoding in (2), and I think the function does not allow you to change the available VOCs, these issues must be adressed.
+
         self.rescaling_df = rescaling_df
         self.available_dates = rescaling_df.reset_index().set_index('date').sort_index().index.unique() # demands chronological order
         # Check whether data is spatially explicit

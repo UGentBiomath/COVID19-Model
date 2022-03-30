@@ -306,6 +306,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, \
                                                           make_contact_matrix_function, \
                                                           make_VOC_function, \
+                                                          make_vaccination_function, \
                                                           make_vaccination_rescaling_function, \
                                                           make_seasonality_function_NEW
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
@@ -343,10 +344,12 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
         rescaling_update = True
     # Load and format local vaccination-induced rescaling data, which is also under the sciensano object
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
+    
     # Rescaling
-    from covid19model.models.time_dependant_parameter_fncs import make_vaccination_function
-    df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
-    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=rescaling_update, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_params['logistic_growth'])
+
+    # This first step loads the spatial vaccination data and formats it to the models age groups
+    df_incidences = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
+    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=rescaling_update, df_inc=df_incidences, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_params['logistic_growth'])
 
     ##################################################
     ## Construct time-dependent parameter functions ##
