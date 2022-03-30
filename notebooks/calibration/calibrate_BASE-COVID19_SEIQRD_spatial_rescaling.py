@@ -133,13 +133,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 ## Initialize the model ##
 ##########################
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['zeta'] = 0.003
-model.parameters['l1'] = 21
-model.parameters['l2'] = 14
-# alpha variant: https://pubmed.ncbi.nlm.nih.gov/34487522/
-# alpha vs delta variant: https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00475-8/fulltext, https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext#sec1
-model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
+
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -212,7 +207,6 @@ if __name__ == '__main__':
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,-weights)
-    model.parameters['l1'] = 14
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)

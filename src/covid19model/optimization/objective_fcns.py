@@ -304,7 +304,7 @@ class log_posterior_probability():
         if any(len(lst) != len(data) for lst in [states, log_likelihood_fnc, weights]):
             raise ValueError(
                 "The number of datasets ({0}), model states ({1}), log likelihood functions ({2}) and weights ({3}) must be of equal".format(len(data),len(states), len(log_likelihood_fnc), len(weights))
-                )          
+                )
 
         # Checks on data 
         for idx, df in enumerate(data):
@@ -453,7 +453,7 @@ class log_posterior_probability():
         # Perform simulation
         out = self.model.sim(self.end_sim, start_date=self.start_sim, **simulation_kwargs)
 
-        # Compute log prior probability
+        # Compute log prior probability 
         lp = self.compute_log_prior_probability(thetas, self.log_prior_prob_fnc, self.log_prior_prob_fnc_args)
 
         # Compute log likelihood

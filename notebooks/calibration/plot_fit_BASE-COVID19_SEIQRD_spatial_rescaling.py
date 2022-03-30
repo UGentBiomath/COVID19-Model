@@ -89,12 +89,11 @@ for directory in [fig_path, samples_path]:
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
-warmup = 0
+dispersion = np.mean(samples_dict['dispersion'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
-
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -112,12 +111,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
-model.parameters['l1'] = 14
-model.parameters['l2'] = 14
-#https://www.thelancet.com/journals/laninf/article/PIIS1473-3099(21)00580-6/fulltext
-model.parameters['K_hosp'] = np.array([1.62,1.62+0.07], np.float64)
-dispersion = np.mean(samples_dict['dispersion'])
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update=False, provincial=True)
 
 #######################
 ## Sampling function ##
@@ -131,7 +125,7 @@ from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial as draw_fc
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+out = model.sim(end_sim,start_date=start_sim,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 simtime = out['time'].values
 
 #######################
