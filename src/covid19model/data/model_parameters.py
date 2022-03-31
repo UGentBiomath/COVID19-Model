@@ -470,7 +470,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     return initN, Nc_dict, pars_dict, base_samples_dict
 
 
-def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):
+def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     """
     A function to load all parameters that in some way depend on what VOCs you consider in the model.
     """

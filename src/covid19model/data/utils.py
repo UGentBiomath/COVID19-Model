@@ -53,7 +53,7 @@ def construct_initN(age_classes=None, agg=None):
     else:
         return initN.sum(axis=0)
 
-def convert_age_stratified_property(data, age_classes):
+def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
     """ 
     Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
     this function can convert the data into another user-defined age-stratification using demographic weighing
@@ -75,9 +75,9 @@ def convert_age_stratified_property(data, age_classes):
 
     # Pre-allocate new series
     out = pd.Series(index = age_classes, dtype=float)
-    out_n_individuals = construct_initN(age_classes)
+    out_n_individuals = construct_initN(age_classes, agg)
     # Extract demographics for all ages
-    demographics = construct_initN(None,None)
+    demographics = construct_initN(None,agg)
     # Loop over desired intervals
     for idx,interval in enumerate(age_classes):
         result = []
@@ -89,7 +89,7 @@ def convert_age_stratified_property(data, age_classes):
         out.iloc[idx] = sum(result)
     return out
 
-def convert_age_stratified_quantity(data, age_classes, spatial=None, NIS=None):
+def convert_age_stratified_quantity(data, age_classes, agg=None, NIS=None):
         """ 
         Given an age-stratified series of some quantity: [age_group_lower, age_group_upper] : quantity,
         this function can convert the data into another user-defined age-stratification using demographic weighing
@@ -102,7 +102,7 @@ def convert_age_stratified_quantity(data, age_classes, spatial=None, NIS=None):
         age_classes : pd.IntervalIndex
             Desired age groups of the vaccination dataframe.
 
-        spatial: str
+        agg: str
             Spatial aggregation: prov, arr or mun
         
         NIS : str
@@ -118,12 +118,12 @@ def convert_age_stratified_quantity(data, age_classes, spatial=None, NIS=None):
         # Pre-allocate new series
         out = pd.Series(index = age_classes, dtype=float)
         # Extract demographics
-        if spatial: 
-            data_n_individuals = construct_initN(data.index, spatial).loc[NIS,:].values
-            demographics = construct_initN(None, spatial).loc[NIS,:].values
+        if agg: 
+            data_n_individuals = construct_initN(data.index, agg).loc[NIS,:].values
+            demographics = construct_initN(None, agg).loc[NIS,:].values
         else:
-            data_n_individuals = construct_initN(data.index, spatial).values
-            demographics = construct_initN(None, spatial).values
+            data_n_individuals = construct_initN(data.index, agg).values
+            demographics = construct_initN(None, agg).values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []

@@ -733,13 +733,13 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
                       'E_susc_delta', 'E_inf_delta', 'E_hosp_delta'])
         df = df.fillna(1)
         
-        # Save new DataFrame
+        # Save DataFrame as pickle (to retain intervalindex on 'age' dimension) and as csv (to have something human-readable)
         if spatial:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial"
         else:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
-        dir_abs = os.path.join(abs_dir, dir_rel)
-        df.to_csv(dir_abs)
+            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national"
+        df.to_csv(os.path.join(abs_dir, dir_rel+'.csv'))
+        df.to_pickle(os.path.join(abs_dir, dir_rel+'.pkl'))
         
     # no update
     else:    

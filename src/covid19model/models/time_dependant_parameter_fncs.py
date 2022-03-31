@@ -1,9 +1,7 @@
 import os
-import random
-import math
 import numpy as np
 import pandas as pd
-import itertools
+import warnings
 from functools import lru_cache
 from covid19model.visualization.output import school_vacations_dict
 
@@ -239,7 +237,7 @@ class make_VOC_function():
 ## Vaccination functions ##
 ###########################
 
-from covid19model.data.model_parameters import construct_initN
+from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
 class make_vaccination_function():
     """
@@ -546,24 +544,101 @@ class make_vaccination_rescaling_function():
     
     """
     
-    def __init__(self, rescaling_df):
-        # Is there a need to update the rescaling functions?
-        # If False: simply load the rescaling_df from a pickle or csv file, if True: start a sequence to update the rescaling functions
-            # Send VOC parameters and initN to this function
-            # Send vaccination dataframe to this function
-            # Convert vaccination dataframe to the model's age groups
-            # Call a function to update the rescaling dataframe
-                # `make_rescaling_dataframe` --> consists of two parts: (1) conversion of vaccination incidence dataframe to fractions, (2) computing weighted average rescaling functions
-                # Maybe (1) can be performed in the function where this is updated and saved as a .csv to save some time? (clock this to verify computational time)
-                # I see a lot of hardcoding in (2), and I think the function does not allow you to change the available VOCs, these issues must be adressed.
+    def __init__(self, update=False, spatial=False,
+                    age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
+                    **rescaling_update_kwargs):
 
-        self.rescaling_df = rescaling_df
-        self.available_dates = rescaling_df.reset_index().set_index('date').sort_index().index.unique() # demands chronological order
-        # Check whether data is spatially explicit
-        self.spatial=False
-        if 'NIS' in self.rescaling_df.reset_index().columns:
-            self.spatial=True
+        # Is there a need to update the rescaling functions?
+        if update==False:
+            # Simply load data
+            if spatial==False:
+                # TODO: National must be verified (generating pickle takes very long at the moment)
+                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
+                df = pd.read_pickle(dir_abs).groupby(['date', 'age', 'dose']).first()
+            else:
+                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_provincial.pkl")
+                df = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age', 'dose']).first()
+
+            # Retain 'weighted sum' of axis 'dose' only
+            df = df.loc[slice(None), slice(None), slice(None), 'weighted_sum'][['E_susc', 'E_inf', 'E_hosp']]
+
+            # Check if an age conversion is necessary
+            age_conv=False
+            if len(age_classes) != len(df.index.get_level_values('age').unique()):
+                age_conv=True
+            elif (age_classes != df.index.get_level_values('age').unique()).any():
+                age_conv=True
+            
+            if age_conv:
+
+                # Define a new dataframe with the desired age groups
+                iterables=[]
+                for index_name in df.index.names:
+                    if index_name != 'age':
+                        iterables += [df.index.get_level_values(index_name).unique()]
+                    else:
+                        iterables += [age_classes]
+                index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+                new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
+
+                # Perform age conversion
+                if spatial:
+                    for date in df.index.get_level_values('date').unique():
+                        for NIS in df.index.get_level_values('NIS').unique():
+                            new_df.loc[date, NIS, slice(None)] = self.age_conversion(df.loc[date, NIS, slice(None)], age_classes, agg='prov', NIS=NIS).values
+                else:
+                    for date in df.index.get_level_values('date').unique():
+                        new_df.loc[date, slice(None)] = self.age_conversion(df.loc[date, slice(None)], age_classes).values
+                df = new_df
+
+            # Assign result
+            self.spatial = spatial
+            self.rescaling_df = df
+            self.available_dates = self.rescaling_df.index.get_level_values('date').unique()
+
+        else:
+            # Warn user this may take some time
+            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
+            # Check if the right arguments are provided
+            print(**rescaling_update_kwargs)
+
+    
+    @staticmethod
+    def age_conversion(data, age_classes, agg=None, NIS=None):
+        """ 
+        Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
+        this function can convert the data into another user-defined age-stratification using demographic weighing
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified data. Index must be of type pd.Intervalindex.
         
+        age_classes : pd.IntervalIndex
+            Desired age groups of the converted table.
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+
+        # Pre-allocate new dataframe
+        out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
+        out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
+        # Extract demographics for all ages
+        demographics = construct_initN(None,agg).loc[NIS,:].values
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
         
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, rescaling_type):
@@ -608,15 +683,15 @@ class make_vaccination_rescaling_function():
             t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
             
             if self.spatial:
-                E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_values_first = self.rescaling_df.loc[t_data_first, :, :][f'E_{rescaling_type}'].to_numpy()
                 E_first = np.reshape(E_values_first, (G,N))
 
-                E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_values_second = self.rescaling_df.loc[t_data_second, :, :][f'E_{rescaling_type}'].to_numpy()
                 E_second = np.reshape(E_values_second, (G,N))
                 
             else:
-                E_first = self.rescaling_df.loc[t_data_first, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                E_second = self.rescaling_df.loc[t_data_second, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_first = self.rescaling_df.loc[t_data_first, :][f'E_{rescaling_type}'].to_numpy()
+                E_second = self.rescaling_df.loc[t_data_second, :][f'E_{rescaling_type}'].to_numpy()
                 
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
@@ -625,10 +700,10 @@ class make_vaccination_rescaling_function():
             # Take latest data point
             t_data = pd.Timestamp(self.available_dates[-1])
             if self.spatial:
-                E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E_values = self.rescaling_df.loc[t_data, :, :][f'E_{rescaling_type}'].to_numpy()
                 E = np.reshape(E_values, (G,N))
             else:
-                E = self.rescaling_df.loc[t_data, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
+                E = self.rescaling_df.loc[t_data, :][f'E_{rescaling_type}'].to_numpy()
         
         return E
     
