@@ -543,10 +543,20 @@ class make_vaccination_rescaling_function():
     E_susc_function(pd.Timestamp(2021, 10, 1), 0, 0)
     
     """
+    # TODO: I'm thinking that perhaps, the equivalent of the function `format_df_incidences(df)` should be moved to the function that loads the vaccination incidence data
+    # So every time the user updates the vaccination data, it is automatically formatted to:
+    #       the models 10 age groups (which we use all the time),
+    #       the cumulative and rel. cumulative incidence
+    #       names 'none', 'first', 'full', 'booster' instead of A, B, C, D, E
+    # Since updating the vaccination incidence data is not performed often this may avoid the use of computational resources when playing around with VOCs, vacc. parameters, etc.
+    # To do this, the function `get_public_spatial_vaccination_data` needs to be extended with the functionality of `format_df_incidences(df)`
+
+    # TODO: hypothetical vaccination schemes
+    # TODO: updating incidences dataframe should result in updating the rescaling as well
     
     def __init__(self, update=False, spatial=False,
                     age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-                    **rescaling_update_kwargs):
+                    df_incidences=None, VOC_params=None, VOC_function=None):
 
         # Is there a need to update the rescaling functions?
         if update==False:
@@ -599,10 +609,92 @@ class make_vaccination_rescaling_function():
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
-            # Check if the right arguments are provided
-            print(**rescaling_update_kwargs)
+            # Massage dataset
+            df_incidences = self.format_df_incidences(df_incidences)
+            # Perform update
+            self.rescaling_df = self.update_vaccination_rescaling_values(df_incidences, VOC_params, VOC_function)
 
+    @staticmethod
+    def format_df_incidences(df):
+        if 'NIS' in df.index.names:
+            spatial=True
+        # Name nameless column to 'INCIDENCE'
+        df = pd.DataFrame(df).rename(columns={0 : 'INCIDENCE'})
+        # Compute cumsum
+        df['CUMULATIVE'] = df.groupby(level=list(range(1,df.index.nlevels))).cumsum()
+        # Make cumulative fractions by comparing with relevant initN
+        spatial=True
+        if spatial:
+            initN = construct_initN(df.index.get_level_values('age').unique(), 'prov')
+            for age in df.index.get_level_values('age').unique():
+                for NIS in df.index.get_level_values('NIS').unique():
+                    df.loc[(slice(None), NIS, age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), NIS, age, slice(None)]['CUMULATIVE'].values / initN.loc[NIS, age]
+        else:
+            initN = construct_initN(df_incidences.index.get_level_values('age').unique())
+            for age in df.index.get_level_values('age').unique():
+                df.loc[(slice(None), age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), age, slice(None)]['CUMULATIVE'].values / initN.loc[age]
+        # Replace doses 'A' --> 'E' with a vaccination stage 'none', 'first', 'full', etc.
+        print(df)
+        return df
+
+    @staticmethod
+    def update_vaccination_rescaling_values(df_incidences, VOC_params, VOC_function):
+        
+        # Pre-allocate output dataframe
+        iterables=[]
+        for index_name in df_incidences.index.names:
+            if index_name != 'dose':
+                iterables += [df_incidences.index.get_level_values(index_name).unique().values]
+            else:
+                iterables += [['none', 'first', 'full', 'waned', 'boosted'],]
+        index = pd.MultiIndex.from_product(iterables, names=df_incidences.index.names)
+        rescaling_df = pd.DataFrame(index=index, columns=['fraction', 'E_susc', 'E_inf', 'E_hosp'])
+
+        print(rescaling_df)
+
+        return rescaling_df
     
+    @staticmethod
+    def waning_exp_delay(days, onset_days, waning_days, E_init, E_best, E_waned):
+        """
+        Function that implements time-dependence of vaccine effect based on the time it takes for the vaccine to linearly reach full efficacy, and a subsequent asymptotic waning of the vaccine.
+
+        Input
+        -----
+        days : float
+            number of days after the novel vaccination
+        onset_days : float
+            number of days it takes for the vaccine to take full effect
+        waning_days : float
+            number of days it takes for the vaccine to wane
+        E_init : float
+            vaccine-related rescaling value right before vaccination
+        E_best : float
+            rescaling value related to the best possible protection by the currently injected vaccine
+        E_waned : float
+            rescaling value related to the vaccine protection after a waning period.
+
+        Output
+        ------
+        E_eff : float
+            effective rescaling value associated with the newly administered vaccine
+
+        """
+
+        if days <= 0:
+            return E_init
+        elif days < onset_days:
+            E_eff = (E_best - E_init)/onset_days*days + E_init
+            return E_eff
+        else:
+            if E_best == E_waned:
+                return E_best
+            halftime_days = waning_days - onset_days
+            A = 1-E_best
+            beta = -np.log((1-E_waned)/A)/halftime_days
+            E_eff = -A*np.exp(-beta*(days-onset_days))+1
+        return E_eff
+
     @staticmethod
     def age_conversion(data, age_classes, agg=None, NIS=None):
         """ 

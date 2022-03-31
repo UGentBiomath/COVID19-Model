@@ -46,7 +46,8 @@ def construct_initN(age_classes=None, agg=None):
         initN = age_piramid.pivot(index='NIS', columns='age', values='number')
         initN = initN.fillna(0)
         
-    initN.columns = initN.columns.astype(str)
+    #initN.columns = age_classes
+    #initN.columns.astype(str)
 
     if agg:
         return initN
