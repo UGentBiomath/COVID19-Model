@@ -554,21 +554,21 @@ class make_vaccination_rescaling_function():
     # TODO: hypothetical vaccination schemes
     # TODO: updating incidences dataframe should result in updating the rescaling as well
     
-    def __init__(self, update=False, spatial=False,
+    def __init__(self, update=False, agg=None,
                     age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-                    df_incidences=None, VOC_params=None, VOC_function=None):
+                    df_vacc=None, VOC_params=None, VOC_function=None):
 
         # Is there a need to update the rescaling functions?
         if update==False:
             # Simply load data
-            if spatial==False:
-                # TODO: National must be verified (generating pickle takes very long at the moment)
-                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
-                df = pd.read_pickle(dir_abs).groupby(['date', 'age', 'dose']).first()
-            else:
+            if agg:
+                # TODO: get right agg
                 dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_provincial.pkl")
                 df = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age', 'dose']).first()
-
+            else:
+                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
+                df = pd.read_pickle(dir_abs).groupby(['date', 'age', 'dose']).first()
+            
             # Retain 'weighted sum' of axis 'dose' only
             df = df.loc[slice(None), slice(None), slice(None), 'weighted_sum'][['E_susc', 'E_inf', 'E_hosp']]
 
@@ -592,10 +592,10 @@ class make_vaccination_rescaling_function():
                 new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
 
                 # Perform age conversion
-                if spatial:
+                if agg:
                     for date in df.index.get_level_values('date').unique():
                         for NIS in df.index.get_level_values('NIS').unique():
-                            new_df.loc[date, NIS, slice(None)] = self.age_conversion(df.loc[date, NIS, slice(None)], age_classes, agg='prov', NIS=NIS).values
+                            new_df.loc[date, NIS, slice(None)] = self.age_conversion(df.loc[date, NIS, slice(None)], age_classes, agg=agg, NIS=NIS).values
                 else:
                     for date in df.index.get_level_values('date').unique():
                         new_df.loc[date, slice(None)] = self.age_conversion(df.loc[date, slice(None)], age_classes).values
@@ -610,22 +610,19 @@ class make_vaccination_rescaling_function():
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
             # Massage dataset
-            df_incidences = self.format_df_incidences(df_incidences)
+            df_vacc = self.format_df_incidences(df_vacc, agg)
+            print(df_vacc)
             # Perform update
-            self.rescaling_df = self.update_vaccination_rescaling_values(df_incidences, VOC_params, VOC_function)
+            self.rescaling_df = self.update_vaccination_rescaling_values(df_vacc, VOC_params, VOC_function)
+            print(self.rescaling_df)
+            # Age conversion
+
 
     @staticmethod
-    def format_df_incidences(df):
-        if 'NIS' in df.index.names:
-            spatial=True
-        # Name nameless column to 'INCIDENCE'
-        df = pd.DataFrame(df).rename(columns={0 : 'INCIDENCE'})
-        # Compute cumsum
-        df['CUMULATIVE'] = df.groupby(level=list(range(1,df.index.nlevels))).cumsum()
-        # Make cumulative fractions by comparing with relevant initN
-        spatial=True
-        if spatial:
-            initN = construct_initN(df.index.get_level_values('age').unique(), 'prov')
+    def format_df_incidences(df, agg=None):
+        # Compute fractions with dose x using relevant population size
+        if agg:
+            initN = construct_initN(df.index.get_level_values('age').unique(), agg)
             for age in df.index.get_level_values('age').unique():
                 for NIS in df.index.get_level_values('NIS').unique():
                     df.loc[(slice(None), NIS, age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), NIS, age, slice(None)]['CUMULATIVE'].values / initN.loc[NIS, age]
@@ -633,24 +630,46 @@ class make_vaccination_rescaling_function():
             initN = construct_initN(df_incidences.index.get_level_values('age').unique())
             for age in df.index.get_level_values('age').unique():
                 df.loc[(slice(None), age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), age, slice(None)]['CUMULATIVE'].values / initN.loc[age]
+
         # Replace doses 'A' --> 'E' with a vaccination stage 'none', 'first', 'full', etc.
-        print(df)
+
+        # This is easier when ommitting the multiindex
+        df_index = df.index
+        df = df.reset_index().set_index('date')
+        df_copy = df.copy()
+        # first-only: dose A (first) - dose B (second)
+        df.loc[df['dose']=='B', 'REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='A','REL_CUMULATIVE'] \
+            - df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # full: dose B (second) + dose C (Jansen) - dose E (booster)
+        df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
+            + df_copy.loc[df_copy['dose']=='C','REL_CUMULATIVE'] - df_copy.loc[df_copy['dose']=='E','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # booster: This is currently the latest stage
+        df.loc[df['dose']=='E','REL_CUMULATIVE'] = df_copy.loc[df_copy['dose']=='E', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
+        # Rest category. Make sure all exclusive categories adds up to 1.
+        df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
+        - df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
+        # Re-introduce multiindex
+        df = pd.DataFrame(index=df_index, columns=['FRACTION'], data=df['REL_CUMULATIVE'].values)
+        df.rename(index={'A':'none', 'B':'first', 'C':'full', 'E': 'booster'}, inplace=True)
+
         return df
 
     @staticmethod
-    def update_vaccination_rescaling_values(df_incidences, VOC_params, VOC_function):
+    def update_vaccination_rescaling_values(df_vacc, VOC_params, VOC_function):
         
         # Pre-allocate output dataframe
         iterables=[]
-        for index_name in df_incidences.index.names:
+        for index_name in df_vacc.index.names:
             if index_name != 'dose':
-                iterables += [df_incidences.index.get_level_values(index_name).unique().values]
+                iterables += [df_vacc.index.get_level_values(index_name).unique().values]
             else:
                 iterables += [['none', 'first', 'full', 'waned', 'boosted'],]
-        index = pd.MultiIndex.from_product(iterables, names=df_incidences.index.names)
+        index = pd.MultiIndex.from_product(iterables, names=df_vacc.index.names)
         rescaling_df = pd.DataFrame(index=index, columns=['fraction', 'E_susc', 'E_inf', 'E_hosp'])
 
-        print(rescaling_df)
+        # Compute the fraction of waned individuals at every timestep, every age group, every NIS code
+
+        # Compute the VOC weighted vaccination protection parameters
 
         return rescaling_df
     
