@@ -556,7 +556,7 @@ class make_vaccination_rescaling_function():
     
     def __init__(self, update=False, agg=None,
                     age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-                    df_vacc=None, VOC_params=None, VOC_function=None):
+                    df_incidences=None, VOC_params=None, VOC_function=None):
 
         # Is there a need to update the rescaling functions?
         if update==False:
@@ -608,27 +608,99 @@ class make_vaccination_rescaling_function():
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
-            # Massage dataset
-            df_vacc = self.format_df_incidences(df_vacc, agg)
-            # Perform update
-            self.rescaling_df = self.update_vaccination_rescaling_values(df_vacc, VOC_params, VOC_function)
+            # Compute relative incidences
+            df_incidences = self.compute_relative_incidences(df_incidences, agg)
+            # Delay the relative incidences to incorporate a delay in the onset of immunity
+            df_incidences = self.shift_onset_immunity(df_incidences)
+            # Compute the transitionings (=incidences) from 'full' --> 'waned' and 'boosted' --> 'waned' 
+            df_incidences = self.compute_waning_incidences(df_incidences)
+            # Compute the cumulative vaccination statusses
+
+            # Use VOC fraction to compute average vaccine efficacy
+
             # Age conversion
 
+    @staticmethod
+    def exponential_decay(delta_t, half_time):
+        tau = half_time/np.log(2)
+        return np.exp(-delta_t/tau)
+
+    def compute_waning_incidences(self, df):
+
+        # Omit multiindex
+        df_index = df.index
+        df = df.reset_index()
+
+        # Loop
+        df['WANING'] = 0
+        dates = df['date'].unique()
+        for date in dates:
+            for inner_date in dates[dates<=date]:
+                delta_t = (date-inner_date)/pd.Timedelta(days=1)
+                df.loc[((df['dose']=='full') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE_DELAY'].values
+                df.loc[((df['dose']=='booster') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='booster') & (df['date']==inner_date)), 'REL_INCIDENCE_DELAY'].values
+        print(df)
+
+        # Re-introduce multiindex
+        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_INCIDENCE_DELAY', 'WANING'], data=df[['REL_INCIDENCE', 'REL_INCIDENCE_DELAY', 'WANING']].values)
+
+        # Differentiate waning to obtain the "incidence" i.e. the number of transitionings from 
+        levels = list(df.index.names)
+        levels.remove("date")
+        df['WANING'] = df.groupby(by=levels)['WANING'].diff().fillna(0)
+
+        import matplotlib.pyplot as plt
+        age_group = df.index.get_level_values('age').unique()[9]
+        for dose in ['full', 'booster']:
+            fig,ax=plt.subplots()
+            ax.plot(df.loc[slice(None), 21000, age_group, dose]['WANING'].cumsum(), color='red')
+            ax.plot(df.loc[slice(None), 21000, age_group, dose]['REL_INCIDENCE_DELAY'].cumsum(), color='green')
+            ax.plot(df.loc[slice(None), 21000, age_group, dose]['REL_INCIDENCE_DELAY'].cumsum() - df.loc[slice(None), 21000, age_group, dose]['WANING'].cumsum(), color='orange')
+            plt.show()
+
+
+        return df
 
     @staticmethod
-    def format_df_incidences(df, agg=None):
+    def shift_onset_immunity(df):
+        
+        # Because data is reported weekly, shift can only be a multiple of seven days
+        onset_immunity = {'none': 0, 'first': 14, 'full': 14, 'booster': 14} 
+
+        # Omit multiindex
+        df_index = df.index
+        df = df.reset_index()
+        
+        # Initialize REL_INCIDENCE_DELAY column for immunity buildup and waning
+        df['REL_INCIDENCE_DELAY']=0
+        dates = df['date'].unique()
+        for date in dates:
+            for inner_date in dates[dates<=date]:
+                delta_t = (date-inner_date)/pd.Timedelta(days=1)
+                for dose in df['dose'].unique():
+                    if delta_t >= onset_immunity[dose]:
+                        df.loc[((df['dose']==dose) & (df['date']==date)), 'REL_INCIDENCE_DELAY'] += df.loc[((df['dose']==dose)&(df['date']==inner_date)),'REL_INCIDENCE'].values
+
+        # Re-introduce multiindex
+        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_INCIDENCE_DELAY'], data=df[['REL_INCIDENCE', 'REL_INCIDENCE_DELAY']].values)
+        levels = list(df.index.names)
+        levels.remove("date")
+        df['REL_INCIDENCE_DELAY'] = df.groupby(by=levels)['REL_INCIDENCE_DELAY'].diff().fillna(0)
+
+        return df
+
+    @staticmethod
+    def compute_relative_incidences(df, agg=None):
         # Compute fractions with dose x using relevant population size
         if agg:
             initN = construct_initN(df.index.get_level_values('age').unique(), agg)
             for age in df.index.get_level_values('age').unique():
                 for NIS in df.index.get_level_values('NIS').unique():
                     df.loc[(slice(None), NIS, age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), NIS, age, slice(None)]['INCIDENCE'].values / initN.loc[NIS, age]
-                    df.loc[(slice(None), NIS, age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), NIS, age, slice(None)]['CUMULATIVE'].values / initN.loc[NIS, age]
         else:
             initN = construct_initN(df.index.get_level_values('age').unique())
             for age in df.index.get_level_values('age').unique():
                 df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
-                df.loc[(slice(None), age, slice(None)),('REL_CUMULATIVE')] = df.loc[slice(None), age, slice(None)]['CUMULATIVE'].values / initN.loc[age]
 
         ### Replace doses 'A' --> 'E' with a vaccination stage 'none', 'first', 'full', etc.
         
@@ -639,16 +711,16 @@ class make_vaccination_rescaling_function():
 
         ## Cumulative
         # first-only: dose A (first) - dose B (second)
-        df.loc[df['dose']=='B', 'REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='A','REL_CUMULATIVE'] \
-            - df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE']).clip(lower=0, upper=1)    
+        #df.loc[df['dose']=='B', 'REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='A','REL_CUMULATIVE'] \
+        #    - df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE']).clip(lower=0, upper=1)    
         # full: dose B (second) + dose C (Jansen) - dose E (booster)
-        df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
-            + df_copy.loc[df_copy['dose']=='C','REL_CUMULATIVE'] - df_copy.loc[df_copy['dose']=='E','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        #df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
+        #    + df_copy.loc[df_copy['dose']=='C','REL_CUMULATIVE'] - df_copy.loc[df_copy['dose']=='E','REL_CUMULATIVE']).clip(lower=0, upper=1)
         # booster: This is currently the latest stage
-        df.loc[df['dose']=='E','REL_CUMULATIVE'] = df_copy.loc[df_copy['dose']=='E', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
+        #df.loc[df['dose']=='E','REL_CUMULATIVE'] = df_copy.loc[df_copy['dose']=='E', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
         # Rest category. Make sure all exclusive categories adds up to 1.
-        df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
-        - df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
+        #df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
+        #- df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
 
         ## Incidence
         # Total incidence full = second dose + janssen
@@ -659,7 +731,7 @@ class make_vaccination_rescaling_function():
         df.loc[df['dose']=='A', 'REL_INCIDENCE'] = 0
         
         ## Re-introduce multiindex
-        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], data=df[['REL_INCIDENCE', 'REL_CUMULATIVE']].values)
+        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE'], data=df[['REL_INCIDENCE']].values)
         df.rename(index={'A':'none', 'B':'first', 'C':'full', 'E': 'booster'}, inplace=True)
 
         return df
@@ -679,38 +751,7 @@ class make_vaccination_rescaling_function():
         index = pd.MultiIndex.from_product(iterables, names=df_vacc.index.names)
         rescaling_df = pd.DataFrame(index=index, columns=['fraction', 'E_susc', 'E_inf', 'E_hosp'])
 
-        # Delay the timeseries to incorporate immunity buildup
-
-        # Omit multiindex
-        df_vacc_index = df_vacc.index
-        df_vacc = df_vacc.reset_index()
-
-        # Initialize REL_CUMULATIVE column for immunity buildup and waning
-        df_vacc['REL_INCIDENCE_DELAY']=0
-        df_vacc['REL_INCIDENCE_DELAY_WANING']=0
-        dates = df_vacc['date'].unique()
-        for date in dates:
-            for inner_date in dates[dates<=date]:
-                delta_t = (date-inner_date)/pd.Timedelta(days=1)
-                for dose in df_vacc['dose'].unique():
-                    if delta_t >= onset_immunity[dose]:
-                        df_vacc.loc[((df_vacc['dose']==dose) & (df_vacc['date']==date)), 'REL_INCIDENCE_DELAY'] += df_vacc.loc[((df_vacc['dose']==dose)&(df_vacc['date']==inner_date)),'REL_INCIDENCE'].values
-
-
-        df_vacc = df_vacc.set_index(['date', 'NIS', 'age', 'dose'])
-        df_vacc['REL_INCIDENCE_DELAY'] = df_vacc.groupby(by=['NIS','age','dose'])['REL_INCIDENCE_DELAY'].diff().fillna(0)
-        print(df_vacc)
-
-        import matplotlib.pyplot as plt
-        age_group = df_vacc.index.get_level_values('age')[9]
-        dose = 'booster'
-        df_vacc.loc[slice(None), 21000, age_group, dose].plot()
-        plt.show()        
-
-        # Re-introduce multiindex
-        #df_vacc = pd.DataFrame(index=df_vacc_index, columns=['REL_INCIDENCE'], data=df_vacc['REL_INCIDENCE_DELAY'].values)
-        
-
+        # Delay the timeseries to incorporate immunity buildup 
 
         # Compute the VOC weighted vaccination protection parameters
 
@@ -752,9 +793,7 @@ class make_vaccination_rescaling_function():
             if E_best == E_waned:
                 return E_best
             halftime_days = waning_days - onset_days
-            A = 1-E_best
-            beta = -np.log((1-E_waned)/A)/halftime_days
-            E_eff = -A*np.exp(-beta*(days-onset_days))+1
+            
         return E_eff
 
     @staticmethod
