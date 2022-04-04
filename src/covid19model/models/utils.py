@@ -342,26 +342,17 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     if not VOC_params_previous.equals(VOC_params):
         rescaling_update = True
 
-    # Load and format local vaccination-induced rescaling data, which is also under the sciensano object
-    public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
-
-    # Rescaling
-
-    # This first step loads the spatial vaccination data and formats it to the models age groups
-    df_incidences = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE'], age_classes).df
-    VOC_params_star={'e_i': np.array(VOC_params['vaccine_properties', 'e_i'].tolist() ,np.float64),
-     'e_s': np.array(VOC_params['vaccine_properties', 'e_s'].tolist() ,np.float64),
-     'e_h': np.array(VOC_params['vaccine_properties', 'e_h'].tolist() ,np.float64)}
-    rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True, update=False, df_inc=df_incidences, initN=initN, VOC_params=VOC_params_star, VOC_logistic_growth_parameters=VOC_params['logistic_growth'])
-    
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
 
     rescaling_update=True
     if rescaling_update == True:
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, spatial=True, age_classes=age_classes, df_incidences=df_incidences, VOC_params=VOC_params, VOC_function=VOC_function)
+        # Load and format local vaccination-induced rescaling data
+        df_vacc = sciensano.get_public_spatial_vaccination_data(update=False, agg=agg)
+        # Compute the rescaling parameters
+        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_vacc=df_vacc, VOC_params=VOC_params, VOC_function=VOC_function)
     else:
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, spatial=True, age_classes=age_classes)
+        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes)
 
     sys.exit()
 
