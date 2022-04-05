@@ -645,19 +645,28 @@ class make_vaccination_rescaling_function():
         out_df = out_df.rename(columns={0: 'FRACTION'})
 
         # 'partial' state
-        out_df.loc[out_df['dose']=='partial','FRACTION'] = df.loc[df['dose']=='first']['REL_INCIDENCE'] - df.loc[df['dose']=='second']['REL_INCIDENCE']
-
+        out_df.loc[out_df['dose']=='partial','FRACTION'] = (df.loc[df['dose']=='first']['REL_INCIDENCE'] - df.loc[df['dose']=='second']['REL_INCIDENCE'])
+        
         # 'full' state
-        out_df.loc[out_df['dose']=='full','FRACTION'] = df.loc[df['dose']=='second']['REL_INCIDENCE'] + df.loc[df['dose']=='one_shot']['REL_INCIDENCE'] - df.loc[df['dose']=='second_waned']['REL_INCIDENCE']
+        out_df.loc[out_df['dose']=='full','FRACTION'] = df.loc[df['dose']=='second']['REL_INCIDENCE']+ df.loc[df['dose']=='one_shot']['REL_INCIDENCE'] - df.loc[df['dose']=='second_waned']['REL_INCIDENCE'] - df.loc[df['dose']=='booster']['REL_INCIDENCE']
 
         # 'waned' state
-        out_df.loc[out_df['dose']=='waned','FRACTION'] = df.loc[df['dose']=='second_waned']['REL_INCIDENCE'] + df.loc[df['dose']=='booster_waned']['REL_INCIDENCE']
-            
-        # 'boosted' state
-        out_df.loc[out_df['dose']=='boosted','FRACTION'] = df.loc[df['dose']=='booster']['REL_INCIDENCE'] - df.loc[df['dose']=='booster_waned']['REL_INCIDENCE']
+        out_df.loc[out_df['dose']=='waned','FRACTION'] = df.loc[df['dose']=='second_waned']['REL_INCIDENCE'] #+ df.loc[df['dose']=='booster_waned']['REL_INCIDENCE'].loc[date]
 
+        # 'boosted' state
+        out_df.loc[out_df['dose']=='boosted','FRACTION'] = df.loc[df['dose']=='booster']['REL_INCIDENCE'] #- df.loc[df['dose']=='booster_waned']['REL_INCIDENCE']
+     
+        # 'waned' state
+        out_df.loc[out_df['dose']=='waned','FRACTION'] = df.loc[df['dose']=='second_waned']['REL_INCIDENCE'] #+ df.loc[df['dose']=='booster_waned']['REL_INCIDENCE'].loc[date]
+            
         # 'none' state
         #out_df.loc[out_df['dose']=='none','FRACTION'] = 1 - (out_df.loc[out_df['dose']=='partial','FRACTION'] + out_df.loc[out_df['dose']=='full','FRACTION'] + out_df.loc[out_df['dose']=='boosted','FRACTION'] + out_df.loc[out_df['dose']=='waned','FRACTION']).values
+
+        
+        #for date in out_df.index.get_level_values('date').unique():
+        #    # 'full' state
+        #    out_df.loc[((out_df.index==date) & (out_df['dose']=='full')),'FRACTION'] = df.loc[df['dose']=='second']['REL_INCIDENCE'].loc[date] + df.loc[df['dose']=='one_shot']['REL_INCIDENCE'].loc[date] - df.loc[df['dose']=='second_waned']['REL_INCIDENCE'].loc[date]
+
 
         # Reintroduce multiindex
         df = pd.Series(index=out_df_index, data=out_df['FRACTION'].values)
@@ -679,45 +688,6 @@ class make_vaccination_rescaling_function():
         ax.plot(df.loc[slice(None), 21000, age_group, 'boosted'], '--', color='green')
         ax.plot(df.loc[slice(None), 21000, age_group, 'waned'], '--', color='orange')
         plt.show()
-
-        import sys
-        sys.exit()
-
-        #################
-        ## BELOW WORKS ##
-        #################
-
-        # Cumsum dataframe
-        levels = list(df.index.names)
-        levels.remove("date")
-        cumsum_df = df.groupby(by=levels).cumsum()
-
-        # Omit multiindex
-        cumsum_df = cumsum_df.reset_index().set_index('date')
-
-        # first-only: dose A (first) - dose B (second)
-        new_df.loc[new_df['dose'] == 'full', 'result'] = (cumsum_df.loc[cumsum_df['dose'] == 'full', 'REL_INCIDENCE'] - cumsum_df.loc[cumsum_df['dose'] == 'full_waned', 'REL_INCIDENCE']).values
-
-        # Re-introduce multiindex
-        df = pd.Series(index=new_df_index, data=new_df['result'].values)
-        print(df)
-        import matplotlib.pyplot as plt
-        age_group = df.index.get_level_values('age').unique()[9]
-        fig,ax=plt.subplots()
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full'], color='orange')
-        plt.show()
-
-        #new_df.loc[new_df['dose'] == 'first'] = (cumsum_df[cumsum_df['dose'] == 'first'] - cumsum_df[cumsum_df['dose'] == 'full']).clip(lower=0, upper=1).values
-
-        # full: dose B (second) + dose C (Jansen) - dose E (booster)
-        #df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
-        #    + df_copy.loc[df_copy['dose']=='C','REL_CUMULATIVE'] - df_copy.loc[df_copy['dose']=='E','REL_CUMULATIVE']).clip(lower=0, upper=1)
-        # booster: This is currently the latest stage
-        #df.loc[df['dose']=='E','REL_CUMULATIVE'] = df_copy.loc[df_copy['dose']=='E', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
-        # Rest category. Make sure all exclusive categories adds up to 1.
-        #df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
-        #- df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
-
 
         pass
 
