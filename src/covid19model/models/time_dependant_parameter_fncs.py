@@ -608,19 +608,70 @@ class make_vaccination_rescaling_function():
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
-            # Compute relative incidences
+            # Compute population size-normalized relative incidences
             df_incidences = self.compute_relative_incidences(df_incidences, agg)
-            # Delay the relative incidences to incorporate a delay in the onset of immunity
-            df_incidences = self.shift_onset_immunity(df_incidences)
+            # Delay the relative incidences to incorporate a delay in the onset of immunity after vaccination
+            df_incidences = self.shift_relative_incidences(df_incidences)
             # Compute the transitionings (=incidences) from 'full' --> 'waned' and 'boosted' --> 'waned' 
             df_incidences = self.compute_waning_incidences(df_incidences)
             # Compute the cumulative vaccination statusses
+            df_vaccination_states = self.compute_vaccination_status(df_incidences)
+            # Use VOC fraction at every timestep to compute average vaccine efficacy
 
-            # Use VOC fraction to compute average vaccine efficacy
+            # Save result
 
             # Age conversion
+
     @staticmethod
-    def compute_vaccination_status(df_incidences):
+    def compute_vaccination_status(df):
+        
+        # Change name of df column
+        df = df.rename('REL_INCIDENCE')
+
+        # Define format of desired dataframe
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'dose':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [['none', 'first', 'full', 'booster', 'waned'],]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        new_df = pd.Series(index=index, dtype=float)
+        # Omit multiindex from new_df
+        new_df_index = new_df,index
+        new_df = new_df.reset_index()
+
+        # Cumsum dataframe
+        levels = list(df.index.names)
+        levels.remove("date")
+        cumsum_df = df.groupby(by=levels).cumsum()
+
+        # Omit multiindex
+        cumsum_df = cumsum_df.reset_index()
+
+        # first-only: dose A (first) - dose B (second)
+        print('hierzo')
+        print(cumsum_df.loc[cumsum_df['dose'] == 'first', 'REL_INCIDENCE'].values - cumsum_df.loc[cumsum_df['dose'] == 'full', 'REL_INCIDENCE'].values)
+
+        new_df.loc[new_df['dose'] == 'first'] = (cumsum_df[cumsum_df['dose'] == 'first'] - cumsum_df[cumsum_df['dose'] == 'full']).clip(lower=0, upper=1).values
+
+        # full: dose B (second) + dose C (Jansen) - dose E (booster)
+        #df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
+        #    + df_copy.loc[df_copy['dose']=='C','REL_CUMULATIVE'] - df_copy.loc[df_copy['dose']=='E','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # booster: This is currently the latest stage
+        #df.loc[df['dose']=='E','REL_CUMULATIVE'] = df_copy.loc[df_copy['dose']=='E', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
+        # Rest category. Make sure all exclusive categories adds up to 1.
+        #df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
+        #- df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
+
+        import matplotlib.pyplot as plt
+        age_group = df.index.get_level_values('age').unique()[9]
+        fig,ax=plt.subplots()
+        ax.plot(df.loc[slice(None), 21000, age_group, 'first'], color='orange')
+        ax.plot(df.loc[slice(None), 21000, age_group, 'full'], color='green')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'full'].cumsum() - df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), color='orange')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), '--', color='orange')
+        plt.show()
 
         pass
 
@@ -683,7 +734,7 @@ class make_vaccination_rescaling_function():
         return df
 
     @staticmethod
-    def shift_onset_immunity(df):
+    def shift_relative_incidences(df):
         
         # Because data is reported weekly, shift can only be a multiple of seven days
         onset_immunity = {'none': 0, 'first': 14, 'full': 14, 'booster': 14} 
@@ -725,12 +776,12 @@ class make_vaccination_rescaling_function():
 
         ### Replace doses 'A' --> 'E' with a vaccination stage 'none', 'first', 'full', etc.
         
-        ## This is easier when ommitting the multiindex
+        ## Omit the multiindex
         df_index = df.index
         df = df.reset_index().set_index('date')
         df_copy = df.copy()
 
-        ## Incidence
+        ## Shuffle incidences
         # Total incidence full = second dose + janssen
         df.loc[df['dose']=='C', 'REL_INCIDENCE'] += df.loc[df['dose']=='B', 'REL_INCIDENCE']
         # Move first dose from 'A' to 'B'
@@ -743,66 +794,6 @@ class make_vaccination_rescaling_function():
         df.rename(index={'A':'none', 'B':'first', 'C':'full', 'E': 'booster'}, inplace=True)
 
         return df
-
-    @staticmethod
-    def update_vaccination_rescaling_values(df_vacc, VOC_params, VOC_function):
-        
-        onset_immunity = {'none': 0, 'first': 14, 'full': 14, 'booster': 14} 
-
-        # Pre-allocate output dataframe
-        iterables=[]
-        for index_name in df_vacc.index.names:
-            if index_name != 'dose':
-                iterables += [df_vacc.index.get_level_values(index_name).unique().values]
-            else:
-                iterables += [['none', 'first', 'full', 'waned', 'boosted'],]
-        index = pd.MultiIndex.from_product(iterables, names=df_vacc.index.names)
-        rescaling_df = pd.DataFrame(index=index, columns=['fraction', 'E_susc', 'E_inf', 'E_hosp'])
-
-        # Delay the timeseries to incorporate immunity buildup 
-
-        # Compute the VOC weighted vaccination protection parameters
-
-        return rescaling_df
-    
-    @staticmethod
-    def waning_exp_delay(days, onset_days, waning_days, E_init, E_best, E_waned):
-        """
-        Function that implements time-dependence of vaccine effect based on the time it takes for the vaccine to linearly reach full efficacy, and a subsequent asymptotic waning of the vaccine.
-
-        Input
-        -----
-        days : float
-            number of days after the novel vaccination
-        onset_days : float
-            number of days it takes for the vaccine to take full effect
-        waning_days : float
-            number of days it takes for the vaccine to wane
-        E_init : float
-            vaccine-related rescaling value right before vaccination
-        E_best : float
-            rescaling value related to the best possible protection by the currently injected vaccine
-        E_waned : float
-            rescaling value related to the vaccine protection after a waning period.
-
-        Output
-        ------
-        E_eff : float
-            effective rescaling value associated with the newly administered vaccine
-
-        """
-
-        if days <= 0:
-            return E_init
-        elif days < onset_days:
-            E_eff = (E_best - E_init)/onset_days*days + E_init
-            return E_eff
-        else:
-            if E_best == E_waned:
-                return E_best
-            halftime_days = waning_days - onset_days
-            
-        return E_eff
 
     @staticmethod
     def age_conversion(data, age_classes, agg=None, NIS=None):
