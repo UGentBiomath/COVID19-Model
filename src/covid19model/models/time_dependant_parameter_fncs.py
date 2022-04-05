@@ -610,11 +610,14 @@ class make_vaccination_rescaling_function():
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
             # Compute population size-normalized relative incidences
             df_incidences = self.compute_relative_incidences(df_incidences, agg)
+            print(df_incidences)
+
             # Delay the relative incidences to incorporate a delay in the onset of immunity after vaccination
             df_incidences = self.shift_relative_incidences(df_incidences)
             # Compute the transitionings (=incidences) from 'full' --> 'waned' and 'boosted' --> 'waned' 
             df_incidences = self.compute_waning_incidences(df_incidences)
             # Compute the cumulative vaccination statusses
+            
             df_vaccination_states = self.compute_vaccination_status(df_incidences)
             # Use VOC fraction at every timestep to compute average vaccine efficacy
 
@@ -637,9 +640,11 @@ class make_vaccination_rescaling_function():
                 iterables += [['none', 'first', 'full', 'booster', 'waned'],]
         index = pd.MultiIndex.from_product(iterables, names=df.index.names)
         new_df = pd.Series(index=index, dtype=float)
+
         # Omit multiindex from new_df
-        new_df_index = new_df,index
-        new_df = new_df.reset_index()
+        new_df_index = new_df.index
+        new_df = new_df.reset_index().set_index('date')
+        new_df = new_df.rename(columns={0: 'result'})
 
         # Cumsum dataframe
         levels = list(df.index.names)
@@ -647,13 +652,21 @@ class make_vaccination_rescaling_function():
         cumsum_df = df.groupby(by=levels).cumsum()
 
         # Omit multiindex
-        cumsum_df = cumsum_df.reset_index()
+        cumsum_df = cumsum_df.reset_index().set_index('date')
 
         # first-only: dose A (first) - dose B (second)
-        print('hierzo')
-        print(cumsum_df.loc[cumsum_df['dose'] == 'first', 'REL_INCIDENCE'].values - cumsum_df.loc[cumsum_df['dose'] == 'full', 'REL_INCIDENCE'].values)
+        new_df.loc[new_df['dose'] == 'full', 'result'] = (cumsum_df.loc[cumsum_df['dose'] == 'full', 'REL_INCIDENCE'] - cumsum_df.loc[cumsum_df['dose'] == 'full_waned', 'REL_INCIDENCE']).values
 
-        new_df.loc[new_df['dose'] == 'first'] = (cumsum_df[cumsum_df['dose'] == 'first'] - cumsum_df[cumsum_df['dose'] == 'full']).clip(lower=0, upper=1).values
+        # Re-introduce multiindex
+        df = pd.Series(index=new_df_index, data=new_df['result'].values)
+        print(df)
+        import matplotlib.pyplot as plt
+        age_group = df.index.get_level_values('age').unique()[9]
+        fig,ax=plt.subplots()
+        ax.plot(df.loc[slice(None), 21000, age_group, 'full'], color='orange')
+        plt.show()
+
+        #new_df.loc[new_df['dose'] == 'first'] = (cumsum_df[cumsum_df['dose'] == 'first'] - cumsum_df[cumsum_df['dose'] == 'full']).clip(lower=0, upper=1).values
 
         # full: dose B (second) + dose C (Jansen) - dose E (booster)
         #df.loc[df['dose']=='C','REL_CUMULATIVE'] = (df_copy.loc[df_copy['dose']=='B','REL_CUMULATIVE'] \
