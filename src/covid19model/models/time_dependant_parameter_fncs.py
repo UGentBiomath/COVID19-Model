@@ -610,14 +610,11 @@ class make_vaccination_rescaling_function():
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
             # Compute population size-normalized relative incidences
             df_incidences = self.compute_relative_incidences(df_incidences, agg)
-            print(df_incidences)
-
             # Delay the relative incidences to incorporate a delay in the onset of immunity after vaccination
             df_incidences = self.shift_relative_incidences(df_incidences)
             # Compute the transitionings (=incidences) from 'full' --> 'waned' and 'boosted' --> 'waned' 
             df_incidences = self.compute_waning_incidences(df_incidences)
             # Compute the cumulative vaccination statusses
-            
             df_vaccination_states = self.compute_vaccination_status(df_incidences)
             # Use VOC fraction at every timestep to compute average vaccine efficacy
 
@@ -627,9 +624,6 @@ class make_vaccination_rescaling_function():
 
     @staticmethod
     def compute_vaccination_status(df):
-        
-        # Change name of df column
-        df = df.rename('REL_INCIDENCE')
 
         # Define format of desired dataframe
         iterables=[]
@@ -637,14 +631,61 @@ class make_vaccination_rescaling_function():
             if index_name != 'dose':
                 iterables += [df.index.get_level_values(index_name).unique()]
             else:
-                iterables += [['none', 'first', 'full', 'booster', 'waned'],]
+                iterables += [['none', 'partial', 'full', 'boosted', 'waned'],]
         index = pd.MultiIndex.from_product(iterables, names=df.index.names)
-        new_df = pd.Series(index=index, dtype=float)
+        out_df = pd.Series(index=index, dtype=float)
+
+        # Omit multiindex from df
+        df_index = df.index
+        df = df.reset_index().set_index('date')
 
         # Omit multiindex from new_df
-        new_df_index = new_df.index
-        new_df = new_df.reset_index().set_index('date')
-        new_df = new_df.rename(columns={0: 'result'})
+        out_df_index = out_df.index
+        out_df = out_df.reset_index().set_index('date')
+        out_df = out_df.rename(columns={0: 'FRACTION'})
+
+        # 'partial' state
+        out_df.loc[out_df['dose']=='partial','FRACTION'] = df.loc[df['dose']=='first']['REL_INCIDENCE'] - df.loc[df['dose']=='second']['REL_INCIDENCE']
+
+        # 'full' state
+        out_df.loc[out_df['dose']=='full','FRACTION'] = df.loc[df['dose']=='second']['REL_INCIDENCE'] + df.loc[df['dose']=='one_shot']['REL_INCIDENCE'] - df.loc[df['dose']=='second_waned']['REL_INCIDENCE']
+
+        # 'waned' state
+        out_df.loc[out_df['dose']=='waned','FRACTION'] = df.loc[df['dose']=='second_waned']['REL_INCIDENCE'] + df.loc[df['dose']=='booster_waned']['REL_INCIDENCE']
+            
+        # 'boosted' state
+        out_df.loc[out_df['dose']=='boosted','FRACTION'] = df.loc[df['dose']=='booster']['REL_INCIDENCE'] - df.loc[df['dose']=='booster_waned']['REL_INCIDENCE']
+
+        # 'none' state
+        #out_df.loc[out_df['dose']=='none','FRACTION'] = 1 - (out_df.loc[out_df['dose']=='partial','FRACTION'] + out_df.loc[out_df['dose']=='full','FRACTION'] + out_df.loc[out_df['dose']=='boosted','FRACTION'] + out_df.loc[out_df['dose']=='waned','FRACTION']).values
+
+        # Reintroduce multiindex
+        df = pd.Series(index=out_df_index, data=out_df['FRACTION'].values)
+
+        # Cumsum
+        levels = list(df.index.names)
+        levels.remove("date")
+        df = df.groupby(by=levels).cumsum()
+
+        # Visualize
+
+        age_group = df.index.get_level_values('age').unique()[9]
+        
+        import matplotlib.pyplot as plt
+        fig,ax=plt.subplots()
+        ax.plot(df.loc[slice(None), 21000, age_group, 'none'], color='red')
+        ax.plot(df.loc[slice(None), 21000, age_group, 'partial'], color='orange')
+        ax.plot(df.loc[slice(None), 21000, age_group, 'full'], color='green')
+        ax.plot(df.loc[slice(None), 21000, age_group, 'boosted'], '--', color='green')
+        ax.plot(df.loc[slice(None), 21000, age_group, 'waned'], '--', color='orange')
+        plt.show()
+
+        import sys
+        sys.exit()
+
+        #################
+        ## BELOW WORKS ##
+        #################
 
         # Cumsum dataframe
         levels = list(df.index.names)
@@ -677,14 +718,6 @@ class make_vaccination_rescaling_function():
         #df.loc[df['dose']=='A','REL_CUMULATIVE'] = 1 - df.loc[df['dose']=='B','REL_CUMULATIVE'] \
         #- df.loc[df['dose']=='C','REL_CUMULATIVE'] - df.loc[df['dose']=='E','REL_CUMULATIVE']
 
-        import matplotlib.pyplot as plt
-        age_group = df.index.get_level_values('age').unique()[9]
-        fig,ax=plt.subplots()
-        ax.plot(df.loc[slice(None), 21000, age_group, 'first'], color='orange')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full'], color='green')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full'].cumsum() - df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), color='orange')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), '--', color='orange')
-        plt.show()
 
         pass
 
@@ -705,11 +738,12 @@ class make_vaccination_rescaling_function():
         for date in dates:
             for inner_date in dates[dates<=date]:
                 delta_t = (date-inner_date)/pd.Timedelta(days=1)
-                df.loc[((df['dose']=='full') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE_DELAY'].values
-                df.loc[((df['dose']=='booster') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='booster') & (df['date']==inner_date)), 'REL_INCIDENCE_DELAY'].values
+                df.loc[((df['dose']=='second') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='second') & (df['date']==inner_date)), 'REL_INCIDENCE'].values
+                df.loc[((df['dose']=='one_shot') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='one_shot') & (df['date']==inner_date)), 'REL_INCIDENCE'].values
+                df.loc[((df['dose']=='booster') & (df['date']==date)), 'WANING'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='booster') & (df['date']==inner_date)), 'REL_INCIDENCE'].values
 
         # Re-introduce multiindex
-        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_INCIDENCE_DELAY', 'WANING'], data=df[['REL_INCIDENCE', 'REL_INCIDENCE_DELAY', 'WANING']].values)
+        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'WANING'], data=df[['REL_INCIDENCE', 'WANING']].values)
 
         # Differentiate waning to obtain the "incidence" i.e. the number of transitionings
         levels = list(df.index.names)
@@ -724,24 +758,31 @@ class make_vaccination_rescaling_function():
             if index_name != 'dose':
                 iterables += [df.index.get_level_values(index_name).unique()]
             else:
-                iterables += [['none', 'first', 'full', 'booster', 'full_waned', 'booster_waned'],]
+                iterables += [['first', 'second', 'one_shot', 'booster', 'second_waned', 'one_shot_waned', 'booster_waned'],]
         index = pd.MultiIndex.from_product(iterables, names=df.index.names)
         new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
 
         # Fill it up
-        for dose in ['none', 'first', 'full', 'booster']:
-            new_df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE_DELAY'] = df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE_DELAY'].values
+        for dose in ['first', 'second', 'one_shot', 'booster']:
+            new_df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE'].values
         else:
-            new_df.loc[(slice(None), slice(None), slice(None), 'full_waned'),'REL_INCIDENCE_DELAY'] = df.loc[(slice(None), slice(None), slice(None), 'full'),'WANING'].values
-            new_df.loc[(slice(None), slice(None), slice(None), 'booster_waned'),'REL_INCIDENCE_DELAY'] = df.loc[(slice(None), slice(None), slice(None), 'booster'),'WANING'].values
-        df = new_df['REL_INCIDENCE_DELAY']
+            new_df.loc[(slice(None), slice(None), slice(None), 'second_waned'),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), 'second'),'WANING'].values
+            new_df.loc[(slice(None), slice(None), slice(None), 'one_shot_waned'),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), 'one_shot'),'WANING'].values
+            new_df.loc[(slice(None), slice(None), slice(None), 'booster_waned'),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), 'booster'),'WANING'].values
+        df = new_df['REL_INCIDENCE']
 
         #import matplotlib.pyplot as plt
         #age_group = df.index.get_level_values('age').unique()[9]
         #fig,ax=plt.subplots()
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full'].cumsum(), color='green')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full'].cumsum() - df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), color='orange')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full_waned'].cumsum(), '--', color='orange')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'second'].cumsum(), color='green')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'second'].cumsum() - df.loc[slice(None), 21000, age_group, 'second_waned'].cumsum(), color='orange')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'second_waned'].cumsum(), '--', color='orange')
+        #plt.show()
+
+        #fig,ax=plt.subplots()
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'first'].cumsum(), '--', color='orange')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'second'].cumsum(), '--', color='green')
+        #ax.plot(df.loc[slice(None), 21000, age_group, 'first'].cumsum() - df.loc[slice(None), 21000, age_group, 'second'].cumsum(), color='black')
         #plt.show()
 
         return df
@@ -750,7 +791,7 @@ class make_vaccination_rescaling_function():
     def shift_relative_incidences(df):
         
         # Because data is reported weekly, shift can only be a multiple of seven days
-        onset_immunity = {'none': 0, 'first': 14, 'full': 14, 'booster': 14} 
+        onset_immunity = {'first': 14, 'second': 14, 'one_shot': 14, 'booster': 14} 
 
         # Omit multiindex
         df_index = df.index
@@ -768,11 +809,22 @@ class make_vaccination_rescaling_function():
 
         # Re-introduce multiindex
         df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_INCIDENCE_DELAY'], data=df[['REL_INCIDENCE', 'REL_INCIDENCE_DELAY']].values)
+
+        # Differentiate delay
         levels = list(df.index.names)
         levels.remove("date")
         df['REL_INCIDENCE_DELAY'] = df.groupby(by=levels)['REL_INCIDENCE_DELAY'].diff().fillna(0)
+        df = df['REL_INCIDENCE_DELAY']
 
-        return df
+        # Visualization for debugging purposes
+        #import matplotlib.pyplot as plt
+        #fig,ax=plt.subplots()
+        #age_group = df.index.get_level_values('age').unique()[9]
+        #ax.plot(df.loc[(slice(None), 21000, age_group, 'second')]['REL_INCIDENCE'], color='green')
+        #ax.plot(df.loc[(slice(None), 21000, age_group, 'second')]['REL_INCIDENCE_DELAY'], color='red')
+        #plt.show()
+
+        return df.rename('REL_INCIDENCE')
 
     @staticmethod
     def compute_relative_incidences(df, agg=None):
@@ -787,26 +839,10 @@ class make_vaccination_rescaling_function():
             for age in df.index.get_level_values('age').unique():
                 df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
 
-        ### Replace doses 'A' --> 'E' with a vaccination stage 'none', 'first', 'full', etc.
-        
-        ## Omit the multiindex
-        df_index = df.index
-        df = df.reset_index().set_index('date')
-        df_copy = df.copy()
+        # Use more declaritive names for doses
+        df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
 
-        ## Shuffle incidences
-        # Total incidence full = second dose + janssen
-        df.loc[df['dose']=='C', 'REL_INCIDENCE'] += df.loc[df['dose']=='B', 'REL_INCIDENCE']
-        # Move first dose from 'A' to 'B'
-        df.loc[df['dose']=='B', 'REL_INCIDENCE'] = df.loc[df['dose']=='A', 'REL_INCIDENCE']
-        # Nullify 'A
-        df.loc[df['dose']=='A', 'REL_INCIDENCE'] = 0
-        
-        ## Re-introduce multiindex
-        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE'], data=df[['REL_INCIDENCE']].values)
-        df.rename(index={'A':'none', 'B':'first', 'C':'full', 'E': 'booster'}, inplace=True)
-
-        return df
+        return df['REL_INCIDENCE']
 
     @staticmethod
     def age_conversion(data, age_classes, agg=None, NIS=None):
