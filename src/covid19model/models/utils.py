@@ -328,7 +328,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     VOC_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/VOC_parameters.pkl'))
     # Load currently saved VOC parameters
     VOCs = ['WT', 'abc', 'delta']
-    VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
+    VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
     # Update the relevant model parameters
     params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
                    'f_VOC': np.array(VOC_params['variant_properties', 'f_VOC'].tolist(), np.float64),
@@ -350,7 +350,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
         # Load and format local vaccination-induced rescaling data
         df_vacc = sciensano.get_public_spatial_vaccination_data(update=False, agg=agg)
         # Compute the rescaling parameters
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_incidences=df_vacc, VOC_params=VOC_params, VOC_function=VOC_function)
+        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_incidences=df_vacc, VOC_params=VOC_params, VOC_function=VOC_function, vaccine_params=vaccine_params)
     else:
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes)
 

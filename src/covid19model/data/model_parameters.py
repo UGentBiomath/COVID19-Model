@@ -485,8 +485,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
 
     columns = [('logistic_growth', 't_introduction'), ('logistic_growth', 't_sigmoid'), ('logistic_growth', 'k'),
                ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties','f_immune_escape'),
-               ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf'),
-               ('vaccine_properties', 'e_s'), ('vaccine_properties', 'e_h'), ('vaccine_properties', 'e_i')]
+               ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf')]
     VOC_parameters = pd.DataFrame(
         index=['WT', 'abc', 'delta', 'omicron'], columns=pd.MultiIndex.from_tuples(columns))
 
@@ -508,28 +507,34 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.70, 2.00, 3.00]
 
     # Define vaccination properties  
-    # Figures for e_s, e_i for WT, alpha, delta and 2 doses + waned from Toon Braeye
-    # 1 dose efficacies = 2 doses divided by 2
-    # Boosted vaccine efficacies = 2 doses efficacies
-    #                                               0    1    2      W     B
-    VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.84/2, 0.84, 0.68, 0.84],  # WT
-                                                   [0, 0.84/2, 0.84, 0.68, 0.84], # alpha
-                                                   [0, 0.72/2, 0.72, 0.55, 0.72],# delta
-                                                   [0, 0.342, 0.441, 0.248, 0.659]]  # omicron
+    iterables = [['WT', 'abc', 'delta', 'omicron'],['none', 'partial', 'full', 'waned', 'boosted']]
+    index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose'])
+    vaccine_parameters = pd.DataFrame(index=index, columns=['e_s', 'e_i', 'e_h', 'waning_days', 'onset_days'])
 
-    VOC_parameters['vaccine_properties', 'e_h'] = [[0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32],  # WT
-                                                   [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32], # alpha
-                                                   [0, (1-0.32)/2, 1-0.18, 1-0.11, 1-0.18], # delta
-                                                   [0, 0.767, 0.837, 0.676, 0.933]]  # omicron
+    # e_s
+    vaccine_parameters.loc[('WT',slice(None)),'e_s'] = [0, 0.84/2, 0.84, 0.68, 0.84]
+    vaccine_parameters.loc[('abc',slice(None)),'e_s'] = [0, 0.84/2, 0.84, 0.68, 0.84]
+    vaccine_parameters.loc[('delta',slice(None)),'e_s'] = [0, 0.72/2, 0.72, 0.55, 0.72]
+    vaccine_parameters.loc[('omicron',slice(None)),'e_s'] = [0, 0.342, 0.441, 0.248, 0.659]
 
-    VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.70/2, 0.70, 0.33, 0.70],  # WT
-                                                   [0, 0.70/2, 0.70, 0.33, 0.70], # alpha
-                                                   [0, 0.41/2, 0.41, 0.17, 0.41], # delta
-                                                   [0, 0.24, 0.37, 0.24, 0.37]]  # omicron
+    # e_h
+    vaccine_parameters.loc[('WT',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32]
+    vaccine_parameters.loc[('abc',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32]
+    vaccine_parameters.loc[('delta',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.18, 1-0.11, 1-0.18]
+    vaccine_parameters.loc[('omicron',slice(None)),'e_h'] = [0, 0.767, 0.837, 0.676, 0.933]
+
+    # e_i
+    vaccine_parameters.loc[('WT',slice(None)),'e_i'] = [0, 0.70/2, 0.70, 0.33, 0.70]
+    vaccine_parameters.loc[('abc',slice(None)),'e_i'] = [0, 0.70/2, 0.70, 0.33, 0.70]
+    vaccine_parameters.loc[('delta',slice(None)),'e_i'] = [0, 0.41/2, 0.41, 0.17, 0.41]
+    vaccine_parameters.loc[('omicron',slice(None)),'e_i'] = [0, 0.24, 0.37, 0.24, 0.37]
+
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
+    vaccine_parameters = vaccine_parameters.loc[VOCs,slice(None)]
 
     # Save a copy in a pickle
     VOC_parameters.to_pickle(os.path.join(save_path,'VOC_parameters.pkl'))
+    vaccine_parameters.to_pickle(os.path.join(save_path,'vaccine_parameters.pkl'))
 
-    return VOC_parameters
+    return VOC_parameters, vaccine_parameters
