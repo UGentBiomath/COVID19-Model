@@ -617,10 +617,11 @@ class make_vaccination_rescaling_function():
             # Format vaccination parameters 
             vaccine_params = self.format_vaccine_params(vaccine_params)
             # Incorporate onset immunity, waning immunity and VOCs
-            df = self.incorporate_delay_waning_VOC(df, vaccine_params)
+            df_efficacies = self.incorporate_delay_waning_VOC(df, vaccine_params, VOC_function)
             sys.exit()
 
-            # Use VOC fraction at every timestep to compute average vaccine efficacy
+            # Take dose-weighted average at every timestep
+            df_efficacies
 
             # Save result
 
@@ -699,49 +700,47 @@ class make_vaccination_rescaling_function():
             E_eff = E_waned - f*(E_waned - E_best)
         return E_eff
 
-    def incorporate_delay_waning_VOC(self, df, vaccine_params):
+    def incorporate_delay_waning_VOC(self, df, vaccine_params, VOC_function):
 
         ## Make an output dataframe with the desired format
-        # Index
-        iterables=[]
-        for index_name in df.index.names:
-            iterables += [df.index.get_level_values(index_name).unique()]
-        else:
-            iterables += [vaccine_params.index.get_level_values('VOC').unique(),]
-        # Index names
-        names = df.index.names + ['VOC',]
-        index = pd.MultiIndex.from_product(iterables, names=names)
         # Columns
         columns = vaccine_params.index.get_level_values('efficacy').unique().values
         # Desired df
-        new_df = pd.DataFrame(index=index, columns=columns, dtype=float)
+        new_df = pd.DataFrame(index=df.index, columns=columns, dtype=float)
+        # Omit multiindex
         new_df_index = new_df.index
         new_df_columns = new_df.columns
         new_df = new_df.reset_index()
 
-        ## Omit multiindex
+        ## Omit multiindex on vaccination incidence data
         df_index = df.index
         df = df.reset_index()
 
-        for VOC in new_df['VOC'].unique():
-            for dose in new_df['dose'].unique():
-                for efficacy in vaccine_params.index.get_level_values('efficacy').unique():
-                    dates = df['date'].unique()
-                    df['WANING_CUMULATIVE'] = 0
-                    for date in dates:
-                        for inner_date in dates[dates<=date]:
-                            delta_t = (date-inner_date)/pd.Timedelta(days=1)
-                            weight = self.waning_delay(delta_t, 14, 365/2, vaccine_params.loc[(VOC, dose, efficacy), 'initial'], vaccine_params.loc[(VOC, dose, efficacy), 'best'], vaccine_params.loc[(VOC, dose, efficacy), 'waned'])
-                            df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] += weight*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values
-                        norm = df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] #/ df.loc[((df['dose']==dose) & (df['date']==date)), 'REL_CUMULATIVE']
-                        # Replace NaN with 0
-                        norm = norm.fillna(0)
-                        # Clip between 0 and 1
-                        norm = norm.clip(lower=0, upper=1)
-                        # Perform assignment
-                        new_df.loc[((new_df['date']==date) & (new_df['VOC']==VOC) & (new_df['dose']==dose)), efficacy] = norm.values
+        for dose in new_df['dose'].unique():
+            for efficacy in vaccine_params.index.get_level_values('efficacy').unique():
+                dates = df['date'].unique()
+                df['WANING_CUMULATIVE'] = 0
+                for date in dates:
+                    for inner_date in dates[dates<=date]:
+                        delta_t = (date-inner_date)/pd.Timedelta(days=1)
+                        # Compute VOC average vaccine efficacy at provided date
+                        VOC_fraction = VOC_function(pd.Timestamp(date), {}, {})[0,:]
+                        E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
+                        E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                        E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                        # Compute protection after delta_t days
+                        weight = self.waning_delay(delta_t, 14, 365/2, E_initial, E_best, E_waned)
+                        # Multiply with doses jabbed delta_t_days in the past
+                        df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] += weight*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values
+                    norm = df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] #/ df.loc[((df['dose']==dose) & (df['date']==date)), 'REL_CUMULATIVE']
+                    # Replace NaN with 0
+                    norm = norm.fillna(0)
+                    # Clip between 0 and 1
+                    norm = norm.clip(lower=0, upper=1)
+                    # Perform assignment
+                    new_df.loc[((new_df['date']==date) & (new_df['dose']==dose)), efficacy] = norm.values
 
-                    print(VOC, dose, efficacy)
+                print(dose, efficacy)
 
         # Reintroduce multiindex
         new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)
@@ -753,17 +752,17 @@ class make_vaccination_rescaling_function():
         fig,ax=plt.subplots(nrows=3, ncols=1)
         age_group = new_df.index.get_level_values('age').unique()[9]
 
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial', 'WT')]['e_s'])
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial', 'WT')]['e_i'])
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial', 'WT')]['e_h'])
+        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_s'], color='black')
+        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_i'], color='green')
+        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_h'], color='red')
 
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_s'])
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_i'])
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_h'])
+        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_s'], color='black')
+        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_i'], color='green')
+        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_h'], color='red')
 
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted', 'WT')]['e_s'])
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted', 'WT')]['e_i'])
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted', 'WT')]['e_h'])        
+        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_s'], color='black')
+        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_i'], color='green')
+        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_h'], color='red')        
 
         plt.show()
 
