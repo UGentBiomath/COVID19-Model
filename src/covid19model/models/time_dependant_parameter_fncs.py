@@ -617,11 +617,8 @@ class make_vaccination_rescaling_function():
             # Format vaccination parameters 
             vaccine_params = self.format_vaccine_params(vaccine_params)
             # Incorporate onset immunity, waning immunity and VOCs
-            df_efficacies = self.incorporate_delay_waning_VOC(df, vaccine_params, VOC_function)
+            df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function)
             sys.exit()
-
-            # Take dose-weighted average at every timestep
-            df_efficacies
 
             # Save result
 
@@ -700,13 +697,14 @@ class make_vaccination_rescaling_function():
             E_eff = E_waned - f*(E_waned - E_best)
         return E_eff
 
-    def incorporate_delay_waning_VOC(self, df, vaccine_params, VOC_function):
+    def compute_efficacies(self, df, vaccine_params, VOC_function):
 
         ## Make an output dataframe with the desired format
         # Columns
         columns = vaccine_params.index.get_level_values('efficacy').unique().values
         # Desired df
         new_df = pd.DataFrame(index=df.index, columns=columns, dtype=float)
+
         # Omit multiindex
         new_df_index = new_df.index
         new_df_columns = new_df.columns
@@ -714,6 +712,7 @@ class make_vaccination_rescaling_function():
 
         ## Omit multiindex on vaccination incidence data
         df_index = df.index
+        df_columns = df.columns
         df = df.reset_index()
 
         for dose in new_df['dose'].unique():
@@ -723,135 +722,88 @@ class make_vaccination_rescaling_function():
                 for date in dates:
                     for inner_date in dates[dates<=date]:
                         delta_t = (date-inner_date)/pd.Timedelta(days=1)
+
                         # Compute VOC average vaccine efficacy at provided date
                         VOC_fraction = VOC_function(pd.Timestamp(date), {}, {})[0,:]
                         E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
                         E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
                         E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                        if dose == 'boosted':
+                            E_initial = 0
+                            E_best -= np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values)
+                            E_waned = 0
                         # Compute protection after delta_t days
                         weight = self.waning_delay(delta_t, 14, 365/2, E_initial, E_best, E_waned)
                         # Multiply with doses jabbed delta_t_days in the past
-                        df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] += weight*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values
-                    norm = df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] #/ df.loc[((df['dose']==dose) & (df['date']==date)), 'REL_CUMULATIVE']
+                        if dose == 'boosted':
+                            df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] += weight*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)
+                        else:
+                            df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE'] += weight*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values
+                    norm = df.loc[((df['dose']==dose) & (df['date']==date)), 'WANING_CUMULATIVE']
                     # Replace NaN with 0
                     norm = norm.fillna(0)
                     # Clip between 0 and 1
-                    norm = norm.clip(lower=0, upper=1)
+                    norm = norm.clip(lower=-1, upper=1)
                     # Perform assignment
                     new_df.loc[((new_df['date']==date) & (new_df['dose']==dose)), efficacy] = norm.values
 
                 print(dose, efficacy)
 
-        # Reintroduce multiindex
+        # Reintroduce multiindeces
+        df = pd.DataFrame(index=df_index, columns=df_columns, data=df[df_columns].values)
         new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)
 
-        print(new_df)
+        # Make a visualization
+        NIS=30000
+        age_group = new_df.index.get_level_values('age').unique()[2]
+
+        import matplotlib.pyplot as plt
+        fig,ax=plt.subplots(nrows=3, ncols=1)
+        ax[0].plot(new_df.loc[(slice(None), NIS, age_group, 'partial')]['e_s'], color='black')
+        ax[0].plot(new_df.loc[(slice(None), NIS, age_group, 'partial')]['e_i'], color='green')
+        ax[0].plot(new_df.loc[(slice(None), NIS, age_group, 'partial')]['e_h'], color='red')
+        ax[1].plot(new_df.loc[(slice(None), NIS, age_group, 'full')]['e_s'], color='black')
+        ax[1].plot(new_df.loc[(slice(None), NIS, age_group, 'full')]['e_i'], color='green')
+        ax[1].plot(new_df.loc[(slice(None), NIS, age_group, 'full')]['e_h'], color='red')
+        ax[2].plot(new_df.loc[(slice(None), NIS, age_group, 'boosted')]['e_s'], color='black')
+        ax[2].plot(new_df.loc[(slice(None), NIS, age_group, 'boosted')]['e_i'], color='green')
+        ax[2].plot(new_df.loc[(slice(None), NIS, age_group, 'boosted')]['e_h'], color='red')        
+        plt.show()
 
         # Make a visualization
         import matplotlib.pyplot as plt
-        fig,ax=plt.subplots(nrows=3, ncols=1)
+        fig,ax=plt.subplots()
         age_group = new_df.index.get_level_values('age').unique()[9]
+        ax.plot(df.loc[slice(None), NIS, age_group, 'partial']['REL_CUMULATIVE'], color='orange')
+        ax.plot(df.loc[slice(None), NIS, age_group, 'full']['REL_CUMULATIVE'], color='green')
+        ax.plot(df.loc[slice(None), NIS, age_group, 'boosted']['REL_CUMULATIVE'], '--', color='green')     
+        plt.show()        
 
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_s'], color='black')
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_i'], color='green')
-        ax[0].plot(new_df.loc[(slice(None), 21000, age_group, 'partial')]['e_h'], color='red')
+        # Take dose-weighted average
 
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_s'], color='black')
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_i'], color='green')
-        ax[1].plot(new_df.loc[(slice(None), 21000, age_group, 'full')]['e_h'], color='red')
-
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_s'], color='black')
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_i'], color='green')
-        ax[2].plot(new_df.loc[(slice(None), 21000, age_group, 'boosted')]['e_h'], color='red')        
-
-        plt.show()
-
-        fig,ax=plt.subplots()
-        age_group = new_df.index.get_level_values('age').unique()[0]
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_s'])
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_i'])
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_h'])
-        plt.show()
-
-        fig,ax=plt.subplots()
-        age_group = new_df.index.get_level_values('age').unique()[1]
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_s'])
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_i'])
-        ax.plot(new_df.loc[(slice(None), 21000, age_group, 'full', 'WT')]['e_h'])
-        plt.show()
-
-        pass
-
-    @staticmethod
-    def exponential_decay(delta_t, half_time):
-        tau = half_time/np.log(2)
-        return np.exp(-delta_t/tau)
-
-    def compute_waning_incidences(self, df):
-
-        # Omit multiindex
-        df_index = df.index
-        df = df.reset_index()
-
-        # Perform calculation
-        df['WANING_CUMULATIVE'] = 0
-        dates = df['date'].unique()
-        for date in dates:
-            # Compute cumulative waning
-            for inner_date in dates[dates<=date]:
-                delta_t = (date-inner_date)/pd.Timedelta(days=1)
-                df.loc[((df['dose']=='full') & (df['date']==date)), 'WANING_CUMULATIVE'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values
-                df.loc[((df['dose']=='boosted') & (df['date']==date)), 'WANING_CUMULATIVE'] += (1-self.exponential_decay(delta_t, 365/2))*df.loc[((df['dose']=='boosted') & (df['date']==inner_date)), 'REL_INCIDENCE'].values
-
-        # Re-introduce multiindex
-        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE', 'WANING_CUMULATIVE'], data=df[['REL_INCIDENCE', 'REL_CUMULATIVE', 'WANING_CUMULATIVE']].values)
-
-        # Differentiate waning to obtain the "incidence" i.e. the number of transitionings
-        levels = list(df.index.names)
-        levels.remove("date")
-        df['WANING_INCIDENCE'] = df.groupby(by=levels)['WANING_CUMULATIVE'].diff().fillna(0)
-
-        # Use multiindex to assign 'full' --> 'waned' and 'boosted' --> 'waned' to vaccine doses
-
-        # Desired format
+        # Initialize dataframe without doses in index and with 'e_s', 'e_i', 'e_h' as columns
         iterables=[]
         for index_name in df.index.names:
             if index_name != 'dose':
                 iterables += [df.index.get_level_values(index_name).unique()]
-            else:
-                iterables += [['none', 'partial', 'full', 'boosted', 'full_waned', 'booster_waned'],]
-        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
-        new_df = pd.DataFrame(index=index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], dtype=float)
+        names = list(df.index.names)
+        names.remove("dose")        
+        index = pd.MultiIndex.from_product(iterables, names=names)
+        dose_avg_df = pd.DataFrame(index=index, columns=vaccine_params.index.get_level_values('efficacy').unique().values, dtype=float)
+        # Weighted sum of efficacies with cumulative share of population in dose x
+        for efficacy in dose_avg_df.columns:
+            dose_avg_df[efficacy] = (df['REL_CUMULATIVE']*new_df[efficacy]).groupby(by=dose_avg_df.index.names).sum()
 
-        # Fill it up
-        for dose in ['none', 'partial', 'full', 'boosted']:
-            new_df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), dose),'REL_INCIDENCE'].values
-            new_df.loc[(slice(None), slice(None), slice(None), dose),'REL_CUMULATIVE'] = df.loc[(slice(None), slice(None), slice(None), dose),'REL_CUMULATIVE'].values
-        else:
-            new_df.loc[(slice(None), slice(None), slice(None), 'full_waned'),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), 'full'),'WANING_INCIDENCE'].values
-            new_df.loc[(slice(None), slice(None), slice(None), 'full_waned'),'REL_CUMULATIVE'] = df.loc[(slice(None), slice(None), slice(None), 'full'),'WANING_CUMULATIVE'].values
-            new_df.loc[(slice(None), slice(None), slice(None), 'booster_waned'),'REL_INCIDENCE'] = df.loc[(slice(None), slice(None), slice(None), 'boosted'),'WANING_INCIDENCE'].values
-            new_df.loc[(slice(None), slice(None), slice(None), 'booster_waned'),'REL_CUMULATIVE'] = df.loc[(slice(None), slice(None), slice(None), 'boosted'),'WANING_CUMULATIVE'].values
-        
-        df = new_df
-
+        # Make a visualization
         import matplotlib.pyplot as plt
-        age_group = df.index.get_level_values('age').unique()[9]
         fig,ax=plt.subplots()
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full']['REL_CUMULATIVE'], color='green')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full']['REL_CUMULATIVE'] - df.loc[slice(None), 21000, age_group, 'full_waned']['REL_CUMULATIVE'], color='orange')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full_waned']['REL_CUMULATIVE'], '--', color='orange')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'boosted']['REL_CUMULATIVE'], '--', color='green')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'booster_waned']['REL_CUMULATIVE'], '--', color='orange')
+        age_group = new_df.index.get_level_values('age').unique()[9]
+        ax.plot(dose_avg_df.loc[(slice(None), NIS, age_group)]['e_s'], color='black')
+        ax.plot(dose_avg_df.loc[(slice(None), NIS, age_group)]['e_i'], color='green')
+        ax.plot(dose_avg_df.loc[(slice(None), NIS, age_group)]['e_h'], color='red')     
         plt.show()
 
-        fig,ax=plt.subplots()
-        ax.plot(df.loc[slice(None), 21000, age_group, 'none']['REL_CUMULATIVE'], '--', color='red')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'partial']['REL_CUMULATIVE'], '--', color='orange')
-        ax.plot(df.loc[slice(None), 21000, age_group, 'full']['REL_CUMULATIVE'], '--', color='green')
-        plt.show()
-
-        return df
+        return dose_avg_df
 
     @staticmethod
     def compute_relative_cumulative(df):
@@ -884,7 +836,7 @@ class make_vaccination_rescaling_function():
         - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'full' = 'second' + 'one_shot' - 'booster
         df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
-        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE'] - df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'boosted' = 'booster'
         df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
         # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
