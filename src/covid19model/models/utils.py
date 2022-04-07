@@ -284,7 +284,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
     ###########################################################
-
+    
     if age_stratification_size == 3:
         age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
     elif age_stratification_size == 9:
@@ -345,12 +345,13 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
 
-    rescaling_update=True
+    rescaling_update=False
+    agg='prov'
     if rescaling_update == True:
         # Load and format local vaccination-induced rescaling data
         df_vacc = sciensano.get_public_spatial_vaccination_data(update=False, agg=agg)
         # Compute the rescaling parameters
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_incidences=df_vacc, VOC_params=VOC_params, VOC_function=VOC_function, vaccine_params=vaccine_params)
+        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_incidences=df_vacc, VOC_function=VOC_function, vaccine_params=vaccine_params)
     else:
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes)
 

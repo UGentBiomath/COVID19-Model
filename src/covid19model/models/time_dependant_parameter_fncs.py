@@ -543,71 +543,24 @@ class make_vaccination_rescaling_function():
     E_susc_function(pd.Timestamp(2021, 10, 1), 0, 0)
     
     """
-    # TODO: I'm thinking that perhaps, the equivalent of the function `format_df_incidences(df)` should be moved to the function that loads the vaccination incidence data
-    # So every time the user updates the vaccination data, it is automatically formatted to:
-    #       the models 10 age groups (which we use all the time),
-    #       the cumulative and rel. cumulative incidence
-    #       names 'none', 'first', 'full', 'booster' instead of A, B, C, D, E
-    # Since updating the vaccination incidence data is not performed often this may avoid the use of computational resources when playing around with VOCs, vacc. parameters, etc.
-    # To do this, the function `get_public_spatial_vaccination_data` needs to be extended with the functionality of `format_df_incidences(df)`
 
     # TODO: hypothetical vaccination schemes
     # TODO: updating incidences dataframe should result in updating the rescaling as well
+    # TODO: untangle age group 0-18 into 0-12 and 12-18
     
     def __init__(self, update=False, agg=None,
                     age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-                    df_incidences=None, VOC_params=None, VOC_function=None, vaccine_params=None):
+                    df_incidences=None, VOC_function=None, vaccine_params=None):
 
-        # Is there a need to update the rescaling functions?
         if update==False:
             # Simply load data
             if agg:
-                # TODO: get right agg
-                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_provincial.pkl")
-                df = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age', 'dose']).first()
+                dir_abs = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
+                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age']).first()
             else:
                 dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
-                df = pd.read_pickle(dir_abs).groupby(['date', 'age', 'dose']).first()
-            
-            # Retain 'weighted sum' of axis 'dose' only
-            df = df.loc[slice(None), slice(None), slice(None), 'weighted_sum'][['E_susc', 'E_inf', 'E_hosp']]
-
-            # Check if an age conversion is necessary
-            age_conv=False
-            if len(age_classes) != len(df.index.get_level_values('age').unique()):
-                age_conv=True
-            elif (age_classes != df.index.get_level_values('age').unique()).any():
-                age_conv=True
-            
-            if age_conv:
-
-                # Define a new dataframe with the desired age groups
-                iterables=[]
-                for index_name in df.index.names:
-                    if index_name != 'age':
-                        iterables += [df.index.get_level_values(index_name).unique()]
-                    else:
-                        iterables += [age_classes]
-                index = pd.MultiIndex.from_product(iterables, names=df.index.names)
-                new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
-
-                # Perform age conversion
-                if agg:
-                    for date in df.index.get_level_values('date').unique():
-                        for NIS in df.index.get_level_values('NIS').unique():
-                            new_df.loc[date, NIS, slice(None)] = self.age_conversion(df.loc[date, NIS, slice(None)], age_classes, agg=agg, NIS=NIS).values
-                else:
-                    for date in df.index.get_level_values('date').unique():
-                        new_df.loc[date, slice(None)] = self.age_conversion(df.loc[date, slice(None)], age_classes).values
-                df = new_df
-
-            # Assign result
-            self.rescaling_df = df
-            self.available_dates = self.rescaling_df.index.get_level_values('date').unique()
-
+                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'age']).first()
         else:
-            import sys
-
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
             # Compute population size-normalized relative incidences
@@ -616,7 +569,7 @@ class make_vaccination_rescaling_function():
             df = self.compute_relative_cumulative(df_incidences)
             # Format vaccination parameters 
             vaccine_params = self.format_vaccine_params(vaccine_params)
-            # Incorporate onset immunity, waning immunity and VOCs
+            # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
             df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function)
             # Save result
             dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
@@ -627,8 +580,42 @@ class make_vaccination_rescaling_function():
                 df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_national.csv'))
                 df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_national.pkl'))
 
+        # Check if an age conversion is necessary
+        age_conv=False
+        if len(age_classes) != len(df_efficacies.index.get_level_values('age').unique()):
+            age_conv=True
+        elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
+            age_conv=True
+
+        if age_conv:
+
+            # Define a new dataframe with the desired age groups
+            iterables=[]
+            for index_name in df_efficacies.index.names:
+                if index_name != 'age':
+                    iterables += [df_efficacies.index.get_level_values(index_name).unique()]
+                else:
+                    iterables += [age_classes]
+            index = pd.MultiIndex.from_product(iterables, names=df_efficacies.index.names)
+            new_df = pd.DataFrame(index=index, columns=df_efficacies.columns, dtype=float)
+
+            # Perform age conversion
+            if agg:
+                for date in df_efficacies.index.get_level_values('date').unique():
+                    for NIS in df_efficacies.index.get_level_values('NIS').unique():
+                        new_df.loc[date, NIS, slice(None)] = self.age_conversion(df_efficacies.loc[date, NIS, slice(None)], age_classes, agg=agg, NIS=NIS).values
+            else:
+                for date in df_efficacies.index.get_level_values('date').unique():
+                    new_df.loc[date, slice(None)] = self.age_conversion(df_efficacies.loc[date, slice(None)], age_classes).values
+            df_efficacies = new_df
+
+        # Assign result
+        self.df_efficacies = df_efficacies
+
+
     @staticmethod
     def format_vaccine_params(df):
+        """ This function format the vaccine parameters provided by the user in function `covid19model.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
 
         # Define vaccination properties  
         iterables = [df.index.get_level_values('VOC').unique(),['none', 'partial', 'full', 'boosted'], ['e_s', 'e_i', 'e_h']]
@@ -761,6 +748,8 @@ class make_vaccination_rescaling_function():
                     else:
                         sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
                 
+                sol = sol.clip(min=-1,max=1)
+
                 # Perform assignment
                 for idx, efficacy in enumerate(vaccine_params.index.get_level_values('efficacy').unique()):
                     new_df.loc[((new_df['date']==date) & (new_df['dose']==dose)), efficacy] = sol[idx,:]
@@ -838,59 +827,12 @@ class make_vaccination_rescaling_function():
         # Reintroduce multiindex
         df = pd.DataFrame(index=df_new_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], data=df_new[['REL_INCIDENCE', 'REL_CUMULATIVE']].values)
 
-        #column='REL_CUMULATIVE'
-        #import matplotlib.pyplot as plt
-        #age_group = df.index.get_level_values('age').unique()[9]
-        #fig,ax=plt.subplots()
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'none'][column], color='red')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'partial'][column], color='orange')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'full'][column], color='green')
-        #ax.plot(df.loc[slice(None), 21000, age_group, 'boosted'][column], '--', color='green')
-        #plt.show()
-
         return df
 
     @staticmethod
-    def shift_relative_incidences(df):
-        
-        # Because data is reported weekly, shift can only be a multiple of seven days
-        onset_immunity = {'first': 14, 'second': 14, 'one_shot': 14, 'booster': 14} 
-
-        # Omit multiindex
-        df_index = df.index
-        df = df.reset_index()
-        
-        # Initialize REL_INCIDENCE_DELAY column for immunity buildup and waning
-        df['REL_INCIDENCE_DELAY']=0
-        dates = df['date'].unique()
-        for date in dates:
-            for inner_date in dates[dates<=date]:
-                delta_t = (date-inner_date)/pd.Timedelta(days=1)
-                for dose in df['dose'].unique():
-                    if delta_t >= onset_immunity[dose]:
-                        df.loc[((df['dose']==dose) & (df['date']==date)), 'REL_INCIDENCE_DELAY'] += df.loc[((df['dose']==dose)&(df['date']==inner_date)),'REL_INCIDENCE'].values
-
-        # Re-introduce multiindex
-        df = pd.DataFrame(index=df_index, columns=['REL_INCIDENCE', 'REL_INCIDENCE_DELAY'], data=df[['REL_INCIDENCE', 'REL_INCIDENCE_DELAY']].values)
-
-        # Differentiate delay
-        levels = list(df.index.names)
-        levels.remove("date")
-        df['REL_INCIDENCE_DELAY'] = df.groupby(by=levels)['REL_INCIDENCE_DELAY'].diff().fillna(0)
-        df = df['REL_INCIDENCE_DELAY']
-
-        # Visualization for debugging purposes
-        #import matplotlib.pyplot as plt
-        #fig,ax=plt.subplots()
-        #age_group = df.index.get_level_values('age').unique()[9]
-        #ax.plot(df.loc[(slice(None), 21000, age_group, 'second')]['REL_INCIDENCE'], color='green')
-        #ax.plot(df.loc[(slice(None), 21000, age_group, 'second')]['REL_INCIDENCE_DELAY'], color='red')
-        #plt.show()
-
-        return df.rename('REL_INCIDENCE')
-
-    @staticmethod
     def compute_relative_incidences(df, agg=None):
+
+        # TODO: elongate dataframe with one year to allow waning beyond the final date of this dataframe
 
         # Compute fractions with dose x using relevant population size
         if agg:
@@ -931,9 +873,12 @@ class make_vaccination_rescaling_function():
 
         # Pre-allocate new dataframe
         out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
-        out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
-        # Extract demographics for all ages
-        demographics = construct_initN(None,agg).loc[NIS,:].values
+        if agg:
+            out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
+            demographics = construct_initN(None,agg).loc[NIS,:].values
+        else:
+            out_n_individuals = construct_initN(age_classes, agg).values
+            demographics = construct_initN(None,agg).values
         # Loop over desired intervals
         for idx,interval in enumerate(age_classes):
             result = []
