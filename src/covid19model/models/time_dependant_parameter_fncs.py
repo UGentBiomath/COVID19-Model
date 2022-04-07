@@ -203,8 +203,9 @@ class make_VOC_function():
     """
     def __init__(self, VOC_logistic_growth_parameters):
         self.logistic_parameters=VOC_logistic_growth_parameters
-
-    def logistic_growth(self,t,t_sig,k):
+    
+    @staticmethod
+    def logistic_growth(t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
     # Default VOC function includes abc, delta and omicron variants
@@ -545,7 +546,6 @@ class make_vaccination_rescaling_function():
     """
 
     # TODO: hypothetical vaccination schemes
-    # TODO: updating incidences dataframe should result in updating the rescaling as well
     # TODO: untangle age group 0-18 into 0-12 and 12-18
     
     def __init__(self, update=False, agg=None,
@@ -565,12 +565,14 @@ class make_vaccination_rescaling_function():
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
             # Compute population size-normalized relative incidences
             df_incidences = self.compute_relative_incidences(df_incidences, agg)
+            # Elongate the dataframe of incidences with 26 weeks in which no vaccines are administered
+            df_incidences = self.extend_df_incidences(df_incidences, n_weeks=26)
             # Attach cumulative figures
             df = self.compute_relative_cumulative(df_incidences)
             # Format vaccination parameters 
-            vaccine_params = self.format_vaccine_params(vaccine_params)
+            vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
             # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
-            df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function)
+            df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function, onset, waning)
             # Save result
             dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
             if agg:
@@ -587,13 +589,86 @@ class make_vaccination_rescaling_function():
         elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
             df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
 
-        # Assign result
+        # Assign efficacy dataset
         self.df_efficacies = df_efficacies
+
+        # Compute some other relevant attributes
+        self.available_dates = df_efficacies.index.get_level_values('date').unique()
+        self.N = len(age_classes)
+        self.agg = agg
+        try:
+            self.G = len(df_efficacies.index.get_level_values('NIS').unique())
+        except:
+            self.G = 0
+
+    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
+    def __call__(self, t, efficacy):
+        """
+        Returns rescaling value matrix [G,N] for the requested time t.
+
+        Input
+        -----
+        t : pd.Timestamp
+            Time at which you want to know the rescaling parameter matrix
+        rescaling_type : str
+            Either 'susc', 'inf' or 'hosp'
+            
+        Output
+        ------
+        E : np.array
+            Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
+        """
+
+        if efficacy not in self.df_efficacies.columns:
+            raise ValueError(
+                "valid vaccine efficacies are 'e_s', 'e_i', or 'e_h'.")
+        
+        t = pd.Timestamp(t)
+
+        if t < min(self.available_dates):
+            # Take unity matrix
+            if self.agg:
+                E = np.ones([self.G,self.N])
+            else:
+                E = np.ones(self.N)
+        
+        elif t <= max(self.available_dates):
+            # Take interpolation between dates for which data is available
+            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
+            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
+            if self.agg:
+                E_values_first = self.df_efficacies.loc[t_data_first, :, :][efficacy].to_numpy()
+                E_first = np.reshape(E_values_first, (self.G,self.N))
+                E_values_second = self.df_efficacies.loc[t_data_second, :, :][efficacy].to_numpy()
+                E_second = np.reshape(E_values_second, (self.G,self.N))
+            else:
+                E_first = self.rescaling_df.loc[t_data_first, :][efficacy].to_numpy()
+                E_second = self.rescaling_df.loc[t_data_second, :][efficacy].to_numpy()
+            # linear interpolation
+            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
+            
+        elif t > max(self.available_dates):
+            # Take last available data point
+            t_data = pd.Timestamp(self.available_dates[-1])
+            if self.agg:
+                E_values = self.rescaling_df.loc[t_data, :, :][efficacy].to_numpy()
+                E = np.reshape(E_values, (self.G,self.N))
+            else:
+                E = self.rescaling_df.loc[t_data, :][efficacy].to_numpy()
+        
+        return (1-E)
+    
+    def E_susc(self, t, states, param):
+        return self.__call__(t, 'e_s')
+    
+    def E_inf(self, t, states, param):
+        return self.__call__(t, 'e_i')
+    
+    def E_hosp(self, t, states, param):
+        return self.__call__(t, 'e_h')
 
     @staticmethod
     def compute_relative_incidences(df, agg=None):
-
-        # TODO: elongate dataframe with one year to allow waning beyond the final date of this dataframe
 
         # Compute fractions with dose x using relevant population size
         if agg:
@@ -610,6 +685,32 @@ class make_vaccination_rescaling_function():
         df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
 
         return df['REL_INCIDENCE']
+
+    @staticmethod
+    def extend_df_incidences(df_incidences, n_weeks=26):
+        """A function to extend the series of vaccine incidences with zero administered vaccines for n_weeks"""
+
+        # Construct extended daterange index
+        dates = df_incidences.index.get_level_values('date').unique()
+        extended_dates = pd.date_range(start=min(dates), end=max(dates)+pd.Timedelta(weeks=n_weeks), freq='W-MON')
+
+        # Define a new series with the extended dates
+        iterables=[]
+        for index_name in df_incidences.index.names:
+            if index_name != 'date':
+                iterables += [df_incidences.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [extended_dates,]
+        index = pd.MultiIndex.from_product(iterables, names=df_incidences.index.names)
+        extended_df = pd.Series(index=index, name='PREALLOCATED', dtype=float)        
+
+        # Place incidence series in extended series
+        extended_df = extended_df.combine_first(df_incidences).fillna(0)
+
+        # Rename
+        extended_df = extended_df.rename(df_incidences.name)
+
+        return extended_df
 
     @staticmethod
     def compute_relative_cumulative(df):
@@ -668,6 +769,10 @@ class make_vaccination_rescaling_function():
     def format_vaccine_params(df):
         """ This function format the vaccine parameters provided by the user in function `covid19model.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
 
+        ###################
+        ## e_s, e_i, e_h ##
+        ###################
+
         # Define vaccination properties  
         iterables = [df.index.get_level_values('VOC').unique(),['none', 'partial', 'full', 'boosted'], ['e_s', 'e_i', 'e_h']]
         index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose', 'efficacy'])
@@ -693,7 +798,17 @@ class make_vaccination_rescaling_function():
         # boosted, initial = full, waned
         df_new.loc[(slice(None), 'boosted', slice(None)),'initial'] = df_new.loc[(slice(None), 'full', slice(None)),'waned'].values
 
-        return df_new
+        ############################
+        ## onset_immunity, waning ##
+        ############################
+
+        onset={}
+        waning={}
+        for dose in df_new.index.get_level_values('dose'):
+            onset.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'onset_immunity']})
+            waning.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'waning']})
+
+        return df_new, onset, waning
 
     @staticmethod
     def waning_delay(delta_t, onset_days, waning_days, E_init, E_best, E_waned):
@@ -737,7 +852,7 @@ class make_vaccination_rescaling_function():
             E_eff = E_waned - f*(E_waned - E_best)
         return E_eff
 
-    def compute_efficacies(self, df, vaccine_params, VOC_function):
+    def compute_efficacies(self, df, vaccine_params, VOC_function, onset, waning):
 
         # Pre-allocate a dataframe with the desired format
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -750,7 +865,6 @@ class make_vaccination_rescaling_function():
         new_df_index = new_df.index
         new_df_columns = new_df.columns
         new_df = new_df.reset_index()
-
 
         # Omit multiindex on vaccination incidence data
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -789,7 +903,7 @@ class make_vaccination_rescaling_function():
                             E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values))
 
                     # Compute protection after delta_t days
-                    weight = self.waning_delay(delta_t, 14, 365/2, np.array(E_initial), np.array(E_best), np.array(E_waned))
+                    weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
 
                     # Multiply weights with doses jabbed delta_t_days in the past
                     if dose == 'boosted':
@@ -889,83 +1003,6 @@ class make_vaccination_rescaling_function():
             out.iloc[idx] = sum(result)
         return out
         
-    @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t, rescaling_type):
-        """
-        Returns rescaling value matrix [G,N] for the requested time t.
-        
-        NOTE: this is currently hard-coded on dimensions [11,10]
-        
-        Input
-        -----
-        t : pd.Timestamp
-            Time at which you want to know the rescaling parameter matrix
-        rescaling_type : str
-            Either 'susc', 'inf' or 'hosp'
-            
-        Output
-        ------
-        E : np.array
-            Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
-        """
-        
-        # hard-coded dimensions
-        G = 11
-        N = 10
-        
-        if rescaling_type not in ['susc', 'inf', 'hosp']:
-            raise ValueError(
-                "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
-        
-        t = pd.Timestamp(t)
-        
-        if t <= self.available_dates[0]:
-            # Take unity matrix
-            if self.spatial:
-                E = np.ones([G,N])
-            else:
-                E = np.ones(N)
-            
-        elif t < self.available_dates[-1]:
-            # Take interpolation between to dates for which data is available
-            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
-            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
-            
-            if self.spatial:
-                E_values_first = self.rescaling_df.loc[t_data_first, :, :][f'E_{rescaling_type}'].to_numpy()
-                E_first = np.reshape(E_values_first, (G,N))
-
-                E_values_second = self.rescaling_df.loc[t_data_second, :, :][f'E_{rescaling_type}'].to_numpy()
-                E_second = np.reshape(E_values_second, (G,N))
-                
-            else:
-                E_first = self.rescaling_df.loc[t_data_first, :][f'E_{rescaling_type}'].to_numpy()
-                E_second = self.rescaling_df.loc[t_data_second, :][f'E_{rescaling_type}'].to_numpy()
-                
-            # linear interpolation
-            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
-            
-        elif t >= self.available_dates[-1]:
-            # Take latest data point
-            t_data = pd.Timestamp(self.available_dates[-1])
-            if self.spatial:
-                E_values = self.rescaling_df.loc[t_data, :, :][f'E_{rescaling_type}'].to_numpy()
-                E = np.reshape(E_values, (G,N))
-            else:
-                E = self.rescaling_df.loc[t_data, :][f'E_{rescaling_type}'].to_numpy()
-        
-        return E
-    
-    def E_susc(self, t, states, param):
-        return self.__call__(t, 'susc')
-    
-    def E_inf(self, t, states, param):
-        return self.__call__(t, 'inf')
-    
-    def E_hosp(self, t, states, param):
-        return self.__call__(t, 'hosp')
-        
-                
 ###################################
 ## Google social policy function ##
 ###################################

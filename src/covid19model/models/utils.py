@@ -277,7 +277,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
 
     return model, CORE_samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-17', virgin=False):
+def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-17', virgin=False, update_data=False):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -320,7 +320,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
     # Google Mobility data (for social contact Nc)
-    df_google = mobility.get_google_mobility_data(update=False, provincial=True)
+    df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data = mobility.get_proximus_mobility_data('prov')
     # Variants of concern
@@ -330,6 +330,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Load currently saved VOC parameters
     VOCs = ['WT', 'abc', 'delta']
     VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
+
     # Update the relevant model parameters
     params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
                    'f_VOC': np.array(VOC_params['variant_properties', 'f_VOC'].tolist(), np.float64),
@@ -339,24 +340,25 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
         params.update(
             {'h': params['h']*list(VOC_params['variant_properties', 'K_hosp'].values)[0]})
     # Assert if there are differences in the VOC parameters, if yes, the rescaling dataframe must be updated
+    # If (vaccine) data is updated, so must the rescaling dataframe
     rescaling_update=False
     if ((not VOC_params_previous.equals(VOC_params)) or (not vaccine_params_previous.equals(vaccine_params))):
-        rescaling_update = True    
-    print(rescaling_update)
-    sys.exit()   
+        rescaling_update = True
+    elif update_data == True:
+        rescaling_update = True
 
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
 
-    rescaling_update=False
-    agg='prov'
     if rescaling_update == True:
         # Load and format local vaccination-induced rescaling data
-        df_vacc = sciensano.get_public_spatial_vaccination_data(update=False, agg=agg)
+        df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data, agg=agg)
         # Compute the rescaling parameters
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes, df_incidences=df_vacc, VOC_function=VOC_function, vaccine_params=vaccine_params)
     else:
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes)
+
+    print(vaccination_rescaling_function(pd.Timestamp('2021-09-15'),'e_s'))
 
     sys.exit()
 

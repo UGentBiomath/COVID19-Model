@@ -479,9 +479,9 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     save_path = os.path.join(
         abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs")
 
-    ######################################################################
-    ## Build a dataframe with all properties that depend on the variant ##
-    ######################################################################
+    ###########################################################
+    ## Build a dataframe with all properties of the variants ##
+    ###########################################################
 
     columns = [('logistic_growth', 't_introduction'), ('logistic_growth', 't_sigmoid'), ('logistic_growth', 'k'),
                ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties','f_immune_escape'),
@@ -506,10 +506,13 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62+0.07, (1.62+0.07)*0.30]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.70, 2.00, 3.00]
 
-    # Define vaccination properties  
+    ###############################################
+    ## Build a dataframe with vaccine properties ##
+    ###############################################
+
     iterables = [['WT', 'abc', 'delta', 'omicron'],['none', 'partial', 'full', 'waned', 'boosted']]
     index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose'])
-    vaccine_parameters = pd.DataFrame(index=index, columns=['e_s', 'e_i', 'e_h', 'waning_days', 'onset_days'])
+    vaccine_parameters = pd.DataFrame(index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'])
 
     # e_s
     vaccine_parameters.loc[('WT',slice(None)),'e_s'] = [0, 0.84/2, 0.84, 0.68, 0.84]
@@ -517,17 +520,26 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     vaccine_parameters.loc[('delta',slice(None)),'e_s'] = [0, 0.72/2, 0.72, 0.55, 0.72]
     vaccine_parameters.loc[('omicron',slice(None)),'e_s'] = [0, 0.342, 0.441, 0.248, 0.659]
 
-    # e_h
-    vaccine_parameters.loc[('WT',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32]
-    vaccine_parameters.loc[('abc',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.32, 1-0.16, 1-0.32]
-    vaccine_parameters.loc[('delta',slice(None)),'e_h'] = [0, (1-0.32)/2, 1-0.18, 1-0.11, 1-0.18]
+    # e_h = protection against symptomatic disease (=e_s) * protection against severe disease (=e_h_star)
+    vaccine_parameters.loc[('WT',slice(None)),'e_h'] = [0, 0.95/2, 0.95, 0.95, 0.95]
+    vaccine_parameters.loc[('abc',slice(None)),'e_h'] = [0, 0.95/2, 0.95, 0.95, 0.95]
+    vaccine_parameters.loc[('delta',slice(None)),'e_h'] = [0, 0.95/2, 0.95, 0.95, 0.95]
     vaccine_parameters.loc[('omicron',slice(None)),'e_h'] = [0, 0.767, 0.837, 0.676, 0.933]
+    # e_h_star
+    for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+        vaccine_parameters.loc[(VOC,slice(None)),'e_h'] = 1 - (1-vaccine_parameters.loc[(VOC,slice(None)),'e_h'].values)/(1-vaccine_parameters.loc[(VOC,slice(None)),'e_s'].values)
 
     # e_i
     vaccine_parameters.loc[('WT',slice(None)),'e_i'] = [0, 0.70/2, 0.70, 0.33, 0.70]
     vaccine_parameters.loc[('abc',slice(None)),'e_i'] = [0, 0.70/2, 0.70, 0.33, 0.70]
     vaccine_parameters.loc[('delta',slice(None)),'e_i'] = [0, 0.41/2, 0.41, 0.17, 0.41]
     vaccine_parameters.loc[('omicron',slice(None)),'e_i'] = [0, 0.24, 0.37, 0.24, 0.37]
+
+    # onset: 14 days for every vaccine dose
+    vaccine_parameters.loc[(slice(None),['partial','full','boosted']),'onset_immunity'] = 14
+
+    # waning:
+    vaccine_parameters.loc[(slice(None),['partial','full','boosted']),'waning'] = 365/2
 
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
