@@ -284,7 +284,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
     ###########################################################
-    
+
     if age_stratification_size == 3:
         age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
     elif age_stratification_size == 9:

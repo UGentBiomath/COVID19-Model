@@ -583,35 +583,86 @@ class make_vaccination_rescaling_function():
         # Check if an age conversion is necessary
         age_conv=False
         if len(age_classes) != len(df_efficacies.index.get_level_values('age').unique()):
-            age_conv=True
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
         elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
-            age_conv=True
-
-        if age_conv:
-
-            # Define a new dataframe with the desired age groups
-            iterables=[]
-            for index_name in df_efficacies.index.names:
-                if index_name != 'age':
-                    iterables += [df_efficacies.index.get_level_values(index_name).unique()]
-                else:
-                    iterables += [age_classes]
-            index = pd.MultiIndex.from_product(iterables, names=df_efficacies.index.names)
-            new_df = pd.DataFrame(index=index, columns=df_efficacies.columns, dtype=float)
-
-            # Perform age conversion
-            if agg:
-                for date in df_efficacies.index.get_level_values('date').unique():
-                    for NIS in df_efficacies.index.get_level_values('NIS').unique():
-                        new_df.loc[date, NIS, slice(None)] = self.age_conversion(df_efficacies.loc[date, NIS, slice(None)], age_classes, agg=agg, NIS=NIS).values
-            else:
-                for date in df_efficacies.index.get_level_values('date').unique():
-                    new_df.loc[date, slice(None)] = self.age_conversion(df_efficacies.loc[date, slice(None)], age_classes).values
-            df_efficacies = new_df
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
 
         # Assign result
         self.df_efficacies = df_efficacies
 
+    @staticmethod
+    def compute_relative_incidences(df, agg=None):
+
+        # TODO: elongate dataframe with one year to allow waning beyond the final date of this dataframe
+
+        # Compute fractions with dose x using relevant population size
+        if agg:
+            initN = construct_initN(df.index.get_level_values('age').unique(), agg)
+            for age in df.index.get_level_values('age').unique():
+                for NIS in df.index.get_level_values('NIS').unique():
+                    df.loc[(slice(None), NIS, age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), NIS, age, slice(None)]['INCIDENCE'].values / initN.loc[NIS, age]
+        else:
+            initN = construct_initN(df.index.get_level_values('age').unique())
+            for age in df.index.get_level_values('age').unique():
+                df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
+
+        # Use more declaritive names for doses
+        df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
+
+        return df['REL_INCIDENCE']
+
+    @staticmethod
+    def compute_relative_cumulative(df):
+
+        # Compute cumulative sum over all doses
+        levels = list(df.index.names)
+        levels.remove("date")
+        df_cumsum = df.groupby(by=levels).cumsum().clip(lower=0, upper=1)
+        df_cumsum = df_cumsum.reset_index().set_index('date')
+        df_cumsum = df_cumsum.rename(columns={'REL_INCIDENCE': 'REL_CUMULATIVE'})
+
+        # Define output dataframe
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'dose':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [['none', 'partial', 'full', 'boosted'],]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        df_new = pd.DataFrame(index=index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], dtype=float)
+        df_new_index = df_new.index
+        df_new = df_new.reset_index().set_index('date')
+
+        # Remove multiindex from incidences data
+        df = df.reset_index().set_index('date')
+
+        ## Compute populations 
+        # 'partial' = 'first' - 'second'
+        df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='first', 'REL_CUMULATIVE'] \
+        - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # 'full' = 'second' + 'one_shot' - 'booster
+        df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
+        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # 'boosted' = 'booster'
+        df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
+        # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
+        df_new.loc[df_new['dose']=='none','REL_CUMULATIVE'] = 1 - df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] \
+        - df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] - df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE']
+
+        ## Make sure incidences wind up in right category
+        # full = second + janssen
+        df_new.loc[df_new['dose']=='full', 'REL_INCIDENCE'] = df.loc[df['dose']=='second', 'REL_INCIDENCE'] + df.loc[df['dose']=='one_shot', 'REL_INCIDENCE']
+        # partial = first
+        df_new.loc[df_new['dose']=='partial', 'REL_INCIDENCE'] = df.loc[df['dose']=='first', 'REL_INCIDENCE'] 
+        # boosted = booster
+        df_new.loc[df_new['dose']=='boosted', 'REL_INCIDENCE'] = df.loc[df['dose']=='booster', 'REL_INCIDENCE'] 
+        # none = 0
+        df_new.loc[df_new['dose']=='none', 'REL_INCIDENCE'] = 0
+
+        # Reintroduce multiindex
+        df = pd.DataFrame(index=df_new_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], data=df_new[['REL_INCIDENCE', 'REL_CUMULATIVE']].values)
+
+        return df
 
     @staticmethod
     def format_vaccine_params(df):
@@ -643,7 +694,6 @@ class make_vaccination_rescaling_function():
         df_new.loc[(slice(None), 'boosted', slice(None)),'initial'] = df_new.loc[(slice(None), 'full', slice(None)),'waned'].values
 
         return df_new
-
 
     @staticmethod
     def waning_delay(delta_t, onset_days, waning_days, E_init, E_best, E_waned):
@@ -776,82 +826,31 @@ class make_vaccination_rescaling_function():
 
         return dose_avg_df
 
-    @staticmethod
-    def compute_relative_cumulative(df):
+    def age_conversion(self, df, desired_age_classes, agg):
 
-        # Compute cumulative sum over all doses
-        levels = list(df.index.names)
-        levels.remove("date")
-        df_cumsum = df.groupby(by=levels).cumsum().clip(lower=0, upper=1)
-        df_cumsum = df_cumsum.reset_index().set_index('date')
-        df_cumsum = df_cumsum.rename(columns={'REL_INCIDENCE': 'REL_CUMULATIVE'})
-
-        # Define output dataframe
+        # Define a new dataframe with the desired age groups
         iterables=[]
         for index_name in df.index.names:
-            if index_name != 'dose':
+            if index_name != 'age':
                 iterables += [df.index.get_level_values(index_name).unique()]
             else:
-                iterables += [['none', 'partial', 'full', 'boosted'],]
+                iterables += [desired_age_classes]
         index = pd.MultiIndex.from_product(iterables, names=df.index.names)
-        df_new = pd.DataFrame(index=index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], dtype=float)
-        df_new_index = df_new.index
-        df_new = df_new.reset_index().set_index('date')
+        new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
 
-        # Remove multiindex from incidences data
-        df = df.reset_index().set_index('date')
-
-        ## Compute populations 
-        # 'partial' = 'first' - 'second'
-        df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='first', 'REL_CUMULATIVE'] \
-        - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
-        # 'full' = 'second' + 'one_shot' - 'booster
-        df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
-        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
-        # 'boosted' = 'booster'
-        df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
-        # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
-        df_new.loc[df_new['dose']=='none','REL_CUMULATIVE'] = 1 - df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] \
-        - df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] - df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE']
-
-        ## Make sure incidences wind up in right category
-        # full = second + janssen
-        df_new.loc[df_new['dose']=='full', 'REL_INCIDENCE'] = df.loc[df['dose']=='second', 'REL_INCIDENCE'] + df.loc[df['dose']=='one_shot', 'REL_INCIDENCE']
-        # partial = first
-        df_new.loc[df_new['dose']=='partial', 'REL_INCIDENCE'] = df.loc[df['dose']=='first', 'REL_INCIDENCE'] 
-        # boosted = booster
-        df_new.loc[df_new['dose']=='boosted', 'REL_INCIDENCE'] = df.loc[df['dose']=='booster', 'REL_INCIDENCE'] 
-        # none = 0
-        df_new.loc[df_new['dose']=='none', 'REL_INCIDENCE'] = 0
-
-        # Reintroduce multiindex
-        df = pd.DataFrame(index=df_new_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], data=df_new[['REL_INCIDENCE', 'REL_CUMULATIVE']].values)
-
-        return df
-
-    @staticmethod
-    def compute_relative_incidences(df, agg=None):
-
-        # TODO: elongate dataframe with one year to allow waning beyond the final date of this dataframe
-
-        # Compute fractions with dose x using relevant population size
+        # Loop to the dataseries level and perform demographic weighing
         if agg:
-            initN = construct_initN(df.index.get_level_values('age').unique(), agg)
-            for age in df.index.get_level_values('age').unique():
+            for date in df.index.get_level_values('date').unique():
                 for NIS in df.index.get_level_values('NIS').unique():
-                    df.loc[(slice(None), NIS, age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), NIS, age, slice(None)]['INCIDENCE'].values / initN.loc[NIS, age]
+                    new_df.loc[date, NIS, slice(None)] = self.demographic_weighing(df.loc[date, NIS, slice(None)], desired_age_classes, agg=agg, NIS=NIS).values
         else:
-            initN = construct_initN(df.index.get_level_values('age').unique())
-            for age in df.index.get_level_values('age').unique():
-                df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
+            for date in df.index.get_level_values('date').unique():
+                new_df.loc[date, slice(None)] = self.demographic_weighing(df.loc[date, slice(None)], desired_age_classes).values
 
-        # Use more declaritive names for doses
-        df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
-
-        return df['REL_INCIDENCE']
+        return new_df
 
     @staticmethod
-    def age_conversion(data, age_classes, agg=None, NIS=None):
+    def demographic_weighing(data, age_classes, agg=None, NIS=None):
         """ 
         Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
         this function can convert the data into another user-defined age-stratification using demographic weighing
