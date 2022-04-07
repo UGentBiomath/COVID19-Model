@@ -164,7 +164,7 @@ if __name__ == '__main__':
     print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:15]]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:22]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
@@ -183,22 +183,22 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta_R', 'beta_U', 'beta_M']
-    bounds1=((0.015,0.040),(0.015,0.040),(0.015,0.040))
+    bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.00,0.99),(0.00,0.99),(0.00,0.99),(0.00,0.60),(0.00,0.99))
+    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.60),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.40, 1.80),(1.80,2.20))
+    bounds3 = ((1.30, 1.60),(1.55,2.20))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
+    bounds4 = ((0,0.50),)
     # Waning antibody immunity
     pars5 = ['zeta',]
-    bounds5 = ((1e-4,4e-3),)
+    bounds5 = ((1e-4,5e-3),)
     # Overdispersion of statistical model
-    bounds6 = ((1e-4,0.25),)
+    bounds6 = ((1e-4,0.26),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5 
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
@@ -207,11 +207,10 @@ if __name__ == '__main__':
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
-    theta = [0.0267, 0.0257, 0.0337, 0.1, 0.5, 0.5, 0.32, 0.4, 1.62, 1.70, 0.23, 0.0025, 0.197] # this has a more balanced work-leisure ratio to start things off (calibration 2022-03-24, enddate 2021-10-01, K_hosp=[1.62, 1.62+0.07])
-    #theta = [0.0303, 0.0302, 0.0394, 0.0368, 0.813, 0.225, 0.337, 0.239, 1.73, 1.98, 0.263, 0.0025, 0.197] # result of calibration 2022-03-24
-    theta = [0.02297512, 0.02314416, 0.02934642, 0.07164353, 0.8070785, 0.70070529, 0.22081625, 0.39137318, 1.8, 1.7, 0.35, 0.00327224, 0.23659269] # 17515.321918800855
-    theta = [0.02412113, 0.02436224, 0.03180524, 0., 0.78313256, 0.58803115, 0.27997321, 0.36161783, 1.64470573, 2.01498096, 0.35, 0.00222692, 0.25] #17663.70240036109
-    theta = [0.02412113, 0.02436224, 0.03180524, 0.07, 0.75, 0.58803115, 0.27997321, 0.36161783, 1.68, 1.8, 0.3, 0.00222692, 0.20]
+
+    model.parameters['l1'] = 21
+    model.parameters['l2'] = 7
+    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.34, 0.25, 0.324, 1.44, 1.55, 0.27, 0.0035, 0.197]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -235,11 +234,11 @@ if __name__ == '__main__':
         print(theta)
         pars_PSO = assign_PSO(model.parameters, pars, theta)
         model.parameters = pars_PSO
-        end_visualization = '2022-09-01'
+        end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:15]]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:22]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -309,7 +308,7 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.05, 0.05, 0.05]
+    pert1=[0.20, 0.20, 0.20]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2=[0.90, 0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']

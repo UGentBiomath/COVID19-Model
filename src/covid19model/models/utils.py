@@ -358,10 +358,6 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     else:
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, agg=agg, age_classes=age_classes)
 
-    print(vaccination_rescaling_function(pd.Timestamp('2021-09-15'),'e_s'))
-
-    sys.exit()
-
     ##################################################
     ## Construct time-dependent parameter functions ##
     ##################################################

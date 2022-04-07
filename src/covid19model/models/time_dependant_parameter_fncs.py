@@ -589,6 +589,31 @@ class make_vaccination_rescaling_function():
         elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
             df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
 
+        # Visualization (prov)
+        #age_group = df_efficacies.index.get_level_values('age').unique()[-1]
+        #dates = df_efficacies.index.get_level_values('date').unique()
+        #df_efficacies = df_efficacies.groupby(by=['date','NIS']).mean()
+        #import matplotlib.pyplot as plt
+        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(14,12))
+        #for NIS in df_efficacies.index.get_level_values('NIS').unique():
+        #    ax[0].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_i'])
+        #    ax[1].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_s'])
+        #    ax[2].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_h'])
+        #ax[0].legend(['10000', '20001', '20002', '21000', '30000', '40000', '50000', '60000', '70000', '80000', '90000'], bbox_to_anchor =(1.01, 1.00))
+        #ax[0].set_ylim([0,1])
+        #ax[1].set_ylim([0,1])
+        #ax[2].set_ylim([0,1])
+        #ax[0].grid(False)
+        #ax[1].grid(False)
+        #ax[2].grid(False)
+        #ax[0].set_title('e_i')
+        #ax[1].set_title('e_s')
+        #ax[2].set_title('e_h')
+        #from covid19model.visualization.output import _apply_tick_locator 
+        #ax[0] = _apply_tick_locator(ax[0])
+        #plt.tight_layout()
+        #plt.show()
+
         # Assign efficacy dataset
         self.df_efficacies = df_efficacies
 
@@ -622,15 +647,15 @@ class make_vaccination_rescaling_function():
         if efficacy not in self.df_efficacies.columns:
             raise ValueError(
                 "valid vaccine efficacies are 'e_s', 'e_i', or 'e_h'.")
-        
+
         t = pd.Timestamp(t)
 
         if t < min(self.available_dates):
             # Take unity matrix
             if self.agg:
-                E = np.ones([self.G,self.N])
+                E = np.zeros([self.G,self.N])
             else:
-                E = np.ones(self.N)
+                E = np.zeros(self.N)
         
         elif t <= max(self.available_dates):
             # Take interpolation between dates for which data is available
@@ -649,13 +674,13 @@ class make_vaccination_rescaling_function():
             
         elif t > max(self.available_dates):
             # Take last available data point
-            t_data = pd.Timestamp(self.available_dates[-1])
+            t_data = pd.Timestamp(max(self.available_dates))
             if self.agg:
                 E_values = self.rescaling_df.loc[t_data, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.G,self.N))
             else:
                 E = self.rescaling_df.loc[t_data, :][efficacy].to_numpy()
-        
+
         return (1-E)
     
     def E_susc(self, t, states, param):
@@ -921,6 +946,13 @@ class make_vaccination_rescaling_function():
         # Reintroduce multiindeces
         df = pd.DataFrame(index=df_index, columns=df_columns, data=df[df_columns].values)
         new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)  
+
+        #import matplotlib.pyplot as plt
+        #dates = new_df.index.get_level_values('date').unique()
+        #age_group = new_df.index.get_level_values('age').unique()[-1]
+        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True)
+        #ax.plot(dates, new_df)
+        #plt.show()
 
         # Take dose-weighted average over time
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1436,12 +1468,12 @@ class make_contact_matrix_function():
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        mentality_summer_2020_lockdown = np.array([2.5*mentality, mentality, # F
+        mentality_summer_2020_lockdown = np.array([mentality, 0.5*mentality, # F
                                                 2*mentality, # W
                                                 2*mentality, # Bxl
-                                                0.5*mentality, 2.5*mentality, # F
+                                                0.5*mentality, 2*mentality, # F
                                                 3*mentality, 3*mentality, # W
-                                                0.5*mentality, # F
+                                                0.2*mentality, # F
                                                 1.5*mentality, 2*mentality]) # W
 
         co_F = 1
