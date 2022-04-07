@@ -324,8 +324,9 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Load and format mobility dataframe (for mobility place)
     proximus_mobility_data = mobility.get_proximus_mobility_data('prov')
     # Variants of concern
-    # Load previously saved VOC parameters
+    # Load previously saved VOC parameters and 
     VOC_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/VOC_parameters.pkl'))
+    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     # Load currently saved VOC parameters
     VOCs = ['WT', 'abc', 'delta']
     VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
@@ -339,8 +340,10 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
             {'h': params['h']*list(VOC_params['variant_properties', 'K_hosp'].values)[0]})
     # Assert if there are differences in the VOC parameters, if yes, the rescaling dataframe must be updated
     rescaling_update=False
-    if not VOC_params_previous.equals(VOC_params):
-        rescaling_update = True
+    if ((not VOC_params_previous.equals(VOC_params)) or (not vaccine_params_previous.equals(vaccine_params))):
+        rescaling_update = True    
+    print(rescaling_update)
+    sys.exit()   
 
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
