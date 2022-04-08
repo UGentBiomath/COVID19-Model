@@ -330,6 +330,8 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     # Load currently saved VOC parameters
     VOCs = ['WT', 'abc', 'delta']
     VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
+    # Time-dependent VOC function, updating alpha
+    VOC_function = make_VOC_function(VOC_params['logistic_growth'])
 
     # Update the relevant model parameters
     params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
@@ -346,9 +348,6 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
         rescaling_update = True
     elif update_data == True:
         rescaling_update = True
-
-    # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(VOC_params['logistic_growth'])
 
     if rescaling_update == True:
         # Load and format local vaccination-induced rescaling data
