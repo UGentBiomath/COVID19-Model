@@ -159,12 +159,12 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 20
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 10
     # Define dataset
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:22]]
+    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
@@ -190,13 +190,13 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.60),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.30, 1.60),(1.55,2.20))
+    bounds3 = ((1.25, 1.60),(1.60,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
     # Waning antibody immunity
     pars5 = ['zeta',]
-    bounds5 = ((1e-4,5e-3),)
+    bounds5 = ((1e-4,6e-3),)
     # Overdispersion of statistical model
     bounds6 = ((1e-4,0.26),)
     # Join them together
@@ -208,9 +208,9 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    model.parameters['l1'] = 21
+    model.parameters['l1'] = 14
     model.parameters['l2'] = 7
-    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.34, 0.25, 0.324, 1.44, 1.55, 0.27, 0.0035, 0.197]
+    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.34, 0.25, 0.324, 1.44, 1.60, 0.27, 0.0035, 0.20]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -238,7 +238,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:22]]
+        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     ########################
 
     # Reattach overdispersion
-    theta.append(0.197)
+    theta.append(0.20)
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
@@ -308,9 +308,9 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.20, 0.20, 0.20]
+    pert1=[0.10, 0.10, 0.10]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2=[0.90, 0.50, 0.50, 0.50, 0.50]
+    pert2=[0.50, 0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
