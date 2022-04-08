@@ -146,7 +146,7 @@ if __name__ == '__main__':
     # Start of data collection
     start_data = df_hosp.index.get_level_values('date').min()
     # Start of calibration: current initial condition is March 17th, 2021
-    start_calibration = '2020-03-17'
+    start_calibration = '2020-03-23'
     warmup =0
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 10
     # Define dataset

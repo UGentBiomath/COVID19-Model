@@ -1095,9 +1095,9 @@ class make_contact_matrix_function():
         GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
 
         if self.provincial:
-            if t < pd.Timestamp('2020-03-17'):
+            if t < self.df_google_start:
                 return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
-            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+            elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
@@ -1138,9 +1138,9 @@ class make_contact_matrix_function():
                     (eff_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others']) )
 
         else:
-            if t < pd.Timestamp('2020-03-17'):
+            if t < self.df_google_start:
                 return self.Nc_all['total']
-            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+            elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
             else:
@@ -1427,7 +1427,7 @@ class make_contact_matrix_function():
         l2_days = pd.Timedelta(l2, unit='D')
 
         # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-17') # start of lockdown
+        t1 = pd.Timestamp('2020-03-15') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
         t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
@@ -1468,6 +1468,9 @@ class make_contact_matrix_function():
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
+        idx_F = [0, 1, 4, 5, 8]
+        idx_Bxl = [3,]
+        idx_W = [2, 6, 7, 9, 10]
         mentality_summer_2020_lockdown = np.array([mentality, 0.5*mentality, # F
                                                 2*mentality, # W
                                                 2*mentality, # Bxl
@@ -1543,7 +1546,11 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            r = 1.35
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat[idx_Bxl,0:2,0:2] *= r
+            mat[idx_W,0:2,0:2] *= r
+            return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
         elif t17 < t <= t18:
@@ -1633,7 +1640,7 @@ class make_contact_matrix_function():
             ################
 
             # Define key dates 
-            t1 = pd.Timestamp('2020-03-17') # start of lockdown
+            t1 = pd.Timestamp('2020-03-15') # start of lockdown
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
             t3 = pd.Timestamp('2020-08-10') # end of mentality easing
             t4 = pd.Timestamp('2020-10-19') # start of lockdown
