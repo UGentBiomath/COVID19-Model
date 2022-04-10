@@ -277,7 +277,7 @@ def initialize_COVID19_SEIQRD_spatial(age_stratification_size=10, agg='prov', up
 
     return model, CORE_samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-23', virgin=False, update_data=False):
+def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-21', virgin=False, update_data=False):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -381,7 +381,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
 
     # Get correct initial condition
     samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
-    if start_date == '2020-03-23':
+    if ((start_date == '2020-03-23') | (start_date == '2020-03-22') | (start_date == '2020-03-21') | (start_date == '2020-03-17')) :
         with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_rescaling.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]

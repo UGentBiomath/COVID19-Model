@@ -131,7 +131,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg)
+start_calibration = '2020-03-21'
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
 poisson_offset = 'auto'
@@ -146,7 +147,6 @@ if __name__ == '__main__':
     # Start of data collection
     start_data = df_hosp.index.get_level_values('date').min()
     # Start of calibration: current initial condition is March 17th, 2021
-    start_calibration = '2020-03-23'
     warmup=0
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
@@ -163,6 +163,7 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
+    df_hosp_all = df_hosp.loc[(slice(None), slice(None)), 'H_in']
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
@@ -192,8 +193,8 @@ if __name__ == '__main__':
     j=0
     box_style=dict(boxstyle='round', facecolor='wheat', alpha=0.5)
     fig,axes=plt.subplots(nrows=4,ncols=3,figsize=(12,12))
-    for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
-        d = df_hosp.loc[slice(None), NIS]
+    for idx,NIS in enumerate(df_hosp_all.index.get_level_values('NIS').unique()):
+        d = df_hosp_all.loc[slice(None), NIS]
         mu_data, var_data = compute_mean_var(d)
         alpha.append(minimize(errorfcn, 0, args=(mu_data, var_data))['x'][0])
         mu_model = np.linspace(start=0, stop=max(mu_data))
@@ -214,7 +215,7 @@ if __name__ == '__main__':
     fig.delaxes(axes[3,2])
     fig.suptitle('Population weighted $\\alpha$ = {:.3f}'.format(alpha_weighted))
     plt.show()  
-
+    plt.close()
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -255,7 +256,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    model.parameters['l1'] = 14
+    model.parameters['l1'] = 21
     model.parameters['l2'] = 7
     theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.34, 0.25, 0.324, 1.44, 1.60, 0.27, 0.0035, 0.20]
 
