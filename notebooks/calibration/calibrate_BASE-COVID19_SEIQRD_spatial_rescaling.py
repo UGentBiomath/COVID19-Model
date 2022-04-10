@@ -147,7 +147,7 @@ if __name__ == '__main__':
     start_data = df_hosp.index.get_level_values('date').min()
     # Start of calibration: current initial condition is March 17th, 2021
     start_calibration = '2020-03-23'
-    warmup =0
+    warmup=0
     # Last datapoint used to calibrate infectivity, compliance and effectivity
     if not args.enddate:
         end_calibration = df_hosp.index.get_level_values('date').max().strftime("%Y-%m-%d") #'2021-01-01'#
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -168,6 +168,53 @@ if __name__ == '__main__':
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
+
+    ##########################################
+    ## Compute the overdispersion parameter ##
+    ##########################################
+
+    def compute_mean_var(df):
+        rolling_mean = df.rolling(7).mean()
+        mean=df.reset_index().resample('M',on='date').agg({'H_in':'mean'})
+        var=((df-rolling_mean)**2).reset_index().resample('M',on='date').agg({'H_in':'mean'})
+        return mean.values, var.values
+
+    def negative_binomial_var(mu, alpha):
+        return mu + alpha*mu**2
+
+    def errorfcn(alpha, mu_data, var_data):
+        var_model = negative_binomial_var(mu_data, alpha)
+        return sum((var_model - var_data)**2)
+
+    from scipy.optimize import minimize
+    alpha = []
+    i=0
+    j=0
+    box_style=dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    fig,axes=plt.subplots(nrows=4,ncols=3,figsize=(12,12))
+    for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
+        d = df_hosp.loc[slice(None), NIS]
+        mu_data, var_data = compute_mean_var(d)
+        alpha.append(minimize(errorfcn, 0, args=(mu_data, var_data))['x'][0])
+        mu_model = np.linspace(start=0, stop=max(mu_data))
+        var_model = negative_binomial_var(mu_model, alpha[-1])
+        if ((idx % 3 == 0) & (idx != 0)):
+            j = 0
+            i += 1
+        elif idx != 0:
+            j += 1
+        # Plot data and model prediction
+        axes[i,j].scatter(mu_data, var_data, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+        axes[i,j].plot(mu_model, var_model, color='red') 
+        # Remove grid
+        axes[i,j].grid(False)
+        # Text inside a box
+        axes[i,j].text(0.05,0.95, "NIS: {}\n$\\alpha = {:.3f}$".format(NIS,alpha[-1]),transform=axes[i,j].transAxes, fontsize=14,verticalalignment='top',bbox=box_style)
+    alpha_weighted = sum(np.array(alpha)*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    fig.delaxes(axes[3,2])
+    fig.suptitle('Population weighted $\\alpha$ = {:.3f}'.format(alpha_weighted))
+    plt.show()  
+
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -198,7 +245,7 @@ if __name__ == '__main__':
     pars5 = ['zeta',]
     bounds5 = ((1e-4,6e-3),)
     # Overdispersion of statistical model
-    bounds6 = ((1e-4,0.26),)
+    bounds6 = ((1e-4,0.22),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5 
     bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
@@ -298,7 +345,7 @@ if __name__ == '__main__':
     ########################
 
     # Reattach overdispersion
-    theta.append(0.20)
+    theta.append(0.15)
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
