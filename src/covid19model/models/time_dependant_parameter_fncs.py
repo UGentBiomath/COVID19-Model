@@ -1547,8 +1547,9 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            mat[idx_Bxl,0:2,0:2] *= 1.50
-            mat[idx_W,0:2,0:2] *= 1.40
+            mat[idx_F,:,:] *= 1.05
+            mat[idx_Bxl,:,:] *= 1.14
+            mat[idx_W,:,:] *= 1.10
             return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           

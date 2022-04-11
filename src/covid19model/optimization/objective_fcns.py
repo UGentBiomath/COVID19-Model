@@ -397,7 +397,9 @@ class log_posterior_probability():
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
-    
+        # Temporarily use overdisperion found from H_in for every NIS
+        overdispersion = [0.07789149527978434, 0.09650980149364033, 0.1271487554066956, 0.07146773129376265, 0.0642755923898705, 0.05382467285389194, 0.05695717474678648, 0.07540746616254865, 0.1539224512118267, 0.07276326227616688, 0.04923747357553121]
+       
         total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
@@ -406,13 +408,15 @@ class log_posterior_probability():
             if 'date' in list(df.index.names):
                 if 'NIS' in list(df.index.names):
                     # Spatial data (must have 'date' first and then 'NIS')
-                    for NIS in df.index.get_level_values('NIS').unique():
+                    for jdx,NIS in enumerate(df.index.get_level_values('NIS').unique()):
                         new_xarray = out[states[idx]].sel(place=NIS)
                         for dimension in out.dims:
                             if ((dimension != 'time') & (dimension != 'place')):
                                 new_xarray = new_xarray.sum(dim=dimension)
                         ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
+                        # total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
+                        # Temporarily use overdisperion found from H_in for every NIS
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, overdispersion[jdx])
                 else:
                     # National data
                     new_xarray = out[states[idx]]

@@ -131,7 +131,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-start_calibration = '2020-03-21'
+start_calibration = '2020-03-22'
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
 
 # Offset needed to deal with zeros in data in a Poisson distribution-based calibration
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.60),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.25, 1.60),(1.60,2.20))
+    bounds3 = ((1.25, 1.50),(1.50,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
     model.parameters['l1'] = 21
     model.parameters['l2'] = 7
-    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.34, 0.25, 0.324, 1.44, 1.60, 0.27, 0.0035, 0.20]
+    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.33, 0.25, 0.324, 1.45, 1.55, 0.27, 0.0035]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -273,9 +273,6 @@ if __name__ == '__main__':
     #######################################
     ## Visualize fits on multiple levels ##
     #######################################
-
-    # Cut of overdispersion
-    theta = theta[:-1]
 
     if high_performance_computing:
         # Assign estimate.
@@ -345,8 +342,8 @@ if __name__ == '__main__':
     ## Setup MCMC sampler ##
     ########################
 
-    # Reattach overdispersion
-    theta.append(0.15)
+    # Temporarily attach overdispersion
+    theta.append(0.2)
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
