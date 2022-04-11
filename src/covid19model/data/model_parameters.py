@@ -370,8 +370,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ###################################
 
     # Other parameters
-    pars_dict['l1'] = 14
-    pars_dict['l2'] = 14
+    pars_dict['l1'] = 21
+    pars_dict['l2'] = 7
     pars_dict['da'] = 7
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
