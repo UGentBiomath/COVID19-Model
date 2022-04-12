@@ -30,7 +30,8 @@ from covid19model.data import sciensano
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.pso import *
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, plot_PSO_spatial
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 ############################
 ## Public or private data ##
@@ -225,7 +226,7 @@ if __name__ == '__main__':
     model.parameters['l2'] = 7
     theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.33, 0.25, 0.324, 1.45, 1.55, 0.27, 0.0035]
     theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.316, 0.213, 1.38, 1.57, 0.29, 0.00442] # Calibration 2022-04-10
-    
+
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
