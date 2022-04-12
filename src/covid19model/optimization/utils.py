@@ -227,149 +227,6 @@ def assign_PSO(param_dict, parNames, thetas):
     else:
         return warmup, param_dict
 
-def plot_PSO(output, data, states, start_calibration, end_calibration):
-    """
-    A generic function to visualize a PSO estimate on multiple dataseries
-
-    Parameters
-    ----------
-
-    output : xr.DataArray
-        Model simulation
-
-    data : list
-        List containing dataseries to compare model output to in calibration objective function
-
-    states :
-        List containing the names of the model states that must be matched to the corresponding dataseries in 'data'
-
-    start_calibration : string
-        Startdate of calibration, 'YYYY-MM-DD'
-
-    end_calibration : string
-        Enddate of calibration, 'YYYY-MM-DD'
-
-    Returns
-    -------
-
-    fig: plt figure
-
-    Example use
-    -----------
-
-    # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,start_date=start_calibration, processes=processes)
-    # Assign estimates to model parameters dictionary
-    warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
-    # Perform simulation
-    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
-    # Plot result
-    plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-
-    """
-
-    # Visualize fit
-    if len(states) == 1:
-        idx = 0
-        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        # Reduce dimensions
-        new_xarray = output[states[idx]].copy(deep=True)
-        for dimension in output.dims:
-            if (dimension != 'time') :
-                new_xarray = new_xarray.sum(dim=dimension)
-        # Plot data
-        ax.plot(output['time'],new_xarray,'--', color='blue')
-        try: 
-            ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        except:
-            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax.set_xlim([start_calibration,end_calibration])
-    else:
-        fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
-        for idx,ax in enumerate(axes):
-            # Reduce dimensions
-            new_xarray = output[states[idx]].copy(deep=True)
-            for dimension in output.dims:
-                if (dimension != 'time') :
-                    new_xarray = new_xarray.sum(dim=dimension)
-            # Plot data
-            ax.plot(output['time'],new_xarray,'--', color='blue')
-            try:
-                ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            except:
-                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)   
-            ax.set_xlim([start_calibration,end_calibration])
-    ax = _apply_tick_locator(ax)
-    return ax
-
-def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg):
-
-    """
-    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, works on the regional and provincial level.
-
-    Parameters
-    ----------
-
-    output : xr.DataArray
-        Model simulation
-
-    df_sciensano : pd.DataFrame
-        Daily hospitalisation data, obtained using the function `get_sciensano_COVID19_data_spatial
-
-    start_calibration : string
-        Startdate of calibration, 'YYYY-MM-DD'
-
-    end_calibration : string
-        Enddate of calibration, 'YYYY-MM-DD'
-
-    agg : string
-        Spatial aggregation level, either 'reg' or 'prov'
-
-    Returns
-    -------
-
-    fig: plt figure
-    """
-    
-    # Reduce all dimensions except time and space
-    for dimension in output.dims:
-        if ((dimension != 'time') & (dimension != 'place')):
-            output = output.sum(dim=dimension)
-
-    if agg == 'reg':
-        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12), sharex=True)
-        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-        title_list = ['Brussels', 'Flanders', 'Wallonia']
-        color_list = ['blue', 'blue', 'blue']
-        for idx,NIS_list in enumerate(NIS_lists):
-            model_vals = 0
-            data_vals= 0
-            for NIS in NIS_list:
-                model_vals = model_vals + output['H_in'].sel(place=NIS).values
-                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
-            ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
-            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax[idx].set_title(title_list[idx])
-            ax[idx].set_xlim([start_calibration, end_calibration])
-            ax[idx].set_ylim([0, 350])
-            ax[idx].grid(False)
-            ax[idx].set_ylabel('$H_{in}$ (-)')
-            ax[idx] = _apply_tick_locator(ax[idx])
-    
-    elif agg == 'prov':
-        fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
-        for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
-            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS),'--', color='blue')
-            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax[idx].set_xlim([start_calibration, end_calibration])
-            ax[idx].set_ylim([0, 150])
-            ax[idx].grid(False)
-            ax[idx].set_ylabel('$H_{in}$ (-)')
-            ax[idx] = _apply_tick_locator(ax[idx])
-
-    return ax
-
 from covid19model.optimization.objective_fcns import log_prior_custom
 def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
     """
@@ -551,7 +408,37 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
 
 from scipy.optimize import minimize
 def variance_analysis(series, resample_frequency):
-    """A function to analyze the relationship beteween the variance and the mean in a timeseries of data"""
+
+    """ A function to analyze the relationship between the variance and the mean in a timeseries of data
+        ================================================================================================
+       
+        The timeseries is binned and the mean and variance of the datapoints within this bin are estimated.
+        Several statistical models are then fitted to the relationship between the mean and variance.
+        The statistical models are: gaussian (var = c), poisson (var = mu), quasi-poisson (var = theta*mu), negative binomial (var = mu + alpha*mu**2)
+
+        Parameters
+        ----------
+
+            series: pd.Series
+                Timeseries of data to be analyzed. The series must have a pd.Timestamp index labeled 'date' for the time dimension.
+                Additionally, this function supports the addition of one more dimension (f.i. space) using a multiindex.
+                This function is not intended to study the variance of datasets containing multiple datapoints on the same date. 
+            
+            resample_frequency: str
+                This function approximates the average and variance in the timeseries data by binning the timeseries. The resample frequency denotes the number of days in each bin.
+                Valid options are: 'W': weekly, '2W': biweekly, 'M': monthly, etc.
+
+        Output
+        ------
+
+            result: pd.Dataframe
+                Contains the estimated parameter(s) and the Akaike Information Criterion (AIC) of the fitted statistical model.
+                If two index levels are present (thus 'date' and 'other index level'), the result pd.Dataframe contains the result stratified per 'other index level'.
+
+            ax: axes object
+                Contains a plot of the estimated mean versus variance, togheter with the fitted statistical models. The best-fitting model is less transparent than the other models.
+       
+       """
 
     #################
     ## Bookkeeping ##
