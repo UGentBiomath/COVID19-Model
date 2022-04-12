@@ -135,11 +135,19 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 start_calibration = '2020-03-22'
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
 
-# Offset needed to deal with zeros in data in a Poisson distribution-based calibration
-poisson_offset = 'auto'
-
-# Only necessary for local run in Windows environment
 if __name__ == '__main__':
+
+    #############################################################
+    ## Compute the overdispersion parameters for our H_in data ##
+    #############################################################
+
+    from covid19model.optimization.utils import variance_analysis
+    results, ax = variance_analysis(df_hosp['H_in'], 'M')
+    alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    print('\n')
+    print('spatially-weighted overdispersion: ' + str(alpha_weighted))
+    #plt.show()
+    #plt.close()
 
     ##########################
     ## Calibration settings ##
@@ -160,28 +168,16 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    df_hosp_all = df_hosp.loc[(slice(None), slice(None)), 'H_in']
     df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
     data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-
-    #############################################################
-    ## Compute the overdispersion parameters for our H_in data ##
-    #############################################################
-
-    from covid19model.optimization.utils import variance_analysis
-
-    results, ax = variance_analysis(df_hosp_all, 'M')
-    alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    print(alpha_weighted)
-    plt.show()
-    plt.close()
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, [], []]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -204,20 +200,18 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.60),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.25, 1.50),(1.50,2.20))
+    bounds3 = ((1.20, 1.60),(1.50,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
     # Waning antibody immunity
     pars5 = ['zeta',]
     bounds5 = ((1e-4,6e-3),)
-    # Overdispersion of statistical model
-    bounds6 = ((1e-4,0.22),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4 + pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
     # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,-weights)
+    #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
@@ -232,7 +226,7 @@ if __name__ == '__main__':
     ####################################
     
     # Define objective function
-    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,-weights)
+    #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Run Nelder Mead optimization
     step = len(bounds)*[0.05,]
     #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
@@ -309,9 +303,6 @@ if __name__ == '__main__':
     ## Setup MCMC sampler ##
     ########################
 
-    # Temporarily attach overdispersion
-    theta.append(0.2)
-
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Setup prior functions and arguments
@@ -329,18 +320,15 @@ if __name__ == '__main__':
     pert4 = [0.80,] 
     # pars5 = ['zeta']
     pert5 = [0.10,]
-    # overdispersion
-    pert6 = [0.10, ]     
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
 
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$', \
-                '$\zeta$',
-                'overdispersion']
+                '$\zeta$']
 
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
@@ -353,7 +341,7 @@ if __name__ == '__main__':
         backend.reset(nwalkers, ndim)
 
     # initialize objective function
-    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,weights)
+    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
     ######################
     ## Run MCMC sampler ##
