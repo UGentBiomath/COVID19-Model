@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Module used for performing Approximate Bayesian Computation (ABC).
-Based on description in the Handbook of Approxiamte Bayesian Computation (2019).
+Based on description in the Handbook of Approximate Bayesian Computation (2019).
 """
 
 import os
