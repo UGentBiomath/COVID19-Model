@@ -62,10 +62,6 @@ def ll_poisson(ymodel, ydata):
         List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
     ydata: list of floats
         List with actual time series values at a particlar time that are to be fitted to the model
-    offset: float
-        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
-    complete: boolean
-        If True ll_poisson calculates the actual Poisson loglikelihood (including the factorial term), rather than only the terms that vary with varying model parameter values.
 
     Returns
     -------
@@ -103,13 +99,9 @@ def ll_negative_binomial(ymodel, ydata, alpha):
         List with average values of the Poisson distribution at a particular time (i.e. "lambda" values), predicted by the model at hand
     ydata: list of floats
         List with actual time series values at a particlar time that are to be fitted to the model
-    dispersion: float
+    alpha: float
         Dispersion factor. The variance in the dataseries is equal to 1/dispersion and hence dispersion is bounded [0,1].
-    offset: float
-        If offset=0 (default) the true loglikelihood is calculated. Set offset > 0 (typically offset=1) if 'ymodel' contains zero-values in order to avoid infinities in the loglikelihood
-    complete: boolean
-        If True all terms are included in the logliklihood rather than only the terms that vary with varying model parameter values.
-
+ 
     Returns
     -------
     ll: float
@@ -272,38 +264,20 @@ class log_posterior_probability():
     A generic implementation to compute the log posterior probability of a model given some data, computed as the sum of the log prior probabilities and the log likelihoods.
     The class allows the user to compare model states to multiple datasets, using a different stochastic model (gaussian, poisson, neg. binomial) for each dataset.
     The user must make sure that the log_likelihood functions provided have: 1) ymodel as their first argument, 2) ydata as their second argument. 
-    The user must make sure that the estimated values of the additional arguments of the log_likelihood functions (f.i. sigma for ll_gaussian) are attached in the respective order at the END of the vector of parameter estimates (theta).
-    
-    # Example: a model has two parameters and we wish to use a negative binomial model to compute the log likelihood of model output in light of data.
-          model pars         alpha
-    theta = [1, 2        |    0.1]
-    
-    # Example: a model has two parameters and we wish to match the model to two datasets. The model-data relationship is described by ll_negative_binomial and ll_gaussian respectively.
-          model pars         alpha            sigma
-    theta = [1, 2        |    0.1,              5]
-    
-    The user must make sure that every additional argument needed by the log_likelihood function has his prior function and arguments defined.
-
-    Example use:
-    ------------
-
-    # initialize class
-    objective_function = log_posterior_probability(log_prior_fcn, log_prior_fcn_args, model, pars, data, states, log_likelihood_fcn, weights)
-
-    # compute log_posterior_probability
-    log_posterior_probability(theta)
-
+    This code is tailored to work with timeseries data, with optional spatial stratification.
+    This code is only tested if the log likelihood functions have one additional argument.
+    # TODO: index names in dataframe should be matched with dimensions of model output to generalize this module further
     """
-    def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, weights):
+    def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, log_likelihood_fnc_args, weights):
 
         # Some inputs must have the same length
         if any(len(lst) != len(log_prior_prob_fnc) for lst in [log_prior_prob_fnc_args]):
             raise ValueError(
                 "The number of prior functions ({0}) and the number of sets of prior function arguments ({1}) must be of equal length".format(len(log_prior_prob_fnc),len(log_prior_prob_fnc_args))
                 )
-        if any(len(lst) != len(data) for lst in [states, log_likelihood_fnc, weights]):
+        if any(len(lst) != len(data) for lst in [states, log_likelihood_fnc, weights, log_likelihood_fnc_args]):
             raise ValueError(
-                "The number of datasets ({0}), model states ({1}), log likelihood functions ({2}) and weights ({3}) must be of equal".format(len(data),len(states), len(log_likelihood_fnc), len(weights))
+                "The number of datasets ({0}), model states ({1}), log likelihood functions ({2}), the extra arguments of the log likelihood function ({3}), and weights ({4}) must be of equal".format(len(data),len(states), len(log_likelihood_fnc), len(log_likelihood_fnc_args), len(weights))
                 )
 
         # Checks on data 
@@ -340,11 +314,52 @@ class log_posterior_probability():
             )
             if keywords[1] != 'ydata':
                 raise ValueError(
-                "The second parameter of log_likelihood function in position {0} is not equal to 'ymodel' but {1}".format(idx, keywords[1])
+                "The second parameter of log_likelihood function in position {0} is not equal to 'ydata' but {1}".format(idx, keywords[1])
             )
             extra_args = len([arg for arg in keywords if ((arg != 'ymodel')&(arg != 'ydata'))])
             n_log_likelihood_extra_args.append(extra_args)
         self.n_log_likelihood_extra_args = n_log_likelihood_extra_args
+
+        # Support for more than one extra argument of the log likelihood function is not available
+        for i in range(len(n_log_likelihood_extra_args)):
+            if n_log_likelihood_extra_args[i] > 1:
+                raise ValueError(
+                    "Support for log likelihood functions with more than one additional argument is not implemented. Raised for log likelihood function {0}".format(log_likelihood_fnc[i])
+                    )
+
+        # Input checks on the additional arguments of the log likelihood functions
+        for idx, df in enumerate(data):
+            if n_log_likelihood_extra_args[idx] == 0:
+                if isinstance(log_likelihood_fnc_args[idx], float):
+                    raise ValueError(
+                        "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided a float.".format(log_likelihood_fnc[idx], idx)
+                        )
+                elif log_likelihood_fnc_args[idx]:
+                    raise ValueError(
+                        "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided a non-empty list.".format(log_likelihood_fnc[idx], idx)
+                        )
+            else:
+                if 'NIS' in df.index.names:
+                    # Spatial data
+                    G = len(df.index.get_level_values('NIS').unique())
+                    if isinstance(log_likelihood_fnc_args[idx], float):
+                        pass
+                    elif ((len(log_likelihood_fnc_args[idx]) != G) & (len(log_likelihood_fnc_args[idx]) != 1)):
+                        raise ValueError(
+                        "For a NIS-stratified dataset, you must either provide a float, a list containing a float, or a list of length G = len(NIS) as the extra argument of the log likelihood function."
+                        )  
+                else:
+                    # National data
+                    if isinstance(log_likelihood_fnc_args[idx], float):
+                        log_likelihood_fnc_args[idx] = [log_likelihood_fnc_args[idx]]
+                    elif not log_likelihood_fnc_args[idx]:
+                        raise ValueError(
+                        "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided an empty list.".format(idx,log_likelihood_fnc[idx])
+                        )
+                    elif len(log_likelihood_fnc_args[idx]) != 1:
+                        raise ValueError(
+                        "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided a non-empty list of length greater than one.".format(idx,log_likelihood_fnc[idx])
+                        )
 
         # Find out if 'warmup' needs to be estimated
         self.warmup_position=None
@@ -359,6 +374,7 @@ class log_posterior_probability():
         self.states = states
         self.parameter_names = parameter_names
         self.log_likelihood_fnc = log_likelihood_fnc
+        self.log_likelihood_fnc_args = log_likelihood_fnc_args
         self.weights = weights
 
     @staticmethod
@@ -393,13 +409,11 @@ class log_posterior_probability():
         return dict, total_n_values
 
     @staticmethod
-    def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, thetas_log_likelihood_extra_args, n_log_likelihood_extra_args):
+    def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, log_likelihood_fnc_args, n_log_likelihood_extra_args):
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
-        # Temporarily use overdisperion found from H_in for every NIS
-        overdispersion = [0.07789149527978434, 0.09650980149364033, 0.1271487554066956, 0.07146773129376265, 0.0642755923898705, 0.05382467285389194, 0.05695717474678648, 0.07540746616254865, 0.1539224512118267, 0.07276326227616688, 0.04923747357553121]
-       
+
         total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
@@ -414,9 +428,15 @@ class log_posterior_probability():
                             if ((dimension != 'time') & (dimension != 'place')):
                                 new_xarray = new_xarray.sum(dim=dimension)
                         ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                        # total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]])
                         # Temporarily use overdisperion found from H_in for every NIS
-                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, overdispersion[jdx])
+                        log_likelihood_fnc_args_star = []
+                        for i in range(n_log_likelihood_extra_args[idx]):
+                            try:
+                                log_likelihood_fnc_args_star.append(log_likelihood_fnc_args[idx][jdx])
+                            except:
+                                log_likelihood_fnc_args_star.append(log_likelihood_fnc_args[idx])
+                        # Extra argument stratified per NIS
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *log_likelihood_fnc_args_star)
                 else:
                     # National data
                     new_xarray = out[states[idx]]
@@ -424,7 +444,7 @@ class log_posterior_probability():
                         if dimension != 'time':
                             new_xarray = new_xarray.sum(dim=dimension)
                     ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *thetas_log_likelihood_extra_args[sum(n_log_likelihood_extra_args[:idx]) : sum(n_log_likelihood_extra_args[:idx]) + n_log_likelihood_extra_args[idx]]) 
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *log_likelihood_fnc_args[idx]) 
 
         return total_ll
 
@@ -433,25 +453,15 @@ class log_posterior_probability():
         This function manages the internal bookkeeping (assignment of model parameters, model simulation) and then computes and sums the log prior probabilities and log likelihoods to compute the log posterior probability.
         """
                 
-        # Split thetas into thetas for model parameters and thetas for log_likelihood_fcn
-        thetas_model_parameters = thetas[:-sum(self.n_log_likelihood_extra_args)]
-        thetas_log_likelihood_extra_args = thetas[-sum(self.n_log_likelihood_extra_args):]
-
         # Add exception for estimation of warmup
         if self.warmup_position:
-            simulation_kwargs.update({'warmup': thetas_model_parameters[self.warmup_position]})
+            simulation_kwargs.update({'warmup': thetas[self.warmup_position]})
 
         # Convert thetas for model parameters to a dictionary with key-value pairs
-        thetas_model_parameters_dict, n = self.thetas_to_thetas_dict(thetas_model_parameters, self.parameter_names, self.model.parameters)
-
-        # Input check
-        if len(thetas) != sum(self.n_log_likelihood_extra_args) + n:
-            raise ValueError(
-                "The total number of estimated parameters ({0}) must equal the sum of the number of model estimated parameters ({1}) plus the additional parameters of the log_likelihood functions ({2})".format(len(thetas),len(n), sum(self.log_likelihood_n_extra_args))
-                )
+        thetas_dict, n = self.thetas_to_thetas_dict(thetas, self.parameter_names, self.model.parameters)
 
         # Assign thetas for model parameters to the model object
-        for param,value in thetas_model_parameters_dict.items():
+        for param,value in thetas_dict.items():
             self.model.parameters.update({param : value})
 
         # Perform simulation
@@ -461,6 +471,6 @@ class log_posterior_probability():
         lp = self.compute_log_prior_probability(thetas, self.log_prior_prob_fnc, self.log_prior_prob_fnc_args)
 
         # Compute log likelihood
-        lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, thetas_log_likelihood_extra_args, self.n_log_likelihood_extra_args)
+        lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, self.log_likelihood_fnc_args, self.n_log_likelihood_extra_args)
 
         return lp
