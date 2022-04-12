@@ -170,173 +170,17 @@ if __name__ == '__main__':
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
 
-    ##########################################
-    ## Compute the overdispersion parameter ##
-    ##########################################
+    #############################################################
+    ## Compute the overdispersion parameters for our H_in data ##
+    #############################################################
 
-    from scipy.optimize import minimize
-    def analyze_variance(series, resample_frequency, plot=False):
-        """A function to analyze the relationship beteween the variance and the mean"""
+    from covid19model.optimization.utils import variance_analysis
 
-        ########################################
-        ## Perform input checks on dataseries ##
-        ########################################
-
-        if 'date' not in series.index.names:
-             raise ValueError(
-                "Indexname 'date' not found. Make sure the time dimension index is named 'date'. Current index dimensions: {0}".format(series.index.names)
-                )           
-        if len(series.index.names) > 2:
-            raise ValueError(
-                "The maximum number of index dimensions is two and must always include a time dimension named 'date'. Valid options are thus: 'date', or ['date', 'something else']. Current index dimensions: {0}".format(series.index.names)
-                )
-        if len(series.index.names) == 1:
-            secundary_index = False
-            secundary_index_name = None
-            secundary_index_values = None
-        else:
-            secundary_index = True
-            secundary_index_name = series.index.names[series.index.names != 'date']
-            secundary_index_values = series.index.get_level_values(series.index.names[series.index.names != 'date'])
-
-        series_name = series.name
-
-        ############################
-        ## Define variance models ##
-        ############################
-
-        gaussian = lambda mu, var : var*np.ones(len(mu))
-        poisson = lambda mu, dummy : mu
-        quasi_poisson = lambda mu, theta : mu*theta
-        negative_binomial = lambda mu, alpha : mu + alpha*mu**2
-        models = [gaussian, poisson, quasi_poisson, negative_binomial]
-        n_model_pars = [1, 0, 1, 1]
-        model_names = ['gaussian', 'poisson', 'quasi-poisson', 'negative binomial']
-
-        ###########################
-        ## Define error function ##
-        ###########################
-
-        error = lambda model_par, model, mu_data, var_data : sum((model(mu_data,model_par) - var_data)**2)
-
-        #################################
-        ## Approximate mu, var couples ##
-        #################################
-
-        if not secundary_index:
-            rolling_mean = series.rolling(7).mean()
-            mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
-            var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
-        else:
-            rolling_mean = series.groupby(level=secundary_index_name, group_keys=False).apply(lambda x: x.rolling(window=7).mean())
-            mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
-            var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
-        
-        # Protect against nan values
-        merge = pd.merge(mu_data, var_data, right_index=True, left_index=True).dropna()
-        mu_data = merge.iloc[:,0]
-        var_data = merge.iloc[:,1]
-
-        ###################################
-        ## Preallocate results dataframe ##
-        ###################################
-
-        if not secundary_index:
-            results = pd.DataFrame(index=model_names, columns=['theta', 'AIC'], dtype=np.float64)
-        else:
-            iterables = [series.index.get_level_values(secundary_index_name).unique(), model_names]  
-            index = pd.MultiIndex.from_product(iterables, names=[secundary_index_name, 'model'])
-            results = pd.DataFrame(index=index, columns=['theta', 'AIC'], dtype=np.float64)
-
-        ########################
-        ## Perform estimation ##
-        ########################
-
-        if not secundary_index:
-            for i,model in enumerate(models):
-                opt = minimize(error, 0, args=(model, mu_data.values, var_data.values))
-                results.loc[model_names[i], 'theta'] = opt['x'][0]
-                n = len(mu_data.values)
-                results.loc[model_names[i], 'AIC'] = n*np.log(opt['fun']/n) + 2*n_model_pars[i]
-        else:
-            for index in secundary_index_values.unique():
-                for i, model in enumerate(models):
-                    opt = minimize(error, 0, args=(model,mu_data.loc[slice(None), index].values, var_data.loc[slice(None), index].values))
-                    results.loc[(index, model_names[i]), 'theta'] = opt['x'][0]
-                    n = len(mu_data.loc[slice(None), index].values)
-                    results.loc[(index, model_names[i]), 'AIC'] = n*np.log(opt['fun']/n) + 2*n_model_pars[i]
-
-        ##########################
-        ## Make diagnostic plot ##
-        ##########################
-        from itertools import compress
-        linestyles = ['-', '-.', ':', '--']
-
-        if not secundary_index:
-            fig,ax=plt.subplots(figsize=(12,4))
-            ax.scatter(mu_data, var_data, color='black', alpha=0.5, linestyle='None', facecolors='none', s=60, linewidth=2)
-            mu_model = np.linspace(start=0, stop=max(mu_data))
-            # Find model with lowest AIC
-            best_model = list(compress(model_names, results['AIC'].values == min(results['AIC'].values)))[0]
-            for idx, model in enumerate(models):
-                if model_names[idx] == best_model:
-                    ax.plot(mu_model, model(mu_model, results.loc[model_names[idx], 'theta']), linestyles[idx], color='black', linewidth='2')
-                else:
-                    ax.plot(mu_model, model(mu_model, results.loc[model_names[idx], 'theta']), linestyles[idx], color='black', linewidth='2', alpha=0.2)
-                model_names[idx] += ' (AIC: {:.0f})'.format(results.loc[model_names[idx], 'AIC'])
-            ax.grid(False)
-            ax.set_ylabel('Estimated variance')
-            ax.set_xlabel('Estimated mean')
-            ax.legend(['data',]+model_names, bbox_to_anchor=(0.05, 1), loc='upper left', fontsize=12)
-
-        else:
-            # Compute figure size
-            ncols = 3
-            nrows = int(np.ceil(len(secundary_index_values.unique())/ncols))
-            fig,ax=plt.subplots(ncols=ncols, nrows=nrows, figsize=(12,12))
-            i=0
-            j=0
-            for k, index in enumerate(secundary_index_values.unique()):
-                # Determine right plot index
-                if ((k % ncols == 0) & (k != 0)):
-                    j = 0
-                    i += 1
-                elif k != 0:
-                    j += 1
-                # Plot data
-                ax[i,j].scatter(mu_data.loc[slice(None), index].values, var_data.loc[slice(None), index].values, color='black', alpha=0.5, facecolors='none', linestyle='None', s=60, linewidth=2)
-                # Find best model
-                best_model = list(compress(model_names, results.loc[(index, slice(None)), 'AIC'].values == min(results.loc[(index, slice(None)), 'AIC'].values)))[0]
-                # Plot models
-                mu_model = np.linspace(start=0, stop=max(mu_data.loc[slice(None), index].values))
-                for l, model in enumerate(models):
-                    if model_names[l] == best_model:
-                        ax[i,j].plot(mu_model, model(mu_model, results.loc[(index,model_names[l]), 'theta']), linestyles[l], color='black', linewidth='2')
-                    else:
-                        ax[i,j].plot(mu_model, model(mu_model, results.loc[(index,model_names[l]), 'theta']), linestyles[l], color='black', linewidth='2', alpha=0.2)
-                # Format axes
-                ax[i,j].grid(False)
-                # Add xlabels and ylabels
-                if j == 0:
-                    ax[i,j].set_ylabel('Estimated variance')
-                if i == nrows-1:
-                    ax[i,j].set_xlabel('Estimated mean')
-                ax[2,2].set_xlabel('Estimated mean')
-                # Add a legend
-                title = secundary_index_name + ': ' + str(index)
-                ax[i,j].legend(['data',]+model_names, bbox_to_anchor=(0.05, 1), loc='upper left', fontsize=7, title=title, title_fontsize=8)
-
-            fig.delaxes(ax[3,2])
-
-        return results, ax
-
-    results, ax = analyze_variance(df_hosp_all, 'M', plot=False)
-    plt.tight_layout()
-    plt.show()
-    plt.close()
-    
+    results, ax = variance_analysis(df_hosp_all, 'M')
     alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print(alpha_weighted)
+    plt.show()
+    plt.close()
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -380,7 +224,8 @@ if __name__ == '__main__':
     model.parameters['l1'] = 21
     model.parameters['l2'] = 7
     theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.33, 0.25, 0.324, 1.45, 1.55, 0.27, 0.0035]
-
+    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.316, 0.213, 1.38, 1.57, 0.29, 0.00442] # Calibration 2022-04-10
+    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
