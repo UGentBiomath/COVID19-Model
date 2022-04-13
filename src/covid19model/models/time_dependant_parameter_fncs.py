@@ -1,9 +1,7 @@
 import os
-import random
-import math
 import numpy as np
 import pandas as pd
-import itertools
+import warnings
 from functools import lru_cache
 from covid19model.visualization.output import school_vacations_dict
 
@@ -149,11 +147,11 @@ class make_mobility_update_function():
                     place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][:pd.Timestamp(2020, 3, 1)].mean()
             elif t == pd.Timestamp(2020, 2, 21):
                 # first missing date in Proximus data. Just take average
-                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 20)] + 
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 20)] +
                           self.proximus_mobility_data['place'][pd.Timestamp(2020, 2, 22)])/2
             elif t == pd.Timestamp(2020, 12, 18):
                 # second missing date in Proximus data. Just take average
-                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] + 
+                place = (self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 17)] +
                           self.proximus_mobility_data['place'][pd.Timestamp(2020, 12, 19)])/2
             elif t > pd.Timestamp(2021, 8, 31):
                 # beyond Proximus service. Make a distinction between holiday/non-holiday and weekend/business day
@@ -176,7 +174,7 @@ class make_mobility_update_function():
                     elif t.dayofweek >= 5:
                         # regular weekend
                         place = self.proximus_mobility_data[self.proximus_mobility_data.index.dayofweek >= 5]['place'][pd.Timestamp(2021, 6, 1):pd.Timestamp(2021, 6, 30)].mean()
-                
+
         return place
 
     def mobility_wrapper_func(self, t, states, param):
@@ -206,7 +204,8 @@ class make_VOC_function():
     def __init__(self, VOC_logistic_growth_parameters):
         self.logistic_parameters=VOC_logistic_growth_parameters
 
-    def logistic_growth(self,t,t_sig,k):
+    @staticmethod
+    def logistic_growth(t,t_sig,k):
         return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
 
     # Default VOC function includes abc, delta and omicron variants
@@ -233,13 +232,13 @@ class make_VOC_function():
             else:
                 alpha[:,idx-1] = [1-f,-df]
                 alpha[:,idx] = [f,df]
-            return alpha            
+            return alpha
 
 ###########################
 ## Vaccination functions ##
 ###########################
 
-from covid19model.data.model_parameters import construct_initN
+from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
 class make_vaccination_function():
     """
@@ -251,11 +250,11 @@ class make_vaccination_function():
         *either* Sciensano public dataset, obtained using:
         `from covid19model.data import sciensano`
         `df = sciensano.get_sciensano_COVID19_data(update=False)`
-        
+
         *or* public spatial vaccination data, obtained using:
         `from covid19model.data import sciensano`
         `df = sciensano.get_public_spatial_vaccination_data(update=False,agg='arr')`
-        
+
     spatial : Boolean
         True if df is spatially explicit. None by default.
 
@@ -271,7 +270,7 @@ class make_vaccination_function():
         # Assign inputs to object
         self.df = df
         self.age_agg = age_stratification_size
-        
+
         # Check if spatial data is provided
         self.spatial = None
         if 'NIS' in self.df.index.names:
@@ -336,20 +335,20 @@ class make_vaccination_function():
         self.df = self.new_df
 
     def convert_age_stratified_vaccination_data(self, data, age_classes, agg=None, NIS=None):
-        """ 
+        """
         A function to convert the sciensano vaccination data to the desired model age groups
 
         Parameters
         ----------
         data: pd.Series
             A series of age-stratified vaccination incidences. Index must be of type pd.Intervalindex.
-        
+
         age_classes : pd.IntervalIndex
             Desired age groups of the vaccination dataframe.
 
         agg: str
             Spatial aggregation: prov, arr or mun
-        
+
         NIS : str
             NIS code of consired spatial element
 
@@ -363,7 +362,7 @@ class make_vaccination_function():
         # Pre-allocate new series
         out = pd.Series(index = age_classes, dtype=float)
         # Extract demographics
-        if agg: 
+        if agg:
             data_n_individuals = construct_initN(data.index.get_level_values('age'), agg).loc[NIS,:].values
             demographics = construct_initN(None, agg).loc[NIS,:].values
         else:
@@ -515,7 +514,7 @@ class make_vaccination_function():
                 else:
                     return self.unidose_2021_vaccination_campaign(states, initN, daily_doses, delay_immunity, vacc_order, stop_idx, refusal)
 
-                
+
 ###########################################
 ## Rescaling function due to vaccination ##
 ###########################################
@@ -523,19 +522,19 @@ class make_vaccination_function():
 class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
-    
+
     Note: dimensions G (provinces) and N (ages) are hard-coded to (G,N)=(11,10)
-    
+
     Input
     -----
     rescaling_df : pd.DataFrame
         Pandas DataFrame containing all vaccination-induced rescaling values per age (and per province). Output from sciensano.get_vaccination_rescaling_values(). Spatial aggregation depends on this input.
-    
+
     Output
     ------
     __class__ : default function
         Default output function with arguments t (datetime object), which returns spatially stratified parameters E_susc, E_inf, E_hosp
-    
+
     Example use
     -----------
     rescaling_df = sciensano.get_vaccination_rescaling_values(spatial=True)
@@ -543,95 +542,499 @@ class make_vaccination_rescaling_function():
     E_inf_function = make_vaccination_rescaling_function(rescaling_df).E_inf
     E_hosp_function = make_vaccination_rescaling_function(rescaling_df).E_hosp
     E_susc_function(pd.Timestamp(2021, 10, 1), 0, 0)
-    
+
     """
-    
-    def __init__(self, rescaling_df):
-        self.rescaling_df = rescaling_df
-        self.available_dates = rescaling_df.reset_index().set_index('date').sort_index().index.unique() # demands chronological order
-        # Check whether data is spatially explicit
-        self.spatial=False
-        if 'NIS' in self.rescaling_df.reset_index().columns:
-            self.spatial=True
-        
-        
+
+    # TODO: hypothetical vaccination schemes
+    # TODO: untangle age group 0-18 into 0-12 and 12-18
+
+    def __init__(self, update=False, agg=None,
+                    age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
+                    df_incidences=None, VOC_function=None, vaccine_params=None):
+
+        if update==False:
+            # Simply load data
+            if agg:
+                dir_abs = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
+                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age']).first()
+            else:
+                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
+                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'age']).first()
+        else:
+            # Warn user this may take some time
+            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
+            # Compute population size-normalized relative incidences
+            df_incidences = self.compute_relative_incidences(df_incidences, agg)
+            # Elongate the dataframe of incidences with 26 weeks in which no vaccines are administered
+            df_incidences = self.extend_df_incidences(df_incidences, n_weeks=26)
+            # Attach cumulative figures
+            df = self.compute_relative_cumulative(df_incidences)
+            # Format vaccination parameters
+            vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
+            # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
+            df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function, onset, waning)
+            # Save result
+            dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
+            if agg:
+                df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_{agg}.csv'))
+                df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_{agg}.pkl'))
+            else:
+                df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_national.csv'))
+                df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_national.pkl'))
+
+        # Check if an age conversion is necessary
+        age_conv=False
+        if len(age_classes) != len(df_efficacies.index.get_level_values('age').unique()):
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
+        elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
+
+        # Visualization (prov)
+        #age_group = df_efficacies.index.get_level_values('age').unique()[-1]
+        #dates = df_efficacies.index.get_level_values('date').unique()
+        #df_efficacies = df_efficacies.groupby(by=['date','NIS']).mean()
+        #import matplotlib.pyplot as plt
+        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(14,12))
+        #for NIS in df_efficacies.index.get_level_values('NIS').unique():
+        #    ax[0].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_i'])
+        #    ax[1].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_s'])
+        #    ax[2].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_h'])
+        #ax[0].legend(['10000', '20001', '20002', '21000', '30000', '40000', '50000', '60000', '70000', '80000', '90000'], bbox_to_anchor =(1.01, 1.00))
+        #ax[0].set_ylim([0,1])
+        #ax[1].set_ylim([0,1])
+        #ax[2].set_ylim([0,1])
+        #ax[0].grid(False)
+        #ax[1].grid(False)
+        #ax[2].grid(False)
+        #ax[0].set_title('e_i')
+        #ax[1].set_title('e_s')
+        #ax[2].set_title('e_h')
+        #from covid19model.visualization.output import _apply_tick_locator
+        #ax[0] = _apply_tick_locator(ax[0])
+        #plt.tight_layout()
+        #plt.show()
+
+        # Assign efficacy dataset
+        self.df_efficacies = df_efficacies
+
+        # Compute some other relevant attributes
+        self.available_dates = df_efficacies.index.get_level_values('date').unique()
+        self.N = len(age_classes)
+        self.agg = agg
+        try:
+            self.G = len(df_efficacies.index.get_level_values('NIS').unique())
+        except:
+            self.G = 0
+
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
-    def __call__(self, t, rescaling_type):
+    def __call__(self, t, efficacy):
         """
         Returns rescaling value matrix [G,N] for the requested time t.
-        
-        NOTE: this is currently hard-coded on dimensions [11,10]
-        
+
         Input
         -----
         t : pd.Timestamp
             Time at which you want to know the rescaling parameter matrix
         rescaling_type : str
             Either 'susc', 'inf' or 'hosp'
-            
+
         Output
         ------
         E : np.array
             Matrix of dimensions (G,N): element E[g,i] is the rescaling factor belonging to province g and age class i at time t
         """
-        
-        # hard-coded dimensions
-        G = 11
-        N = 10
-        
-        if rescaling_type not in ['susc', 'inf', 'hosp']:
+
+        if efficacy not in self.df_efficacies.columns:
             raise ValueError(
-                "rescaling_type should be either 'susc', 'inf', or 'hosp'.")
-        
+                "valid vaccine efficacies are 'e_s', 'e_i', or 'e_h'.")
+
         t = pd.Timestamp(t)
-        
-        if t <= self.available_dates[0]:
+
+        if t < min(self.available_dates):
             # Take unity matrix
-            if self.spatial:
-                E = np.ones([G,N])
+            if self.agg:
+                E = np.zeros([self.G,self.N])
             else:
-                E = np.ones(N)
-            
-        elif t < self.available_dates[-1]:
-            # Take interpolation between to dates for which data is available
+                E = np.zeros(self.N)
+
+        elif t <= max(self.available_dates):
+            # Take interpolation between dates for which data is available
             t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
             t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
-            
-            if self.spatial:
-                E_values_first = self.rescaling_df.loc[t_data_first, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                E_first = np.reshape(E_values_first, (G,N))
-
-                E_values_second = self.rescaling_df.loc[t_data_second, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                E_second = np.reshape(E_values_second, (G,N))
-                
+            if self.agg:
+                E_values_first = self.df_efficacies.loc[t_data_first, :, :][efficacy].to_numpy()
+                E_first = np.reshape(E_values_first, (self.G,self.N))
+                E_values_second = self.df_efficacies.loc[t_data_second, :, :][efficacy].to_numpy()
+                E_second = np.reshape(E_values_second, (self.G,self.N))
             else:
-                E_first = self.rescaling_df.loc[t_data_first, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                E_second = self.rescaling_df.loc[t_data_second, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                
+                E_first = self.rescaling_df.loc[t_data_first, :][efficacy].to_numpy()
+                E_second = self.rescaling_df.loc[t_data_second, :][efficacy].to_numpy()
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
-            
-        elif t >= self.available_dates[-1]:
-            # Take latest data point
-            t_data = pd.Timestamp(self.available_dates[-1])
-            if self.spatial:
-                E_values = self.rescaling_df.loc[t_data, :, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-                E = np.reshape(E_values, (G,N))
+
+        elif t > max(self.available_dates):
+            # Take last available data point
+            t_data = pd.Timestamp(max(self.available_dates))
+            if self.agg:
+                E_values = self.rescaling_df.loc[t_data, :, :][efficacy].to_numpy()
+                E = np.reshape(E_values, (self.G,self.N))
             else:
-                E = self.rescaling_df.loc[t_data, :, 'weighted_sum'][f'E_{rescaling_type}'].to_numpy()
-        
-        return E
-    
+                E = self.rescaling_df.loc[t_data, :][efficacy].to_numpy()
+
+        return (1-E)
+
     def E_susc(self, t, states, param):
-        return self.__call__(t, 'susc')
-    
+        return self.__call__(t, 'e_s')
+
     def E_inf(self, t, states, param):
-        return self.__call__(t, 'inf')
-    
+        return self.__call__(t, 'e_i')
+
     def E_hosp(self, t, states, param):
-        return self.__call__(t, 'hosp')
-        
-                
+        return self.__call__(t, 'e_h')
+
+    @staticmethod
+    def compute_relative_incidences(df, agg=None):
+
+        # Compute fractions with dose x using relevant population size
+        if agg:
+            initN = construct_initN(df.index.get_level_values('age').unique(), agg)
+            for age in df.index.get_level_values('age').unique():
+                for NIS in df.index.get_level_values('NIS').unique():
+                    df.loc[(slice(None), NIS, age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), NIS, age, slice(None)]['INCIDENCE'].values / initN.loc[NIS, age]
+        else:
+            initN = construct_initN(df.index.get_level_values('age').unique())
+            for age in df.index.get_level_values('age').unique():
+                df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
+
+        # Use more declaritive names for doses
+        df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
+
+        return df['REL_INCIDENCE']
+
+    @staticmethod
+    def extend_df_incidences(df_incidences, n_weeks=26):
+        """A function to extend the series of vaccine incidences with zero administered vaccines for n_weeks"""
+
+        # Construct extended daterange index
+        dates = df_incidences.index.get_level_values('date').unique()
+        extended_dates = pd.date_range(start=min(dates), end=max(dates)+pd.Timedelta(weeks=n_weeks), freq='W-MON')
+
+        # Define a new series with the extended dates
+        iterables=[]
+        for index_name in df_incidences.index.names:
+            if index_name != 'date':
+                iterables += [df_incidences.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [extended_dates,]
+        index = pd.MultiIndex.from_product(iterables, names=df_incidences.index.names)
+        extended_df = pd.Series(index=index, name='PREALLOCATED', dtype=float)
+
+        # Place incidence series in extended series
+        extended_df = extended_df.combine_first(df_incidences).fillna(0)
+
+        # Rename
+        extended_df = extended_df.rename(df_incidences.name)
+
+        return extended_df
+
+    @staticmethod
+    def compute_relative_cumulative(df):
+
+        # Compute cumulative sum over all doses
+        levels = list(df.index.names)
+        levels.remove("date")
+        df_cumsum = df.groupby(by=levels).cumsum().clip(lower=0, upper=1)
+        df_cumsum = df_cumsum.reset_index().set_index('date')
+        df_cumsum = df_cumsum.rename(columns={'REL_INCIDENCE': 'REL_CUMULATIVE'})
+
+        # Define output dataframe
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'dose':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [['none', 'partial', 'full', 'boosted'],]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        df_new = pd.DataFrame(index=index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], dtype=float)
+        df_new_index = df_new.index
+        df_new = df_new.reset_index().set_index('date')
+
+        # Remove multiindex from incidences data
+        df = df.reset_index().set_index('date')
+
+        ## Compute populations
+        # 'partial' = 'first' - 'second'
+        df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='first', 'REL_CUMULATIVE'] \
+        - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # 'full' = 'second' + 'one_shot' - 'booster
+        df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
+        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        # 'boosted' = 'booster'
+        df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
+        # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
+        df_new.loc[df_new['dose']=='none','REL_CUMULATIVE'] = 1 - df_new.loc[df_new['dose']=='partial','REL_CUMULATIVE'] \
+        - df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] - df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE']
+
+        ## Make sure incidences wind up in right category
+        # full = second + janssen
+        df_new.loc[df_new['dose']=='full', 'REL_INCIDENCE'] = df.loc[df['dose']=='second', 'REL_INCIDENCE'] + df.loc[df['dose']=='one_shot', 'REL_INCIDENCE']
+        # partial = first
+        df_new.loc[df_new['dose']=='partial', 'REL_INCIDENCE'] = df.loc[df['dose']=='first', 'REL_INCIDENCE']
+        # boosted = booster
+        df_new.loc[df_new['dose']=='boosted', 'REL_INCIDENCE'] = df.loc[df['dose']=='booster', 'REL_INCIDENCE']
+        # none = 0
+        df_new.loc[df_new['dose']=='none', 'REL_INCIDENCE'] = 0
+
+        # Reintroduce multiindex
+        df = pd.DataFrame(index=df_new_index, columns=['REL_INCIDENCE', 'REL_CUMULATIVE'], data=df_new[['REL_INCIDENCE', 'REL_CUMULATIVE']].values)
+
+        return df
+
+    @staticmethod
+    def format_vaccine_params(df):
+        """ This function format the vaccine parameters provided by the user in function `covid19model.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
+
+        ###################
+        ## e_s, e_i, e_h ##
+        ###################
+
+        # Define vaccination properties
+        iterables = [df.index.get_level_values('VOC').unique(),['none', 'partial', 'full', 'boosted'], ['e_s', 'e_i', 'e_h']]
+        index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose', 'efficacy'])
+        df_new = pd.DataFrame(index=index, columns=['initial', 'best', 'waned'])
+
+        # No vaccin = zero efficacy
+        df_new.loc[(slice(None), 'none', slice(None)),:] = 0
+
+        # Partially vaccinated is initially non-vaccinated + Waning of partially vaccinated to non-vaccinated
+        df_new.loc[(slice(None), 'partial', slice(None)),['initial','waned']] = 0
+
+        # Fill in best efficacies using data, waning of full, booster using data
+        for VOC in df_new.index.get_level_values('VOC'):
+            for dose in df_new.index.get_level_values('dose'):
+                for efficacy in df_new.index.get_level_values('efficacy'):
+                    df_new.loc[(VOC, dose, efficacy),'best'] = df.loc[(VOC,dose),efficacy]
+                    if ((dose == 'full') | (dose =='boosted')):
+                        df_new.loc[(VOC, dose, efficacy),'waned'] = df.loc[(VOC,'waned'),efficacy]
+
+        # inital,full = best,partial
+        df_new.loc[(slice(None), 'full', slice(None)),'initial'] = df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
+
+        # boosted, initial = full, waned
+        df_new.loc[(slice(None), 'boosted', slice(None)),'initial'] = df_new.loc[(slice(None), 'full', slice(None)),'waned'].values
+
+        ############################
+        ## onset_immunity, waning ##
+        ############################
+
+        onset={}
+        waning={}
+        for dose in df_new.index.get_level_values('dose'):
+            onset.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'onset_immunity']})
+            waning.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'waning']})
+
+        return df_new, onset, waning
+
+    @staticmethod
+    def waning_delay(delta_t, onset_days, waning_days, E_init, E_best, E_waned):
+        """
+        Function to compute the vaccine efficacy after delta_t days, accouting for a linear buildup and and subsequent exponential waning of the vaccine's immunity.
+
+        Input
+        -----
+        days : float
+            number of days after the novel vaccination
+        onset_days : float
+            number of days it takes for the vaccine to take full effect
+        waning_days : float
+            number of days for the vaccine to wane (on average)
+        E_init : float
+            vaccine-related rescaling value right before vaccination
+        E_best : float
+            rescaling value related to the best possible protection by the currently injected vaccine
+        E_waned : float
+            rescaling value related to the vaccine protection after a waning period.
+
+        Output
+        ------
+        E_eff : float
+            effective rescaling value associated with the newly administered vaccine
+
+        """
+
+        if delta_t < 0:
+            return E_init
+        elif delta_t < onset_days:
+            # Compute weighted average using ramp
+            E_eff = (E_best - E_init)/onset_days*delta_t + E_init
+            return E_eff
+        else:
+            # Compute exponential decay factor going from 1 to 0
+            halftime = waning_days - onset_days
+            tau = halftime/np.log(2)
+            f = np.exp(-(delta_t-onset_days)/tau)
+            # Compute weighted average
+            E_eff = E_waned - f*(E_waned - E_best)
+        return E_eff
+
+    def compute_efficacies(self, df, vaccine_params, VOC_function, onset, waning):
+
+        # Pre-allocate a dataframe with the desired format
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Columns
+        columns = vaccine_params.index.get_level_values('efficacy').unique().values
+        # Desired df
+        new_df = pd.DataFrame(index=df.index, columns=columns, dtype=float)
+        # Omit multiindex
+        new_df_index = new_df.index
+        new_df_columns = new_df.columns
+        new_df = new_df.reset_index()
+
+        # Omit multiindex on vaccination incidence data
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        df_index = df.index
+        df_columns = df.columns
+        df = df.reset_index()
+
+        # Compute vaccine efficacy per dose
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        for dose in new_df['dose'].unique():
+            dates = df['date'].unique()
+            for date in dates:
+                sol = np.zeros([len(vaccine_params.index.get_level_values('efficacy').unique()), len(df.loc[((df['dose']==dose) & (df['date']==dates[0])), 'REL_INCIDENCE'])])
+                for inner_date in dates[dates<=date]:
+                    # Compute number of days in the past vaccines were administered
+                    delta_t = (date-inner_date)/pd.Timedelta(days=1)
+
+                    # Compute VOC average vaccine efficacy at provided date
+                    VOC_fraction = VOC_function(pd.Timestamp(date), {}, {})[0,:]
+                    E_initial=[]
+                    E_best=[]
+                    E_waned=[]
+                    for efficacy in vaccine_params.index.get_level_values('efficacy').unique():
+                        if dose == 'boosted':
+                            # Boosted vaccines start from waned 2nd dose, hence 'booster-initial' = 'full-waned'
+                            E_initial.append(0)
+                            # Maximum booster coverage = diference between 'booster-best' and 'full-waned'='booster_initial' efficacy
+                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                            # Booster can wane below initial level of 'full-waned'
+                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                        else:
+                            E_initial.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values))
+                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values))
+                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values))
+
+                    # Compute protection after delta_t days
+                    weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
+
+                    # Multiply weights with doses jabbed delta_t_days in the past
+                    if dose == 'boosted':
+                        # Booster is 'added' on top of 2nd dose
+                        sol = sol + weight[:, np.newaxis]*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)[np.newaxis,:]
+                    else:
+                        sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
+
+                sol = sol.clip(min=-1,max=1)
+
+                # Perform assignment
+                for idx, efficacy in enumerate(vaccine_params.index.get_level_values('efficacy').unique()):
+                    new_df.loc[((new_df['date']==date) & (new_df['dose']==dose)), efficacy] = sol[idx,:]
+
+        # Reintroduce multiindeces
+        df = pd.DataFrame(index=df_index, columns=df_columns, data=df[df_columns].values)
+        new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)
+
+        #import matplotlib.pyplot as plt
+        #dates = new_df.index.get_level_values('date').unique()
+        #age_group = new_df.index.get_level_values('age').unique()[-1]
+        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True)
+        #ax.plot(dates, new_df)
+        #plt.show()
+
+        # Take dose-weighted average over time
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Initialize dataframe
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'dose':
+                iterables += [df.index.get_level_values(index_name).unique()]
+        names = list(df.index.names)
+        names.remove("dose")
+        index = pd.MultiIndex.from_product(iterables, names=names)
+        dose_avg_df = pd.DataFrame(index=index, columns=vaccine_params.index.get_level_values('efficacy').unique().values, dtype=float)
+        # Weighted sum of efficacies with cumulative share of population in dose x
+        for efficacy in dose_avg_df.columns:
+            dose_avg_df[efficacy] = (df['REL_CUMULATIVE']*new_df[efficacy]).groupby(by=dose_avg_df.index.names).sum()
+
+        return dose_avg_df
+
+    def age_conversion(self, df, desired_age_classes, agg):
+
+        # Define a new dataframe with the desired age groups
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'age':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [desired_age_classes]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
+
+        # Loop to the dataseries level and perform demographic weighing
+        if agg:
+            for date in df.index.get_level_values('date').unique():
+                for NIS in df.index.get_level_values('NIS').unique():
+                    new_df.loc[date, NIS, slice(None)] = self.demographic_weighing(df.loc[date, NIS, slice(None)], desired_age_classes, agg=agg, NIS=NIS).values
+        else:
+            for date in df.index.get_level_values('date').unique():
+                new_df.loc[date, slice(None)] = self.demographic_weighing(df.loc[date, slice(None)], desired_age_classes).values
+
+        return new_df
+
+    @staticmethod
+    def demographic_weighing(data, age_classes, agg=None, NIS=None):
+        """
+        Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
+        this function can convert the data into another user-defined age-stratification using demographic weighing
+
+        Parameters
+        ----------
+        data: pd.Series
+            A series of age-stratified data. Index must be of type pd.Intervalindex.
+
+        age_classes : pd.IntervalIndex
+            Desired age groups of the converted table.
+
+        Returns
+        -------
+
+        out: pd.Series
+            Converted data.
+        """
+
+        # Pre-allocate new dataframe
+        out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
+        if agg:
+            out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
+            demographics = construct_initN(None,agg).loc[NIS,:].values
+        else:
+            out_n_individuals = construct_initN(age_classes, agg).values
+            demographics = construct_initN(None,agg).values
+        # Loop over desired intervals
+        for idx,interval in enumerate(age_classes):
+            result = []
+            for age in range(interval.left, interval.right):
+                try:
+                    result.append(demographics[age]/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+                except:
+                    result.append(0/out_n_individuals[idx]*data.iloc[np.where(data.index.contains(age))[0][0]])
+            out.iloc[idx] = sum(result)
+        return out
+
 ###################################
 ## Google social policy function ##
 ###################################
@@ -692,9 +1095,9 @@ class make_contact_matrix_function():
         GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
 
         if self.provincial:
-            if t < pd.Timestamp('2020-03-17'):
+            if t < self.df_google_start:
                 return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
-            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+            elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[(t, slice(None)),:]/100
             else:
@@ -712,7 +1115,7 @@ class make_contact_matrix_function():
                     try:
                         test=len(place)
                     except:
-                        place = place*np.ones(self.space_agg)     
+                        place = place*np.ones(self.space_agg)
                 values_dict.update({places_names[idx]: place})
 
             # Schools:
@@ -729,27 +1132,27 @@ class make_contact_matrix_function():
             # Construct contact matrix
             CM = (eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] + mentality*(
                     (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
-                    (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
-                    (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
+                    (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] +
+                    (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] +
                     (eff_rest*values_dict['leisure'])[:,np.newaxis,np.newaxis]*self.Nc_all['leisure'] +
                     (eff_rest*values_dict['others'])[:,np.newaxis,np.newaxis]*self.Nc_all['others']) )
 
         else:
-            if t < pd.Timestamp('2020-03-17'):
+            if t < self.df_google_start:
                 return self.Nc_all['total']
-            elif pd.Timestamp('2020-03-17') <= t <= self.df_google_end:
+            elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
             else:
                 # Extract last 14 days and take the mean
                 row = -self.df_google[-7:-1].mean()/100
-            
+
             # Extract values
             values_dict={}
             for idx,place in enumerate(places_var):
                 if place is None:
                     place = 1 - row[GCMR_names[idx]]
-                values_dict.update({places_names[idx]: place})  
+                values_dict.update({places_names[idx]: place})
 
             # Construct contact matrix
             CM = (eff_home*self.Nc_all['home'] + mentality*(
@@ -791,7 +1194,7 @@ class make_contact_matrix_function():
             number of additional days after the time delay until full compliance is reached
         """
         return Nc_old + (Nc_new-Nc_old)/l * float( (t-t_start-tau_days)/pd.Timedelta('1D') )
-    
+
     ####################
     ## National model ##
     ####################
@@ -799,7 +1202,7 @@ class make_contact_matrix_function():
     def policies_all(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
-        
+
         Input
         -----
         t : Timestamp
@@ -811,7 +1214,7 @@ class make_contact_matrix_function():
         l1 : float
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
-            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave
         eff_{location} : float
             "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
         mentality : float
@@ -889,26 +1292,26 @@ class make_contact_matrix_function():
             r = (t3 - t2)/(t4 - t2)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality = 1, school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t3, l)  
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)
         elif t4 < t <= t5:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t5 < t <= t6:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
 
-        ######################      
+        ######################
         ## Winter 2020-2021 ##
         ######################
 
         elif t6 < t <= t7:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t7 < t <= t8:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
@@ -918,19 +1321,19 @@ class make_contact_matrix_function():
         elif t9 < t <= t10:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t11 < t <= t12:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t12 < t <= t13:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t14 < t <= t15:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t17 < t <= t18:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t18 < t <= t19:
@@ -949,15 +1352,15 @@ class make_contact_matrix_function():
         ######################
         ## Winter 2021-2022 ##
         ######################
-        
+
         elif t20 < t <= t21:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1, school=1)
         elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t24 < t <= t25:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t25 < t <= t26:
@@ -977,15 +1380,15 @@ class make_contact_matrix_function():
         elif t30 < t <= t31:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)
         elif t32 < t <= t33:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)
         elif t33 < t <= t34:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
         elif t34 < t <= t35:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)
         else:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 
     ###################
     ## Spatial model ##
@@ -994,7 +1397,7 @@ class make_contact_matrix_function():
     def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
-        
+
         Input
         -----
         t : Timestamp
@@ -1006,7 +1409,7 @@ class make_contact_matrix_function():
         l1 : float
             Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
         l2 : float
-            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave
         eff_{location} : float
             "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
         mentality : float
@@ -1065,13 +1468,16 @@ class make_contact_matrix_function():
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        mentality_summer_2020_lockdown = np.array([2.5*mentality, mentality, # F
+        idx_F = [0, 1, 4, 5, 8]
+        idx_Bxl = [3,]
+        idx_W = [2, 6, 7, 9, 10]
+        mentality_summer_2020_lockdown = np.array([mentality, 0*mentality, # F
                                                 2*mentality, # W
                                                 2*mentality, # Bxl
-                                                0.5*mentality, 2.5*mentality, # F
-                                                3*mentality, 3*mentality, # W
-                                                0.5*mentality, # F
-                                                1.5*mentality, 2*mentality]) # W
+                                                0.5*mentality, 2*mentality, # F
+                                                4*mentality, 4*mentality, # W
+                                                0*mentality, # F
+                                                1*mentality, 2*mentality]) # W
 
         co_F = 1
         co_W = 1
@@ -1089,9 +1495,8 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t1 < t <= t1 + l1_days:
-            t = pd.Timestamp(t.date())
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
@@ -1102,26 +1507,26 @@ class make_contact_matrix_function():
             r = (t3 - t2)/(t4 - t2)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t3, l)  
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)
         elif t4 < t <= t5:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)
         elif t5 < t <= t6:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)      
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
 
-        ######################      
+        ######################
         ## Winter 2020-2021 ##
         ######################
 
         elif t6 < t <= t7:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t7 < t <= t8:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
@@ -1131,19 +1536,23 @@ class make_contact_matrix_function():
         elif t9 < t <= t10:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t11 < t <= t12:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t12 < t <= t13:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t14 < t <= t15:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat[idx_F,:,:] *= 1.05
+            mat[idx_Bxl,:,:] *= 1.14
+            mat[idx_W,:,:] *= 1.10
+            return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t17 < t <= t18:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t18 < t <= t19:
@@ -1159,22 +1568,22 @@ class make_contact_matrix_function():
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
 
-        ######################      
+        ######################
         ## Winter 2021-2022 ##
-        ######################        
+        ######################
 
         elif t20 < t <= t21:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t21 < t <= t22:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
-        elif t24 < t <= t25:    
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)
+        elif t24 < t <= t25:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=0)
         elif t25 < t <= t26:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)
         elif t26 < t <= t27:
             # Gradual re-introduction of mentality change during overlegcommites
             l = (t27 - t26)/pd.Timedelta(days=1)
@@ -1188,41 +1597,41 @@ class make_contact_matrix_function():
         elif t29 < t <= t30:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)
         elif t32 < t <= t33:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
         elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 
     def policies_all_spatial_scenarios(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, scenario):
         """
         TDPF for social contact based on policies_all_spatial function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
-        
+
         NOTE: this code is not written very efficiently. It is not used for calibrations, so it's quite OK.
-        
+
         Input
         -----
         [same as in policies_all_spatial]
-        
+
         scenario : str
             Either 'S0', 'S1', 'S2', or 'S3'
         """
-        
+
         # validate
         if scenario not in ['S0', 'S1', 'S2', 'S3']:
             raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
-        
+
         # hard-code adaption period for people to switch behaviour
         slope_duration = 60 # days
         scenario_start = pd.Timestamp(2021, 3, 1)
-        
+
         if t <= scenario_start:
             return self.policies_all_spatial(t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality)
-        
+
         else:
             if scenario=='S0':
                 avg_policy = 0
@@ -1283,11 +1692,11 @@ class make_contact_matrix_function():
                         return sloped_policy
                     else:
                         return avg_policy
-        
+
     def policies_all_work_only(self, t, states, param, eff_work, mentality):
             '''
-            Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
-            
+            Function that returns the time-dependant social contact matrix of work contacts (Nc_work).
+
             Input
             -----
             t : Timestamp
@@ -1308,34 +1717,100 @@ class make_contact_matrix_function():
             '''
             t = pd.Timestamp(t.date())
 
-            return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            # Convert compliance l to dates
+            l1_days = pd.Timedelta(l1, unit='D')
+            l2_days = pd.Timedelta(l2, unit='D')
+
+            ################
+            ## First wave ##
+            ################
+
+            # Define key dates
+            t1 = pd.Timestamp('2020-03-15') # start of lockdown
+            t2 = pd.Timestamp('2020-05-15') # start of relaxation
+            t3 = pd.Timestamp('2020-08-10') # end of mentality easing
+            t4 = pd.Timestamp('2020-10-19') # start of lockdown
+            t5 = pd.Timestamp('2021-06-01') # start of relaxations
+            t6 = pd.Timestamp('2021-08-01') # end of easing on mentality
+            t7 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+            t8 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+            t9 = pd.Timestamp('2022-02-01') # start easing on mentality
+
+            # Define number of contacts
+            if t <= t1:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+            elif t1 < t <= t1 + l1_days:
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+            elif t1 + l1_days < t <= t2:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            elif t2 < t <= t3:
+                l = (t3 - t2)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t2, l)
+            elif t3 < t <= t4:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+
+            ######################
+            ## Winter 2020-2021 ##
+            ######################
+
+            elif t4  < t <= t4 + l2_days:
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t4, l2)
+            elif t4 + l2_days < t <= t5:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            elif t5 < t <= t6:
+                l = (t6 - t5)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t5, l)
+            elif t6 < t <= t7:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+
+            ######################
+            ## Winter 2021-2022 ##
+            ######################
+
+            elif t7 < t <= t8:
+                l = (t8 - t7)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t7, l)
+            elif t8 < t <= t9:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            else:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
 
     def policies_all_work_only_scenarios(self, t, states, param, eff_work, mentality, scenario):
         """
         TDPF for social contact based on policies_all_work_only function, but for the 4 different scenarios that are discussed in the spatial paper, extrapolating from February 23rd, 2021.
-        
+
         NOTE: this code is not written very efficiently. It is not used for calibrations, so it's quite OK.
-        
+
         Input
         -----
         [same as in policies_all_work_only]
-        
+
         scenario : str
             Either 'S0', 'S1', 'S2', or 'S3'
         """
-        
+
         # validate
         if scenario not in ['S0', 'S1', 'S2', 'S3']:
             raise ValueError(f"scenario {scenario} not valid. Choose between 'S0', 'S1', 'S2', or 'S3'.")
-        
+
         # hard-code adaption period for people to switch behaviour
         slope_duration = 60 # days
-        
+
         scenario_start = pd.Timestamp(2021, 3, 1)
-        
+
         if t <= scenario_start:
             return self.policies_all_work_only(t, states, param, eff_work, mentality)
-        
+
         else:
             if scenario=='S0':
                 avg_policy = 0
@@ -1396,7 +1871,7 @@ class make_contact_matrix_function():
                         return sloped_policy
                     else:
                         return avg_policy
-        
+
 ##########################
 ## Seasonality function ##
 ##########################
@@ -1408,7 +1883,7 @@ class make_seasonality_function():
     def __call__(self, t, states, param, amplitude, peak_shift):
         """
         Default output function. Returns a sinusoid with average value 1.
-        
+
         t : Timestamp
             simulation time
         states : xarray
@@ -1418,7 +1893,7 @@ class make_seasonality_function():
         amplitude : float
             maximum deviation of output with respect to the average (1)
         peak_shift : float
-            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached
         """
         ref_date = pd.to_datetime('2021-01-01')
         # If peak_shift = 0, the max is on the first of January
@@ -1427,23 +1902,23 @@ class make_seasonality_function():
         t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return param*rescaling
-    
+
 class make_seasonality_function_NEW():
     """
     NOTE: may replace other seasonality TDPF if deemed better.
-    
+
     Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
     """
     def __call__(self, t, states, param, amplitude, peak_shift):
         """
         Default output function. Returns a sinusoid with average value 1.
-        
+
         t : Timestamp
             simulation time
         amplitude : float
             maximum deviation of output with respect to the average (1)
         peak_shift : float
-            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
+            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached
         """
         ref_date = pd.to_datetime('2021-01-01')
         # If peak_shift = 0, the max is on the first of January
@@ -1515,12 +1990,12 @@ def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
         end of economic lockdown
     l_s : np.array
         number of unactive workers under lockdown measures (obtained from survey 25-04-2020)
-   
+
     Returns
     -------
     epsilon_S : np.array
         reduction in labor force
-        
+
     """
     if t < t_start_lockdown:
         return param
