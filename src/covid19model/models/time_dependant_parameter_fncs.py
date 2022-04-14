@@ -1279,10 +1279,9 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t1 < t <= t1 + l1_days:
-            t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:

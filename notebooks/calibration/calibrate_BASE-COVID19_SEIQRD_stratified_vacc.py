@@ -131,9 +131,11 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
-    weights = [1, 1e-4, 1e-4]
+    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
+    log_likelihood_fnc_args = [0.078, [], []]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -150,38 +152,39 @@ if __name__ == '__main__':
     # transmission
     pars1 = ['beta',]
     bounds1=((0.003,0.060),)
-    # Social intertia
-    pars2 = ['l1',   'l2']
-    bounds2=((1,25), (1,25))
     # Effectivity parameters
-    pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99))
+    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    bounds2=((0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99))
     # Variants
-    pars4 = ['K_inf',]
+    pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds4 = ((1.25,1.55),(1.60,2.4))
+    bounds3 = ((1.25,1.55),(1.60,2.4))
     # Seasonality
-    pars5 = ['amplitude',]
-    bounds5 = ((0,0.35),)
+    pars4 = ['amplitude',]
+    bounds4 = ((0,0.35),)
     # Waning antibody immunity
-    pars6 = ['zeta',]
-    bounds6 = ((1e-6,1e-2),)
+    pars5 = ['zeta',]
+    bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
-    # run optimization
+    pars = pars1 + pars2 + pars3 + pars4 + pars5 
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    # all three options are valid
-    theta = np.array([0.045, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) 
+    theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
+    theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
+    #theta = [0.04351802, 0.08439501, 0.40479549, 0.2588798, 0.23750583, 0.26350412, 1.55219753, 1.46399578, 0.21577917, 0.00219634]
+    theta = [5.34466251e-02, 4.35186150e-02, 3.14549370e-01, 2.84094732e-01, 1.91266411e-01, 2.28065635e-01, 1.71571132e+00, 2.06028535e+00, 2.99590560e-01, -6.44800135e-04]
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 12*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
-    #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
+    # Define objective function
+    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    # Run Nelder Mead optimization
+    step = len(bounds)*[0.05,]
+    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     ###################
     ## Visualize fit ##
