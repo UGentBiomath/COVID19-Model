@@ -370,7 +370,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ###################################
 
     # Other parameters
-    pars_dict['l1'] = 21
+    pars_dict['l1'] = 14
     pars_dict['l2'] = 7
     pars_dict['da'] = 7
     pars_dict['dm'] = 7
@@ -458,11 +458,9 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area_df = area_df.sort_index(axis=0)
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
-
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['place'].shape[0])
         pars_dict['p'] = p
-
         # Add Nc_work and Nc to parameters
         pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
         pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)

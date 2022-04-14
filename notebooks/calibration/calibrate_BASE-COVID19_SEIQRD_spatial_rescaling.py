@@ -21,7 +21,6 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
@@ -132,7 +131,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-start_calibration = '2020-03-22'
+start_calibration = '2020-03-17'
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
 
 if __name__ == '__main__':
