@@ -333,12 +333,12 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             return (multiplier*n - n_desired)**2
         return minimize(errorfcn, 0, args=(n, n_desired))['x'] * relative_data
 
-    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['h'] = np.array(convert_age_stratified_property(
         hosp_prop, age_classes).values, np.float64)
+    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)    
     pars_dict['a'] = np.array(
         1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
-
+    
     #########################
     ## Hospital parameters ##
     #########################

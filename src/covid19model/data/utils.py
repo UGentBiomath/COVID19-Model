@@ -45,16 +45,13 @@ def construct_initN(age_classes=None, agg=None):
         age_piramid = age_struct.groupby(['NIS','age']).sum().reset_index()
         initN = age_piramid.pivot(index='NIS', columns='age', values='number')
         initN = initN.fillna(0)
-        
-    #initN.columns = age_classes
-    #initN.columns.astype(str)
 
     if agg:
         return initN
     else:
         return initN.sum(axis=0)
 
-def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
+def convert_age_stratified_property(data, age_classes, agg=None):
     """ 
     Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
     this function can convert the data into another user-defined age-stratification using demographic weighing
@@ -76,9 +73,9 @@ def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
 
     # Pre-allocate new series
     out = pd.Series(index = age_classes, dtype=float)
-    out_n_individuals = construct_initN(age_classes, agg)
+    out_n_individuals = construct_initN(age_classes, agg).values
     # Extract demographics for all ages
-    demographics = construct_initN(None,agg)
+    demographics = construct_initN(None,agg).values
     # Loop over desired intervals
     for idx,interval in enumerate(age_classes):
         result = []
