@@ -13,7 +13,7 @@ import os
 import sys
 import ast
 import click
-import ujson as json
+import json
 import emcee
 import datetime
 import argparse
@@ -25,9 +25,9 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization.objective_fcns import prior_uniform
-from covid19model.optimization import objective_fcns
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
+from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 #############################
 ## Handle script arguments ##
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     # all three options are valid
-    theta = np.array([0.0422, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) 
+    theta = np.array([0.045, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) 
 
     ####################################
     ## Local Nelder-mead optimization ##
