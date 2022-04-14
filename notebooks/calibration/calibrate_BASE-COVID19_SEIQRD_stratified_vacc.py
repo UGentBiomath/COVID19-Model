@@ -172,9 +172,7 @@ if __name__ == '__main__':
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
-    theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
-    #theta = [0.04351802, 0.08439501, 0.40479549, 0.2588798, 0.23750583, 0.26350412, 1.55219753, 1.46399578, 0.21577917, 0.00219634]
-    theta = [5.34466251e-02, 4.35186150e-02, 3.14549370e-01, 2.84094732e-01, 1.91266411e-01, 2.28065635e-01, 1.71571132e+00, 2.06028535e+00, 2.99590560e-01, -6.44800135e-04]
+    #theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
 
     ####################################
     ## Local Nelder-mead optimization ##
