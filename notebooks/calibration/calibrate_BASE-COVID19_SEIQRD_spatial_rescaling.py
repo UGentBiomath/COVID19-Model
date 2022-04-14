@@ -215,7 +215,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.38, 1.57, 0.29, 0.00442] # Calibration 2022-04-10
+    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # Derived from Calibration 2022-04-10
 
     ####################################
     ## Local Nelder-mead optimization ##
