@@ -107,6 +107,15 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_
 
 if __name__ == '__main__':
 
+    #############################################################
+    ## Compute the overdispersion parameters for our H_in data ##
+    #############################################################
+
+    from covid19model.optimization.utils import variance_analysis
+    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='M')
+    plt.show()
+    plt.close()
+
     ##########################
     ## Calibration settings ##
     ##########################
@@ -122,12 +131,12 @@ if __name__ == '__main__':
     else:
         end_calibration = pd.to_datetime(str(args.enddate))
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 4
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 6
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -171,8 +180,8 @@ if __name__ == '__main__':
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
-    #theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
+    #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
+    theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -182,7 +191,7 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Run Nelder Mead optimization
     step = len(bounds)*[0.05,]
-    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
+    sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     ###################
     ## Visualize fit ##
@@ -232,39 +241,32 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Setup uniform priors
-    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform]
-    log_prior_fcn_args = bounds
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
-
     # pars1 = ['beta',]
     pert1 = [0.03,]
-    # pars2 = ['l1', 'l2']
-    pert2 = [0.10, 0.10]
-    # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3 = [0.20, 0.20, 0.20, 0.20, 0.20]
-    # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4 = [0.10, 0.10]
-    # pars5 = ['amplitude']
-    pert5 = [0.10,] 
-    # pars6 = ['zeta',]
-    pert6 = [0.10,]
+    # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    pert2 = [0.20, 0.20, 0.20, 0.20, 0.20]
+    # pars3 = ['K_inf_abc','K_inf_delta']
+    pert3 = [0.10, 0.10]
+    # pars4 = ['amplitude']
+    pert4 = [0.10,] 
+    # pars5 = ['zeta',]
+    pert5 = [0.10,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
+    # Labels for traceplots
+    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
-    # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+    # initialize objective function
+    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
     ######################
     ## Run MCMC sampler ##
@@ -273,7 +275,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes)
 
     #####################
     ## Process results ##
