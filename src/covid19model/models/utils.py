@@ -443,11 +443,10 @@ def load_samples_dict(filepath, age_stratification_size=10):
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
 
-def draw_fnc_COVID19_SEIQRD(param_dict,samples_dict):
+def draw_fnc_COVID19_SEIQRD_national(param_dict,samples_dict):
     """
     A function to draw samples from the estimated posterior distributions of the model parameters.
-    Tailored for use with the national COVID-19 SEIQRD model without vaccine stratification ("virgin model").
-    Includes seasonality.
+    Tailored for use with the national COVID-19 SEIQRD model.
 
     Parameters
     ----------
@@ -471,6 +470,7 @@ def draw_fnc_COVID19_SEIQRD(param_dict,samples_dict):
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
     param_dict['zeta'] = samples_dict['zeta'][idx]  
 
@@ -500,69 +500,10 @@ def draw_fnc_COVID19_SEIQRD(param_dict,samples_dict):
         param_dict[names[idx]] = np.array(param_val)
     return param_dict
 
-def draw_fnc_COVID19_SEIQRD_stratified_vacc(param_dict,samples_dict):
+def draw_fnc_COVID19_SEIQRD_spatial(param_dict,samples_dict):
     """
     A function to draw samples from the estimated posterior distributions of the model parameters.
-    For use with the extended national-level COVID-19 model `COVID19_SEIRD_stratified_vacc` in `~src/models/models.py`
-
-    Parameters
-    ----------
-
-    samples_dict : dict
-        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 2
-
-    param_dict : dict
-        Model parameters dictionary
-
-    Returns
-    -------
-    param_dict : dict
-        Modified model parameters dictionary
-
-    """
-
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta']))) 
-    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
-    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
-    param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]
-    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(len(param_dict['c'])):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=20
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D'],
-                     samples_dict['residence_times']['dICUrec']]
-
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-        
-    return param_dict
-
-
-def draw_fnc_COVID19_SEIQRD_spatial_rescaling(param_dict,samples_dict):
-    """
-    A function to draw samples from the estimated posterior distributions of the model parameters.
-    Tailored for use with the spatial COVID-19 SEIQRD model with vaccination rescaling.
+    Tailored for use with the spatial COVID-19 SEIQRD model.
 
     Parameters
     ----------
@@ -687,7 +628,7 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
         for dimension in output.dims:
             if ((dimension != 'time') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
-        mean, median, lower, upper = add_negative_binomial(copy[state_name].values, alpha, n_draws_per_sample, UL, LL)
+        mean, median, lower, upper = add_negative_binomial(copy[state_name].values, alpha, n_draws_per_sample, UL, LL, add_to_mean=False)
         # Add to dataframe
         df[state_name,'mean'] = mean
         df[state_name,'median'] = median

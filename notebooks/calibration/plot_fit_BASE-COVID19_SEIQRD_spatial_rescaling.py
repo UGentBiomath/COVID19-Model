@@ -89,7 +89,7 @@ for directory in [fig_path, samples_path]:
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
-dispersion = 0.078 #np.mean(samples_dict['dispersion'])
+dispersion = float(samples_dict['dispersion'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
@@ -117,7 +117,7 @@ model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(ag
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_rescaling as draw_fnc
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial as draw_fnc
 
 #########################
 ## Perform simulations ##

@@ -119,7 +119,7 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='M')
+    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='M') # alpha = 0.056
     plt.show()
     plt.close()
 
@@ -143,7 +143,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 6
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-    log_likelihood_fnc_args = [0.078, [], []]
+    log_likelihood_fnc_args = [0.056, [], []]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -170,11 +170,11 @@ if __name__ == '__main__':
     bounds1=((0.003,0.060),)
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99))
+    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.25,1.55),(1.60,2.4))
+    bounds3 = ((1.25,1.60),(1.60,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.35),)
