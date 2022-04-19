@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
