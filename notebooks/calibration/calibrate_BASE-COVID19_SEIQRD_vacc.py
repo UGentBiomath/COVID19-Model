@@ -41,6 +41,7 @@ parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
+parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Backend
@@ -58,6 +59,9 @@ if args.identifier:
     identifier = 'BE_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
+# Vaccination type
+if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
+    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -103,7 +107,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
+if args.vaccination == 'stratified':
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
 
 if __name__ == '__main__':
 
