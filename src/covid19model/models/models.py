@@ -330,7 +330,7 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIQRD(BaseModel):
+class COVID19_SEIQRD_rescaling(BaseModel):
     """
     Biomath extended SEIQRD model for COVID-19, Deterministic implementation
 
@@ -431,6 +431,8 @@ class COVID19_SEIQRD(BaseModel):
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        # Make 'beta' equal to stratification size for ease of computations
+        beta = beta*np.ones(len(h), np.float64)
 
         ##########################
         ## Rescale parameters ##
@@ -442,7 +444,8 @@ class COVID19_SEIQRD(BaseModel):
         # Seasonality
         beta *= seasonality
         # Vaccines
-        beta *= E_susc*E_inf
+        beta *= E_susc
+        beta *= E_inf
         
         ### HOSPITALISATION PROPENSITY ###
         # Variants
@@ -556,7 +559,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
     
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
@@ -564,7 +567,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -580,30 +583,34 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
 
-        ############################
-        ## Modeling immune escape ##
-        ############################
+        ###################
+        ## Format inputs ##
+        ###################
 
         # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]        
-        
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
+
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
-        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
-        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        # compute properties
+        # Hospitalization propensity
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
+        # Latent period
         sigma = np.sum(f_VOC*sigma)
-        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        # Vaccination
+        e_i = f_VOC @ e_i 
         e_s = f_VOC @ e_s 
         e_h = f_VOC @ e_h
+        # Seasonality
+        beta *= seasonality
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##

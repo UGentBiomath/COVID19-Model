@@ -667,8 +667,8 @@ class make_vaccination_rescaling_function():
                 E_values_second = self.df_efficacies.loc[t_data_second, :, :][efficacy].to_numpy()
                 E_second = np.reshape(E_values_second, (self.G,self.N))
             else:
-                E_first = self.rescaling_df.loc[t_data_first, :][efficacy].to_numpy()
-                E_second = self.rescaling_df.loc[t_data_second, :][efficacy].to_numpy()
+                E_first = self.df_efficacies.loc[t_data_first, :][efficacy].to_numpy()
+                E_second = self.df_efficacies.loc[t_data_second, :][efficacy].to_numpy()
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
             
@@ -676,10 +676,10 @@ class make_vaccination_rescaling_function():
             # Take last available data point
             t_data = pd.Timestamp(max(self.available_dates))
             if self.agg:
-                E_values = self.rescaling_df.loc[t_data, :, :][efficacy].to_numpy()
+                E_values = self.df_efficacies.loc[t_data, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.G,self.N))
             else:
-                E = self.rescaling_df.loc[t_data, :][efficacy].to_numpy()
+                E = self.df_efficacies.loc[t_data, :][efficacy].to_numpy()
 
         return (1-E)
     
@@ -1704,35 +1704,6 @@ class make_contact_matrix_function():
 
 class make_seasonality_function():
     """
-    Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
-    """
-    def __call__(self, t, states, param, amplitude, peak_shift):
-        """
-        Default output function. Returns a sinusoid with average value 1.
-        
-        t : Timestamp
-            simulation time
-        states : xarray
-            model states
-        param : dict
-            model parameter dictionary
-        amplitude : float
-            maximum deviation of output with respect to the average (1)
-        peak_shift : float
-            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
-        """
-        ref_date = pd.to_datetime('2021-01-01')
-        # If peak_shift = 0, the max is on the first of January
-        maxdate = ref_date + pd.Timedelta(days=peak_shift)
-        # One period is one year long (seasonality)
-        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
-        rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
-        return param*rescaling
-    
-class make_seasonality_function_NEW():
-    """
-    NOTE: may replace other seasonality TDPF if deemed better.
-    
     Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
     """
     def __call__(self, t, states, param, amplitude, peak_shift):
