@@ -111,9 +111,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False)
-model.parameters['l1'] = 21
-model.parameters['l2'] = 7
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
 
 #######################
 ## Sampling function ##
