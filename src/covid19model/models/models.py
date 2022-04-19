@@ -421,7 +421,7 @@ class COVID19_SEIQRD_rescaling(BaseModel):
         ##################
         ## Format input ##
         ##################
-        
+
         # Remove negative derivatives to ease further computation
         # Note: this model will only use the fraction itself, not its derivative
         f_VOC[:,1][f_VOC[:,1] < 0] = 0
@@ -541,7 +541,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-
+        seasonality : rescaling factor of infectivity due to seasonality
+        
         Age-stratified parameters
         --------------------
         s: relative susceptibility to infection

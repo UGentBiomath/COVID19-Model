@@ -369,7 +369,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Non-age-stratified parameters ##
     ###################################
 
-    # Other parameters
     pars_dict['l1'] = 21
     pars_dict['l2'] = 7
     pars_dict['da'] = 7
@@ -378,13 +377,70 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['omega'] = 0.66
     pars_dict['dhospital'] = 6.4
 
-    #################
-    ## Seasonality ##
-    #################
+    #######################
+    ## Dummy seasonality ##
+    #######################
 
     # Value of one equals no seasonality --> value is modified in time-dependant parameter function
     pars_dict['seasonality'] = 1
     pars_dict['peak_shift'] = 0
+    pars_dict['amplitude'] = 0
+
+    ###############
+    ## Dummy VOC ##
+    ###############
+
+    pars_dict['f_VOC'] = [[1, 0],]
+    pars_dict['K_inf'] = []
+    pars_dict['K_hosp'] = []
+
+    ########################
+    ## Spatial parameters ##
+    ########################
+
+    if spatial:
+
+        # Read recurrent mobility matrix per region
+        # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
+        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
+        mobility_df = pd.read_csv(os.path.join(
+            abs_dir, mobility_data), index_col='NIS')
+        # Make sure the regions are ordered according to ascending NIS values
+        mobility_df = mobility_df.sort_index(axis=0).sort_index(axis=1)
+        # Infer spatial stratification size
+        G = len(mobility_df.index.get_level_values('NIS').unique())
+        # Take only the values (matrix) and save in NIS as floating points
+        NIS = mobility_df.values.astype(float)
+        # Normalize recurrent mobility matrix
+        for i in range(NIS.shape[0]):
+            NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
+        pars_dict['place'] = NIS
+        # Read areas per region, ordered in ascending NIS values
+        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
+        area_df = pd.read_csv(os.path.join(
+            abs_dir, area_data), index_col='NIS')
+        # Make sure the regions are ordered well
+        area_df = area_df.sort_index(axis=0)
+        area = area_df.values[:, 0]
+        pars_dict['area'] = area * 1e-6  # in square kilometer
+        # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
+        p = np.ones(pars_dict['place'].shape[0])
+        pars_dict['p'] = p
+        # Add Nc_work and Nc to parameters
+        # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
+        pars_dict['Nc'] = Nc_dict['total']
+        # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
+        pars_dict['Nc_work'] = Nc_dict['work']
+
+    #################################
+    ## Dummy rescaling vaccination ##
+    #################################
+
+    if spatial:
+        # Value of one equals no vaccination --> value is modified in time-dependant parameter function
+        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones([G, age_stratification_size])
+    else:
+        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones(age_stratification_size)
 
     ############################
     ## BASE fitted parameters ##
@@ -423,56 +479,15 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'eff_home': np.mean(base_samples_dict['eff_home']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
-            'zeta': np.mean(base_samples_dict['zeta']),
         })
-
-    #########################################################
-    ## Spatial parameters (default: vaccination rescaling) ##
-    #########################################################
-
-    if spatial:
-
-        # Add vaccination rescaling parameters
-        # Value of one equals no vaccination --> value is modified in time-dependant parameter function
-        pars_dict['E_susc'] = np.ones([11, 10])
-        pars_dict['E_inf'] = np.ones([11, 10])
-        pars_dict['E_hosp'] = np.ones([11, 10])
-        # Read recurrent mobility matrix per region
-        # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
-        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
-        mobility_df = pd.read_csv(os.path.join(
-            abs_dir, mobility_data), index_col='NIS')
-        # Make sure the regions are ordered according to ascending NIS values
-        mobility_df = mobility_df.sort_index(axis=0).sort_index(axis=1)
-        # Take only the values (matrix) and save in NIS as floating points
-        NIS = mobility_df.values.astype(float)
-        # Normalize recurrent mobility matrix
-        for i in range(NIS.shape[0]):
-            NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
-        pars_dict['place'] = NIS
-        # Read areas per region, ordered in ascending NIS values
-        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
-        area_df = pd.read_csv(os.path.join(
-            abs_dir, area_data), index_col='NIS')
-        # Make sure the regions are ordered well
-        area_df = area_df.sort_index(axis=0)
-        area = area_df.values[:, 0]
-        pars_dict['area'] = area * 1e-6  # in square kilometer
-        # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
-        p = np.ones(pars_dict['place'].shape[0])
-        pars_dict['p'] = p
-        # Add Nc_work and Nc to parameters
-        # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
-        pars_dict['Nc'] = Nc_dict['total']
-        # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
-        pars_dict['Nc_work'] = Nc_dict['work']
 
     return initN, Nc_dict, pars_dict, base_samples_dict
 
 
-def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
+def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pars_dict=None):
     """
     A function to load all parameters that in some way depend on what VOCs you consider in the model.
+    If pars_dict is provided, relevant values of VOC parameters are set and pars_dict is returned.
     """
 
     abs_dir = os.path.dirname(__file__)
@@ -571,4 +586,19 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron']):
     vaccine_parameters.to_pickle(os.path.join(
         save_path, 'vaccine_parameters.pkl'))
 
-    return VOC_parameters, vaccine_parameters
+    #############################
+    ## Set relevant VOC values ##
+    #############################
+
+    if pars_dict:
+        # Update the relevant model parameters
+        pars_dict.update({'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
+                    'f_VOC': np.transpose(np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64)),
+                    'K_inf': np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64),
+                    'K_hosp': np.array(VOC_parameters['variant_properties', 'K_hosp'].tolist()[1:], np.float64)})
+        if not pd.isnull(list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]):
+            pars_dict.update(
+                {'h': pars_dict['h']*list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]})
+        return VOC_parameters, vaccine_parameters, pars_dict
+    else:
+        return VOC_parameters, vaccine_parameters

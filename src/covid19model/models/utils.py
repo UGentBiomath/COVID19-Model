@@ -12,7 +12,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
+def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False, virgin=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -66,17 +66,9 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
     VOC_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/VOC_parameters.pkl'))
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     # Load currently saved VOC parameters
-    VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
-    # Update the relevant model parameters
-    params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
-                   'f_VOC': np.array(VOC_params['variant_properties', 'f_VOC'].tolist(), np.float64),
-                   'K_inf': np.array(VOC_params['variant_properties', 'K_inf'].tolist()[1:], np.float64),
-                   'K_hosp': np.array(VOC_params['variant_properties', 'K_hosp'].tolist()[1:], np.float64)})
-    if not pd.isnull(list(VOC_params['variant_properties', 'K_hosp'].values)[0]):
-        params.update(
-            {'h': params['h']*list(VOC_params['variant_properties', 'K_hosp'].values)[0]})
     # Assert if there are differences in the VOC parameters, if yes, the rescaling dataframe must be updated
     # If (vaccine) data is updated, so must the rescaling dataframe
     rescaling_update=False
@@ -92,11 +84,6 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, age_classes=age_classes, df_incidences=df_vacc, VOC_function=VOC_function, vaccine_params=vaccine_params)
     else:
         vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, age_classes=age_classes)
-
-    # TODO: formalize
-    params['E_susc'] = np.ones(age_stratification_size)
-    params['E_inf'] = np.ones(age_stratification_size)
-    params['E_hosp'] = np.ones(age_stratification_size)
 
     ##################################################
     ## Construct time-dependent parameter functions ##
@@ -130,13 +117,19 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
     ##########################
     ## Initialize the model ##
     ##########################
- 
-    model = models.COVID19_SEIQRD_rescaling(initial_states, params, time_dependent_parameters={'Nc': policy_function,
-                                                                                               'seasonality': seasonality_function,
-                                                                                               'f_VOC': VOC_function,
-                                                                                               'E_susc': E_susc_function,
-                                                                                               'E_inf': E_inf_function,
-                                                                                               'E_hosp': E_hosp_function})
+
+    time_dependent_parameters = {'Nc': policy_function,
+                                'seasonality': seasonality_function,
+                                'f_VOC': VOC_function,
+                                'E_susc': E_susc_function,
+                                'E_inf': E_inf_function,
+                                'E_hosp': E_hosp_function}
+    if virgin:
+        # Drop VOCs and vaccination
+        for key in ['f_VOC', 'E_susc', 'E_inf', 'E_hosp']:
+            time_dependent_parameters.pop(key)
+
+    model = models.COVID19_SEIQRD_rescaling(initial_states, params, time_dependent_parameters=time_dependent_parameters)
 
     return model, BASE_samples_dict, initN
 
@@ -179,16 +172,7 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     # Load currently saved VOC parameters
-    VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
-    # Update the relevant model parameters
-    params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
-                   'f_VOC': np.array(VOC_params['variant_properties', 'f_VOC'].tolist(), np.float64),
-                   'K_inf': np.array(VOC_params['variant_properties', 'K_inf'].tolist()[1:], np.float64),
-                   'K_hosp': np.array(VOC_params['variant_properties', 'K_hosp'].tolist()[1:], np.float64)})
-    if not pd.isnull(list(VOC_params['variant_properties', 'K_hosp'].values)[0]):
-        params.update(
-            {'h': params['h']*list(VOC_params['variant_properties', 'K_hosp'].values)[0]})
-
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -235,11 +219,13 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
             converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
-
     ##############################################################################
     ## Explicit vaccination module requires quite some parameters to be defined ##
     ##############################################################################
-
+    
+    # Drop rescaling parameters
+    for key in ['E_susc', 'E_inf', 'E_hosp']:
+        params.pop(key)
     # e_i
     e_i = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
     for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
@@ -335,17 +321,9 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     VOC_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/VOC_parameters.pkl'))
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     # Load currently saved VOC parameters
-    VOC_params, vaccine_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs)
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
-    # Update the relevant model parameters
-    params.update({'sigma': np.array(VOC_params['variant_properties', 'sigma'].tolist(), np.float64),
-                   'f_VOC': np.array(VOC_params['variant_properties', 'f_VOC'].tolist(), np.float64),
-                   'K_inf': np.array(VOC_params['variant_properties', 'K_inf'].tolist()[1:], np.float64),
-                   'K_hosp': np.array(VOC_params['variant_properties', 'K_hosp'].tolist()[1:], np.float64)})
-    if not pd.isnull(list(VOC_params['variant_properties', 'K_hosp'].values)[0]):
-        params.update(
-            {'h': params['h']*list(VOC_params['variant_properties', 'K_hosp'].values)[0]})
     # Assert if there are differences in the VOC parameters, if yes, the rescaling dataframe must be updated
     # If (vaccine) data is updated, so must the rescaling dataframe
     rescaling_update=False

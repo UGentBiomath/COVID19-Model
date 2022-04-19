@@ -110,7 +110,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 if args.vaccination == 'stratified':
     model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
 else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False, virgin=False)
 
 if __name__ == '__main__':
 
