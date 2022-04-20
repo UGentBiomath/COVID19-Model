@@ -248,13 +248,12 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
+        p : mobility parameter per region. Only loads when spatial is not None
 
         Spatially stratified parameters
         -------------------------------
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
-        p : mobility rescaling parameter per region. Only loads when spatial is not None. Used for artificial scenario analysis
-        nc : social contact rescaling parameter per region. Only loads when spatial is not None. Used for artificial scenario analysis
 
         Other stratified parameters
         ---------------------------
