@@ -12,7 +12,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False, virgin=False):
+def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -124,10 +124,6 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
                                 'E_susc': E_susc_function,
                                 'E_inf': E_inf_function,
                                 'E_hosp': E_hosp_function}
-    if virgin:
-        # Drop VOCs and vaccination
-        for key in ['f_VOC', 'E_susc', 'E_inf', 'E_hosp']:
-            time_dependent_parameters.pop(key)
 
     model = models.COVID19_SEIQRD_rescaling(initial_states, params, time_dependent_parameters=time_dependent_parameters)
 

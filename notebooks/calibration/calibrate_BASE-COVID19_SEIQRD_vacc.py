@@ -110,7 +110,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 if args.vaccination == 'stratified':
     model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
 else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False, virgin=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False)
 
 if __name__ == '__main__':
 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.25,1.60),(1.60,2.4))
+    bounds3 = ((1.25,1.55),(1.55,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.35),)
