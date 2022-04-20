@@ -554,12 +554,13 @@ class make_vaccination_rescaling_function():
 
         if update==False:
             # Simply load data
+            from covid19model.data.utils import to_pd_interval
             if agg:
-                dir_abs = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
-                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age']).first()
+                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
+                df_efficacies = pd.read_csv(path,  index_col=['date','NIS','age'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
             else:
-                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
-                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'age']).first()
+                path = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.csv")
+                df_efficacies = pd.read_csv(path,  index_col=['date','age'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
@@ -573,6 +574,7 @@ class make_vaccination_rescaling_function():
             vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
             # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
             df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function, onset, waning)
+            
             # Save result
             dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
             if agg:
@@ -667,8 +669,8 @@ class make_vaccination_rescaling_function():
                 E_values_second = self.df_efficacies.loc[t_data_second, :, :][efficacy].to_numpy()
                 E_second = np.reshape(E_values_second, (self.G,self.N))
             else:
-                E_first = self.rescaling_df.loc[t_data_first, :][efficacy].to_numpy()
-                E_second = self.rescaling_df.loc[t_data_second, :][efficacy].to_numpy()
+                E_first = self.df_efficacies.loc[t_data_first, :][efficacy].to_numpy()
+                E_second = self.df_efficacies.loc[t_data_second, :][efficacy].to_numpy()
             # linear interpolation
             E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
             
@@ -676,10 +678,10 @@ class make_vaccination_rescaling_function():
             # Take last available data point
             t_data = pd.Timestamp(max(self.available_dates))
             if self.agg:
-                E_values = self.rescaling_df.loc[t_data, :, :][efficacy].to_numpy()
+                E_values = self.df_efficacies.loc[t_data, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.G,self.N))
             else:
-                E = self.rescaling_df.loc[t_data, :][efficacy].to_numpy()
+                E = self.df_efficacies.loc[t_data, :][efficacy].to_numpy()
 
         return (1-E)
     
@@ -1279,10 +1281,9 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t1 < t <= t1 + l1_days:
-            t = pd.Timestamp(t.date())
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
@@ -1331,7 +1332,8 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
+            return 1.14*mat
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
         elif t17 < t <= t18:
@@ -1547,9 +1549,9 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            mat[idx_F,:,:] *= 1.05
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.10
+            mat[idx_F,:,:] *= 1.03
+            mat[idx_Bxl,:,:] *= 1.12
+            mat[idx_W,:,:] *= 1.09
             return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
@@ -1705,35 +1707,6 @@ class make_contact_matrix_function():
 
 class make_seasonality_function():
     """
-    Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
-    """
-    def __call__(self, t, states, param, amplitude, peak_shift):
-        """
-        Default output function. Returns a sinusoid with average value 1.
-        
-        t : Timestamp
-            simulation time
-        states : xarray
-            model states
-        param : dict
-            model parameter dictionary
-        amplitude : float
-            maximum deviation of output with respect to the average (1)
-        peak_shift : float
-            phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
-        """
-        ref_date = pd.to_datetime('2021-01-01')
-        # If peak_shift = 0, the max is on the first of January
-        maxdate = ref_date + pd.Timedelta(days=peak_shift)
-        # One period is one year long (seasonality)
-        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
-        rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
-        return param*rescaling
-    
-class make_seasonality_function_NEW():
-    """
-    NOTE: may replace other seasonality TDPF if deemed better.
-    
     Simple class to create functions that controls the season-dependent value of the transmission coefficients. Currently not based on any data, but e.g. weather patterns could be imported if needed.
     """
     def __call__(self, t, states, param, amplitude, peak_shift):

@@ -13,7 +13,7 @@ import os
 import sys
 import ast
 import click
-import ujson as json
+import json
 import emcee
 import datetime
 import argparse
@@ -21,13 +21,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization.objective_fcns import prior_uniform
-from covid19model.optimization import objective_fcns
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO
+from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 #############################
 ## Handle script arguments ##
@@ -41,6 +41,7 @@ parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
+parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Backend
@@ -58,6 +59,9 @@ if args.identifier:
     identifier = 'BE_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
+# Vaccination type
+if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
+    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -103,9 +107,21 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
+if args.vaccination == 'stratified':
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
+else:
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False)
 
 if __name__ == '__main__':
+
+    #############################################################
+    ## Compute the overdispersion parameters for our H_in data ##
+    #############################################################
+
+    from covid19model.optimization.utils import variance_analysis
+    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='M') # alpha = 0.056
+    plt.show()
+    plt.close()
 
     ##########################
     ## Calibration settings ##
@@ -122,7 +138,7 @@ if __name__ == '__main__':
     else:
         end_calibration = pd.to_datetime(str(args.enddate))
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2-1))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 4
     maxiter = n_pso
     popsize = multiplier_pso*processes
@@ -131,9 +147,11 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean']]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
-    weights = [1, 1e-4, 1e-4]
+    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
+    log_likelihood_fnc_args = [0.056, [], []]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -150,38 +168,38 @@ if __name__ == '__main__':
     # transmission
     pars1 = ['beta',]
     bounds1=((0.003,0.060),)
-    # Social intertia
-    pars2 = ['l1',   'l2']
-    bounds2=((1,25), (1,25))
     # Effectivity parameters
-    pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds3=((0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99),(0.04,0.99))
+    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
-    pars4 = ['K_inf',]
+    pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds4 = ((1.25,1.55),(1.60,2.4))
+    bounds3 = ((1.25,1.55),(1.55,2.4))
     # Seasonality
-    pars5 = ['amplitude',]
-    bounds5 = ((0,0.35),)
+    pars4 = ['amplitude',]
+    bounds4 = ((0,0.35),)
     # Waning antibody immunity
-    pars6 = ['zeta',]
-    bounds6 = ((1e-6,1e-2),)
+    pars5 = ['zeta',]
+    bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5 + pars6
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5 + bounds6
-    # run optimization
+    pars = pars1 + pars2 + pars3 + pars4 + pars5 
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    # all three options are valid
-    theta = np.array([0.0422, 20, 9, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) 
+    #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
+    #theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
+    theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.00297989] # 2993
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 12*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
-    #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
+    # Define objective function
+    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    # Run Nelder Mead optimization
+    step = len(bounds)*[0.10,]
+    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     ###################
     ## Visualize fit ##
@@ -231,39 +249,32 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Setup uniform priors
-    log_prior_fcn = [prior_uniform,prior_uniform, prior_uniform,  prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform, prior_uniform, prior_uniform, \
-                        prior_uniform, prior_uniform]
-    log_prior_fcn_args = bounds
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
-
     # pars1 = ['beta',]
     pert1 = [0.03,]
-    # pars2 = ['l1', 'l2']
-    pert2 = [0.10, 0.10]
-    # pars3 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert3 = [0.20, 0.20, 0.20, 0.20, 0.20]
-    # pars4 = ['K_inf_abc','K_inf_delta']
-    pert4 = [0.10, 0.10]
-    # pars5 = ['amplitude']
-    pert5 = [0.10,] 
-    # pars6 = ['zeta',]
-    pert6 = [0.10,]
+    # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
+    pert2 = [0.20, 0.20, 0.20, 0.20, 0.20]
+    # pars3 = ['K_inf_abc','K_inf_delta']
+    pert3 = [0.10, 0.10]
+    # pars4 = ['amplitude']
+    pert4 = [0.10,] 
+    # pars5 = ['zeta',]
+    pert5 = [0.10,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 + pert5 + pert6
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
+    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
+    # Labels for traceplots
+    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
-    # Labels for traceplots
-    labels = ['$\\beta$', '$l_1$', '$l_2$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+    # initialize objective function
+    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
     ######################
     ## Run MCMC sampler ##
@@ -272,7 +283,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes)
 
     #####################
     ## Process results ##

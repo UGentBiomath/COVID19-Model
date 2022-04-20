@@ -1,5 +1,5 @@
 """
-This script can be used to plot the model fit of the national vaccine-stratified COVID-19 SEIQRD model to the hospitalization data
+This script can be used to plot the model fit of the national COVID-19 SEIQRD model to the hospitalization data
 
 Arguments:
 ----------
@@ -13,6 +13,8 @@ Arguments:
     Number of poisson samples added a-posteriori to each model trajectory.
 -s : 
     Save figures to results/calibrations/COVID19_SEIRD/national/others/
+-v :
+    Vaccination implementation, either 'rescaling' or 'stratified'.
 
 Example use:
 ------------
@@ -33,7 +35,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
@@ -49,10 +51,15 @@ parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used i
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
+parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
+
+# Vaccination type
+if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
+    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 
 ################################
 ## Define simulation settings ##
@@ -87,6 +94,8 @@ start_calibration = samples_dict['start_calibration']
 start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
+# Overdispersion data
+dispersion = float(samples_dict['dispersion'])
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -95,10 +104,8 @@ end_calibration = samples_dict['end_calibration']
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-
 # Deaths in hospitals
 df_sciensano_mortality = sciensano.get_mortality_data()
 deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
@@ -107,22 +114,28 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
+if args.vaccination == 'stratified':
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
+else:
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False)
 
 #######################
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc as draw_fcn
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_national as draw_fcn
 
 #########################
 ## Perform simulations ##
 #########################
 
-print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
+if args.vaccination == 'stratified':
+    print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
+else:
+    print('\n1) Simulating COVID19_SEIQRD_rescaling '+str(args.n_samples)+' times')
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
 #######################

@@ -118,7 +118,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
     Parameters
     ----------
 
-    theta : list (of floats)
+    theta : list (of floats) or np.array
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     pert : list (of floats)
@@ -154,9 +154,10 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         raise Exception('The parameter value array "theta" must have the same length as the perturbation value array "pert".')
     if bounds and (len(bounds) != len(theta)):
         raise Exception('If bounds is not None, it must contain a tuple for every parameter in theta')
-        
+    # Convert theta to np.array
+    theta = np.array(theta)
+    # Define clipping values: perturbed value must not fall outside this range
     if bounds:
-        # Define clipping values: perturbed value must not fall outside this range
         lower_bounds = [bounds[i][0]/(1-pert[i]) for i in range(len(bounds))]
         upper_bounds = [bounds[i][1]/(1+pert[i]) for i in range(len(bounds))]
     
