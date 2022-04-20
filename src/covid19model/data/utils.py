@@ -45,16 +45,13 @@ def construct_initN(age_classes=None, agg=None):
         age_piramid = age_struct.groupby(['NIS','age']).sum().reset_index()
         initN = age_piramid.pivot(index='NIS', columns='age', values='number')
         initN = initN.fillna(0)
-        
-    #initN.columns = age_classes
-    #initN.columns.astype(str)
 
     if agg:
         return initN
     else:
         return initN.sum(axis=0)
 
-def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
+def convert_age_stratified_property(data, age_classes, agg=None):
     """ 
     Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
     this function can convert the data into another user-defined age-stratification using demographic weighing
@@ -76,9 +73,9 @@ def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
 
     # Pre-allocate new series
     out = pd.Series(index = age_classes, dtype=float)
-    out_n_individuals = construct_initN(age_classes, agg)
+    out_n_individuals = construct_initN(age_classes, agg).values
     # Extract demographics for all ages
-    demographics = construct_initN(None,agg)
+    demographics = construct_initN(None,agg).values
     # Loop over desired intervals
     for idx,interval in enumerate(age_classes):
         result = []
@@ -135,3 +132,15 @@ def convert_age_stratified_quantity(data, age_classes, agg=None, NIS=None):
                     result.append(0/data_n_individuals[data.index.contains(age)]*data.iloc[np.where(data.index.contains(age))[0][0]])
             out.iloc[idx] = sum(result)
         return out
+
+def to_pd_interval(istr):
+    """A function to convert a string representation of a pd.Interval to pd.Interval. Bounding values are converted to integers."""
+    c_left = istr[0]=='['
+    c_right = istr[-1]==']'
+    closed = {(True, False): 'left',
+                (False, True): 'right',
+                (True, True): 'both',
+                (False, False): 'neither'}[c_left, c_right]
+    # Converts bounds to integers! Change to float if necessary!
+    left, right = map(int, istr[1:-1].split(','))
+    return pd.Interval(left, right, closed)

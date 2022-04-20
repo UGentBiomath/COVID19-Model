@@ -21,7 +21,6 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
@@ -132,7 +131,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-start_calibration = '2020-03-22'
+start_calibration = '2020-03-18'
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
 
 if __name__ == '__main__':
@@ -216,10 +215,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    model.parameters['l1'] = 21
-    model.parameters['l2'] = 7
-    theta = [0.04005, 0.0399, 0.0513, 0.05, 0.33, 0.33, 0.25, 0.324, 1.45, 1.55, 0.27, 0.0035]
-    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.316, 0.213, 1.38, 1.57, 0.29, 0.00442] # Calibration 2022-04-10
+    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # Derived from Calibration 2022-04-10
 
     ####################################
     ## Local Nelder-mead optimization ##
