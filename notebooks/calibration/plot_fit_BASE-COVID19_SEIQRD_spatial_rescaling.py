@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial, initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
@@ -89,7 +89,7 @@ for directory in [fig_path, samples_path]:
 
 from covid19model.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
-dispersion = 0.078 #np.mean(samples_dict['dispersion'])
+dispersion = float(samples_dict['dispersion'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 # Last datapoint used to calibrate warmup and beta
@@ -111,15 +111,13 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False)
-model.parameters['l1'] = 21
-model.parameters['l2'] = 7
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
 
 #######################
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_rescaling as draw_fnc
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial as draw_fnc
 
 #########################
 ## Perform simulations ##
