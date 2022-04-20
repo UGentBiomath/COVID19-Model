@@ -556,7 +556,7 @@ class make_vaccination_rescaling_function():
             # Simply load data
             from covid19model.data.utils import to_pd_interval
             if agg:
-                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
+                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.csv")
                 df_efficacies = pd.read_csv(path,  index_col=['date','NIS','age'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
             else:
                 path = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.csv")
