@@ -333,9 +333,9 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             return (multiplier*n - n_desired)**2
         return minimize(errorfcn, 0, args=(n, n_desired))['x'] * relative_data
 
-    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['h'] = np.array(convert_age_stratified_property(
         hosp_prop, age_classes).values, np.float64)
+    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['a'] = np.array(
         1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
 
@@ -369,68 +369,37 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Non-age-stratified parameters ##
     ###################################
 
-    # Other parameters
+    pars_dict['l1'] = 21
+    pars_dict['l2'] = 7
     pars_dict['da'] = 7
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
-    pars_dict['dhospital'] = 7.543
+    pars_dict['dhospital'] = 6.4
 
-    #################
-    ## Seasonality ##
-    #################
+    #######################
+    ## Dummy seasonality ##
+    #######################
 
-    pars_dict.update({'amplitude': 0.20,
-                      'peak_shift': 0})
+    # Value of one equals no seasonality --> value is modified in time-dependant parameter function
+    pars_dict['seasonality'] = 1
+    pars_dict['peak_shift'] = 0
+    pars_dict['amplitude'] = 0
 
-    ############################
-    ## CORE fitted parameters ##
-    ############################
+    ###############
+    ## Dummy VOC ##
+    ###############
 
-    if not spatial:
-        # Set the average values for beta, seasonality, contact effectivities and mentality according to 'CORE' calibration dictionary
-        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        core_dict_name = 'BE_CORE_SAMPLES_2022-01-28.json'
-        CORE_samples_dict = json.load(
-            open(os.path.join(samples_path, core_dict_name)))
-        pars_dict.update({
-            'beta': np.mean(CORE_samples_dict['beta']),
-            'l1': np.mean(CORE_samples_dict['l1']),
-            'l2': np.mean(CORE_samples_dict['l2']),
-            'zeta': np.mean(CORE_samples_dict['zeta']),
-            'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
-            'eff_work': np.mean(CORE_samples_dict['eff_work']),
-            'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
-            'eff_home': np.mean(CORE_samples_dict['eff_home']),
-            'mentality': np.mean(CORE_samples_dict['mentality']),
-            'amplitude': np.mean(CORE_samples_dict['amplitude']),
-        })
-    else:
-        # Set the average values for beta, seasonality, contact effectivities and mentality according to 'CORE' calibration dictionary
-        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        core_dict_name = 'prov_CORE_SAMPLES_2022-01-28.json'
-        CORE_samples_dict = json.load(
-            open(os.path.join(samples_path, core_dict_name)))
-        pars_dict.update({
-            'beta_R': np.mean(CORE_samples_dict['beta_R']),
-            'beta_U': np.mean(CORE_samples_dict['beta_U']),
-            'beta_M': np.mean(CORE_samples_dict['beta_M']),
-            'zeta': np.mean(CORE_samples_dict['zeta']),
-            'l1': np.mean(CORE_samples_dict['l1']),
-            'l2': np.mean(CORE_samples_dict['l2']),
-            'eff_schools': np.mean(CORE_samples_dict['eff_schools']),
-            'eff_work': np.mean(CORE_samples_dict['eff_work']),
-            'eff_rest': np.mean(CORE_samples_dict['eff_rest']),
-            'eff_home': np.mean(CORE_samples_dict['eff_home']),
-            'mentality': np.mean(CORE_samples_dict['mentality']),
-            'amplitude': np.mean(CORE_samples_dict['amplitude']),
-        })
+    pars_dict['f_VOC'] = [[1, 0],]
+    pars_dict['K_inf'] = []
+    pars_dict['K_hosp'] = []
 
     ########################
     ## Spatial parameters ##
     ########################
 
     if spatial:
+
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
@@ -438,13 +407,14 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
         mobility_df = mobility_df.sort_index(axis=0).sort_index(axis=1)
+        # Infer spatial stratification size
+        G = len(mobility_df.index.get_level_values('NIS').unique())
         # Take only the values (matrix) and save in NIS as floating points
         NIS = mobility_df.values.astype(float)
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
         pars_dict['place'] = NIS
-
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
         area_df = pd.read_csv(os.path.join(
@@ -453,34 +423,85 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area_df = area_df.sort_index(axis=0)
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
-
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['place'].shape[0])
         pars_dict['p'] = p
-
-        # TDPF parameters
-        pars_dict['default_mobility'] = None
-
         # Add Nc_work and Nc to parameters
-        pars_dict['Nc'] = Nc_dict['total'] # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
-        pars_dict['Nc_work'] = Nc_dict['work'] # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
+        # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
+        pars_dict['Nc'] = Nc_dict['total']
+        # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
+        pars_dict['Nc_work'] = Nc_dict['work']
 
-    return initN, Nc_dict, pars_dict, CORE_samples_dict
+    #################################
+    ## Dummy rescaling vaccination ##
+    #################################
+
+    if spatial:
+        # Value of one equals no vaccination --> value is modified in time-dependant parameter function
+        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones([G, age_stratification_size])
+    else:
+        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones(age_stratification_size)
+
+    ############################
+    ## BASE fitted parameters ##
+    ############################
+
+    if not spatial:
+        # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
+        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+        base_dict_name = 'BE_CORE_SAMPLES_2022-01-28.json'
+        base_samples_dict = json.load(
+            open(os.path.join(samples_path, base_dict_name)))
+        pars_dict.update({
+            'beta': np.mean(base_samples_dict['beta']),
+            'zeta': np.mean(base_samples_dict['zeta']),
+            'eff_schools': np.mean(base_samples_dict['eff_schools']),
+            'eff_work': np.mean(base_samples_dict['eff_work']),
+            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_home': np.mean(base_samples_dict['eff_home']),
+            'mentality': np.mean(base_samples_dict['mentality']),
+            'amplitude': np.mean(base_samples_dict['amplitude']),
+        })
+    else:
+        # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
+        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
+        base_dict_name = 'prov_BASE_SAMPLES_2022-04-10.json'
+        base_samples_dict = json.load(
+            open(os.path.join(samples_path, base_dict_name)))
+        pars_dict.update({
+            'beta_R': np.mean(base_samples_dict['beta_R']),
+            'beta_U': np.mean(base_samples_dict['beta_U']),
+            'beta_M': np.mean(base_samples_dict['beta_M']),
+            'zeta': np.mean(base_samples_dict['zeta']),
+            'eff_schools': np.mean(base_samples_dict['eff_schools']),
+            'eff_work': np.mean(base_samples_dict['eff_work']),
+            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_home': np.mean(base_samples_dict['eff_home']),
+            'mentality': np.mean(base_samples_dict['mentality']),
+            'amplitude': np.mean(base_samples_dict['amplitude']),
+        })
+
+    return initN, Nc_dict, pars_dict, base_samples_dict
 
 
-def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs=['WT', 'abc', 'delta', 'omicron']):
+def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pars_dict=None):
     """
     A function to load all parameters that in some way depend on what VOCs you consider in the model.
+    If pars_dict is provided, relevant values of VOC parameters are set and pars_dict is returned.
     """
 
-    ##########################################################################
-    ## Define the core dataframe with properties that depend on the variant ##
-    ##########################################################################
+    abs_dir = os.path.dirname(__file__)
+    save_path = os.path.join(
+        abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs")
+
+    ###########################################################
+    ## Build a dataframe with all properties of the variants ##
+    ###########################################################
 
     columns = [('logistic_growth', 't_introduction'), ('logistic_growth', 't_sigmoid'), ('logistic_growth', 'k'),
-               ('variant_properties', 'sigma'), ('variant_properties', 'f_VOC'), ('variant_properties',
-                                                                                  'f_immune_escape'), ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf'),
-               ('vaccine_properties', 'e_s'), ('vaccine_properties', 'e_h'), ('vaccine_properties', 'e_i')]
+               ('variant_properties', 'sigma'), ('variant_properties',
+                                                 'f_VOC'), ('variant_properties', 'f_immune_escape'),
+               ('variant_properties', 'K_hosp'), ('variant_properties', 'K_inf')]
     VOC_parameters = pd.DataFrame(
         index=['WT', 'abc', 'delta', 'omicron'], columns=pd.MultiIndex.from_tuples(columns))
 
@@ -498,58 +519,83 @@ def get_COVID19_SEIQRD_VOC_parameters(initN, h, age_stratification_size=10, VOCs
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.61, 1.61*1.69, 1.61*1.69*0.30]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_inf')] = [1.40, 1.40*1.50, 1.40*1.50*1.80]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62, 1.62*0.30]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.70, 2.00, 3.00]
 
-    # Define vaccination properties                 0    1    2      W     B
-    VOC_parameters['vaccine_properties', 'e_s'] = [[0, 0.48, 0.94, 0.48, 0.94],  # WT
-                                                   [0, 0.48, 0.94, 0.48, 0.94], # alpha
-                                                   [0, 0.62, 0.80, 0.45, 0.91],# delta
-                                                   [0, 0.342, 0.441, 0.248, 0.659]]  # omicron
+    ###############################################
+    ## Build a dataframe with vaccine properties ##
+    ###############################################
 
-    VOC_parameters['vaccine_properties', 'e_h'] = [[0, 0.90, 0.95, 0.90, 0.95],  # WT
-                                                   [0, 0.90, 0.95, 0.90, 0.95], # alpha
-                                                   [0, 0.92, 0.96, 0.842, 0.99], # delta
-                                                   [0, 0.767, 0.837, 0.676, 0.933]]  # omicron
+    iterables = [['WT', 'abc', 'delta', 'omicron'], [
+        'none', 'partial', 'full', 'waned', 'boosted']]
+    index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose'])
+    vaccine_parameters = pd.DataFrame(
+        index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'], dtype=np.float64)
 
-    VOC_parameters['vaccine_properties', 'e_i'] = [[0, 0.225, 0.45, 0.225, 0.45],  # WT
-                                                   [0, 0.225, 0.45, 0.225, 0.45], # alpha
-                                                   [0, 0.24, 0.37, 0.24, 0.37], # delta
-                                                   [0, 0.24, 0.37, 0.24, 0.37]]  # omicron
+    # e_s
+    vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
+        0, 0.84/2, 0.84, 0.68, 0.84]
+    vaccine_parameters.loc[('abc', slice(None)), 'e_s'] = [
+        0, 0.84/2, 0.84, 0.68, 0.84]
+    vaccine_parameters.loc[('delta', slice(None)), 'e_s'] = [
+        0, 0.72/2, 0.72, 0.55, 0.72]
+    vaccine_parameters.loc[('omicron', slice(None)), 'e_s'] = [
+        0, 0.342, 0.441, 0.248, 0.659]
 
-    ##############################################################
-    ## Select data and construct dictionary of model parameters ##
-    ##############################################################
+    # e_h = protection against symptomatic disease (=e_s) * protection against severe disease (=e_h_star)
+    vaccine_parameters.loc[('WT', slice(None)), 'e_h'] = [
+        0, 0.95/2, 0.95, 0.95, 0.95]
+    vaccine_parameters.loc[('abc', slice(None)), 'e_h'] = [
+        0, 0.95/2, 0.95, 0.95, 0.95]
+    vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
+        0, 0.95/2, 0.95, 0.95, 0.95]
+    vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
+        0, 0.767, 0.837, 0.676, 0.933]
+    # e_h_star
+    for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+        vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
+            VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
+
+    # e_i
+    vaccine_parameters.loc[('WT', slice(None)), 'e_i'] = [
+        0, 0.70/2, 0.70, 0.33, 0.70]
+    vaccine_parameters.loc[('abc', slice(None)), 'e_i'] = [
+        0, 0.70/2, 0.70, 0.33, 0.70]
+    vaccine_parameters.loc[('delta', slice(None)), 'e_i'] = [
+        0, 0.41/2, 0.41, 0.17, 0.41]
+    vaccine_parameters.loc[('omicron', slice(None)), 'e_i'] = [
+        0, 0.24, 0.37, 0.24, 0.37]
+
+    # onset: 14 days for every vaccine dose
+    vaccine_parameters.loc[(
+        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 14
+
+    # waning:
+    vaccine_parameters.loc[(
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 365/2
 
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
-    # Assign all parameters to a dictionary
-    pars_dict = {
-        'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
-        'f_VOC': np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64),
-        'f_immune_escape': np.array(VOC_parameters['variant_properties', 'f_immune_escape'], np.float64),
-        # Assumes the first variant is the reference variant (#TODO: generalize further?)
-        'K_inf': np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64),
-        'K_hosp': np.array(VOC_parameters['variant_properties', 'K_hosp'].tolist()[1:], np.float64),
-        'e_s': np.array(VOC_parameters['vaccine_properties', 'e_s'].tolist(), np.float64),
-        'e_h': np.array(VOC_parameters['vaccine_properties', 'e_h'].tolist(), np.float64),
-        'e_i': np.array(VOC_parameters['vaccine_properties', 'e_i'].tolist(), np.float64),
-    }
-    if not pd.isnull(list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]):
-        pars_dict.update(
-            {'h': h*list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]})
-    # All other random parameters
-    dose_stratification_size = 5
-    pars_dict.update({
-        'doses': np.zeros([dose_stratification_size, dose_stratification_size]),
-        'd_vacc': 100*365,
-        'N_vacc': np.zeros(age_stratification_size),
-        'initN': initN.values,
-        'daily_doses': 50000,
-        'delay_immunity': 14,
-        'vacc_order': list(range(age_stratification_size))[::-1],
-        'stop_idx': 8,
-        'refusal': 0.10*np.ones(age_stratification_size),
-        'onset_days': np.array([21, 14, 21]) # for effect of *full* vaccination on resp. susceptibility, infectivity, hospitalisation propensity (days)
-    })
-    return VOC_parameters['logistic_growth'], pars_dict
+    vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
+
+    # Save a copy in a pickle
+    VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)
+    vaccine_parameters.to_pickle(os.path.join(save_path, 'vaccine_parameters.pkl'), protocol=4)
+
+
+    #############################
+    ## Set relevant VOC values ##
+    #############################
+
+    if pars_dict:
+        # Update the relevant model parameters
+        pars_dict.update({'sigma': np.array(VOC_parameters['variant_properties', 'sigma'].tolist(), np.float64),
+                    'f_VOC': np.transpose(np.array(VOC_parameters['variant_properties', 'f_VOC'].tolist(), np.float64)),
+                    'K_inf': np.array(VOC_parameters['variant_properties', 'K_inf'].tolist()[1:], np.float64),
+                    'K_hosp': np.array(VOC_parameters['variant_properties', 'K_hosp'].tolist()[1:], np.float64)})
+        if not pd.isnull(list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]):
+            pars_dict.update(
+                {'h': pars_dict['h']*list(VOC_parameters['variant_properties', 'K_hosp'].values)[0]})
+        return VOC_parameters, vaccine_parameters, pars_dict
+    else:
+        return VOC_parameters, vaccine_parameters

@@ -330,10 +330,9 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIQRD(BaseModel):
+class COVID19_SEIQRD_rescaling(BaseModel):
     """
     Biomath extended SEIQRD model for COVID-19, Deterministic implementation
-    Can account for re-infection and co-infection with a new COVID-19 variant.
 
     Parameters
     ----------
@@ -358,13 +357,16 @@ class COVID19_SEIQRD(BaseModel):
         H_out : new hospital discharges
         H_tot : total patients in Belgian hospitals
 
-        parameters : dictionary
+    parameters : dictionary
         containing the values of all parameters (both stratified and not)
-        these can be obtained with the function model_parameters.get_COVID19_SEIRD_parameters()
+        these are grouped within the function model_parameters.get_COVID19_SEIRD_parameters()
 
         Non-stratified parameters
         -------------------------
         beta : probability of infection when encountering an infected person
+        f_VOC : VOC fractions (vector of length = number of variants)
+        K_inf : infectivity gain of variants (vector of length = number of variants)
+        K_hosp : hospitalisation propensity gain of variants (vector of length = number of variants)
         sigma : length of the latent period
         omega : length of the pre-symptomatic infectious period
         zeta : effect of re-susceptibility and seasonality
@@ -376,9 +378,13 @@ class COVID19_SEIQRD(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
+        seasonality : rescaling factor of infectivity due to seasonality
+        E_susc : population-average reduction of susceptibility due to vaccination (per age group)
+        E_inf : population-average reduction of infectivity due to vaccination (per age group)
+        E_hosp : population-average reduction of hospitalization propensity due to vaccination (per age group)
 
         Age-stratified parameters
-        --------------------
+        -------------------------
         s: relative susceptibility to infection
         a : probability of a subclinical infection
         h : probability of hospitalisation for a mild infection
@@ -394,7 +400,7 @@ class COVID19_SEIQRD(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm', 'dc_R','dc_D','dICU_R', 'dICU_D', 'dICUrec','dhospital', 'seasonality', 'E_susc', 'E_inf', 'E_hosp']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU']]
     stratification = ['Nc']
 
@@ -402,7 +408,7 @@ class COVID19_SEIQRD(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital,
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, seasonality, E_susc, E_inf, E_hosp,
                   s, a, h, c, m_C, m_ICU,
                   Nc):
         """
@@ -410,25 +416,62 @@ class COVID19_SEIQRD(BaseModel):
 
         *Deterministic implementation*
 
-        numba jit benchmark: simulation from 2020-03-15 until 2021-02-01:
-            no jit using np.matmul matrix multiplication ()
-            no jit using @ matrix multiplication (1060 +- 46 ms)
-            jit using @ mattrix multiplication (835 +- 9 ms)
-            jit using loop matrix multiplication (786 +- 11 ms)
         """
 
-        # calculate total population
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        ##################
+        ## Format input ##
+        ##################
+
+        # Remove negative derivatives to ease further computation
+        # Note: this model will only use the fraction itself, not its derivative
+        f_VOC[:,1][f_VOC[:,1] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        # Make 'beta' equal to stratification size for ease of computations
+        beta = beta*np.ones(len(h), np.float64)
+
+        ##########################
+        ## Rescale parameters ##
+        ##########################
+
+        ### INFECTIVITY ###
+        # Variants
+        beta *= np.sum(f_VOC*K_inf)
+        # Seasonality
+        beta *= seasonality
+        # Vaccines
+        beta *= E_susc
+        beta *= E_inf
+        
+        ### HOSPITALISATION PROPENSITY ###
+        # Variants
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        # Vaccines
+        h *= E_hosp
+        
+        ### LATENT PERIOD ###
+        # Variants
+        sigma = np.sum(f_VOC*sigma)
+
+        ################################
+        ## calculate total population ##
+        ################################
 
         T = S + E + I + A + M + C + C_icurec + ICU + R
 
-        # Compute infection pressure (IP) of both variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #####################################
+        ## Compute infection pressure (IP) ##
+        #####################################
 
         IP = beta*s*jit_matmul_2D_1D(Nc, (I+A)/T)
 
-        # Compute the  rates of change in every population compartment
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #################################################
+        ## Compute transitionings of every compartment ##
+        #################################################
 
         dS  = - IP*S + zeta*R 
         dE  = IP*S - E/sigma 
@@ -498,7 +541,8 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         dICU_R : average length of a hospital stay in ICU in case of recovery
         dICU_D: average length of a hospital stay in ICU in case of death
         dhospital : time before a patient reaches the hospital
-
+        seasonality : rescaling factor of infectivity due to seasonality
+        
         Age-stratified parameters
         --------------------
         s: relative susceptibility to infection
@@ -516,7 +560,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
     
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
-    parameter_names = ['beta', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital','N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'd_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
@@ -524,7 +568,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
-                  beta, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, N_vacc, d_vacc, e_i, e_s, e_h,
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, d_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
         """
@@ -540,30 +584,34 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
 
         # - negative values check to replace np.where, negative_values_replacement_2D(A, B)
 
-        ############################
-        ## Modeling immune escape ##
-        ############################
+        ###################
+        ## Format inputs ##
+        ###################
 
         # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]        
-        
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
+
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
 
-        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
-        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        # compute properties
+        # Hospitalization propensity
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
+        # Latent period
         sigma = np.sum(f_VOC*sigma)
-        e_i = f_VOC @ e_i #jit_matmul_1D_2D(f_VOC, e_i) performs slower than @ (maybe because matrices are quite small)
+        # Vaccination
+        e_i = f_VOC @ e_i 
         e_s = f_VOC @ e_s 
         e_h = f_VOC @ e_h
+        # Seasonality
+        beta *= seasonality
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -714,391 +762,12 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # Immune escape
         # ~~~~~~~~~~~~~
 
-        dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        dR = dR - np.sum(f_immune_escape*d_VOC)*R 
+        #dS = dS + np.sum(f_immune_escape*d_VOC)*R
+        #dR = dR - np.sum(f_immune_escape*d_VOC)*R 
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
-class COVID19_SEIQRD_spatial(BaseModel):
-    """
-    BIOMATH extended SEIRD model for COVID-19, spatially explicit. Based on COVID_SEIRD and Arenas (2020).
-    Can account for re-infection and co-infection with a new COVID-19 variants.
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-        
-        S : susceptible
-        E : exposed
-        I : infected
-        A : asymptomatic
-        M : mild
-        C : cohort
-        C_icurec : cohort after recovery from ICU
-        ICU : intensive care
-        R : recovered
-        D : deceased
-
-        H_in : new hospitalizations
-        H_out : new hospital discharges
-        H_tot : total patients in Belgian hospitals
-        
-    parameters : dictionary
-        containing the values of all parameters (both stratified and not)
-        these can be obtained with the function parameters.get_COVID19_SEIRD_parameters()
-
-        Non-stratified parameters
-        -------------------------
-        beta : probability of infection when encountering an infected person
-        sigma : length of the latent period
-        omega : length of the pre-symptomatic infectious period
-        zeta : effect of re-susceptibility and seasonality
-        a : probability of an asymptomatic cases
-        m : probability of an initially mild infection (m=1-a)
-        da : duration of the infection in case of asymptomatic
-        dm : duration of the infection in case of mild
-        der : duration of stay in emergency room/buffer ward
-        dc : average length of a hospital stay when not in ICU
-        dICU_R : average length of a hospital stay in ICU in case of recovery
-        dICU_D: average length of a hospital stay in ICU in case of death
-        dhospital : time before a patient reaches the hospital
-
-        Age-stratified parameters
-        -------------------------
-        s: relative susceptibility to infection
-        a : probability of a subclinical infection
-        h : probability of hospitalisation for a mild infection
-        c : probability of hospitalisation in Cohort (non-ICU)
-        m_C : mortality in Cohort
-        m_ICU : mortality in ICU
-
-        Spatially-stratified parameters
-        -------------------------------
-        place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
-        p : mobility parameter (1 by default = no measures)
-
-        Other parameters
-        ----------------
-        Nc : N-by-N contact matrix between all age groups in stratification
-
-    """
-
-    # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'Nc_work']
-    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU']]
-    stratification = ['place','Nc'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
-    coordinates = ['place'] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
-    coordinates.append(None) # age dimension has no coordinates (just integers, which is fine)
-
-    # ..transitions/equations
-    @staticmethod
-    @jit(nopython=True)
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, Nc_work,# SEIRD parameters
-                  area, p,  # spatially stratified parameters. 
-                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
-                  place, Nc): # stratified parameters that determine stratification dimensions
-
-        """
-        BIOMATH extended SEIRD model for COVID-19
-        """
-
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = S + E + I + A + M + C + C_icurec + ICU + R
-
-        ####################################
-        ## Compute the infection pressure ##
-        ####################################
-
-        # For total population and for the relevant compartments I and A
-        G = place.shape[0] # spatial stratification
-        N = Nc.shape[1] # age stratification
-        
-        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
-
-        # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))
-
-        # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.transpose(place_eff) @ T
-        S_work = np.transpose(place_eff) @ S
-        I_work = np.transpose(place_eff) @ I
-        A_work = np.transpose(place_eff) @ A
-
-        # Apply work contacts to place modified populations, apply other contacts to non-place modified populations
-        multip_work = jit_matmul_2D_3D((I_work + A_work)/T_work, Nc_work)
-        multip_rest = jit_matmul_2D_3D((I + A)/T, Nc-Nc_work)
-
-        # Multiply result with beta
-        multip_work *= np.expand_dims(beta, axis=1)
-        multip_rest *= np.expand_dims(beta, axis=1)
-        # Compute rates of change
-        dS_inf = S_work * multip_work + S * multip_rest
-
-        ############################
-        ## Compute system of ODEs ##
-        ############################
-        
-        ### non-vaccinated population
-        dS  = - dS_inf + zeta*R
-        dE  = dS_inf - E/sigma
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h)/dm) - M*h/dhospital
-        dC =  M*(h/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dICUstar = M*(h/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dR  = A/da + ((1-h)/dm)*M + (1-m_C)*C*(1/dc_R) + C_icurec*(1/dICUrec) - zeta*R
-        dD  = (m_ICU/dICU_D)*ICU + (m_C/dc_D)*C  
-
-        ## Hospital rates of changes
-        dH_in = M*(h/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/dc_R) +  m_C*C*(1/dc_D) + (m_ICU/dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h/dhospital) - (1-m_C)*C*(1/dc_R) -  m_C*C*(1/dc_D) - (m_ICU/dICU_D)*ICU - C_icurec*(1/dICUrec)
-
-        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
-
-
-class COVID19_SEIQRD_spatial_stratified_vacc(BaseModel):
-    """
-    insert uitleg
-    """
-
-    # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec', 'ICU', 'R', 'D', 'H_in', 'H_out', 'H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'f_immune_escape', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta', 'da', 'dm', 'dc_R', 'dc_D', 'dICU_R', 'dICU_D', 'dICUrec', 'dhospital', 'N_vacc', 'e_i', 'e_s', 'e_h', 'd_vacc', 'Nc_work']
-    parameters_stratified_names = [['area', 'p'], ['s','a','h', 'c', 'm_C','m_ICU'],[]]
-    stratification = ['place','Nc','doses'] # mobility and social interaction: name of the dimension (better names: ['nis', 'age'])
-    coordinates = ['place', None, None] # 'place' is interpreted as a list of NIS-codes appropriate to the geography
-
-    # ..transitions/equations
-    @staticmethod
-    @jit(nopython=True)
-    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, f_immune_escape, K_inf, K_hosp, sigma, omega, zeta, da, dm, dc_R, dc_D, dICU_R, dICU_D, dICUrec, dhospital, N_vacc, e_i, e_s, e_h, d_vacc, Nc_work,# SEIRD parameters
-                  area, p,  # spatially stratified parameters. 
-                  s, a, h, c, m_C, m_ICU, # age-stratified parameters
-                  place, Nc, doses): # stratified parameters that determine stratification dimensions
-
-        ############################
-        ## Modeling immune escape ##
-        ############################
-
-        # Remove negative derivatives to ease further computation
-        f_VOC[1,:][f_VOC[1,:] < 0] = 0
-        # Split derivatives and fraction
-        d_VOC = f_VOC[1,:]
-        f_VOC = f_VOC[0,:]
-
-        #################################################
-        ## Compute variant weighted-average properties ##
-        #################################################
-
-        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
-        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        # compute properties
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        h[h > 1] = 1
-        sigma = np.sum(f_VOC*sigma)
-        e_i = f_VOC @ e_i
-        e_s = f_VOC @ e_s
-        e_h = f_VOC @ e_h
-
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = np.sum(S + E + I + A + M + C + C_icurec + ICU + R, axis=2) # Sum over doses
-
-        ####################################################
-        ## Expand dims on first stratification axis (age) ##
-        ####################################################
-
-        a = np.expand_dims(a, axis=1)
-        h = np.expand_dims(h, axis=1)
-        c = np.expand_dims(c, axis=1)
-        m_C = np.expand_dims(m_C, axis=1)
-        m_ICU = np.expand_dims(m_ICU, axis=1)
-        dc_R = np.expand_dims(dc_R, axis=1)
-        dc_D = np.expand_dims(dc_D, axis=1)
-        dICU_R = np.expand_dims(dICU_R, axis=1)
-        dICU_D = np.expand_dims(dICU_D, axis=1)
-        dICUrec = np.expand_dims(dICUrec, axis=1)
-
-        ############################################
-        ## Compute the vaccination transitionings ##
-        ############################################
-
-        dS = np.zeros(S.shape)
-        dR = np.zeros(R.shape)
-
-        # 0 --> 1 and  0 --> 2
-        # ~~~~~~~~~~~~~~~~~~~~
-        # Compute vaccine eligible population
-        VE = S[:,:,0] + R[:,:,0]
-        # Compute fraction of VE to distribute vaccins
-        f_S = S[:,:,0]/VE
-        f_R = R[:,:,0]/VE
-        # Compute transisitoning in zero syringes
-        dS[:,:,0] = - (N_vacc[:,:,0] + N_vacc[:,:,2])*f_S 
-        dR[:,:,0] = - (N_vacc[:,:,0]+ N_vacc[:,:,2])*f_R
-        # Compute transitioning in one short circuit
-        dS[:,:,1] =  N_vacc[:,:,0]*f_S # 0 --> 1 dose
-        dR[:,:,1] =  N_vacc[:,:,0]*f_R # 0 --> 1 dose
-        # Compute transitioning in two shot circuit
-        dS[:,:,2] =  N_vacc[:,:,2]*f_S # 0 --> 2 doses
-        dR[:,:,2] =  N_vacc[:,:,2]*f_R # 0 --> 2 doses
-
-        # 1 --> 2 
-        # ~~~~~~~
-
-        # Compute vaccine eligible population
-        VE = S[:,:,1] + E[:,:,1] + I[:,:,1] + A[:,:,1] + R[:,:,1]
-        # Compute fraction of VE to distribute vaccins
-        f_S = S[:,:,1]/VE
-        f_R = R[:,:,1]/VE
-        # Compute transitioning in one short circuit
-        dS[:,:,1] = dS[:,:,1] - N_vacc[:,:,1]*f_S
-        dR[:,:,1] = dR[:,:,1] - N_vacc[:,:,1]*f_R
-        # Compute transitioning in two shot circuit
-        dS[:,:,2] = dS[:,:,2] + N_vacc[:,:,1]*f_S
-        dR[:,:,2] = dR[:,:,2] + N_vacc[:,:,1]*f_R
-
-        # waned vaccine, 2 --> B
-        # ~~~~~~~~~~~~~~~~~~~~~~
-
-        # Compute vaccine eligible population
-        VE = S[:,:,2]+ R[:,:,2] + S[:,:,3] + R[:,:,3]
-        # 2 dose circuit
-        # Compute fraction of VE to distribute vaccins
-        f_S = S[:,:,2]/VE
-        f_R = R[:,:,2]/VE
-        # Compute transitioning in two shot circuit
-        dS[:,:,2] = dS[:,:,2] - N_vacc[:,:,3]*f_S
-        dR[:,:,2] = dR[:,:,2] - N_vacc[:,:,3]*f_R
-        # Compute transitioning in booster circuit
-        dS[:,:,4] = dS[:,:,4] + N_vacc[:,:,3]*f_S
-        dR[:,:,4] = dR[:,:,4] + N_vacc[:,:,3]*f_R
-        # waned vaccine circuit
-        # Compute fraction of VE to distribute vaccins
-        f_S = S[:,:,3]/VE
-        f_R = R[:,:,3]/VE
-        # Compute transitioning in two shot circuit
-        dS[:,:,3] = dS[:,:,3] - N_vacc[:,:,3]*f_S
-        dR[:,:,3] = dR[:,:,3] - N_vacc[:,:,3]*f_R
-        # Compute transitioning in booster circuit
-        dS[:,:,4] = dS[:,:,4] + N_vacc[:,:,3]*f_S
-        dR[:,:,4] = dR[:,:,4] + N_vacc[:,:,3]*f_R
-
-        # Update the S and R state
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        S_post_vacc = S + dS
-        R_post_vacc = R + dR
-
-        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        # TODO: This slows the code waaaay down
-        # I don't know why, if I time one model evaluation with and without this code it doesn't influence the computation at all
-        # But when you try to run it "irl" it is bogged down enormously
-        S_post_vacc, dS = vaccination_write_protection_3D(S, S_post_vacc, dS)
-        R_post_vacc, dR = vaccination_write_protection_3D(R, R_post_vacc, dR)
-
-        ################################
-        ## Compute infection pressure ##
-        ################################
-
-        # For total population and for the relevant compartments I and A
-        G = place.shape[0] # spatial stratification
-        N = Nc.shape[1] # age stratification
-
-        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
-        
-        # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
-
-        # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
-        S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
-        I_work = matmul_q_2D(np.transpose(place_eff), I)
-        A_work = matmul_q_2D(np.transpose(place_eff), A)
-        # The following line of code is the numpy equivalent of the above loop (verified)
-        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
-
-        # Compute infectious work population (11,10)
-        infpop_work = np.sum( (I_work + A_work)/T_work*(1-e_i), axis=2)
-        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*(1-e_i), axis=2)
-
-        # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
-
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-
-        # Compute rates of change
-        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*(1-e_s)
-
-        ############################
-        ## Compute system of ODEs ##
-        ############################
-
-        h_acc = (1-e_h)*h
-
-        dS  = dS - dS_inf
-        dE  = dS_inf - E/sigma 
-        dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
-        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
-        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
-        dH_in = M*(h_acc/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
-
-        ########################
-        ## Waning of immunity ##
-        ########################
-
-        # Waning of second dose
-        r_waning_vacc = 1/((6/12)*365)
-        dS[:,:,2] = dS[:,:,2] - r_waning_vacc*S_post_vacc[:,:,2]
-        dR[:,:,2] = dR[:,:,2] - r_waning_vacc*R_post_vacc[:,:,2]
-        dS[:,:,3] = dS[:,:,3] + r_waning_vacc*S_post_vacc[:,:,2]
-        dR[:,:,3] = dR[:,:,3] + r_waning_vacc*R_post_vacc[:,:,2]
-        
-        # Waning of booster dose
-        # No waning of booster dose
-
-        # Waning of natural immunity
-        dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
-        dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]       
-
-        # Immune escape
-        # ~~~~~~~~~~~~~
-        dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        dR = dR - np.sum(f_immune_escape*d_VOC)*R   
-
-        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
-    
-class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
+class COVID19_SEIQRD_spatial_rescaling(BaseModel):
     """
     SEIQRD model identical to COVID19_SEIQRD_spatial_stratified_vacc, but built to implement the VOC, vaccination, and seasonality effects as a rescaling parameter from a time-dependent parameter function, rather than additional metapopulation compartments. Hopefully this will establish a significant speed-up. In particular in combination with the just-in-time addition.
     
@@ -1121,26 +790,21 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
                   s, a, h, c, m_C, m_ICU, # age-stratified parameters
                   place, Nc): # stratified parameters that determine stratification dimensions
 
-        ############################
-        ## Modeling immune escape ##
-        ############################
-        
+
+        ##################
+        ## Format input ##
+        ##################
+
         # Remove negative derivatives to ease further computation
         # Note: this model will only use the fraction itself, not its derivative
         f_VOC[:,1][f_VOC[:,1] < 0] = 0
         # Split derivatives and fraction
         d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]
-
-        #################################################
-        ## Compute variant weighted-average properties ##
-        #################################################
-
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
-        # K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
-        K_hosp = np.ones(3)
-
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)
+        
         ################################
         ## calculate total population ##
         ################################
@@ -1170,10 +834,7 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         
         ### RESCALING HOSPITALISATION PROPENSITY ###
         # rescale h according to the prevalence of the VOCs
-        h *= np.sum(f_VOC*K_hosp)
-        # ... and force ceiling for numerical safety
-        h[h > 1] = 1
-        
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         # Rescale h according to vaccination status per region and age
         h_bar = np.expand_dims(h, axis=0) * E_hosp
         
@@ -1240,13 +901,6 @@ class COVID19_SEIQRD_spatial_stratified_rescaling(BaseModel):
         dH_in = M*(h_bar/dhospital) - H_in
         dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
         dH_tot = M*(h_bar/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec)       
-
-        # Immune escape
-        # ~~~~~~~~~~~~~
-        
-        # NOT SURE WHAT THIS DID?
-        # dS = dS + np.sum(f_immune_escape*d_VOC)*R
-        # dR = dR - np.sum(f_immune_escape*d_VOC)*R   
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 

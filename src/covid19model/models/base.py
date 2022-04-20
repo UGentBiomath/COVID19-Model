@@ -391,7 +391,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            y0,
-                           args=[self.parameters], t_eval=t_eval, method='RK45')
+                           args=[self.parameters], t_eval=t_eval, method='RK23', rtol=5e-3)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
@@ -432,7 +432,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
