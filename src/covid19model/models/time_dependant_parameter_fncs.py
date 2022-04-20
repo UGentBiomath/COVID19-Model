@@ -554,12 +554,13 @@ class make_vaccination_rescaling_function():
 
         if update==False:
             # Simply load data
+            from covid19model.data.utils import to_pd_interval
             if agg:
-                dir_abs = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
-                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'NIS', 'age']).first()
+                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.pkl")
+                df_efficacies = pd.read_csv(path,  index_col=['date','NIS','age'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
             else:
-                dir_abs = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.pkl")
-                df_efficacies = pd.read_pickle(dir_abs).groupby(['date', 'age']).first()
+                path = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.csv")
+                df_efficacies = pd.read_csv(path,  index_col=['date','age'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
@@ -573,6 +574,7 @@ class make_vaccination_rescaling_function():
             vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
             # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
             df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function, onset, waning)
+            
             # Save result
             dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
             if agg:
@@ -1331,7 +1333,7 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
-            return 1.06*mat
+            return 1.14*mat
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
         elif t17 < t <= t18:
