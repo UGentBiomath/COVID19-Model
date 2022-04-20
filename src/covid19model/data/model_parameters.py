@@ -530,7 +530,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
         'none', 'partial', 'full', 'waned', 'boosted']]
     index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose'])
     vaccine_parameters = pd.DataFrame(
-        index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'])
+        index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'], dtype=np.float64)
 
     # e_s
     vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
@@ -579,9 +579,9 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
 
     # Save a copy in a pickle
-    VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'))
-    vaccine_parameters.to_pickle(os.path.join(
-        save_path, 'vaccine_parameters.pkl'))
+    VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)
+    vaccine_parameters.to_pickle(os.path.join(save_path, 'vaccine_parameters.pkl'), protocol=4)
+
 
     #############################
     ## Set relevant VOC values ##
