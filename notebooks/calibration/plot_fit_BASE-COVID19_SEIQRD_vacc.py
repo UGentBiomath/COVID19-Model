@@ -66,7 +66,7 @@ if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
 ################################
 
 # Start and end of simulation
-end_sim = '2022-09-01'
+end_sim = '2022-01-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -137,6 +137,22 @@ start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
+
+####################################
+## Compute and visualize the RMSE ##
+####################################
+
+model = out['H_in'].sum(dim='Nc').mean(dim='draws').values
+data = df_hosp['H_in'][start_calibration:end_sim].values #df_hosp['H_in'][start_calibration:end_sim].rolling(7).mean().values
+
+NME = (model - data)/data
+NRMSE = np.sqrt( ((model - data)/data)**2)
+fig,ax=plt.subplots()
+ax.plot(df_hosp['H_in'][start_calibration:end_sim].index, NRMSE)
+#ax.plot(df_hosp['H_in'][start_calibration:end_sim].index, NME)
+print(sum(NRMSE)/len(NRMSE))
+plt.show()
+plt.close()
 
 #######################
 ## Visualize results ##
