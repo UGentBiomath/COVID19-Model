@@ -210,7 +210,8 @@ class simple_stochastic_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
         l = 1.0 # length of discrete timestep (by default one day)
-        n = 500 # number of draws to average in one timestep (must be large to make physical sense)
+        n = 200 # number of draws to average in one timestep (must be large to make physical sense)
+        N = S.size
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -222,29 +223,26 @@ class simple_stochastic_SIR(BaseModel):
 
         keys = ['StoI','ItoR']
         probabilities = [1 - np.exp( - beta*np.matmul(Nc,I/T) ),
-                        (1 - np.exp(- l * gamma ))*np.ones(S.size),
+                        (1 - np.exp(- l * gamma ))*np.ones(N),
                         ]
         states = [S,I]
         propensity={}
         for i in range(len(keys)):
             prop=[]
-            
-            #prop[states[i]<=0] = 0
-
-            for j in range(S.size):
+            for j in range(N):
                 if states[i][j]<=0:
                     prop.append(0)
                 else:
-                    draw = np.random.binomial(states[i][j],probabilities[i][j], size=n)
-                    draw = np.rint(np.mean(draw))
-                    prop.append( draw )
+                    draw = np.mean(np.random.binomial(states[i][j],probabilities[i][j], size=n))
+                    #draw = np.mean(np.random.negative_binomial(states[i][j],1-probabilities[i][j], size=n))
+                    prop.append(draw)
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        S_new  = S - propensity['StoI']
-        I_new =  I + propensity['StoI'] - propensity['ItoR']
-        R_new  =  R + propensity['ItoR']
+        S_new  = np.rint(S - propensity['StoI'])
+        I_new =  np.rint(I + propensity['StoI'] - propensity['ItoR'])
+        R_new  =  np.rint(R + propensity['ItoR'])
 
         # Add protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
