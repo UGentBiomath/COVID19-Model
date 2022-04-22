@@ -210,7 +210,7 @@ class simple_stochastic_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
         l = 1.0 # length of discrete timestep (by default one day)
-        n = 20 # number of draws to average in one timestep (slows down calculations but converges to a deterministic result when > 20)
+        n = 500 # number of draws to average in one timestep (must be large to make physical sense)
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -228,13 +228,14 @@ class simple_stochastic_SIR(BaseModel):
         propensity={}
         for i in range(len(keys)):
             prop=[]
+            
+            #prop[states[i]<=0] = 0
+
             for j in range(S.size):
                 if states[i][j]<=0:
                     prop.append(0)
                 else:
-                    draw=np.array([])
-                    for l in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
+                    draw = np.random.binomial(states[i][j],probabilities[i][j], size=n)
                     draw = np.rint(np.mean(draw))
                     prop.append( draw )
             propensity.update({keys[i]: np.asarray(prop)})
