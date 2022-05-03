@@ -1,9 +1,9 @@
 """
-This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium.
+This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium during the period 2020-03-15 until 2021-10-07.
 """
 
-__author__      = " Tijs Alleman, Michiel Rollier"
-__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__author__      = " Tijs W. Alleman, Michiel Rollier"
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
-# Import packages containing functions to load in data used in the model and the time-dependent parameter functions
+# Import packages containing functions to load in necessary data
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization.nelder_mead import nelder_mead
@@ -32,29 +32,22 @@ from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
-############################
-## Public or private data ##
-############################
+####################################
+## Public or private spatial data ##
+####################################
 
 public = True
-
-###########################
-## HPC-specific settings ##
-###########################
-
-# Keep track of runtime
-initial_time = datetime.datetime.now()
-# Choose to show progress bar. This cannot be shown on HPC
-progress = True
 
 #############################
 ## Handle script arguments ##
 #############################
 
+start_calibration = '2020-03-18'
 # general
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
-parser.add_argument("-e", "--enddate", help="Calibration enddate. Format YYYY-MM-DD.")
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-18')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
@@ -97,6 +90,12 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
+# Show progress
+progress=True
+# Start and end of calibration
+start_calibration = pd.to_datetime(args.start_calibration)
+if args.end_calibration:
+    end_calibration = pd.to_datetime(args.end_calibration)
 
 ##############################
 ## Define results locations ##
@@ -124,6 +123,9 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
+# Set end of calibration to last datapoint if no enddate is provided by user
+if not args.end_calibration:
+    end_calibration = df_hosp.index.get_level_values('date').max()
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
@@ -131,8 +133,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-start_calibration = '2020-03-18'
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration)
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
 
 if __name__ == '__main__':
 
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp['H_in'], 'W')
+    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
     alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(alpha_weighted))
@@ -152,15 +153,6 @@ if __name__ == '__main__':
     ## Calibration settings ##
     ##########################
 
-    # Start of data collection
-    start_data = df_hosp.index.get_level_values('date').min()
-    # Start of calibration: current initial condition is March 17th, 2021
-    warmup=0
-    # Last datapoint used to calibrate infectivity, compliance and effectivity
-    if not args.enddate:
-        end_calibration = df_hosp.index.get_level_values('date').max().strftime("%Y-%m-%d") #'2021-01-01'#
-    else:
-        end_calibration = str(args.enddate)
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
@@ -171,8 +163,7 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    df_hosp = df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in']
-    data=[df_hosp, df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
@@ -181,7 +172,7 @@ if __name__ == '__main__':
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
     print('--------------------------------------------------------------------------------------\n')
-    print('Using data from '+start_calibration+' until '+end_calibration+'\n')
+    print('Using data from '+start_calibration.strftime("%Y-%m-%d")+' until '+end_calibration.strftime("%Y-%m-%d")+'\n')
     print('\n1) Particle swarm optimization\n')
     print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
     sys.stdout.flush()
@@ -238,18 +229,18 @@ if __name__ == '__main__':
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
-        out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+        out = model.sim(end_visualization,start_date=start_calibration)
         # National fit
-        data_star=[df_hosp.groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
         # Regional fit
-        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
         plt.show()
         plt.close()
         # Provincial fit
-        ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
         plt.show() 
         plt.close()
 
@@ -269,17 +260,17 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+            out = model.sim(end_visualization,start_date=start_calibration)
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
             plt.close()
             # Visualize regional fit
-            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='reg')
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
             plt.show()
             plt.close()
             # Visualize provincial fit
-            ax = plot_PSO_spatial(out, df_hosp, start_calibration, end_visualization, agg='prov')
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
             plt.show()
             plt.close()
             # Satisfied?
@@ -318,24 +309,20 @@ if __name__ == '__main__':
     pert5 = [0.10,]
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4 + pert5
-
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$', \
                 '$\zeta$']
-
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
-
     # Set up the sampler backend if needed
     if backend:
         import emcee
         filename = f'{identifier}_backend_{run_date}'
         backend = emcee.backends.HDFBackend(samples_path+filename)
         backend.reset(nwalkers, ndim)
-
     # initialize objective function
     objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
