@@ -29,7 +29,7 @@ To use the code, make sure you have Python (conda) and the required dependency p
      conda env update -f environment.yml --prune
      ```
      
-     Mind that **"solving the environment" can take up to a few hours** if none of the package have previously been installed. See the [Anaconda navigator documentation](https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment) how you can import the `environment.yml` file using the GUI.
+     Mind that the step **"solving the environment" can take quite some time**.
 
 - Install the code developed specifically for the project (lives inside the `src/covid19model` folder) in the environment (in `-e` edit mode):
 
