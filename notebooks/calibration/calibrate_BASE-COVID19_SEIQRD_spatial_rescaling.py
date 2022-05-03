@@ -141,12 +141,12 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp['H_in'], 'M')
+    results, ax = variance_analysis(df_hosp['H_in'], 'W')
     alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(alpha_weighted))
-    #plt.show()
-    #plt.close()
+    plt.show()
+    plt.close()
 
     ##########################
     ## Calibration settings ##
