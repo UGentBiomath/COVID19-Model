@@ -229,7 +229,7 @@ def assign_PSO(param_dict, parNames, thetas):
         return warmup, param_dict
 
 from covid19model.optimization.objective_fcns import log_prior_custom
-def attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
+def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
     """
     A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
     """
@@ -488,11 +488,11 @@ def variance_analysis(series, resample_frequency):
 
     # needed to generate data to calibrate our variance model to
     if not secundary_index:
-        rolling_mean = series.rolling(7).mean()
+        rolling_mean = series.ewm(span=7, adjust=False).mean()
         mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
         var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
     else:
-        rolling_mean = series.groupby(level=secundary_index_name, group_keys=False).apply(lambda x: x.rolling(window=7).mean())
+        rolling_mean = series.groupby(level=secundary_index_name, group_keys=False).apply(lambda x: x.ewm(span=7, adjust=False).mean())
         mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
         var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
     
