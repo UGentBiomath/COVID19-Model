@@ -66,7 +66,7 @@ if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
 ################################
 
 # Start and end of simulation
-end_sim = '2022-09-01'
+end_sim = '2022-01-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -137,6 +137,40 @@ start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
+
+####################################
+## Compute and visualize the RMSE ##
+####################################
+
+model = out['H_in'].sum(dim='Nc').mean(dim='draws').to_series()
+data = df_hosp['H_in'][start_calibration:end_sim]
+NME = (model - data)/data
+NRMSE = np.sqrt( ((model - data)/data)**2)
+
+
+fig,ax=plt.subplots(figsize=(12,4))
+
+ax.plot(df_2plot['H_in','mean'],'--', color='blue')
+ax.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.15, color = 'blue')
+ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax.scatter(df_hosp[end_calibration:end_sim].index,df_hosp['H_in'][end_calibration:end_sim], color='red', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+
+ax.grid(False)
+ax = _apply_tick_locator(ax)
+ax.set_xlim(start_sim,end_sim)
+ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
+ax.set_ylim([0,900])
+
+ax2 = ax.twinx()
+ax2.plot(df_hosp['H_in'][start_calibration:end_sim].index, NRMSE, color='black', linewidth=1)
+ax2.grid(False)
+ax2 = _apply_tick_locator(ax2)
+ax2.set_ylabel('RMSE (-)', fontsize=12)
+
+plt.show()
+plt.close()
+
+print(sum(NRMSE)/len(NRMSE))
 
 #######################
 ## Visualize results ##
