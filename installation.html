@@ -91,7 +91,7 @@
 <h2>Get the code<a class="headerlink" href="#get-the-code" title="Permalink to this headline">¶</a></h2>
 <ul class="simple">
 <li><p>Create a <a class="reference external" href="https://github.com/"><code class="docutils literal notranslate"><span class="pre">github</span></code></a> account if you do not have one already.</p></li>
-<li><p>On the <a class="reference external" href="https://github.com/stijnvanhoey/COVID19-Model">COVID19-Model Github repository page</a> click the <code class="docutils literal notranslate"><span class="pre">Fork</span></code> button.</p></li>
+<li><p>On the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">COVID19-Model Github repository page</a> click the <code class="docutils literal notranslate"><span class="pre">Fork</span></code> button.</p></li>
 <li><p>From your own repository page (your account) of the <code class="docutils literal notranslate"><span class="pre">COVID19-Model</span></code>, use <a class="reference external" href="https://git-scm.com/"><code class="docutils literal notranslate"><span class="pre">git</span></code></a> to download the code to your own computer. See the <a class="reference external" href="https://help.github.com/en/github/creating-cloning-and-archiving-repositories/cloning-a-repository">Github documentation</a> on how to clone/download a repository.</p></li>
 </ul>
 <p>When all went fine, you should have the code on your computer in a directory called <code class="docutils literal notranslate"><span class="pre">COVID19-Model</span></code>.</p>
@@ -112,10 +112,10 @@
 </div>
 <p>or alternatively, to update the environment (needed after adding a dependency),</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">COVID_MODEL</span>
-<span class="n">conda</span> <span class="n">env</span> <span class="n">update</span> <span class="n">environment</span><span class="o">.</span><span class="n">yml</span>
+<span class="n">conda</span> <span class="n">env</span> <span class="n">update</span> <span class="o">-</span><span class="n">f</span> <span class="n">environment</span><span class="o">.</span><span class="n">yml</span> <span class="o">--</span><span class="n">prune</span>
 </pre></div>
 </div>
-<p>Mind that <strong>“solving the environment” can take up to a few hours</strong> if none of the package have previously been installed. See the <a class="reference external" href="https://docs.anaconda.com/anaconda/navigator/tutorials/manage-environments/#importing-an-environment">Anaconda navigator documentation</a> how you can import the <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file using the GUI.</p>
+<p>Mind that the step <strong>“solving the environment” can take quite some time</strong>.</p>
 </li>
 <li><p>Install the code developed specifically for the project (lives inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> folder) in the environment (in <code class="docutils literal notranslate"><span class="pre">-e</span></code> edit mode):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">conda</span> <span class="n">activate</span> <span class="n">COVID_MODEL</span>
