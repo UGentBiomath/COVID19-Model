@@ -534,6 +534,8 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # e_s and e_i for WT, Alpha, Delta: Vaccine Effectiveness Against COVID19-Infection and Onward Transmission by Variant of Concern and Time Since Vaccination, Belgian Contact Tracing, 2021
     # e_s * e_i (symptomatic disease) for Omicron: https://www.nejm.org/doi/full/10.1056/NEJMoa2119451
+    # e_h of omicron: https://www.nature.com/articles/s41591-022-01753-y/tables/2, https://pubmed.ncbi.nlm.nih.gov/35468336/
+
     vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
         0, 0.84/2, 0.84, 0.68, 0.84]
     vaccine_parameters.loc[('abc', slice(None)), 'e_s'] = [
@@ -549,9 +551,9 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters.loc[('abc', slice(None)), 'e_h'] = [
         0, 0.95/2, 0.95, 0.95, 0.95]
     vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
-        0, 0.95/2, 0.95, 0.95, 0.95]
+        0, 0.95/2, 0.95, 0.90, 0.95]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
-        0, 0.767, 0.837, 0.676, 0.933]
+        0, 0.95/2, 0.80, 0.41, 0.85]
     # e_h_star
     for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
         vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
