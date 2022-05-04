@@ -365,7 +365,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
             load = pickle.load(handle)
             initial_states = load[start_date]
 
-    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01') | (start_date == '2021-10-01')):
         with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]

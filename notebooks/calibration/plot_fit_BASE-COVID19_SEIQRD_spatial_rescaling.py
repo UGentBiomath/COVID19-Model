@@ -32,7 +32,7 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 
 import os
 import sys, getopt
-import json
+import pickle
 import argparse
 import numpy as np
 import pandas as pd
@@ -261,3 +261,21 @@ ax.get_yaxis().set_label_coords(-0.1,0.5)
 plt.tight_layout()
 plt.show()
 plt.close()
+
+#########################################
+## Save states during summer 2021-2022 ##
+#########################################
+
+# Path where the pickle with initial conditions should be stored
+results_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+# Save states
+dates = ['2021-08-01', '2021-09-01', '2020-10-01']
+initial_states={}
+for date in dates:
+    initial_states_per_date = {}
+    for state in out.data_vars:
+        # Select first column only for non-dose stratified model
+        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
+    initial_states.update({date: initial_states_per_date})
+with open(results_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'wb') as fp:
+    pickle.dump(initial_states, fp)
