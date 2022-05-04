@@ -532,7 +532,8 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters = pd.DataFrame(
         index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'], dtype=np.float64)
 
-    # e_s
+    # e_s and e_i for WT, Alpha, Delta: Vaccine Effectiveness Against COVID19-Infection and Onward Transmission by Variant of Concern and Time Since Vaccination, Belgian Contact Tracing, 2021
+    # e_s * e_i (symptomatic disease) for Omicron: https://www.nejm.org/doi/full/10.1056/NEJMoa2119451
     vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
         0, 0.84/2, 0.84, 0.68, 0.84]
     vaccine_parameters.loc[('abc', slice(None)), 'e_s'] = [
