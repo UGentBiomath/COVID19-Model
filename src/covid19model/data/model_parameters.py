@@ -538,23 +538,23 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     # Other references for e_h of omicron: https://www.nature.com/articles/s41591-022-01753-y/tables/2, https://pubmed.ncbi.nlm.nih.gov/35468336/
 
     vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
-        0, 0.87/2, 0.87, 0.64, 0.87]
+        0, 0.87/2, 0.87, 0, 0.87]
     vaccine_parameters.loc[('abc', slice(None)), 'e_s'] = [
-        0, 0.87/2, 0.87, 0.64, 0.87]
+        0, 0.87/2, 0.87, 0, 0.87]
     vaccine_parameters.loc[('delta', slice(None)), 'e_s'] = [
-        0, 0.79/2, 0.79, 0.54, 0.80]
+        0, 0.79/2, 0.79, 0, 0.80]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_s'] = [
-        0, 0.05/2, 0.05, 0.02, 0.45] # https://www.nature.com/articles/s41591-022-01753-y
+        0, 0.05/2, 0.05, 0, 0.45] # https://www.nature.com/articles/s41591-022-01753-y
 
     # e_h = protection against symptomatic disease (=e_s) * protection against severe disease (=e_h_star)
     vaccine_parameters.loc[('WT', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.93/2, 0.93, 0, 0.94]
     vaccine_parameters.loc[('abc', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.93/2, 0.93, 0, 0.94]
     vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.93/2, 0.93, 0, 0.94]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
-        0, 0.66/2, 0.66, 0.66, 0.87]
+        0, 0.66/2, 0.66, 0, 0.87]
 
     # e_h_star
     for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
@@ -563,13 +563,13 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # e_i
     vaccine_parameters.loc[('WT', slice(None)), 'e_i'] = [
-        0, 0.62/2, 0.62, 0.43, 0.62]
+        0, 0.62/2, 0.62, 0, 0.62]
     vaccine_parameters.loc[('abc', slice(None)), 'e_i'] = [
-        0, 0.62/2, 0.62, 0.43, 0.62]
+        0, 0.62/2, 0.62, 0, 0.62]
     vaccine_parameters.loc[('delta', slice(None)), 'e_i'] = [
-        0, 0.38/2, 0.38, 0.25, 0.34]
+        0, 0.38/2, 0.38, 0, 0.34]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_i'] = [
-        0, 0.22/2, 0.22, 0.14, 0.34]
+        0, 0.22/2, 0.22, 0, 0.34]
 
     # onset: 14 days for every vaccine dose
     vaccine_parameters.loc[(
@@ -577,7 +577,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # waning:
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 150
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 365
 
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
