@@ -554,10 +554,14 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
         0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
-        0, 0.66/2, 0.66, 0.66, 0.87]
+        0, 0.66/2, 0.66, 0.45, 0.87]
 
     # e_h_star
     for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+        # e_h cannot be smaller than e_s
+        if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
+            raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
+        # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
         vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
             VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
 
