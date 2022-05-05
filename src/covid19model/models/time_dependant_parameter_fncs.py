@@ -592,31 +592,6 @@ class make_vaccination_rescaling_function():
         elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
             df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
 
-        # Visualization (prov)
-        #age_group = df_efficacies.index.get_level_values('age').unique()[-1]
-        #dates = df_efficacies.index.get_level_values('date').unique()
-        #df_efficacies = df_efficacies.groupby(by=['date','NIS']).mean()
-        #import matplotlib.pyplot as plt
-        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(14,12))
-        #for NIS in df_efficacies.index.get_level_values('NIS').unique():
-        #    ax[0].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_i'])
-        #    ax[1].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_s'])
-        #    ax[2].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_h'])
-        #ax[0].legend(['10000', '20001', '20002', '21000', '30000', '40000', '50000', '60000', '70000', '80000', '90000'], bbox_to_anchor =(1.01, 1.00))
-        #ax[0].set_ylim([0,1])
-        #ax[1].set_ylim([0,1])
-        #ax[2].set_ylim([0,1])
-        #ax[0].grid(False)
-        #ax[1].grid(False)
-        #ax[2].grid(False)
-        #ax[0].set_title('e_i')
-        #ax[1].set_title('e_s')
-        #ax[2].set_title('e_h')
-        #from covid19model.visualization.output import _apply_tick_locator 
-        #ax[0] = _apply_tick_locator(ax[0])
-        #plt.tight_layout()
-        #plt.show()
-
         # Assign efficacy dataset
         self.df_efficacies = df_efficacies
 
