@@ -349,7 +349,10 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
 
     if update==True:
         # Extract case data from source
-        df = pd.read_excel(url, sheet_name="VACC_MUNI_CUM")
+        df1 = pd.read_excel(url, sheet_name="VACC_MUNI_CUM_1").dropna()
+        df2 = pd.read_excel(url, sheet_name="VACC_MUNI_CUM_2").dropna()
+        df = pd.concat([df1, df2])
+
         # save a copy in the raw folder
         rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
         df.to_csv(rel_dir, index=False)
