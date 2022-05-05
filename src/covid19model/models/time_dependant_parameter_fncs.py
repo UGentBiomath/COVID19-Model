@@ -971,10 +971,22 @@ class make_vaccination_rescaling_function():
                     #        E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
                     #        print(E_best, E_waned)
                     #    else:
-                        E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
-                        E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
-                        E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
-                        weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
+
+                        if dose == 'boosted':
+                            # Compute efficacy of a waned full vaccination by this date to know the initial efficacy of the booster
+                            E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'initial'].values)
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values)
+                            E_initial = self.waning_delay(delta_t, onset['full'], waning['full'], E_initial, E_best, E_waned)
+                            # Set initial efficacy of booster to the found full, waned value
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                            weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
+                        else:
+                            E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                            weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
                     
                     # Compute protection after delta_t days
                     #weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
