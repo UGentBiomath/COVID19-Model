@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import warnings
+import matplotlib.pyplot as plt
 from functools import lru_cache
 from covid19model.visualization.output import school_vacations_dict
 
@@ -627,6 +628,70 @@ class make_vaccination_rescaling_function():
             self.G = len(df_efficacies.index.get_level_values('NIS').unique())
         except:
             self.G = 0
+
+    def visualize_efficacies(self, start_date, end_date):
+        """A function to visualize the dataframe of efficacies
+        
+        Parameters
+        ----------
+
+        start_date: pd.Timestamp
+            Startdate of visualization
+        end_date: pd.Timestamp
+            Enddate of visualization
+
+        Returns
+        -------
+
+        ax: matplotlib axes
+            Figure containing the three efficacies
+        """
+
+        dates = self.df_efficacies.index.get_level_values('date').unique().values
+        try: 
+            df = 1-self.df_efficacies.groupby(by=['date','NIS']).mean()
+        except:
+            df = 1-self.df_efficacies.groupby(by=['date']).mean()
+        
+
+        fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(10,4.5), sharex=True)
+
+        # Plot data
+        ticklabelsize = 12
+        try:
+            for NIS in df.index.get_level_values('NIS').unique().values:
+                ax[0].plot(dates, df.loc[(slice(None), NIS), 'e_i'])
+                ax[1].plot(dates, df.loc[(slice(None), NIS), 'e_s'])
+                ax[2].plot(dates, df.loc[(slice(None), NIS), 'e_h'])
+            ax[0].legend(df.index.get_level_values('NIS').unique().values, loc='center', bbox_to_anchor=(0.5, 1.55), ncol=6, fontsize=ticklabelsize)
+        except:
+            ax[0].plot(dates, df['e_i'])
+            ax[1].plot(dates, df['e_s'])
+            ax[2].plot(dates, df['e_h'])
+
+        # Set axes limits
+        ax[0].set_xlim(start_date, end_date)
+        ax[0].set_ylim(0, 1.1)
+        ax[1].set_ylim(0, 1.1)
+        ax[2].set_ylim(0, 1.1)
+
+        # Set labels
+        ax[0].set_ylabel('$\\bar{E}_{inf}^g(t)$', size=ticklabelsize)
+        ax[1].set_ylabel('$\\bar{E}_{susc}^g(t)$', size=ticklabelsize)
+        ax[2].set_ylabel('$\\bar{E}_{hosp}^g(t)$', size=ticklabelsize)
+
+        # Disable grid
+        ax[0].grid(False)
+        ax[1].grid(False)
+        ax[2].grid(False)
+
+        # Legend and title
+        ax[0].set_title('Rescaling parameters per province', size=ticklabelsize+2)
+
+        _ = plt.xticks(rotation=0, size=ticklabelsize)
+
+        return ax
+
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, efficacy):
