@@ -810,7 +810,7 @@ class make_vaccination_rescaling_function():
         - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'full' = 'second' + 'one_shot' - 'booster
         df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
-        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE'] -  df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'boosted' = 'booster'
         df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
         # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
@@ -953,31 +953,32 @@ class make_vaccination_rescaling_function():
 
                     # Compute VOC average vaccine efficacy at provided date
                     VOC_fraction = VOC_function(pd.Timestamp(date), {}, {})[0,:]
-                    E_initial=[]
-                    E_best=[]
-                    E_waned=[]
-                    for efficacy in vaccine_params.index.get_level_values('efficacy').unique():
-                        if dose == 'boosted':
-                            # Boosted vaccines start from waned 2nd dose, hence 'booster-initial' = 'full-waned'
-                            E_initial.append(0)
-                            # Maximum booster coverage = diference between 'booster-best' and 'full-waned'='booster_initial' efficacy
-                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
-                            # Booster can wane below initial level of 'full-waned'
-                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
-                        else:
-                            E_initial.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values))
-                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values))
-                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values))
 
+                    weight=np.zeros(len(vaccine_params.index.get_level_values('efficacy').unique()), np.float64)
+                    for idx,efficacy in enumerate(vaccine_params.index.get_level_values('efficacy').unique()):
+                    #    if dose == 'boosted':
+                    #        # Boosted vaccines start from waned 2nd dose, hence 'booster-initial' = 'full-waned'
+                    #        E_initial.append(0)
+                    #        # Maximum booster coverage = diference between 'booster-best' and 'full-waned'='booster_initial' efficacy
+                    #        E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                    #        # Booster can wane below initial level of 'full-waned'
+                    #        E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                    #        print(E_best, E_waned)
+                    #    else:
+                        E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
+                        E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                        E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                        weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
+                    
                     # Compute protection after delta_t days
-                    weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
+                    #weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
 
                     # Multiply weights with doses jabbed delta_t_days in the past
-                    if dose == 'boosted':
+                    #if dose == 'boosted':
                         # Booster is 'added' on top of 2nd dose
-                        sol = sol + weight[:, np.newaxis]*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)[np.newaxis,:]
-                    else:
-                        sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
+                        #sol = sol + weight[:, np.newaxis]*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)[np.newaxis,:]
+                    #else:
+                    sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
                 
                 sol = sol.clip(min=-1,max=1)
 
