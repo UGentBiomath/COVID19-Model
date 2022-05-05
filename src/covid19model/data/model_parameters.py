@@ -548,11 +548,11 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # e_h = protection against symptomatic disease (=e_s) * protection against severe disease (=e_h_star)
     vaccine_parameters.loc[('WT', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('abc', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
-        0, 0.93/2, 0.93, 0.81, 0.94]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
         0, 0.66/2, 0.66, 0.66, 0.87]
 
@@ -573,7 +573,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # onset: 14 days for every vaccine dose
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 10
+        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 14
 
     # waning:
     vaccine_parameters.loc[(
