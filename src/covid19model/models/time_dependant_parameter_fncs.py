@@ -909,14 +909,21 @@ class make_vaccination_rescaling_function():
         elif delta_t < onset_days:
             # Compute weighted average using ramp
             E_eff = (E_best - E_init)/onset_days*delta_t + E_init
-            return E_eff
         else:
+            if E_best == E_waned:
+                return E_best
+            # Exponential waning
+            A0 = E_best
+            k = -np.log((E_waned)/(E_best))/(waning_days-onset_days)
+            E_eff = A0*np.exp(-k*(delta_t-onset_days))
+
             # Compute exponential decay factor going from 1 to 0
-            halftime = waning_days - onset_days
-            tau = halftime/np.log(2)
-            f = np.exp(-(delta_t-onset_days)/tau)
+            #halftime = waning_days - onset_days
+            #tau = halftime/np.log(2)
+            #f = np.exp(-(delta_t-onset_days)/tau)
             # Compute weighted average
-            E_eff = E_waned - f*(E_waned - E_best)
+            #E_eff = E_waned - f*(E_waned - E_best)
+
         return E_eff
 
     def compute_efficacies(self, df, vaccine_params, VOC_function, onset, waning):
