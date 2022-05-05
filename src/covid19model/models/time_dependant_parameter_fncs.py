@@ -1414,15 +1414,15 @@ class make_contact_matrix_function():
         elif t26 < t <= t27:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
         elif t32 < t <= t33:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
         elif t33 < t <= t34:
@@ -1522,8 +1522,19 @@ class make_contact_matrix_function():
                                                 1*mentality, 2*mentality]) # W
 
         co_F = 1
-        co_W = 1
-        co_Bxl = 1
+        co_W = 0.7
+        co_Bxl = 0.6
+        mentality_before_relaxation_flanders_2021 = np.array([co_F, co_F, # F
+                                                co_W, # W
+                                                co_Bxl, # Bxl
+                                                co_F, co_F, # F
+                                                co_W, co_W, # W
+                                                co_F, # F
+                                                co_W, co_W]) # W
+
+        co_F = 1
+        co_W = 0.7
+        co_Bxl = 0.6
         mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
@@ -1615,11 +1626,11 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0.7)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=1)    
         elif t23 < t <= t24:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
         elif t24 < t <= t25:    
