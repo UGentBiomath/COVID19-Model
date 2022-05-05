@@ -859,7 +859,10 @@ class make_vaccination_rescaling_function():
                     if ((dose == 'full') | (dose =='boosted')):
                         df_new.loc[(VOC, dose, efficacy),'waned'] = df.loc[(VOC,'waned'),efficacy]
 
-        # inital,full = best,partial
+        # partial, waned = (1/2) * partial, best (equals assumption that half-life is equal to waning days)
+        df_new.loc[(slice(None), 'partial', slice(None)),'waned'] = 0.5*df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
+
+        # full, initial = partial, best
         df_new.loc[(slice(None), 'full', slice(None)),'initial'] = df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
 
         # boosted, initial = full, waned
@@ -904,6 +907,9 @@ class make_vaccination_rescaling_function():
 
         """
 
+        # TODO: Perhaps add a warning if user chooses E_waned > E_best?
+        # Also choose a warning if E_best != E_waned and E_waned is equal to zero (not possible)?
+
         if delta_t < 0:
             return E_init
         elif delta_t < onset_days:
@@ -916,13 +922,6 @@ class make_vaccination_rescaling_function():
             A0 = E_best
             k = -np.log((E_waned)/(E_best))/(waning_days-onset_days)
             E_eff = A0*np.exp(-k*(delta_t-onset_days))
-
-            # Compute exponential decay factor going from 1 to 0
-            #halftime = waning_days - onset_days
-            #tau = halftime/np.log(2)
-            #f = np.exp(-(delta_t-onset_days)/tau)
-            # Compute weighted average
-            #E_eff = E_waned - f*(E_waned - E_best)
 
         return E_eff
 

@@ -573,7 +573,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # onset: 14 days for every vaccine dose
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 14
+        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 25
 
     # waning:
     vaccine_parameters.loc[(
