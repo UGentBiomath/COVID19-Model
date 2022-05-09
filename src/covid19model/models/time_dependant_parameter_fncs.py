@@ -1008,13 +1008,6 @@ class make_vaccination_rescaling_function():
         df = pd.DataFrame(index=df_index, columns=df_columns, data=df[df_columns].values)
         new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)  
 
-        #import matplotlib.pyplot as plt
-        #dates = new_df.index.get_level_values('date').unique()
-        #age_group = new_df.index.get_level_values('age').unique()[-1]
-        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True)
-        #ax.plot(dates, new_df)
-        #plt.show()
-
         # Take dose-weighted average over time
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1541,8 +1534,8 @@ class make_contact_matrix_function():
                                                 1*mentality, 2*mentality]) # W
 
         co_F = 1
-        co_W = 0.7
-        co_Bxl = 0.6
+        co_W = 1
+        co_Bxl = 1
         mentality_before_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
@@ -1552,8 +1545,8 @@ class make_contact_matrix_function():
                                                 co_W, co_W]) # W
 
         co_F = 1
-        co_W = 0.7
-        co_Bxl = 0.6
+        co_W = 1
+        co_Bxl = 1
         mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
@@ -1619,9 +1612,10 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            mat[idx_F,:,:] *= 1.03
-            mat[idx_Bxl,:,:] *= 1.12
-            mat[idx_W,:,:] *= 1.09
+            r=1.03
+            mat[idx_F,:,:] *= r*1.03
+            mat[idx_Bxl,:,:] *= r*1.12
+            mat[idx_W,:,:] *= r*1.09
             return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
