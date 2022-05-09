@@ -24,7 +24,7 @@ export PATH="${VSC_DATA}/miniconda3/bin:${PATH}"
 ```
 ### Cloning the COVID19-Model code from git
 
-To acces my personal github repo, I need to use the following commands to 'initialize' github on the HPC,
+To acces my personal github repo, I need to use the following commands to 'initialize' github on the HPC. First, I tell the SSH agent where my SSH keypair is located on the HPC.
 ```bash
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/HPC_Github
@@ -117,7 +117,7 @@ qdel JOB_ID
 
 ## Using git on the HPC
 
-To acces my personal github repo, I need to use the following commands to 'initialize' github on the HPC,
+To acces my personal github repo, I first tell the SSH agent where the SSH keypair is located,
 ```bash
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/HPC_Github
