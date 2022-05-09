@@ -35,7 +35,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling
+from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
@@ -117,7 +117,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 if args.vaccination == 'stratified':
     model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
 else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
 #######################
 ## Sampling function ##
@@ -142,35 +142,35 @@ simtime = out['time'].values
 ## Compute and visualize the RMSE ##
 ####################################
 
-model = out['H_in'].sum(dim='Nc').mean(dim='draws').to_series()
-data = df_hosp['H_in'][start_calibration:end_sim]
-NME = (model - data)/data
-NRMSE = np.sqrt( ((model - data)/data)**2)
+# model = out['H_in'].sum(dim='Nc').mean(dim='draws').to_series()
+# data = df_hosp['H_in'][start_calibration:end_sim]
+# NME = (model - data)/data
+# NRMSE = np.sqrt( ((model - data)/data)**2)
 
 
-fig,ax=plt.subplots(figsize=(12,4))
+# fig,ax=plt.subplots(figsize=(12,4))
 
-ax.plot(df_2plot['H_in','mean'],'--', color='blue')
-ax.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.15, color = 'blue')
-ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax.scatter(df_hosp[end_calibration:end_sim].index,df_hosp['H_in'][end_calibration:end_sim], color='red', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+# ax.plot(df_2plot['H_in','mean'],'--', color='blue')
+# ax.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.15, color = 'blue')
+# ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+# ax.scatter(df_hosp[end_calibration:end_sim].index,df_hosp['H_in'][end_calibration:end_sim], color='red', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
 
-ax.grid(False)
-ax = _apply_tick_locator(ax)
-ax.set_xlim(start_sim,end_sim)
-ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
-ax.set_ylim([0,900])
+# ax.grid(False)
+# ax = _apply_tick_locator(ax)
+# ax.set_xlim(start_sim,end_sim)
+# ax.set_ylabel('Daily hospitalizations (-)', fontsize=12)
+# ax.set_ylim([0,900])
 
-ax2 = ax.twinx()
-ax2.plot(df_hosp['H_in'][start_calibration:end_sim].index, NRMSE, color='black', linewidth=1)
-ax2.grid(False)
-ax2 = _apply_tick_locator(ax2)
-ax2.set_ylabel('RMSE (-)', fontsize=12)
+# ax2 = ax.twinx()
+# ax2.plot(df_hosp['H_in'][start_calibration:end_sim].index, NRMSE, color='black', linewidth=1)
+# ax2.grid(False)
+# ax2 = _apply_tick_locator(ax2)
+# ax2.set_ylabel('RMSE (-)', fontsize=12)
 
-plt.show()
-plt.close()
+# plt.show()
+# plt.close()
 
-print(sum(NRMSE)/len(NRMSE))
+# print(sum(NRMSE)/len(NRMSE))
 
 #######################
 ## Visualize results ##
@@ -282,16 +282,26 @@ print('4) Visualizing fit on deaths (not working for 10 age groups)')
 
 print('5) Save states during summer of 2021')
 
-import pickle
-# Path where the pickle with initial conditions should be stored
-pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
-# Save initial states
-dates = ['2021-08-01', '2021-09-01']
-initial_states={}
-for date in dates:
-    initial_states_per_date = {}
-    for state in out.data_vars:
-        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
-    initial_states.update({date: initial_states_per_date})
-with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
-    pickle.dump(initial_states, fp)
+if args.vaccination == 'stratified':
+    import pickle
+    # Path where the pickle with initial conditions should be stored
+    pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+    # Save initial states (stratified)
+    dates = ['2021-08-01', '2021-09-01']
+    initial_states={}
+    for date in dates:
+        initial_states_per_date = {}
+        for state in out.data_vars:
+            initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
+        initial_states.update({date: initial_states_per_date})
+    with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
+        pickle.dump(initial_states, fp)
+    # Save initial states (rescaling)
+    initial_states={}
+    for date in dates:
+        initial_states_per_date = {}
+        for state in out.data_vars:
+            initial_states_per_date.update({state: out[state].mean(dim='draws').sum(dim='doses').sel(time=pd.to_datetime(date)).values})
+        initial_states.update({date: initial_states_per_date})
+    with open(pickle_path+'summer_2021-COVID19_SEIQRD_rescaling_vacc.pickle', 'wb') as fp:
+        pickle.dump(initial_states, fp)

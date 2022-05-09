@@ -532,47 +532,56 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters = pd.DataFrame(
         index=index, columns=['e_s', 'e_i', 'e_h', 'waning', 'onset_immunity'], dtype=np.float64)
 
-    # e_s
+    # e_s, e_i for (WT, Alpha), Delta, Omicron: see email with VET estimates update from Toon Braeye 
+    # Other references for e_s of Omicron: https://www.nejm.org/doi/full/10.1056/NEJMoa2119451, https://www.nature.com/articles/d41586-022-00775-3
+    # e_h for Delta, Omicron: "COVID-19 VACCINE EFFECTIVENESS AGAINST SYMPTOMATIC INFECTION AND HOSPITALIZATION IN BELGIUM, JULY 2021-APRIL 2022", see email with preprint by Toon Braeye
+    # Other references for e_h of omicron: https://www.nature.com/articles/s41591-022-01753-y/tables/2, https://pubmed.ncbi.nlm.nih.gov/35468336/
+
     vaccine_parameters.loc[('WT', slice(None)), 'e_s'] = [
-        0, 0.84/2, 0.84, 0.68, 0.84]
+        0, 0.87/2, 0.87, 0.64, 0.87]
     vaccine_parameters.loc[('abc', slice(None)), 'e_s'] = [
-        0, 0.84/2, 0.84, 0.68, 0.84]
+        0, 0.87/2, 0.87, 0.64, 0.87]
     vaccine_parameters.loc[('delta', slice(None)), 'e_s'] = [
-        0, 0.72/2, 0.72, 0.55, 0.72]
+        0, 0.79/2, 0.79, 0.54, 0.80]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_s'] = [
-        0, 0.342, 0.441, 0.248, 0.659]
+        0, 0.05/2, 0.05, 0.02, 0.45] # https://www.nature.com/articles/s41591-022-01753-y
 
     # e_h = protection against symptomatic disease (=e_s) * protection against severe disease (=e_h_star)
     vaccine_parameters.loc[('WT', slice(None)), 'e_h'] = [
-        0, 0.95/2, 0.95, 0.95, 0.95]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('abc', slice(None)), 'e_h'] = [
-        0, 0.95/2, 0.95, 0.95, 0.95]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('delta', slice(None)), 'e_h'] = [
-        0, 0.95/2, 0.95, 0.95, 0.95]
+        0, 0.94/2, 0.94, 0.81, 0.94]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
-        0, 0.767, 0.837, 0.676, 0.933]
+        0, 0.66/2, 0.66, 0.45, 0.87]
+
     # e_h_star
     for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+        # e_h cannot be smaller than e_s
+        if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
+            raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
+        # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
         vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
             VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
 
     # e_i
     vaccine_parameters.loc[('WT', slice(None)), 'e_i'] = [
-        0, 0.70/2, 0.70, 0.33, 0.70]
+        0, 0.62/2, 0.62, 0.43, 0.62]
     vaccine_parameters.loc[('abc', slice(None)), 'e_i'] = [
-        0, 0.70/2, 0.70, 0.33, 0.70]
+        0, 0.62/2, 0.62, 0.43, 0.62]
     vaccine_parameters.loc[('delta', slice(None)), 'e_i'] = [
-        0, 0.41/2, 0.41, 0.17, 0.41]
+        0, 0.38/2, 0.38, 0.25, 0.34]
     vaccine_parameters.loc[('omicron', slice(None)), 'e_i'] = [
-        0, 0.24, 0.37, 0.24, 0.37]
+        0, 0.22/2, 0.22, 0.14, 0.34]
 
     # onset: 14 days for every vaccine dose
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 14
+        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 25
 
     # waning:
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 365/2
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 150
 
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]

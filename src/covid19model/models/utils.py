@@ -12,7 +12,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
+def initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -102,12 +102,18 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
     ## Initial states ##
     ####################
 
-    # Load initial states
-    date = '2020-03-15'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    with open(samples_path+'initial_states-COVID19_SEIQRD.pickle', 'rb') as handle:
-        load = pickle.load(handle)
-        initial_states = load[date]
+    if start_date == '2020-03-15':
+        with open(samples_path+'initial_states-COVID19_SEIQRD_rescaling_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_rescaling_vacc.pickle', 'rb') as handle:
+            load = pickle.load(handle)
+            initial_states = load[start_date]
+    else:
+        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
+
     # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=value)
@@ -125,7 +131,7 @@ def initialize_COVID19_SEIQRD_rescaling(age_stratification_size=10, VOCs=['WT', 
                                 'E_inf': E_inf_function,
                                 'E_hosp': E_hosp_function}
 
-    model = models.COVID19_SEIQRD_rescaling(initial_states, params, time_dependent_parameters=time_dependent_parameters)
+    model = models.COVID19_SEIQRD_rescaling_vacc(initial_states, params, time_dependent_parameters=time_dependent_parameters)
 
     return model, BASE_samples_dict, initN
 
@@ -365,7 +371,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
             load = pickle.load(handle)
             initial_states = load[start_date]
 
-    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
+    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01') | (start_date == '2021-10-01')):
         with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
