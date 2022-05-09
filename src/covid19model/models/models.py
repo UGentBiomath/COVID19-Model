@@ -209,8 +209,8 @@ class simple_stochastic_SIR(BaseModel):
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        l = 1.0 # length of discrete timestep (by default one day)
-        n = 200 # number of draws to average in one timestep (must be large to make physical sense)
+        l = 1 # length of discrete timestep (by default one day)
+        n = 1 # number of draws to average in one timestep (must be large to make physical sense)
         N = S.size
 
         # calculate total population
@@ -222,7 +222,7 @@ class simple_stochastic_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         keys = ['StoI','ItoR']
-        probabilities = [1 - np.exp( - beta*np.matmul(Nc,I/T) ),
+        probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,I/T) ),
                         (1 - np.exp(- l * gamma ))*np.ones(N),
                         ]
         states = [S,I]
