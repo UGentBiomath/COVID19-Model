@@ -17,7 +17,7 @@ import os
 import sys
 import ast
 import click
-import ujson as json
+import json
 import emcee
 import datetime
 import argparse
@@ -25,28 +25,34 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
-from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
-from covid19model.optimization import objective_fcns
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO, plot_PSO, attach_CORE_priors
+from covid19model.optimization.objective_fcns import log_prior_uniform, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.visualization.optimization import plot_PSO
+
+######################################
+## Update Google and Sciensano data ##
+######################################
+
+update_data = False
 
 #############################
 ## Handle script arguments ##
 #############################
 
-start_date = '2021-08-01'
-
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-parser.add_argument("-e", "--enddate", help="Calibration enddate")
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate", default='2021-08-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
+parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Backend
@@ -66,6 +72,9 @@ if args.identifier:
     identifier = f'BE_{identifier}'
 else:
     raise Exception("The script must have a descriptive name for its output.")
+# Vaccination type
+if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
+    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -78,6 +87,10 @@ run_date = str(datetime.date.today())
 initial_time = datetime.datetime.now()
 # To avoid quadratic parallelization
 os.environ["OMP_NUM_THREADS"] = "1"
+# Start and end of calibration
+start_calibration = pd.to_datetime(args.start_calibration)
+if args.end_calibration:
+    end_calibration = pd.to_datetime(args.end_calibration)
 
 ##############################
 ## Define results locations ##
@@ -106,34 +119,34 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-# Serological data
-df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
+# Set end of calibration to last datapoint if no enddate is provided by user
+if not args.end_calibration:
+    end_calibration = df_hosp.index.get_level_values('date').max()
 
 ##########################
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_date, update=False)
-
-# Define delay on booster immunity
-model.parameters.update({
-        'delay_immunity' : 7
-})
+if args.vaccination == 'stratified':
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), update_data=update_data)
+else:
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), update_data=update_data)
 
 if __name__ == '__main__':
+
+    #############################################################
+    ## Compute the overdispersion parameters for our H_in data ##
+    #############################################################
+
+    from covid19model.optimization.utils import variance_analysis
+    results, ax = variance_analysis(df_hosp.loc[slice(None, end_calibration), 'H_in'], 'W')
+    plt.show()
+    plt.close()
 
     ##########################
     ## Calibration settings ##
     ##########################
 
-    # Start of calibration
-    start_calibration = pd.to_datetime(start_date)
-    warmup = 0
-    # Last datapoint used to calibrate compliance and effention
-    if not args.enddate:
-        end_calibration = df_hosp.index.get_level_values('date').max()
-    else:
-        end_calibration = pd.to_datetime(str(args.enddate))
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
     multiplier_pso = 10
@@ -144,9 +157,11 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration]]
-    states = ["H_in"]
-    weights = [1]
+    data=[df_hosp['H_in'][start_calibration:end_calibration],]
+    states = ["H_in",]
+    weights = [1,]
+    log_likelihood_fnc = [ll_negative_binomial,]
+    log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'],]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -168,25 +183,27 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1.6,2.20),)
+    bounds3 = ((1.2,2.20),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0.30,0.50),)
+    bounds4 = ((0.05,0.50),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.06, 0.53, 1.78, 0.35])
+    theta = np.array([0.058, 0.5, 2, 0.1]) # Good starting estimate for "stratified" vaccination
 
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
 
-    step = 3*[0.05,]
-    f_args = (model, data, states, pars, weights, None, None, start_calibration, warmup,'poisson', 'auto', None)
-    #theta = nelder_mead(objective_fcns.MLE, theta, step, f_args, processes=int(mp.cpu_count()/2)-1)
+    # Define objective function
+    #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    # Run Nelder Mead optimization
+    step = len(bounds)*[0.05,]
+    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     ###################
     ## Visualize fit ##
@@ -199,7 +216,7 @@ if __name__ == '__main__':
         model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-06-01'
-        out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+        out = model.sim(end_visualization,start_date=start_calibration)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration, end_visualization)
         plt.show()
@@ -222,7 +239,7 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+            out = model.sim(end_visualization,start_date=start_calibration)
             # Visualize fit
             ax = plot_PSO(out, data, states, start_calibration, end_visualization)
             plt.show()
@@ -236,9 +253,9 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Setup uniform priors
-    log_prior_fcn = [prior_uniform, prior_uniform, prior_uniform, prior_uniform]
-    log_prior_fcn_args = bounds
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
     pert1=[0.02,]
@@ -252,8 +269,6 @@ if __name__ == '__main__':
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta$', 'M', '$K_{inf, omicron}$', '$K_{hosp,omicron}$']
-    # Attach priors of CORE calibration
-    pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args = attach_CORE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args)
     # Perturbate
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier_mcmc)
     # Set up the sampler backend if needed
@@ -261,10 +276,8 @@ if __name__ == '__main__':
         filename = identifier+run_date
         backend = emcee.backends.HDFBackend(backend_folder+filename)
         backend.reset(nwalkers, ndim)
-    # Arguments of chosen objective function
-    objective_fcn = objective_fcns.log_probability
-    objective_fcn_args = (model, log_prior_fcn, log_prior_fcn_args, data, states, pars)
-    objective_fcn_kwargs = {'weights': weights, 'start_date': start_calibration, 'warmup': warmup}
+    # initialize objective function
+    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
     ######################
     ## Run MCMC sampler ##
@@ -273,7 +286,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, run_date)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes)
 
     #####################
     ## Process results ##

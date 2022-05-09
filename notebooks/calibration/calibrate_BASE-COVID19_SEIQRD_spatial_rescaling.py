@@ -159,7 +159,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -187,13 +187,13 @@ if __name__ == '__main__':
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.60),(0.01,0.99))
+    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.60),(1.50,2.20))
+    bounds3 = ((1.00, 1.50),(1.00,2.00))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.50),)
+    bounds4 = ((0,0.10),)
     # Waning antibody immunity
     pars5 = ['zeta',]
     bounds5 = ((1e-4,6e-3),)
@@ -206,7 +206,9 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # Derived from Calibration 2022-04-10
+    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.002] # Derived from Calibration 2022-04-10
+    theta = [0.0398, 0.0407, 0.0517, 0.2, 0.2, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12, 0.002] # A fresh start
+    theta = [0.0398, 0.0407, 0.0517, 0.25, 0.19, 0.33, 0.45, 0.2, 1.25, 1.25, 0.05, 0.002]
 
     ####################################
     ## Local Nelder-mead optimization ##
