@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import warnings
+import matplotlib.pyplot as plt
 from functools import lru_cache
 from covid19model.visualization.output import school_vacations_dict
 
@@ -591,31 +592,6 @@ class make_vaccination_rescaling_function():
         elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
             df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
 
-        # Visualization (prov)
-        #age_group = df_efficacies.index.get_level_values('age').unique()[-1]
-        #dates = df_efficacies.index.get_level_values('date').unique()
-        #df_efficacies = df_efficacies.groupby(by=['date','NIS']).mean()
-        #import matplotlib.pyplot as plt
-        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True, figsize=(14,12))
-        #for NIS in df_efficacies.index.get_level_values('NIS').unique():
-        #    ax[0].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_i'])
-        #    ax[1].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_s'])
-        #    ax[2].plot(dates, 1-df_efficacies.loc[(slice(None), NIS),'e_h'])
-        #ax[0].legend(['10000', '20001', '20002', '21000', '30000', '40000', '50000', '60000', '70000', '80000', '90000'], bbox_to_anchor =(1.01, 1.00))
-        #ax[0].set_ylim([0,1])
-        #ax[1].set_ylim([0,1])
-        #ax[2].set_ylim([0,1])
-        #ax[0].grid(False)
-        #ax[1].grid(False)
-        #ax[2].grid(False)
-        #ax[0].set_title('e_i')
-        #ax[1].set_title('e_s')
-        #ax[2].set_title('e_h')
-        #from covid19model.visualization.output import _apply_tick_locator 
-        #ax[0] = _apply_tick_locator(ax[0])
-        #plt.tight_layout()
-        #plt.show()
-
         # Assign efficacy dataset
         self.df_efficacies = df_efficacies
 
@@ -627,6 +603,70 @@ class make_vaccination_rescaling_function():
             self.G = len(df_efficacies.index.get_level_values('NIS').unique())
         except:
             self.G = 0
+
+    def visualize_efficacies(self, start_date, end_date):
+        """A function to visualize the dataframe of efficacies
+        
+        Parameters
+        ----------
+
+        start_date: pd.Timestamp
+            Startdate of visualization
+        end_date: pd.Timestamp
+            Enddate of visualization
+
+        Returns
+        -------
+
+        ax: matplotlib axes
+            Figure containing the three efficacies
+        """
+
+        dates = self.df_efficacies.index.get_level_values('date').unique().values
+        try: 
+            df = 1-self.df_efficacies.groupby(by=['date','NIS']).mean()
+        except:
+            df = 1-self.df_efficacies.groupby(by=['date']).mean()
+        
+
+        fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(10,4.5), sharex=True)
+
+        # Plot data
+        ticklabelsize = 12
+        try:
+            for NIS in df.index.get_level_values('NIS').unique().values:
+                ax[0].plot(dates, df.loc[(slice(None), NIS), 'e_i'])
+                ax[1].plot(dates, df.loc[(slice(None), NIS), 'e_s'])
+                ax[2].plot(dates, df.loc[(slice(None), NIS), 'e_h'])
+            ax[0].legend(df.index.get_level_values('NIS').unique().values, loc='center', bbox_to_anchor=(0.5, 1.55), ncol=6, fontsize=ticklabelsize)
+        except:
+            ax[0].plot(dates, df['e_i'])
+            ax[1].plot(dates, df['e_s'])
+            ax[2].plot(dates, df['e_h'])
+
+        # Set axes limits
+        ax[0].set_xlim(start_date, end_date)
+        ax[0].set_ylim(0, 1.1)
+        ax[1].set_ylim(0, 1.1)
+        ax[2].set_ylim(0, 1.1)
+
+        # Set labels
+        ax[0].set_ylabel('$\\bar{E}_{inf}^g(t)$', size=ticklabelsize)
+        ax[1].set_ylabel('$\\bar{E}_{susc}^g(t)$', size=ticklabelsize)
+        ax[2].set_ylabel('$\\bar{E}_{hosp}^g(t)$', size=ticklabelsize)
+
+        # Disable grid
+        ax[0].grid(False)
+        ax[1].grid(False)
+        ax[2].grid(False)
+
+        # Legend and title
+        ax[0].set_title('Rescaling parameters per province', size=ticklabelsize+2)
+
+        _ = plt.xticks(rotation=0, size=ticklabelsize)
+
+        return ax
+
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, efficacy):
@@ -770,7 +810,7 @@ class make_vaccination_rescaling_function():
         - df_cumsum.loc[df_cumsum['dose']=='second', 'REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'full' = 'second' + 'one_shot' - 'booster
         df_new.loc[df_new['dose']=='full','REL_CUMULATIVE'] = (df_cumsum.loc[df_cumsum['dose']=='second','REL_CUMULATIVE'] \
-        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE']).clip(lower=0, upper=1) #- df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
+        + df_cumsum.loc[df_cumsum['dose']=='one_shot','REL_CUMULATIVE'] -  df_cumsum.loc[df_cumsum['dose']=='booster','REL_CUMULATIVE']).clip(lower=0, upper=1)
         # 'boosted' = 'booster'
         df_new.loc[df_new['dose']=='boosted','REL_CUMULATIVE'] = df_cumsum.loc[df_cumsum['dose']=='booster', 'REL_CUMULATIVE'].clip(lower=0, upper=1)
         # 'none' = Rest category. Make sure all exclusive categories adds up to 1.
@@ -819,7 +859,10 @@ class make_vaccination_rescaling_function():
                     if ((dose == 'full') | (dose =='boosted')):
                         df_new.loc[(VOC, dose, efficacy),'waned'] = df.loc[(VOC,'waned'),efficacy]
 
-        # inital,full = best,partial
+        # partial, waned = (1/2) * partial, best (equals assumption that half-life is equal to waning days)
+        df_new.loc[(slice(None), 'partial', slice(None)),'waned'] = 0.5*df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
+
+        # full, initial = partial, best
         df_new.loc[(slice(None), 'full', slice(None)),'initial'] = df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
 
         # boosted, initial = full, waned
@@ -864,19 +907,22 @@ class make_vaccination_rescaling_function():
 
         """
 
+        # TODO: Perhaps add a warning if user chooses E_waned > E_best?
+        # Also choose a warning if E_best != E_waned and E_waned is equal to zero (not possible)?
+
         if delta_t < 0:
             return E_init
         elif delta_t < onset_days:
             # Compute weighted average using ramp
             E_eff = (E_best - E_init)/onset_days*delta_t + E_init
-            return E_eff
         else:
-            # Compute exponential decay factor going from 1 to 0
-            halftime = waning_days - onset_days
-            tau = halftime/np.log(2)
-            f = np.exp(-(delta_t-onset_days)/tau)
-            # Compute weighted average
-            E_eff = E_waned - f*(E_waned - E_best)
+            if E_best == E_waned:
+                return E_best
+            # Exponential waning
+            A0 = E_best
+            k = -np.log((E_waned)/(E_best))/(waning_days-onset_days)
+            E_eff = A0*np.exp(-k*(delta_t-onset_days))
+
         return E_eff
 
     def compute_efficacies(self, df, vaccine_params, VOC_function, onset, waning):
@@ -913,31 +959,44 @@ class make_vaccination_rescaling_function():
 
                     # Compute VOC average vaccine efficacy at provided date
                     VOC_fraction = VOC_function(pd.Timestamp(date), {}, {})[0,:]
-                    E_initial=[]
-                    E_best=[]
-                    E_waned=[]
-                    for efficacy in vaccine_params.index.get_level_values('efficacy').unique():
-                        if dose == 'boosted':
-                            # Boosted vaccines start from waned 2nd dose, hence 'booster-initial' = 'full-waned'
-                            E_initial.append(0)
-                            # Maximum booster coverage = diference between 'booster-best' and 'full-waned'='booster_initial' efficacy
-                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
-                            # Booster can wane below initial level of 'full-waned'
-                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
-                        else:
-                            E_initial.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values))
-                            E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values))
-                            E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values))
 
+                    weight=np.zeros(len(vaccine_params.index.get_level_values('efficacy').unique()), np.float64)
+                    for idx,efficacy in enumerate(vaccine_params.index.get_level_values('efficacy').unique()):
+                    #    if dose == 'boosted':
+                    #        # Boosted vaccines start from waned 2nd dose, hence 'booster-initial' = 'full-waned'
+                    #        E_initial.append(0)
+                    #        # Maximum booster coverage = diference between 'booster-best' and 'full-waned'='booster_initial' efficacy
+                    #        E_best.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                    #        # Booster can wane below initial level of 'full-waned'
+                    #        E_waned.append(np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values) - np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values))
+                    #        print(E_best, E_waned)
+                    #    else:
+
+                        if dose == 'boosted':
+                            # Compute efficacy of a waned full vaccination by this date to know the initial efficacy of the booster
+                            E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'initial'].values)
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), 'full', efficacy), 'waned'].values)
+                            E_initial = self.waning_delay(delta_t, onset['full'], waning['full'], E_initial, E_best, E_waned)
+                            # Set initial efficacy of booster to the found full, waned value
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                            weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
+                        else:
+                            E_initial = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'initial'].values)
+                            E_best = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'best'].values)
+                            E_waned = np.sum(VOC_fraction*vaccine_params.loc[(slice(None), dose, efficacy), 'waned'].values)
+                            weight[idx] = self.waning_delay(delta_t, onset[dose], waning[dose], E_initial, E_best, E_waned)
+                    
                     # Compute protection after delta_t days
-                    weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
+                    #weight = self.waning_delay(delta_t, onset[dose], waning[dose], np.array(E_initial), np.array(E_best), np.array(E_waned))
 
                     # Multiply weights with doses jabbed delta_t_days in the past
-                    if dose == 'boosted':
+                    #if dose == 'boosted':
                         # Booster is 'added' on top of 2nd dose
-                        sol = sol + weight[:, np.newaxis]*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)[np.newaxis,:]
-                    else:
-                        sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
+                        #sol = sol + weight[:, np.newaxis]*(df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values + df.loc[((df['dose']=='full') & (df['date']==inner_date)), 'REL_INCIDENCE'].values)[np.newaxis,:]
+                    #else:
+                    sol = sol + weight[:, np.newaxis]*df.loc[((df['dose']==dose) & (df['date']==inner_date)), 'REL_INCIDENCE'].values[np.newaxis,:]
                 
                 sol = sol.clip(min=-1,max=1)
 
@@ -948,13 +1007,6 @@ class make_vaccination_rescaling_function():
         # Reintroduce multiindeces
         df = pd.DataFrame(index=df_index, columns=df_columns, data=df[df_columns].values)
         new_df = pd.DataFrame(index=new_df_index, columns=new_df_columns, data=new_df[new_df_columns].values)  
-
-        #import matplotlib.pyplot as plt
-        #dates = new_df.index.get_level_values('date').unique()
-        #age_group = new_df.index.get_level_values('age').unique()[-1]
-        #fig,ax=plt.subplots(nrows=3, ncols=1, sharex=True)
-        #ax.plot(dates, new_df)
-        #plt.show()
 
         # Take dose-weighted average over time
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1382,15 +1434,23 @@ class make_contact_matrix_function():
         elif t30 < t <= t31:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            l = (t32 - t31)/pd.Timedelta(days=1)
+            r = (t32 - t31)/(t33 - t31)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t31, l)
         elif t32 < t <= t33:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            l = (t33 - t32)/pd.Timedelta(days=1)
+            r = (t33 - t32)/(t33 - t31)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t32, l)
         elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t34 < t <= t35:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)                                                                                                                                 
         else:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=1, transport=0.7, leisure=1, others=1, school=0)    
 
     ###################
     ## Spatial model ##
@@ -1484,6 +1544,17 @@ class make_contact_matrix_function():
         co_F = 1
         co_W = 1
         co_Bxl = 1
+        mentality_before_relaxation_flanders_2021 = np.array([co_F, co_F, # F
+                                                co_W, # W
+                                                co_Bxl, # Bxl
+                                                co_F, co_F, # F
+                                                co_W, co_W, # W
+                                                co_F, # F
+                                                co_W, co_W]) # W
+
+        co_F = 1
+        co_W = 1
+        co_Bxl = 1
         mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
                                                 co_W, # W
                                                 co_Bxl, # Bxl
@@ -1549,9 +1620,10 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            mat[idx_F,:,:] *= 1.03
-            mat[idx_Bxl,:,:] *= 1.12
-            mat[idx_W,:,:] *= 1.09
+            r=1.03
+            mat[idx_F,:,:] *= r*1.03
+            mat[idx_Bxl,:,:] *= r*1.12
+            mat[idx_W,:,:] *= r*1.09
             return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
@@ -1575,11 +1647,11 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0.7)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=1)    
         elif t23 < t <= t24:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
         elif t24 < t <= t25:    
@@ -1599,13 +1671,21 @@ class make_contact_matrix_function():
         elif t29 < t <= t30:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.5, transport=0.5, leisure=1, others=1,school=0)  
+            l = (t31 - t30)/pd.Timedelta(days=1)
+            r = (t31 - t30)/(t32 - t30)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t30, l)
         elif t31 < t <= t32:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)           
+            l = (t32 - t31)/pd.Timedelta(days=1)
+            r = (t32 - t31)/(t32 - t30)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            return self.ramp_fun(policy_old, policy_new, t, t31, l)
         elif t32 < t <= t33:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
         elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, work=1, transport=1, leisure=1, others=1, school=1)                                                                                                                                    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)                                                                                                                                 
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 

@@ -329,7 +329,7 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIQRD_rescaling(BaseModel):
+class COVID19_SEIQRD_rescaling_vacc(BaseModel):
     """
     Biomath extended SEIQRD model for COVID-19, Deterministic implementation
 
