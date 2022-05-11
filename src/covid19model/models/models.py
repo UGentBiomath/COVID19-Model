@@ -743,7 +743,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~
 
         # Waning of second dose
-        r_waning_vacc = 1/((6/12)*365)
+        r_waning_vacc = 1/150
         dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
         dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]
