@@ -54,8 +54,10 @@ end_sim = '2022-03-07'
 conf_int = 0.05
 # Names of sample dictionaries
 samples_dict_names = ['BE_stratified_vacc_WINTER2122_20220115_SAMPLES_2022-05-10.json',
-                      'BE_stratified_vacc_WINTER2122_20220201_SAMPLES_2022-05-09.json',
-                      'BE_stratified_vacc_WINTER2122_20220301_SAMPLES_2022-05-09.json']
+                      'BE_stratified_vacc_WINTER2122_20220121_SAMPLES_2022-05-10.json',
+                      'BE_stratified_vacc_WINTER2122_20220201_SAMPLES_2022-05-10.json',
+                      'BE_stratified_vacc_WINTER2122_20220207_SAMPLES_2022-05-10.json',
+                      'BE_stratified_vacc_WINTER2122_20220215_SAMPLES_2022-05-10.json']
 
 ##############################
 ## Define results locations ##
@@ -210,7 +212,7 @@ for idx,samples_dict in enumerate(samples_dict_list):
     ax[idx,2].xaxis.set_major_locator(plt.MaxNLocator(3))
     ax[idx,2].set_xlim(start_calibration,end_sim)
     ax[idx,2].set_ylim([0,1000])
-    ax[idx,2].set_ylabel('Daily hospitalizations (-)', fontsize=12)
+    ax[idx,2].set_ylabel('$H_{in}$ (-)', fontsize=12)
     ax[idx,2].grid(False)
 
 plt.tight_layout()
