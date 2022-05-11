@@ -36,7 +36,8 @@ from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
-parser.add_argument("-e", "--enddate", help="Calibration enddate")
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-15')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
@@ -72,6 +73,10 @@ age_stratification_size=int(args.n_age_groups)
 run_date = str(datetime.date.today())
 # Keep track of runtime
 initial_time = datetime.datetime.now()
+# Start and end of calibration
+start_calibration = pd.to_datetime(args.start_calibration)
+if args.end_calibration:
+    end_calibration = pd.to_datetime(args.end_calibration)
 
 ##############################
 ## Define results locations ##
@@ -108,9 +113,9 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 
 if __name__ == '__main__':
 
@@ -119,7 +124,7 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='M') # alpha = 0.056
+    results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
     plt.show()
     plt.close()
 
@@ -127,19 +132,9 @@ if __name__ == '__main__':
     ## Calibration settings ##
     ##########################
 
-    # Start of data collection
-    start_data = df_hosp.index.get_level_values('date').min()
-    # Start of calibration
-    start_calibration = start_data
-    warmup = 0
-    # Last datapoint used to calibrate compliance and effention
-    if not args.enddate:
-        end_calibration = df_hosp.index.get_level_values('date').max()
-    else:
-        end_calibration = pd.to_datetime(str(args.enddate))
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 4
+    processes = 9#int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    multiplier_pso = 5
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
@@ -151,7 +146,7 @@ if __name__ == '__main__':
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-    log_likelihood_fnc_args = [0.056, [], []]
+    log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'], [], []]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -167,17 +162,17 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta',]
-    bounds1=((0.003,0.060),)
+    bounds1=((0.003,0.080),)
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.25,1.55),(1.55,2.4))
+    bounds3 = ((1.10,1.50),(1.20,2.4))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.35),)
+    bounds4 = ((0,0.40),)
     # Waning antibody immunity
     pars5 = ['zeta',]
     bounds5 = ((1e-6,1e-2),)
@@ -189,7 +184,8 @@ if __name__ == '__main__':
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
-    theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.00297989] # 2993
+    theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
+    theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12, 0.002]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -212,7 +208,7 @@ if __name__ == '__main__':
         model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+        out = model.sim(end_visualization,start_date=start_calibration)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration, end_visualization)
         plt.show()
@@ -235,7 +231,7 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+            out = model.sim(end_visualization,start_date=start_calibration)
             # Visualize fit
             ax = plot_PSO(out, data, states, start_calibration, end_visualization)
             plt.show()
@@ -260,9 +256,9 @@ if __name__ == '__main__':
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.10,] 
+    pert4 = [0.50,] 
     # pars5 = ['zeta',]
-    pert5 = [0.10,]
+    pert5 = [0.20,]
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4 + pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
