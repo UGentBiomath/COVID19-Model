@@ -412,7 +412,7 @@ class BaseModel:
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
-            t = t + 1
+            t = t + 1/48
             t_lst.append(t)
         # Make a dictionary with output
         output = {

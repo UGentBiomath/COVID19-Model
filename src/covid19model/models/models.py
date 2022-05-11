@@ -209,7 +209,7 @@ class simple_stochastic_SIR(BaseModel):
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        l = 1 # length of discrete timestep (by default one day)
+        l = 1/48 # length of discrete timestep (by default one day)
         n = 1 # number of draws to average in one timestep (must be large to make physical sense)
         N = S.size
 
