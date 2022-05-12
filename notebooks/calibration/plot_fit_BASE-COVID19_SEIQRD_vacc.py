@@ -280,9 +280,8 @@ print('4) Visualizing fit on deaths (not working for 10 age groups)')
 ## Save states during summer of 2021 ##
 #######################################
 
-print('5) Save states during summer of 2021')
-
 if args.vaccination == 'stratified':
+    print('5) Save states during summer of 2021')
     import pickle
     # Path where the pickle with initial conditions should be stored
     pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
