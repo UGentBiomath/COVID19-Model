@@ -1410,47 +1410,50 @@ class make_contact_matrix_function():
         elif t20 < t <= t21:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
-        elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1, school=1)  
-        elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0) 
-        elif t24 < t <= t25:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-        elif t25 < t <= t26:
-            # Gradual re-introduction of mentality change during overlegcommites
-            l = (t26 - t25)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t25, l)
-        elif t26 < t <= t27:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-        elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-        elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-        elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-        elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-        elif t31 < t <= t32:
-            l = (t32 - t31)/pd.Timedelta(days=1)
-            r = (t32 - t31)/(t33 - t31)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            return self.ramp_fun(policy_old, policy_new, t, t31, l)
-        elif t32 < t <= t33:
-            l = (t33 - t32)/pd.Timedelta(days=1)
-            r = (t33 - t32)/(t33 - t31)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            return self.ramp_fun(policy_old, policy_new, t, t32, l)
-        elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
-        elif t34 < t <= t35:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)                                                                                                                                 
         else:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=1, transport=0.7, leisure=1, others=1, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+
+        # elif t22 < t <= t23:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1, school=1)  
+        # elif t23 < t <= t24:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0) 
+        # elif t24 < t <= t25:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+        # elif t25 < t <= t26:
+        #     # Gradual re-introduction of mentality change during overlegcommites
+        #     l = (t26 - t25)/pd.Timedelta(days=1)
+        #     policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+        #     policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+        #     return self.ramp_fun(policy_old, policy_new, t, t25, l)
+        # elif t26 < t <= t27:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+        # elif t27 < t <= t28:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+        # elif t28 < t <= t29:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+        # elif t29 < t <= t30:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+        # elif t30 < t <= t31:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+        # elif t31 < t <= t32:
+        #     l = (t32 - t31)/pd.Timedelta(days=1)
+        #     r = (t32 - t31)/(t33 - t31)
+        #     policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+        #     policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+        #     return self.ramp_fun(policy_old, policy_new, t, t31, l)
+        # elif t32 < t <= t33:
+        #     l = (t33 - t32)/pd.Timedelta(days=1)
+        #     r = (t33 - t32)/(t33 - t31)
+        #     policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
+        #     policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+        #     return self.ramp_fun(policy_old, policy_new, t, t32, l)
+        # elif t33 < t <= t34:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+        # elif t34 < t <= t35:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)                                                                                                                                 
+        # else:
+        #     return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=1, transport=0.7, leisure=1, others=1, school=0)    
 
     ###################
     ## Spatial model ##
