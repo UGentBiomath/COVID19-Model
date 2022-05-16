@@ -489,6 +489,184 @@ class COVID19_SEIQRD_rescaling_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
+class COVID19_SEIQRD_hybrid_vacc(BaseModel):
+    """
+    The docstring will go here
+    """
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M', 'C', 'C_icurec','ICU', 'R', 'D','H_in','H_out','H_tot']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h']
+    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    stratification = ['Nc','doses']
+
+    # ..transitions/equations
+    @staticmethod
+    @jit(nopython=True)
+    def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h,
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
+                  Nc, doses):
+        """
+        Biomath extended SEIRD model for COVID-19
+        *Deterministic implementation*
+        """
+
+        ###################
+        ## Format inputs ##
+        ###################
+
+        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]        
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
+
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
+
+        # Hospitalization propensity
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
+        # Latent period
+        sigma = np.sum(f_VOC*sigma)
+        # Vaccination
+        e_i = f_VOC @ e_i 
+        e_s = f_VOC @ e_s 
+        e_h = f_VOC @ e_h
+        # Seasonality
+        beta *= seasonality
+
+        ####################################################
+        ## Expand dims on first stratification axis (age) ##
+        ####################################################
+
+        a = np.expand_dims(a, axis=1)
+        h = np.expand_dims(h, axis=1)
+        c = np.expand_dims(c, axis=1)
+        m_C = np.expand_dims(m_C, axis=1)
+        m_ICU = np.expand_dims(m_ICU, axis=1)
+        dc_R = np.expand_dims(dc_R, axis=1)
+        dc_D = np.expand_dims(dc_D, axis=1)
+        dICU_R = np.expand_dims(dICU_R, axis=1)
+        dICU_D = np.expand_dims(dICU_D, axis=1)
+        dICUrec = np.expand_dims(dICUrec, axis=1)
+
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
+
+        dS = np.zeros(S.shape, np.float64)
+        dR = np.zeros(R.shape, np.float64)
+
+        # 0 --> 1 and  0 --> 2
+        # ~~~~~~~~~~~~~~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,0] + R[:,0]
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,0]/VE
+        f_R = R[:,0]/VE
+        # Compute transisitoning in zero syringes
+        dS[:,0] = - (N_vacc[:,0] + N_vacc[:,2])*f_S 
+        dR[:,0] = - (N_vacc[:,0]+ N_vacc[:,2])*f_R
+        # Compute transitioning in one short circuit
+        dS[:,1] =  N_vacc[:,0]*f_S # 0 --> 1 dose
+        dR[:,1] =  N_vacc[:,0]*f_R 
+        # Compute transitioning in two shot circuit
+        dS[:,2] =  N_vacc[:,2]*f_S # 0 --> 2 doses
+        dR[:,2] =  N_vacc[:,2]*f_R 
+
+        # 1 --> 2 
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,1] + R[:,1]
+        # Compute fraction of VE in states S and R
+        f_S = S[:,1]/VE
+        f_R = R[:,1]/VE
+        # Compute transitioning in partially vaccinated circuit
+        dS[:,1] = dS[:,1] - N_vacc[:,1]*f_S
+        dR[:,1] = dR[:,1] - N_vacc[:,1]*f_R
+        # Compute transitioning in fully vaccinated circuit
+        dS[:,2] = dS[:,2] + N_vacc[:,1]*f_S
+        dR[:,2] = dR[:,2] + N_vacc[:,1]*f_R
+
+        # 2 --> B
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,2] + R[:,2]
+        # Compute fraction of VE in states S and R
+        f_S = S[:,2]/VE
+        f_R = R[:,2]/VE
+        # Compute transitioning in fully vaccinated circuit
+        dS[:,2] = dS[:,2] - N_vacc[:,3]*f_S
+        dR[:,2] = dR[:,2] - N_vacc[:,3]*f_R
+        # Compute transitioning in boosted circuit
+        dS[:,3] = dS[:,3] + N_vacc[:,3]*f_S
+        dR[:,3] = dR[:,3] + N_vacc[:,3]*f_R
+
+        # Update the S and R state
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        S_post_vacc = S + dS
+        R_post_vacc = R + dR
+
+        # Write protect the S and R states against vaccination data resulting in > 100% vaccination
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # TODO: This slows the code waaaay down
+        # I hope to avoid the need for this function by performing such analysis beforehand
+        S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
+        R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M + C + C_icurec + ICU + R_post_vacc, axis=1),axis=1) # sum over doses
+
+        #################################
+        ## Compute system of equations ##
+        #################################
+
+        # Compute infection pressure (IP) of all variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
+
+        # Compute the  rates of change in every population compartment
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        h_acc = (1-e_h)*h
+
+        dS  = dS - IP*S_post_vacc*(1-e_s)
+        dE  = IP*S_post_vacc*(1-e_s) - E/sigma 
+        dI = (1/sigma)*E - (1/omega)*I
+        dA = (a/omega)*I - A/da
+        dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
+        dC = M*(h_acc/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
+        dICUstar = M*(h_acc/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
+
+        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
+        dR  = dR + A/da + ((1-h_acc)/dm)*M + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
+        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
+        dH_in = M*(h_acc/dhospital) - H_in
+        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
+        dH_tot = M*(h_acc/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+
+        # Waning of natural immunity
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        dS[:,0] = dS[:,0] + zeta*R_post_vacc[:,0] 
+        dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]
+
+        return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
+
+
 class COVID19_SEIQRD_stratified_vacc(BaseModel):
     """
     Biomath extended SEIRD model for COVID-19, Deterministic implementation
