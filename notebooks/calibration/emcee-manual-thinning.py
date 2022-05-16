@@ -106,7 +106,7 @@ for i in range(1,samples.shape[1]):
 # -----------------
 
 CORNER_KWARGS = dict(
-    smooth=0.80,
+    smooth=0.90,
     label_kwargs=dict(fontsize=24),
     title_kwargs=dict(fontsize=24),
     quantiles=[0.05, 0.95],

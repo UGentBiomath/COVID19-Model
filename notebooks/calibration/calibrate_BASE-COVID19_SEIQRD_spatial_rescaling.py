@@ -42,7 +42,6 @@ public = True
 ## Handle script arguments ##
 #############################
 
-start_calibration = '2020-03-18'
 # general
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")

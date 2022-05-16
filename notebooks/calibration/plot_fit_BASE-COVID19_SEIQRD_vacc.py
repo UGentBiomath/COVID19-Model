@@ -115,9 +115,9 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 
 #######################
 ## Sampling function ##
@@ -280,9 +280,8 @@ print('4) Visualizing fit on deaths (not working for 10 age groups)')
 ## Save states during summer of 2021 ##
 #######################################
 
-print('5) Save states during summer of 2021')
-
 if args.vaccination == 'stratified':
+    print('5) Save states during summer of 2021')
     import pickle
     # Path where the pickle with initial conditions should be stored
     pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
