@@ -210,7 +210,7 @@ class simple_stochastic_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
         l = 1 # length of discrete timestep (by default one day)
-        n = 1 # number of draws to average in one timestep (must be large to make physical sense)
+        n = 1 # number of draws to average in one timestep
         N = S.size
 
         # calculate total population
@@ -234,7 +234,6 @@ class simple_stochastic_SIR(BaseModel):
                     prop.append(0)
                 else:
                     draw = np.mean(np.random.binomial(states[i][j],probabilities[i][j], size=n))
-                    #draw = np.mean(np.random.negative_binomial(states[i][j],1-probabilities[i][j], size=n))
                     prop.append(draw)
             propensity.update({keys[i]: np.asarray(prop)})
 
@@ -743,7 +742,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~
 
         # Waning of second dose
-        r_waning_vacc = 1/((6/12)*365)
+        r_waning_vacc = 1/150
         dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
         dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]

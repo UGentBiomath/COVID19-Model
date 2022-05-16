@@ -33,7 +33,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
@@ -49,19 +49,25 @@ parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used i
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
+parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
+# Vaccination type
+if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
+    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 
 ################################
 ## Define simulation settings ##
 ################################
 
 # Start and end of simulation
-end_sim = '2022-04-01'
+end_sim = '2022-03-01'
 # Confidence level used to visualise model fit
 conf_int = 0.05
+# Update the Google and Sciensano data
+update_data = False
 
 ##############################
 ## Define results locations ##
@@ -82,12 +88,14 @@ for directory in [fig_path, samples_path]:
 
 # Load and append hospitalization length of stays and resusceptibility
 samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
-warmup = 0
-# Start of calibration warmup and beta
+# Start and end of calibration
 start_calibration = samples_dict['start_calibration']
-start_sim = start_calibration
-# Last datapoint used to calibrate warmup and beta
 end_calibration = samples_dict['end_calibration']
+start_sim = start_calibration
+# warmup
+warmup = int(samples_dict['warmup'])
+# overdispersion
+dispersion = float(samples_dict['dispersion'])
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -97,20 +105,14 @@ end_calibration = samples_dict['end_calibration']
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
 
-# Serological data
-df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
-
-# Deaths in hospitals
-df_sciensano_mortality = sciensano.get_mortality_data()
-deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
-
 ##########################
 ## Initialize the model ##
 ##########################
 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update=False)
-# Parameters of hypothetical booster campaign
-model.parameters.update({'delay_immunity' : 7, 'daily_doses': 50000, 'stop_idx' : 8, 'refusal': 0.10*np.ones(age_stratification_size)})
+if args.vaccination == 'stratified':
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update_data=update_data)
+else:
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration, update_data=update_data)
 
 ##############################
 ## Define sampling function ##
@@ -118,21 +120,13 @@ model.parameters.update({'delay_immunity' : 7, 'daily_doses': 50000, 'stop_idx' 
 
 import random
 def draw_fcn(param_dict,samples_dict):
-    """ some docstring
+    """ A custom draw function for the winter of 21-22
     """
 
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['mentality'] = samples_dict['mentality'][idx]  
     param_dict['K_inf'] = np.array([samples_dict['K_inf_omicron'][idx],], np.float64)
     param_dict['K_hosp'] = np.array([samples_dict['K_hosp_omicron'][idx],], np.float64)
-    #param_dict['K_hosp'] = [np.random.normal(loc=0.40, scale=0.10/3),]
-    # 30-50% compared to delta (https://www.bmj.com/content/bmj/375/bmj.n3151.full.pdf)
-    # https://www.who.int/publications/m/item/enhancing-readiness-for-omicron-(b.1.1.529)-technical-brief-and-priority-actions-for-member-states#:~:text=The%20overall%20risk%20related%20to,rapid%20spread%20in%20the%20community.
-    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]  
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]  
-    param_dict['eff_home'] = samples_dict['eff_home'][idx] 
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]   
 
     # Hospitalization
     # ---------------
@@ -165,10 +159,12 @@ def draw_fcn(param_dict,samples_dict):
 ## Perform simulations ##
 #########################
 
-print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
-start_sim = start_calibration
+if args.vaccination == 'stratified':
+    print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
+else:
+    print('\n1) Simulating COVID19_SEIQRD_rescaling '+str(args.n_samples)+' times')
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
-df_2plot = output_to_visuals(out, ['H_in', 'H_tot'], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
 #######################
@@ -201,14 +197,3 @@ if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.pdf', dpi=300, bbox_inches='tight')
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 plt.close()
-
-# Booster campaign:
-#fig,ax=plt.subplots(figsize=(12,4))
-#for age_group in range(out.dims['Nc']):
-#    ax.plot(simtime, out['S'].isel(Nc=age_group).isel(doses=2).mean(dim='draws') + out['S'].isel(Nc=age_group).isel(doses=3).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=2).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=3).mean(dim='draws'))
-#    ax.plot(simtime, out['S'].isel(Nc=age_group).isel(doses=4).mean(dim='draws') + out['R'].isel(Nc=age_group).isel(doses=4).mean(dim='draws'), '--')
-#ax.legend(['0-12', '12-18', '18-25', '25-35', '35-45', '45-55', '55-65', '65-75', '75-85', '85+'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-
-#plt.tight_layout()
-#plt.show()
-#plt.close()
