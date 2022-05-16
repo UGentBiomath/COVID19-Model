@@ -179,8 +179,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
     # Using the weekly vaccination data
-    df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
-    print(df_vacc)
+    #df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update_data)
 
@@ -191,7 +190,6 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent (first) vaccination function, updating N_vacc
-
     vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
@@ -237,19 +235,24 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     #########################################################################################################################################
     # TODO: These will come from a rescaling function
+    # 'Waned' values were removed
     # e_i
     e_i = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
     for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
         e_i[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_i']
+    e_i = np.delete(e_i, 3, 1)
     # e_h
     e_h = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
     for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
         e_h[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_h']
+    e_h = np.delete(e_h, 3, 1)
     # e_s
     e_s = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
     for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
         e_s[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_s']
+    e_s = np.delete(e_s, 3, 1)
     ##########################################################################################################################################
+
 
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
