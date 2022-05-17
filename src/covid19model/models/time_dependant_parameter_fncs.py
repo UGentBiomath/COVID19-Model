@@ -352,6 +352,9 @@ class make_N_vacc_function():
         N_vacc : np.array
             Number of individuals to be vaccinated at simulation time "t" per [age, (space), dose]
         """
+        
+        # Convert time to suitable format
+        t = pd.Timestamp(t.date())
 
         return self.get_data(t)
     
