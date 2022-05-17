@@ -209,8 +209,9 @@ class simple_stochastic_SIR(BaseModel):
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        l = 1.0 # length of discrete timestep (by default one day)
-        n = 20 # number of draws to average in one timestep (slows down calculations but converges to a deterministic result when > 20)
+        l = 1 # length of discrete timestep (by default one day)
+        n = 1 # number of draws to average in one timestep
+        N = S.size
 
         # calculate total population
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -221,29 +222,26 @@ class simple_stochastic_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         keys = ['StoI','ItoR']
-        probabilities = [1 - np.exp( - beta*np.matmul(Nc,I/T) ),
-                        (1 - np.exp(- l * gamma ))*np.ones(S.size),
+        probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,I/T) ),
+                        (1 - np.exp(- l * gamma ))*np.ones(N),
                         ]
         states = [S,I]
         propensity={}
         for i in range(len(keys)):
             prop=[]
-            for j in range(S.size):
+            for j in range(N):
                 if states[i][j]<=0:
                     prop.append(0)
                 else:
-                    draw=np.array([])
-                    for l in range(n):
-                        draw = np.append(draw,np.random.binomial(states[i][j],probabilities[i][j]))
-                    draw = np.rint(np.mean(draw))
-                    prop.append( draw )
+                    draw = np.mean(np.random.binomial(states[i][j],probabilities[i][j], size=n))
+                    prop.append(draw)
             propensity.update({keys[i]: np.asarray(prop)})
 
         # calculate the states at timestep k+1
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        S_new  = S - propensity['StoI']
-        I_new =  I + propensity['StoI'] - propensity['ItoR']
-        R_new  =  R + propensity['ItoR']
+        S_new  = np.rint(S - propensity['StoI'])
+        I_new =  np.rint(I + propensity['StoI'] - propensity['ItoR'])
+        R_new  =  np.rint(R + propensity['ItoR'])
 
         # Add protection against states < 0
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -330,7 +328,7 @@ class simple_multivariant_SIR(BaseModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIQRD_rescaling(BaseModel):
+class COVID19_SEIQRD_rescaling_vacc(BaseModel):
     """
     Biomath extended SEIQRD model for COVID-19, Deterministic implementation
 
@@ -744,7 +742,7 @@ class COVID19_SEIQRD_stratified_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~
 
         # Waning of second dose
-        r_waning_vacc = 1/((6/12)*365)
+        r_waning_vacc = 1/150
         dS[:,2] = dS[:,2] - r_waning_vacc*S_post_vacc[:,2]
         dR[:,2] = dR[:,2] - r_waning_vacc*R_post_vacc[:,2]
         dS[:,3] = dS[:,3] + r_waning_vacc*S_post_vacc[:,2]
