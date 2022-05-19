@@ -161,7 +161,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
     from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
                                                                     make_VOC_function, \
-                                                                    make_vaccination_function, \
+                                                                    make_N_vacc_function, \
                                                                     make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
@@ -179,7 +179,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
     # Using the weekly vaccination data
-    #df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
+    df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update_data)
 
@@ -190,7 +190,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent (first) vaccination function, updating N_vacc
-    vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
+    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes)
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
     # Time-dependent seasonality function, updating season_factor
@@ -257,15 +257,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
                    'doses': np.zeros(len(df_vacc.index.get_level_values('dose').unique())),
-                   'refusal': 0.1*np.ones(len(age_classes)),
-                   'stop_idx': 9,
-                   'vacc_order': range(len(age_classes))[::-1],
                    'e_i': e_i,
                    'e_s': e_s,
                    'e_h': e_h,
-                   'daily_doses': 60000,
-                   'delay_immunity': 10,
-                   'initN': initN
                    })
 
     ##########################
@@ -276,7 +270,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policy_function,
                                                    'seasonality': seasonality_function, 
-                                                   'N_vacc': vaccination_function,
+                                                   'N_vacc': N_vacc_function,
                                                    'f_VOC':VOC_function})
 
     return model, BASE_samples_dict, initN
