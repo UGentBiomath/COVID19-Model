@@ -590,6 +590,7 @@ class make_N_vacc_function():
 ## Rescaling function due to vaccination ##
 ###########################################
 
+import sys
 class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
@@ -638,11 +639,13 @@ class make_vaccination_rescaling_function():
             # Compute population size-normalized relative incidences
             df_incidences = self.compute_relative_incidences(df_incidences, agg)
             # Elongate the dataframe of incidences with 26 weeks in which no vaccines are administered
-            df_incidences = self.extend_df_incidences(df_incidences, n_weeks=26)
+            #df_incidences = self.extend_df_incidences(df_incidences, n_weeks=26)
             # Attach cumulative figures
-            df = self.compute_relative_cumulative(df_incidences)
+            #df = self.compute_relative_cumulative(df_incidences)
             # Format vaccination parameters 
             vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
+            sys.exit()
+
             # Compute efficacies accouting for onset immunity of vaccines, waning immunity of vaccines and VOCs
             df_efficacies = self.compute_efficacies(df, vaccine_params, VOC_function, onset, waning)
             
