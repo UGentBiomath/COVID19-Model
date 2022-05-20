@@ -806,22 +806,26 @@ class make_vaccination_rescaling_function():
 
     @staticmethod
     def compute_relative_incidences(df, agg=None):
+        """Function to convert the vaccine incidence into the population-weighted relative incidence
+        """
+
+        df_copy = df.copy(deep=True)
 
         # Compute fractions with dose x using relevant population size
         if agg:
             initN = construct_initN(df.index.get_level_values('age').unique(), agg)
             for age in df.index.get_level_values('age').unique():
                 for NIS in df.index.get_level_values('NIS').unique():
-                    df.loc[(slice(None), NIS, age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), NIS, age, slice(None)]['INCIDENCE'].values / initN.loc[NIS, age]
+                    df_copy.loc[slice(None), NIS, age, slice(None)] = df.loc[slice(None), NIS, age, slice(None)].values / initN.loc[NIS, age]
         else:
             initN = construct_initN(df.index.get_level_values('age').unique())
             for age in df.index.get_level_values('age').unique():
-                df.loc[(slice(None), age, slice(None)),('REL_INCIDENCE')] = df.loc[slice(None), age, slice(None)]['INCIDENCE'].values / initN.loc[age]
+                df_copy.loc[slice(None), age, slice(None)] = df.loc[slice(None), age, slice(None)].values / initN.loc[age]
 
         # Use more declaritive names for doses
-        df.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
+        df_copy.rename(index={'A':'first', 'B':'second', 'C':'one_shot', 'E': 'booster'}, inplace=True)
 
-        return df['REL_INCIDENCE']
+        return df_copy.rename("REL_INCIDENCE", inplace=True)
 
     @staticmethod
     def extend_df_incidences(df_incidences, n_weeks=26):
