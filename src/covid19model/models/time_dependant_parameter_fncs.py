@@ -723,7 +723,10 @@ class make_vaccination_efficacy_function():
                                     if cumsum != 0.0:
                                         f.append(df.loc[inner_date, NIS, age_class, dose]/cumsum)
                                     else:
-                                        f.append(1.0)
+                                        if (date-inner_date)/pd.Timedelta(days=1) == 0:
+                                            f.append(1.0)
+                                        else:
+                                            f.append(0)
                                     # Compute weight
                                     for VOC in VOCs:
                                         for efficacy in efficacies:
