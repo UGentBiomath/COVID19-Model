@@ -585,12 +585,269 @@ class make_N_vacc_function():
             df_out = pd.concat([df_out, df_new])
         
         return df_out
-                
+
+from tqdm import tqdm
+class make_vaccination_efficacy_function():
+    
+    ################################################
+    ## Generate or load dataframe with efficacies ##
+    ################################################
+    
+    def __init__(self, update=False, agg=None, age_classes=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
+                    df_incidences=None, vaccine_params=None, VOCs=['WT', 'abc', 'delta']):
+    
+        if update==False:
+            # Simply load data
+            from covid19model.data.utils import to_pd_interval
+            if agg:
+                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.csv")
+                df_efficacies = pd.read_csv(path,  index_col=['date','NIS','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
+            else:
+                path = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.csv")
+                df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
+        else:
+            # Warn user this may take some time
+            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
+            # Add the one-shot J&J and the second doses together
+            df_incidences = self.sum_oneshot_second(df_incidences)
+            # Construct dataframe with cumulative sums
+            df_cumsum = self.incidences_to_cumulative(df_incidences)
+            # Format vaccination parameters 
+            vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
+            # Compute weighted efficacies
+            df_efficacies = self.compute_weighted_efficacy(df_incidences, df_cumsum, vaccine_params, waning)
+            # Save result
+            dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
+            if agg:
+                df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_{agg}.csv'))
+                df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_{agg}.pkl'))
+            else:
+                df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_national.csv'))
+                df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_national.pkl'))
+            
+        # Throw out unwanted VOCs
+        df_efficacies = df_efficacies.iloc[df_efficacies.index.get_level_values('VOC').isin(VOCs)]
+        
+        # TODO: Age conversion
+        
+        # Assign efficacy dataset
+        self.df_efficacies = df_efficacies
+
+        # Compute some other relevant attributes
+        self.available_dates = df_efficacies.index.get_level_values('date').unique()
+        self.N = len(age_classes)
+        self.agg = agg
+        try:
+            self.G = len(df_efficacies.index.get_level_values('NIS').unique())
+        except:
+            self.G = 0
+        
+        return None
+    
+    ################################################
+    ## Convert data to a format model understands ##
+    ################################################
+    
+    
+    
+    ######################
+    ## Helper functions ##
+    ######################
+    
+    def compute_weighted_efficacy(self, df, df_cumsum, vaccine_params, waning):
+        
+        VOCs = vaccine_params.index.get_level_values('VOC').unique()
+        efficacies=vaccine_params.index.get_level_values('efficacy').unique()
+    
+        # Define output dataframe
+        iterables=[]
+        for index_name in df.index.names:
+            iterables += [df.index.get_level_values(index_name).unique()]
+        iterables.append(VOCs)
+        names=list(df.index.names)
+        names.append('VOC')
+        index = pd.MultiIndex.from_product(iterables, names=names)
+        df_efficacies = pd.DataFrame(index=index, columns=efficacies, dtype=float)
+        
+        # Computational loop
+        dates=df.index.get_level_values('date').unique()
+        age_classes=df.index.get_level_values('age').unique()
+        doses=df.index.get_level_values('dose').unique() 
+        
+        if not 'NIS' in df.index.names:
+            with tqdm(total=len(age_classes)*len(doses)) as pbar:
+                for age_class in age_classes:
+                    for dose in doses:
+                        for date in dates:
+                            cumsum = df_cumsum.loc[date, age_class, dose]
+                            delta_t=[]
+                            f=[]
+                            w=pd.DataFrame(index=pd.MultiIndex.from_product([dates[dates<=date], VOCs]), columns=efficacies, dtype=float)
+                            for inner_date in dates[dates<=date]:
+                                # Compute fraction versus delta_t
+                                delta_t.append((date-inner_date)/pd.Timedelta(days=1))
+                                if cumsum != 0.0:
+                                    f.append(df.loc[inner_date, age_class, dose]/cumsum)
+                                else:
+                                    if (date-inner_date)/pd.Timedelta(days=1) == 0:
+                                        f.append(1.0)
+                                    else:
+                                        f.append(0)
+                                # Compute weight
+                                for VOC in VOCs:
+                                    for efficacy in efficacies:
+                                        waning_days = waning[dose]
+                                        E_best = vaccine_params.loc[(VOC, dose, efficacy), 'best']
+                                        E_waned = vaccine_params.loc[(VOC, dose, efficacy), 'waned']
+                                        weight = self.exponential_waning((date-inner_date)/pd.Timedelta(days=1), waning_days, E_best, E_waned)
+                                        w.loc[(inner_date, VOC), efficacy] = weight
+                            for VOC in VOCs:
+                                for efficacy in efficacies:
+                                    # Compute efficacy
+                                    df_efficacies.loc[(date, age_class, dose, VOC),efficacy] = np.dot(f,w.loc[(slice(None), VOC), efficacy])
+                        pbar.update(1)
+        else:
+            NISs=df.index.get_level_values('NIS').unique()
+            with tqdm(total=len(NISs)*len(age_classes)*len(doses)) as pbar:
+                for age_class in age_classes:
+                    for NIS in NISs:
+                        for dose in doses:
+                            for date in dates:
+                                cumsum = df_cumsum.loc[date, NIS, age_class, dose]
+                                delta_t=[]
+                                f=[]
+                                w=pd.DataFrame(index=pd.MultiIndex.from_product([dates[dates<=date], VOCs]), columns=efficacies, dtype=float)
+                                for inner_date in dates[dates<=date]:
+                                    # Compute fraction versus delta_t
+                                    delta_t.append((date-inner_date)/pd.Timedelta(days=1))
+                                    if cumsum != 0.0:
+                                        f.append(df.loc[inner_date, NIS, age_class, dose]/cumsum)
+                                    else:
+                                        f.append(1.0)
+                                    # Compute weight
+                                    for VOC in VOCs:
+                                        for efficacy in efficacies:
+                                            waning_days = waning[dose]
+                                            E_best = vaccine_params.loc[(VOC, dose, efficacy), 'best']
+                                            E_waned = vaccine_params.loc[(VOC, dose, efficacy), 'waned']
+                                            weight = self.exponential_waning((date-inner_date)/pd.Timedelta(days=1), waning_days, E_best, E_waned)
+                                            w.loc[(inner_date, VOC), efficacy] = weight
+                                for VOC in VOCs:
+                                    for efficacy in efficacies:
+                                        # Compute efficacy
+                                        df_efficacies.loc[(date, NIS, age_class, dose, VOC),efficacy] = np.dot(f,w.loc[(slice(None), VOC), efficacy])
+                            pbar.update(1)
+                                
+        return df_efficacies
+    
+    @staticmethod
+    def exponential_waning(delta_t, waning_days, E_best, E_waned):
+        """
+        Function to compute the vaccine efficacy after delta_t days, accouting for exponential waning of the vaccine's immunity.
+
+        Input
+        -----
+        days : float
+            number of days after the novel vaccination
+        waning_days : float
+            number of days for the vaccine to wane (on average)
+        E_best : float
+            rescaling value related to the best possible protection by the currently injected vaccine
+        E_waned : float
+            rescaling value related to the vaccine protection after a waning period.
+
+        Output
+        ------
+        E_eff : float
+            effective rescaling value associated with the newly administered vaccine
+
+        """
+
+        if E_best == E_waned:
+            return E_best
+        # Exponential waning
+        A0 = E_best
+        k = -np.log((E_waned)/(E_best))/(waning_days)
+        E_eff = A0*np.exp(-k*(delta_t))
+
+        return E_eff
+    
+    @staticmethod
+    def incidences_to_cumulative(df):
+        levels = list(df.index.names)
+        levels.remove("date")
+        df_cumsum = df.groupby(by=levels).cumsum()
+        df_cumsum = df_cumsum.reset_index().set_index(list(df.index.names)).squeeze().rename('CUMULATIVE')
+        return df_cumsum
+    
+    @staticmethod
+    def sum_oneshot_second(df):
+        
+        # Add dose 'B' and 'C' together
+        df[df.index.get_level_values('dose') == 'B'] = df[df.index.get_level_values('dose') == 'B'].values + df[df.index.get_level_values('dose') == 'C'].values
+        # Remove dose 'C'
+        df = df.reset_index()
+        df = df[df['dose'] != 'C']
+        # Reformat dataframe
+        df = df.set_index(df.columns[df.columns!='INCIDENCE'].to_list())
+        df = df.squeeze()
+        # Use more declaritive names for doses
+        df.rename(index={'A':'partial', 'B':'full', 'E':'boosted'}, inplace=True)
+        
+        return df
+    
+    @staticmethod
+    def format_vaccine_params(df):
+        """ This function format the vaccine parameters provided by the user in function `covid19model.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
+
+        ###################
+        ## e_s, e_i, e_h ##
+        ###################
+
+        # Define vaccination properties  
+        iterables = [df.index.get_level_values('VOC').unique(),['none', 'partial', 'full', 'boosted'], ['e_s', 'e_i', 'e_h']]
+        index = pd.MultiIndex.from_product(iterables, names=['VOC', 'dose', 'efficacy'])
+        df_new = pd.DataFrame(index=index, columns=['initial', 'best', 'waned'])    
+
+        # No vaccin = zero efficacy
+        df_new.loc[(slice(None), 'none', slice(None)),:] = 0
+
+        # Partially vaccinated is initially non-vaccinated + Waning of partially vaccinated to non-vaccinated
+        df_new.loc[(slice(None), 'partial', slice(None)),['initial','waned']] = 0
+
+        # Fill in best efficacies using data, waning of full, booster using data
+        for VOC in df_new.index.get_level_values('VOC'):
+            for dose in df_new.index.get_level_values('dose'):
+                for efficacy in df_new.index.get_level_values('efficacy'):
+                    df_new.loc[(VOC, dose, efficacy),'best'] = df.loc[(VOC,dose),efficacy]
+                    if ((dose == 'full') | (dose =='boosted')):
+                        df_new.loc[(VOC, dose, efficacy),'waned'] = df.loc[(VOC,'waned'),efficacy]
+
+        # partial, waned = (1/2) * partial, best (equals assumption that half-life is equal to waning days)
+        df_new.loc[(slice(None), 'partial', slice(None)),'waned'] = 0.5*df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
+
+        # full, initial = partial, best
+        df_new.loc[(slice(None), 'full', slice(None)),'initial'] = df_new.loc[(slice(None), 'partial', slice(None)),'best'].values
+
+        # boosted, initial = full, waned
+        df_new.loc[(slice(None), 'boosted', slice(None)),'initial'] = df_new.loc[(slice(None), 'full', slice(None)),'waned'].values
+
+        ############################
+        ## onset_immunity, waning ##
+        ############################
+
+        onset={}
+        waning={}
+        for dose in df_new.index.get_level_values('dose'):
+            onset.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'onset_immunity']})
+            waning.update({dose: df.loc[(df_new.index.get_level_values('VOC')[0], dose), 'waning']})
+
+        return df_new, onset, waning
+
 ###########################################
 ## Rescaling function due to vaccination ##
 ###########################################
 
-import sys
 class make_vaccination_rescaling_function():
     """
     Class that returns rescaling parameters time series E_susc, E_inf and E_hosp per province and age (shape = (G,N)), determined by vaccination
