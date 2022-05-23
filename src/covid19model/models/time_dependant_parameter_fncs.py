@@ -607,7 +607,7 @@ class make_vaccination_efficacy_function():
                 df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
-            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the desired VOCs or vaccination parameters, this may take some time.", stacklevel=2)
+            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.", stacklevel=2)
             # Add the one-shot J&J and the second doses together
             df_incidences = self.sum_oneshot_second(df_incidences)
             # Construct dataframe with cumulative sums
