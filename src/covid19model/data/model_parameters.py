@@ -520,7 +520,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62, 1.62*0.30]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.70, 2.00, 3.00]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.50, 1.50, 3.00]
 
     ###############################################
     ## Build a dataframe with vaccine properties ##
@@ -585,7 +585,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # Cut everything not needed
     VOC_parameters = VOC_parameters.loc[VOCs]
-    vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
+    #vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
 
     # Save a copy in a pickle
     VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)

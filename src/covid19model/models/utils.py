@@ -162,6 +162,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
+                                                                    make_vaccination_efficacy_function, \
                                                                     make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
@@ -189,12 +190,26 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
-    # Time-dependent (first) vaccination function, updating N_vacc
-    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes)
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
+    # Time-dependent (first) vaccination function, updating N_vacc
+    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes)
+    # Extract the smoothed dataframe
+    df_incidences = N_vacc_function.df
+    # Convert the smoothed dataframe from daily to weekly frequency
+    groupers=[]
+    for index_name in df_incidences.index.names:
+        if index_name != 'date':
+            groupers += [pd.Grouper(level=index_name)]
+        else:
+            groupers += [pd.Grouper(level='date', freq='W-MON')]
+    df_incidences = df_incidences.groupby(groupers).sum()
+    # Construct the efficacy function subject to waning
+    # TODO: update criterion
+    efficacy_function = make_vaccination_efficacy_function(update=False, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                              VOCs=VOCs, age_classes=age_classes)
 
     ####################
     ## Initial states ##
@@ -215,7 +230,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
 
     # Convert to right age groups using demographic wheiging
-    # Convert from size [number_age_groups x 5 doses] to [number_age_groups x 4 doses]
+    # TODO: Convert from size [number_age_groups x 5 doses] to [number_age_groups x 4 doses]
 
     for key,value in initial_states.items():
         converted_value = np.zeros([len(age_classes),value.shape[1]-1])
@@ -233,26 +248,10 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     for key in ['E_susc', 'E_inf', 'E_hosp']:
         params.pop(key)
 
-    #########################################################################################################################################
-    # TODO: These will come from a rescaling function
-    # 'Waned' values were removed
-    # e_i
-    e_i = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_i[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_i']
-    e_i = np.delete(e_i, 3, 1)
-    # e_h
-    e_h = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_h[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_h']
-    e_h = np.delete(e_h, 3, 1)
-    # e_s
-    e_s = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_s[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_s']
-    e_s = np.delete(e_s, 3, 1)
-    ##########################################################################################################################################
-
+    # Define dummy vaccine efficacies
+    e_i = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_h = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_s = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
 
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
@@ -271,6 +270,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                         time_dependent_parameters={'Nc': policy_function,
                                                    'seasonality': seasonality_function, 
                                                    'N_vacc': N_vacc_function,
+                                                   'e_i' : efficacy_function.e_i,
+                                                   'e_s' : efficacy_function.e_s,
+                                                   'e_h' : efficacy_function.e_h,
                                                    'f_VOC':VOC_function})
 
     return model, BASE_samples_dict, initN

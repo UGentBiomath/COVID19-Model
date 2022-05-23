@@ -110,6 +110,15 @@ def jit_matmul_3D_2D(A, B):
     return out
 
 @jit(nopython=True)
+def jit_matmul_nkm_m(A,b):
+    out = np.zeros((A.shape[0], A.shape[1]), np.float64)
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            for k in range(A.shape[2]):
+                out[i,j] += A[i,j,k]*b[k]
+    return out
+
+@jit(nopython=True)
 def jit_main_function_spatial(place, S, beta, Nc, I_dens):
     """
     Function determining the infection pressure in the spatial context.
@@ -502,7 +511,7 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
 
     # ..transitions/equations
     @staticmethod
-    @jit(nopython=True)
+    #@jit(nopython=True)
     def integrate(t, S, E, I, A, M, C, C_icurec, ICU, R, D, H_in, H_out, H_tot,
                   beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
@@ -535,9 +544,9 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
-        e_i = f_VOC @ e_i 
-        e_s = f_VOC @ e_s 
-        e_h = f_VOC @ e_h
+        e_i = jit_matmul_nkm_m(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
+        e_s = jit_matmul_nkm_m(e_s,f_VOC)
+        e_h = jit_matmul_nkm_m(e_h,f_VOC)
         # Seasonality
         beta *= seasonality
 
@@ -621,8 +630,8 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         # TODO: This slows the code waaaay down
         # I hope to avoid the need for this function by performing such analysis beforehand
-        S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
-        R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
+        #S_post_vacc, dS = vaccination_write_protection_2D(S, S_post_vacc, dS)
+        #R_post_vacc, dR = vaccination_write_protection_2D(R, R_post_vacc, dR)
 
         ################################
         ## calculate total population ##
@@ -637,14 +646,15 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*(1-e_i), axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc, np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        h_acc = (1-e_h)*h
 
-        dS  = dS - IP*S_post_vacc*(1-e_s)
-        dE  = IP*S_post_vacc*(1-e_s) - E/sigma 
+        h_acc = e_h*h
+
+        dS  = dS - IP*S_post_vacc*e_s
+        dE  = IP*S_post_vacc*e_s - E/sigma 
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - A/da
         dM = ((1-a)/omega)*I - M*((1-h_acc)/dm) - M*h_acc/dhospital
