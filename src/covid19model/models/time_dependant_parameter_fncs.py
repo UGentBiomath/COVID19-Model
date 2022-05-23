@@ -713,7 +713,7 @@ class make_vaccination_efficacy_function():
                 E_values = self.df_efficacies.loc[t_data, :, :, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.G,self.N,self.n_doses,self.n_VOCs))
             else:
-                E = self.df_efficacies.loc[t_data, :, :, :][efficacy].to_numpy()
+                E_values = self.df_efficacies.loc[t_data, :, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.N,self.n_doses,self.n_VOCs))
 
         return (1-E)
