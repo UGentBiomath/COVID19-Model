@@ -616,6 +616,8 @@ class make_vaccination_efficacy_function():
             vaccine_params, onset, waning = self.format_vaccine_params(vaccine_params)
             # Compute weighted efficacies
             df_efficacies = self.compute_weighted_efficacy(df_incidences, df_cumsum, vaccine_params, waning)
+            # Add dummy efficacy for zero doses
+            df_efficacies = self.add_efficacy_no_vaccine(df_efficacies)
             # Save result
             dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
             if agg:
@@ -640,6 +642,8 @@ class make_vaccination_efficacy_function():
 
         # Compute some other relevant attributes
         self.available_dates = df_efficacies.index.get_level_values('date').unique()
+        self.n_VOCs = len(df_efficacies.index.get_level_values('VOC').unique())
+        self.n_doses = len(df_efficacies.index.get_level_values('dose').unique())
         self.N = len(age_classes)
         self.agg = agg
         try:
@@ -653,8 +657,76 @@ class make_vaccination_efficacy_function():
     ## Convert data to a format model understands ##
     ################################################
     
+    @lru_cache()
+    def __call__(self, t, efficacy):
+        """
+        Returns vaccine efficacy matrix of size [N, n_doses, n_VOCs] or [G, N, n_doses, n_VOCs] for the requested time t.
+
+        Input
+        -----
+        t : pd.Timestamp
+            Time at which you want to know the rescaling parameter matrix
+        rescaling_type : str
+            Either 'e_s', 'e_i' or 'e_h'
+            
+        Output
+        ------
+        E : np.array
+            Vaccine efficacy matrix at time t.
+        """
+
+        if efficacy not in self.df_efficacies.columns:
+            raise ValueError(
+                "valid vaccine efficacies are 'e_s', 'e_i', or 'e_h'.")
+
+        t = pd.Timestamp(t)
+
+        if t < min(self.available_dates):
+            # Take unity matrix
+            if self.agg:
+                E = np.zeros([self.n_VOCs, self.n_doses+1, self.G, self.N])
+            else:
+                E = np.zeros([self.n_VOCs, self.n_doses+1, self.N])
+
+        elif t <= max(self.available_dates):
+            # Take interpolation between dates for which data is available
+            t_data_first = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)-1])
+            t_data_second = pd.Timestamp(self.available_dates[np.argmax(self.available_dates >=t)])
+            if self.agg:
+                E_values_first = self.df_efficacies.loc[t_data_first, :, :, :,:][efficacy].to_numpy()
+                E_first = np.reshape(E_values_first, (self.G,self.N,self.n_doses,self.n_VOCs))
+                E_values_second = self.df_efficacies.loc[t_data_second, :, :, :, :][efficacy].to_numpy()
+                E_second = np.reshape(E_values_second, (self.G,self.N,self.n_doses,self.n_VOCs))
+            else:
+                E_values_first = self.df_efficacies.loc[t_data_first, :, :, :][efficacy].to_numpy()
+                E_first = np.reshape(E_values_first, (self.N,self.n_doses,self.n_VOCs))
+                E_values_second = self.df_efficacies.loc[t_data_second, :, :, :][efficacy].to_numpy()
+                E_second = np.reshape(E_values_second, (self.N,self.n_doses,self.n_VOCs))
+
+            # linear interpolation
+            E = E_first + (E_second - E_first) * (t - t_data_first).total_seconds() / (t_data_second - t_data_first).total_seconds()
+            
+        elif t > max(self.available_dates):
+            # Take last available data point
+            t_data = pd.Timestamp(max(self.available_dates))
+            if self.agg:
+                E_values = self.df_efficacies.loc[t_data, :, :, :, :][efficacy].to_numpy()
+                E = np.reshape(E_values, (self.G,self.N,self.n_doses,self.n_VOCs))
+            else:
+                E = self.df_efficacies.loc[t_data, :, :, :][efficacy].to_numpy()
+                E = np.reshape(E_values, (self.N,self.n_doses,self.n_VOCs))
+
+        return (1-E)
     
+    def E_susc(self, t, states, param):
+        return self.__call__(t, 'e_s')
     
+    def E_inf(self, t, states, param):
+        return self.__call__(t, 'e_i')
+    
+    def E_hosp(self, t, states, param):
+        return self.__call__(t, 'e_h')
+
     ######################
     ## Helper functions ##
     ######################
@@ -747,7 +819,25 @@ class make_vaccination_efficacy_function():
                             pbar.update(1)
                                 
         return df_efficacies
-    
+
+    @staticmethod
+    def add_efficacy_no_vaccine(df):
+
+        # Define a new dataframe with the desired age groups
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'dose':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [['none',] + list(df.index.get_level_values(index_name).unique())]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
+        # Perform a join operation, remove the left columns and fillna with zero
+        merged_df = new_df.join(df, how='left', lsuffix='_left', rsuffix='')
+        merged_df = merged_df.drop(columns=['e_s_left', 'e_i_left', 'e_h_left']).fillna(0)
+
+        return merged_df
+
     def age_conversion(self, df, desired_age_classes, agg):
         """
         A function to convert a dataframe of vaccine efficacies to another set of age groups `desired_age_classes` using demographic weighing
