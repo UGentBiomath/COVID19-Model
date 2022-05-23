@@ -684,9 +684,9 @@ class make_vaccination_efficacy_function():
         if t < min(self.available_dates):
             # Take unity matrix
             if self.agg:
-                E = np.zeros([self.n_VOCs, self.n_doses+1, self.G, self.N])
+                E = np.zeros([self.G, self.N, self.n_doses, self.n_VOCs])
             else:
-                E = np.zeros([self.n_VOCs, self.n_doses+1, self.N])
+                E = np.zeros([self.N, self.n_doses, self.n_VOCs, ])
 
         elif t <= max(self.available_dates):
             # Take interpolation between dates for which data is available
