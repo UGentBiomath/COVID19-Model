@@ -628,8 +628,13 @@ class make_vaccination_efficacy_function():
         # Throw out unwanted VOCs
         df_efficacies = df_efficacies.iloc[df_efficacies.index.get_level_values('VOC').isin(VOCs)]
         
-        # TODO: Age conversion
-        
+        # Check if an age conversion is necessary
+        age_conv=False
+        if len(age_classes) != len(df_efficacies.index.get_level_values('age').unique()):
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
+        elif (age_classes != df_efficacies.index.get_level_values('age').unique()).any():
+            df_efficacies = self.age_conversion(df_efficacies, age_classes, agg)
+
         # Assign efficacy dataset
         self.df_efficacies = df_efficacies
 
@@ -743,6 +748,65 @@ class make_vaccination_efficacy_function():
                                 
         return df_efficacies
     
+    def age_conversion(self, df, desired_age_classes, agg):
+        """
+        A function to convert a dataframe of vaccine efficacies to another set of age groups `desired_age_classes` using demographic weighing
+        
+        Inputs
+        ------
+        
+         df: pd.Series
+            Pandas series containing the vaccination incidences, indexed using a pd.Multiindex
+            Obtained using the function `covid19model.data.sciensano.get_public_spatial_vaccination_data()`
+            Must contain 'date', 'age' and 'dose' as indices for the national model
+            Must contain 'date', 'NIS', 'age', 'dose' as indices for the spatial model  
+            
+        desired_age_classes: pd.IntervalIndex
+            Age groups you want the vaccination incidence to be formatted in
+            Example: pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
+        
+        agg: str or None
+            Spatial aggregation level. `None` for the national model, 'prov' for the provincial level, 'arr' for the arrondissement level
+           
+        Returns
+        -------
+        
+        df_new: pd.DataFrame
+            Same pd.DataFrame containing the vaccination incidences, but uses the age groups in `desired_age_classes`
+        
+        """
+
+        from covid19model.data.utils import convert_age_stratified_property
+
+        # Define a new dataframe with the desired age groups
+        iterables=[]
+        for index_name in df.index.names:
+            if index_name != 'age':
+                iterables += [df.index.get_level_values(index_name).unique()]
+            else:
+                iterables += [desired_age_classes]
+        index = pd.MultiIndex.from_product(iterables, names=df.index.names)
+        new_df = pd.DataFrame(index=index, columns=df.columns, dtype=float)
+
+        # Loop to the dataseries level and perform demographic weighing
+        if agg:
+            with tqdm(total=len(df.index.get_level_values('date').unique())*len(df.index.get_level_values('NIS').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for NIS in df.index.get_level_values('NIS').unique():
+                        for dose in df.index.get_level_values('dose').unique():
+                            for VOC in df.index.get_level_values('VOC').unique():
+                                new_df.loc[date, NIS, slice(None), dose, VOC] = convert_age_stratified_property(df.loc[date, NIS, slice(None), dose, VOC], desired_age_classes, agg=agg, NIS=NIS).values
+                        pbar.update(1)
+        else:
+            with tqdm(total=len(df.index.get_level_values('date').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for dose in df.index.get_level_values('dose').unique():
+                        for VOC in df.index.get_level_values('VOC').unique():
+                            new_df.loc[(date, slice(None), dose, VOC),:] = convert_age_stratified_property(df.loc[date, slice(None), dose, VOC], desired_age_classes).values
+                    pbar.update(1)
+
+        return new_df
+
     @staticmethod
     def exponential_waning(delta_t, waning_days, E_best, E_waned):
         """
