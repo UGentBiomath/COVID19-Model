@@ -516,7 +516,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
         '2021-11-26', '2021-12-24', 0.19]
 
     # Define variant properties
-    VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
+    VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62, 1.62*0.30]

@@ -35,7 +35,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.models.utils import output_to_visuals
@@ -115,7 +115,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 else:
     model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 

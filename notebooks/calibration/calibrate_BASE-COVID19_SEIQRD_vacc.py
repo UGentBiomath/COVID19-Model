@@ -21,7 +21,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
@@ -113,7 +113,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 else:
     model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 
@@ -133,12 +133,12 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = 9#int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 5
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 6
+    multiplier_mcmc = 2
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.60),(1.20,2.4))
+    bounds3 = ((1.20,1.40),(1.30,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.40),)
@@ -183,7 +183,6 @@ if __name__ == '__main__':
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
-    #theta = [0.042, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.003] # spatial rescaling estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
     theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12, 0.002]
 
