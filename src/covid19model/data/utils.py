@@ -72,8 +72,13 @@ def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
         Converted data.
     """
 
-    # Pre-allocate new dataframe
-    out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
+    try:
+        # Dataframe?
+        out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
+    except:
+        # Series
+        out = pd.Series(index = age_classes, dtype=float)
+        
     if agg:
         out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
         demographics = construct_initN(None,agg).loc[NIS,:].values
