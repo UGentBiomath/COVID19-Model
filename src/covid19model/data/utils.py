@@ -51,15 +51,16 @@ def construct_initN(age_classes=None, agg=None):
     else:
         return initN.sum(axis=0)
 
-def convert_age_stratified_property(data, age_classes, agg=None):
+def convert_age_stratified_property(data, age_classes, agg=None, NIS=None):
     """ 
-    Given an age-stratified series of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
-    this function can convert the data into another user-defined age-stratification using demographic weighing
+    Given an age-stratified dataframe of a (non-cumulative) population property: [age_group_lower, age_group_upper] : property,
+    this function can convert the data into another user-defined age-stratification using demographic weighing.
+    Works for the spatial case.
 
     Parameters
     ----------
-    data: pd.Series
-        A series of age-stratified data. Index must be of type pd.Intervalindex.
+    data: pd.DataFrame
+        A dataframe of age-stratified data. Index must be the age groups and must be of type pd.Intervalindex. Dataframe can contain any arbitrary number of columns.
     
     age_classes : pd.IntervalIndex
         Desired age groups of the converted table.
@@ -67,15 +68,18 @@ def convert_age_stratified_property(data, age_classes, agg=None):
     Returns
     -------
 
-    out: pd.Series
+    out: pd.DataFrame
         Converted data.
     """
 
-    # Pre-allocate new series
-    out = pd.Series(index = age_classes, dtype=float)
-    out_n_individuals = construct_initN(age_classes, agg).values
-    # Extract demographics for all ages
-    demographics = construct_initN(None,agg).values
+    # Pre-allocate new dataframe
+    out = pd.DataFrame(index = age_classes, columns=data.columns, dtype=float)
+    if agg:
+        out_n_individuals = construct_initN(age_classes, agg).loc[NIS,:].values
+        demographics = construct_initN(None,agg).loc[NIS,:].values
+    else:
+        out_n_individuals = construct_initN(age_classes, agg).values
+        demographics = construct_initN(None,agg).values
     # Loop over desired intervals
     for idx,interval in enumerate(age_classes):
         result = []
