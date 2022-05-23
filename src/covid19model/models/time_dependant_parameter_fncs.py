@@ -732,7 +732,9 @@ class make_vaccination_efficacy_function():
     ######################
     
     def compute_weighted_efficacy(self, df, df_cumsum, vaccine_params, waning):
-        
+        """ Computes the average protection of the vaccines for every dose and every VOC, based on the vaccination incidence in every age group (and spatial patch) and subject to exponential vaccine waning
+        """ 
+
         VOCs = vaccine_params.index.get_level_values('VOC').unique()
         efficacies=vaccine_params.index.get_level_values('efficacy').unique()
     
@@ -822,6 +824,8 @@ class make_vaccination_efficacy_function():
 
     @staticmethod
     def add_efficacy_no_vaccine(df):
+        """Adds a dummy vaccine dose 'none' to the efficacy dataframe with zero efficacy
+        """
 
         # Define a new dataframe with the desired age groups
         iterables=[]
@@ -931,6 +935,8 @@ class make_vaccination_efficacy_function():
     
     @staticmethod
     def incidences_to_cumulative(df):
+        """Computes the cumulative number of vaccines based using the incidences dataframe
+        """
         levels = list(df.index.names)
         levels.remove("date")
         df_cumsum = df.groupby(by=levels).cumsum()
@@ -939,7 +945,8 @@ class make_vaccination_efficacy_function():
     
     @staticmethod
     def sum_oneshot_second(df):
-        
+        """ Sums vaccine dose 'B' and 'C' in the Sciensano dataset, corresponding to getting a second dose or getting the one-shot J&J vaccine
+        """
         # Add dose 'B' and 'C' together
         df[df.index.get_level_values('dose') == 'B'] = df[df.index.get_level_values('dose') == 'B'].values + df[df.index.get_level_values('dose') == 'C'].values
         # Remove dose 'C'
