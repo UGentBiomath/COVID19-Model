@@ -718,13 +718,13 @@ class make_vaccination_efficacy_function():
 
         return (1-E)
     
-    def E_susc(self, t, states, param):
+    def e_s(self, t, states, param):
         return self.__call__(t, 'e_s')
     
-    def E_inf(self, t, states, param):
+    def e_i(self, t, states, param):
         return self.__call__(t, 'e_i')
     
-    def E_hosp(self, t, states, param):
+    def e_h(self, t, states, param):
         return self.__call__(t, 'e_h')
 
     ######################
