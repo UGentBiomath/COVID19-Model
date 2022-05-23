@@ -254,7 +254,7 @@ class make_N_vacc_function():
         #####################
         
         # Window length of exponential moving average to smooth vaccine incidence
-        filter_length = 14
+        filter_length = 31
         # Parameters of hypothetical booster campaign
         weekly_doses = 7*30000
         vacc_order = list(range(len(age_classes)))[::-1]
