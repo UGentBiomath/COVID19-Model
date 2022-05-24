@@ -449,8 +449,32 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         mergedDf = mergedDf.rename(columns={'CUMULATIVE_y': 'CUMULATIVE', 'INCIDENCE_y': 'INCIDENCE'})
         mergedDf = mergedDf.fillna(0)
         df = mergedDf
+        df = df.index.set_levels(df.index.get_level_values('NIS').unique().astype(int), level='NIS')
         print(mergedDf)
 
+        ##############################################################################
+        ## Fix assignment of all (0,18[ vaccines into age group of (12,18[ in model ##
+        ##############################################################################
+
+        # For West-Flanders and East-Flanders province, cumulative vaccination degree surpasses 100% in age group [12,18( in the model by September 2021
+        # This is the longest loop of the update function
+        
+        # Loop over NIS
+        for NIS in df.index.get_level_values('NIS').unique():
+            # Compute n_individuals (12,18) in NIS
+            n_1218 = construct_initN(age_groups_model, 'mun').loc[NIS,pd.IntervalIndex.from_arrays([12,], [18,], closed='left')[0]]
+            # Compute n_individuals (6,12) in NIS    
+            n_612 = construct_initN(pd.IntervalIndex.from_arrays([0,6,12], [6, 12, 120], closed='left'), 'mun').loc[NIS,pd.IntervalIndex.from_arrays([6,], [12,], closed='left')[0]]
+            # Compute fraction in (12,18)
+            f_1218 = n_1218/(n_1218+n_612)   
+            # Loop over dose
+            for dose in df.index.get_level_values('dose').unique():
+                # Extract dataseries (12,18)
+                data = df.loc[(slice(None),NIS,pd.IntervalIndex.from_arrays([12,], [18,], closed='left')[0], dose)].values
+                # Take both INC and CUM dataseries of (12,18), assign to (0,12) and (12,18) using fractions
+                df.loc[(slice(None),NIS,pd.IntervalIndex.from_arrays([0,], [12,], closed='left')[0], dose),:] = (1-f_1218)*data
+                df.loc[(slice(None),NIS,pd.IntervalIndex.from_arrays([12,], [18,], closed='left')[0], dose),:] = f_1218*data
+                
         ##############################
         ## Save formatted dataframe ##
         ##############################
