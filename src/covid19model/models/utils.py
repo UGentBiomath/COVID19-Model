@@ -198,16 +198,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes)
     # Extract the smoothed dataframe
     df_incidences = N_vacc_function.df
-    # Convert the smoothed dataframe from daily to weekly frequency
-    groupers=[]
-    for index_name in df_incidences.index.names:
-        if index_name != 'date':
-            groupers += [pd.Grouper(level=index_name)]
-        else:
-            groupers += [pd.Grouper(level='date', freq='W-MON')]
-    df_incidences = df_incidences.groupby(groupers).sum()
     # Construct the efficacy function subject to waning
-    # TODO: update criterion
     efficacy_function = make_vaccination_efficacy_function(update=False, df_incidences=df_incidences, vaccine_params=vaccine_params,
                                               VOCs=VOCs, age_classes=age_classes)
 

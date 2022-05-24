@@ -608,6 +608,8 @@ class make_vaccination_efficacy_function():
         else:
             # Warn user this may take some time
             warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.", stacklevel=2)
+            # Downsample the incidences dataframe to weekly frequency, if weekly incidences are provided this does nothing. Not tested if the data frequency is higher than one week.
+            df_incidences = self.convert_frequency_WMON(df_incidences)
             # Add the one-shot J&J and the second doses together
             df_incidences = self.sum_oneshot_second(df_incidences)
             # Construct dataframe with cumulative sums
@@ -731,6 +733,18 @@ class make_vaccination_efficacy_function():
     ## Helper functions ##
     ######################
     
+    @staticmethod
+    def convert_frequency_WMON(df):
+        """Converts the frequency of the incidences dataframe to 'W-MON'. This is done to avoid using excessive computational resources."""
+        groupers=[]
+        for index_name in df.index.names:
+            if index_name != 'date':
+                groupers += [pd.Grouper(level=index_name)]
+            else:
+                groupers += [pd.Grouper(level='date', freq='W-MON')]
+        df = df.groupby(groupers).sum()
+        return df
+
     def compute_weighted_efficacy(self, df, df_cumsum, vaccine_params, waning):
         """ Computes the average protection of the vaccines for every dose and every VOC, based on the vaccination incidence in every age group (and spatial patch) and subject to exponential vaccine waning
         """ 
