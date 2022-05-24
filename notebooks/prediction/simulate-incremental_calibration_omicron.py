@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.data import sciensano
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import output_to_visuals, load_samples_dict
 
@@ -35,7 +35,6 @@ from covid19model.models.utils import output_to_visuals, load_samples_dict
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--filename", help="Samples dictionary name")
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 args = parser.parse_args()
@@ -114,7 +113,7 @@ df_hosp = df_hosp.groupby(by=['date']).sum()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration)
 
 ##############################
 ## Define sampling function ##

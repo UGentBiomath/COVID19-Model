@@ -23,7 +23,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import assign_PSO
@@ -58,27 +58,28 @@ if not os.path.exists(results_path):
 
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
-dose_stratification_size = len(df_vacc.index.get_level_values('dose').unique()) + 1
 
 ##########################
 ## Initialize the model ##
 ##########################
 
-# Start with infected individuals in first age group
-E = np.zeros([age_stratification_size,dose_stratification_size])
-E[0:3,0] = 200
 # Use predefined initialization 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, update=False)
+model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+# Derive dose stratification size
+dose_stratification_size = model.initial_states['S'].shape[1]
+# Start with infected individuals in first age group
+E0 = np.zeros([age_stratification_size,dose_stratification_size])
+E0[0:3,0] = 100
 # Ajust initial condition
 model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
-                             "E": E,
-                             "I": E
+                             "E": E0,
+                             "I": E0
                              })
 for key,value in model.initial_states.items():
     if ((key != 'S') & (key != 'E') & (key != 'I')):
         model.initial_states.update({key: np.zeros([age_stratification_size,dose_stratification_size])})
-# Set a fixed warmup time of one month
-warmup = 30
+# Set a fixed warmup time of 21 days (= time between Krokusvakantie en eerste datapunt)
+warmup = 21
 
 ######################################
 ## Find a good beta value using PSO ##
@@ -101,7 +102,7 @@ popsize = multiplier_pso*processes
 # run optimisation
 #theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
 #                    start_date=start_calibration, processes=processes, warmup=warmup)
-theta = [0.042,]
+theta = [model.parameters['beta'],]
 
 # Visualize new fit
 # Assign estimate
@@ -126,12 +127,7 @@ while not satisfied:
     model.initial_states['E'][0:3,0] = float(new_value[0])
     model.initial_states['I'][0:3,0] = float(new_value[0])
     warmup = float(new_value[1])
-    beta = float(new_value[2])
-    #theta = [new_value,]
-    # Visualize new fit
-    # Assign estimate
-    #pars_PSO = assign_PSO(model.parameters, pars, theta)
-    #model.parameters = pars_PSO
+    model.parameters['beta'] = float(new_value[2])
     # Perform simulation
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize fit
@@ -152,21 +148,7 @@ for date in dates:
     for state in out.data_vars:
         initial_states_per_date.update({state: out[state].sel(time=pd.to_datetime(date)).values})
     initial_states.update({date: initial_states_per_date})
-with open(results_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
-    pickle.dump(initial_states, fp)
-
-##############################################
-## Save initial states for the virgin model ##
-##############################################
-
-initial_states={}
-for date in dates:
-    initial_states_per_date = {}
-    for state in out.data_vars:
-        # Select first column only for non-dose stratified model
-        initial_states_per_date.update({state: out[state].sel(time=pd.to_datetime(date)).values[:,0]})
-    initial_states.update({date: initial_states_per_date})
-with open(results_path+'initial_states-COVID19_SEIQRD.pickle', 'wb') as fp:
+with open(results_path+'initial_states-COVID19_SEIQRD_hybrid_vacc.pickle', 'wb') as fp:
     pickle.dump(initial_states, fp)
 
 # Work is done

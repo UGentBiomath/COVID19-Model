@@ -376,6 +376,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
     pars_dict['dhospital'] = 6.4
+    pars_dict['zeta'] = 1/365
 
     #######################
     ## Dummy seasonality ##
@@ -449,7 +450,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not spatial:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_BASE_SAMPLES_2022-04-19.json'
+        base_dict_name = 'BE_test_hybrid_vacc_SAMPLES_2022-05-23.json'
         base_samples_dict = json.load(
             open(os.path.join(samples_path, base_dict_name)))
         pars_dict.update({
@@ -516,11 +517,11 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
         '2021-11-26', '2021-12-24', 0.19]
 
     # Define variant properties
-    VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 3.34, 2.34]
+    VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62, 1.62*0.30]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.70, 2.00, 3.00]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.50, 1.50, 3.00]
 
     ###############################################
     ## Build a dataframe with vaccine properties ##
@@ -577,15 +578,14 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # onset: 14 days for every vaccine dose
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 25
+        slice(None), ['partial', 'full', 'boosted']), 'onset_immunity'] = 14
 
     # waning:
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 175
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 200
 
-    # Cut everything not needed
+    # Cut everything not needed from the VOC dataframe
     VOC_parameters = VOC_parameters.loc[VOCs]
-    vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
 
     # Save a copy in a pickle
     VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)

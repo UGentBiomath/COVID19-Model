@@ -12,7 +12,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -38,7 +38,8 @@ def initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=10, VOCs=['
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
     from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
                                                                     make_VOC_function, \
-                                                                    make_vaccination_rescaling_function, \
+                                                                    make_N_vacc_function, \
+                                                                    make_vaccination_efficacy_function, \
                                                                     make_seasonality_function
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters, VOC
@@ -50,149 +51,41 @@ def initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=10, VOCs=['
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    # Load previous vaccine parameters and currently saved VOC/vaccine parameters
+    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
-    df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
+    # Using the weekly vaccination data
+    df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
     # Google Mobility data
     df_google = mobility.get_google_mobility_data(update=update_data)
 
-    ##############################################
-    ## Construct vaccination rescaling function ##
-    ##############################################
+    ##################################################
+    ## Construct time-dependent parameter functions ##
+    ##################################################
 
-    # Variants of concern
-    # Load previously saved VOC parameters and 
-    VOC_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/VOC_parameters.pkl'))
-    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
-    # Load currently saved VOC parameters
-    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
-    # Assert if there are differences in the VOC parameters, if yes, the rescaling dataframe must be updated
-    # If (vaccine) data is updated, so must the rescaling dataframe
+    # Time-dependent social contact matrix over all policies, updating Nc
+    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
+    # Time-dependent seasonality function, updating season_factor
+    seasonality_function = make_seasonality_function()
+    # Time-dependent (first) vaccination function, updating N_vacc. Hypothetical functions administers no boosters but extends the dataframe of incidences with half a year.
+    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_national.pkl'))
+    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, hypothetical_function=True)
+    # Extract the smoothed dataframe
+    df_incidences = N_vacc_function.df
+    # Check if the vaccination efficacies must be updated
     rescaling_update=False
-    if ((not VOC_params_previous.equals(VOC_params)) or (not vaccine_params_previous.equals(vaccine_params))):
+    if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
         rescaling_update = True
     elif update_data == True:
         rescaling_update = True
-
-    if rescaling_update == True:
-        # Load and format local vaccination-induced rescaling data
-        df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data)
-        # Compute the rescaling parameters
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, age_classes=age_classes, df_incidences=df_vacc, VOC_function=VOC_function, vaccine_params=vaccine_params)
-    else:
-        vaccination_rescaling_function = make_vaccination_rescaling_function(update=rescaling_update, age_classes=age_classes)
-
-    ##################################################
-    ## Construct time-dependent parameter functions ##
-    ##################################################
-
-    # Time-dependent social contact matrix over all policies, updating Nc
-    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
-    # Time-dependent vaccination-induced rescaling parameter functions, updating E_susc^g, E_inf^g, E_hosp^g
-    E_susc_function = vaccination_rescaling_function.E_susc
-    E_inf_function = vaccination_rescaling_function.E_inf
-    E_hosp_function = vaccination_rescaling_function.E_hosp
-    # Time-dependent seasonality function, updating season_factor
-    seasonality_function = make_seasonality_function()
-
-    ####################
-    ## Initial states ##
-    ####################
-
-    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-    if start_date == '2020-03-15':
-        with open(samples_path+'initial_states-COVID19_SEIQRD_rescaling_vacc.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
-    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
-        with open(samples_path+'summer_2021-COVID19_SEIQRD_rescaling_vacc.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
-    else:
-        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
-
-    # Convert to right age groups using demographic wheiging
-    for key,value in initial_states.items():
-        data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=value)
-        converted_value = convert_age_stratified_quantity(data, age_classes).values
-        initial_states.update({key: converted_value})
-
-    ##########################
-    ## Initialize the model ##
-    ##########################
-
-    time_dependent_parameters = {'Nc': policy_function,
-                                'seasonality': seasonality_function,
-                                'f_VOC': VOC_function,
-                                'E_susc': E_susc_function,
-                                'E_inf': E_inf_function,
-                                'E_hosp': E_hosp_function}
-
-    model = models.COVID19_SEIQRD_rescaling_vacc(initial_states, params, time_dependent_parameters=time_dependent_parameters)
-
-    return model, BASE_samples_dict, initN
-
-def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
-
-    ###########################################################
-    ## Convert age_stratification_size to desired age groups ##
-    ###########################################################
-
-    if age_stratification_size == 3:
-        age_classes = pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left')
-    elif age_stratification_size == 9:
-        age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
-    elif age_stratification_size == 10:
-        age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
-    else:
-        raise ValueError(
-            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
-        )
-
-    #####################################
-    ## Import necessary pieces of code ##
-    #####################################
-
-    # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import models
-    # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-    from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
-                                                                    make_VOC_function, \
-                                                                    make_vaccination_function, \
-                                                                    make_seasonality_function
-    # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-    from covid19model.data import mobility, sciensano, model_parameters, VOC
-    from covid19model.data.utils import convert_age_stratified_quantity
-
-    #########################
-    ## Load necessary data ##
-    #########################
-
-    # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-    # Load currently saved VOC parameters
-    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
-    # Sciensano hospital and vaccination data
-    df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
-    df_hosp = df_hosp.groupby(by=['date']).sum()
-    # Google Mobility data
-    df_google = mobility.get_google_mobility_data(update=update_data)
-
-    ##################################################
-    ## Construct time-dependent parameter functions ##
-    ##################################################
-
-    # Time-dependent VOC function, updating alpha
-    VOC_function = make_VOC_function(VOC_params['logistic_growth'])
-    # Time-dependent (first) vaccination function, updating N_vacc
-    vaccination_function = make_vaccination_function(df_vacc, age_classes=age_classes)
-    # Time-dependent social contact matrix over all policies, updating Nc
-    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
-    # Time-dependent seasonality function, updating season_factor
-    seasonality_function = make_seasonality_function()
+    # Construct the efficacy function subject to waning
+    efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                              VOCs=VOCs, age_classes=age_classes)
 
     ####################
     ## Initial states ##
@@ -201,18 +94,17 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
 
     if start_date == '2020-03-15':
-        with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+        with open(samples_path+'initial_states-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
 
     elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
-        with open(samples_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
     else:
         raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
 
-    # Convert to right age groups using demographic wheiging
     for key,value in initial_states.items():
         converted_value = np.zeros([len(age_classes),value.shape[1]])
         for i in range(value.shape[1]):
@@ -225,34 +117,23 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     ## Explicit vaccination module requires quite some parameters to be defined ##
     ##############################################################################
     
+    # TODO: Make this default after making the spatial version
+
     # Drop rescaling parameters
     for key in ['E_susc', 'E_inf', 'E_hosp']:
         params.pop(key)
-    # e_i
-    e_i = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_i[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_i']
-    # e_h
-    e_h = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_h[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_h']
-    # e_s
-    e_s = np.zeros([len(vaccine_params.index.get_level_values('VOC').unique()), len(vaccine_params.index.get_level_values('dose').unique())])
-    for idx,VOC in enumerate(vaccine_params.index.get_level_values('VOC').unique()):
-        e_s[idx,:] = vaccine_params.loc[VOC,slice(None)]['e_s']
+
+    # Define dummy vaccine efficacies
+    e_i = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_h = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_s = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
-                   'doses': np.zeros(len(df_vacc.index.get_level_values('dose').unique())+1),
-                   'refusal': 0.1*np.ones(len(age_classes)),
-                   'stop_idx': 9,
-                   'vacc_order': range(len(age_classes))[::-1],
+                   'doses': np.zeros(len(df_vacc.index.get_level_values('dose').unique())),
                    'e_i': e_i,
                    'e_s': e_s,
                    'e_h': e_h,
-                   'daily_doses': 60000,
-                   'delay_immunity': 10,
-                   'd_vacc': 365/2,
-                   'initN': initN
                    })
 
     ##########################
@@ -260,10 +141,13 @@ def initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=10, VOCs=[
     ##########################
 
     # Initialize model
-    model = models.COVID19_SEIQRD_stratified_vacc(initial_states, params,
+    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params,
                         time_dependent_parameters={'Nc': policy_function,
                                                    'seasonality': seasonality_function, 
-                                                   'N_vacc': vaccination_function,
+                                                   'N_vacc': N_vacc_function,
+                                                   'e_i' : efficacy_function.e_i,
+                                                   'e_s' : efficacy_function.e_s,
+                                                   'e_h' : efficacy_function.e_h,
                                                    'f_VOC':VOC_function})
 
     return model, BASE_samples_dict, initN
