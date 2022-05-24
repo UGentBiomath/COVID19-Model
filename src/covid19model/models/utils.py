@@ -255,8 +255,12 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     
     # Expand into stratified size
     for state,value in initial_states.items():
-        new_value = np.ones([value.shape[0], value.shape[1], D])
-        new_value[:,:,0] = value
+        if ((state == 'S') | (state == 'R')):
+            new_value = 0.1*np.ones([value.shape[0], value.shape[1], D])
+            new_value[:,:,0] = value
+        else:
+            new_value = np.zeros([value.shape[0], value.shape[1], D])
+            new_value[:,:,0] = value
         initial_states[state] = new_value
 
     # Convert to the right age groups
@@ -298,12 +302,11 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'Nc_work' : policy_function_work,
                                'place' : mobility_function,
                                'f_VOC' : VOC_function,
+                               'N_vacc' : N_vacc_function,
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
                                'e_h' : efficacy_function.e_h,
                                'seasonality' : seasonality_function}
-    import sys
-    sys.exit()
 
     model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, agg=agg, time_dependent_parameters=time_dependent_parameters)
 
@@ -394,8 +397,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
     policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
     # Time-dependent mobility function, updating P (place)
-    mobility_function = \
-        make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
+    mobility_function = make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
     # Time-dependent vaccination-induced rescaling parameter functions, updating E_susc^g, E_inf^g, E_hosp^g
     E_susc_function = vaccination_rescaling_function.E_susc
     E_inf_function = vaccination_rescaling_function.E_inf
