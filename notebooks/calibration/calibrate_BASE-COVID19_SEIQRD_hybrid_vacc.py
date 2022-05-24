@@ -21,13 +21,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
-from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
+from covid19model.visualization.optimization import plot_PSO
 
 #############################
 ## Handle script arguments ##
@@ -42,7 +42,6 @@ parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
-parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Backend
@@ -60,9 +59,6 @@ if args.identifier:
     identifier = 'BE_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
-# Vaccination type
-if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
-    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -112,10 +108,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
-else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 
 if __name__ == '__main__':
 
