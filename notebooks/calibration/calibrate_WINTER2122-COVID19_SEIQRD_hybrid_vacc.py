@@ -25,7 +25,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
-from covid19model.models.utils import initialize_COVID19_SEIQRD_stratified_vacc, initialize_COVID19_SEIQRD_rescaling_vacc
+from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
 from covid19model.optimization.nelder_mead import nelder_mead
@@ -52,7 +52,6 @@ parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
-parser.add_argument("-v", "--vaccination", help="Vaccination implementation: 'rescaling' or 'stratified'.", default='rescaling')
 args = parser.parse_args()
 
 # Backend
@@ -72,9 +71,6 @@ if args.identifier:
     identifier = f'BE_{identifier}'
 else:
     raise Exception("The script must have a descriptive name for its output.")
-# Vaccination type
-if ((args.vaccination != 'rescaling') & (args.vaccination != 'stratified')):
-    raise ValueError("Vaccination type should be 'rescaling' or 'stratified' instead of '{0}'.".format(args.vaccination))
 # Maximum number of PSO iterations
 n_pso = int(args.n_pso)
 # Maximum number of MCMC iterations
@@ -125,10 +121,7 @@ if not args.end_calibration:
 ## Initialize the model ##
 ##########################
 
-if args.vaccination == 'stratified':
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_stratified_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), update_data=update_data)
-else:
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_rescaling_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), update_data=update_data)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), update_data=update_data)
 
 if __name__ == '__main__':
 
