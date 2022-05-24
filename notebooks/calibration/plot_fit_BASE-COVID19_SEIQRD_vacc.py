@@ -225,27 +225,7 @@ if args.save:
     fig.savefig(fig_path+args.filename[:-5]+'_FIT.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-print('3) Visualizing fraction of immunes')
-
-fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=(12,8))
-ax[0].plot(df_2plot['S','mean'],'--', color='red')
-ax[0].fill_between(simtime, df_2plot['S','lower'], df_2plot['S','upper'],alpha=0.20, color = 'red')
-ax[0].plot(df_2plot['R','mean'],'--', color='green')
-ax[0].fill_between(simtime, df_2plot['R','lower'], df_2plot['R','upper'],alpha=0.20, color = 'green')
-ax[0].axvline(x='2021-12-01', linestyle = '--', color='black')
-ax[0].axvline(x='2022-01-01', linestyle = '--', color='black')
-ax[0].set_xlim(start_sim,end_sim)
-denominator = df_2plot['R','mean']['2021-12-07']
-ax[1].plot(df_2plot['R','mean']/denominator*100,'--', color='black')
-ax[1].fill_between(simtime, df_2plot['R','lower']/denominator*100, df_2plot['R','upper']/denominator*100,alpha=0.20, color = 'green')
-ax[1].axvline(x='2021-12-01', linestyle= '--', color='black')
-ax[1].axvline(x='2022-01-01', linestyle= '--', color='black')
-ax[1].set_xlim(start_sim,end_sim)
-plt.tight_layout()
-plt.show()
-plt.close()
-
-print('4) Visualizing fit on deaths (not working for 10 age groups)')
+print('3) Visualizing fit on deaths (not working for 10 age groups)')
 
 #dates = ['2021-02-01']
 
@@ -280,27 +260,17 @@ print('4) Visualizing fit on deaths (not working for 10 age groups)')
 ## Save states during summer of 2021 ##
 #######################################
 
-if args.vaccination == 'stratified':
-    print('5) Save states during summer of 2021')
-    import pickle
-    # Path where the pickle with initial conditions should be stored
-    pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
-    # Save initial states (stratified)
-    dates = ['2021-08-01', '2021-09-01']
-    initial_states={}
-    for date in dates:
-        initial_states_per_date = {}
-        for state in out.data_vars:
-            initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
-        initial_states.update({date: initial_states_per_date})
-    with open(pickle_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'wb') as fp:
-        pickle.dump(initial_states, fp)
-    # Save initial states (rescaling)
-    initial_states={}
-    for date in dates:
-        initial_states_per_date = {}
-        for state in out.data_vars:
-            initial_states_per_date.update({state: out[state].mean(dim='draws').sum(dim='doses').sel(time=pd.to_datetime(date)).values})
-        initial_states.update({date: initial_states_per_date})
-    with open(pickle_path+'summer_2021-COVID19_SEIQRD_rescaling_vacc.pickle', 'wb') as fp:
-        pickle.dump(initial_states, fp)
+print('4) Save states during summer of 2021')
+import pickle
+# Path where the pickle with initial conditions should be stored
+pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+# Save initial states
+dates = ['2021-08-01', '2021-09-01']
+initial_states={}
+for date in dates:
+    initial_states_per_date = {}
+    for state in out.data_vars:
+        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
+    initial_states.update({date: initial_states_per_date})
+with open(pickle_path+'summer_2021-COVID19_SEIQRD_hybrid_vacc.pickle', 'wb') as fp:
+    pickle.dump(initial_states, fp)

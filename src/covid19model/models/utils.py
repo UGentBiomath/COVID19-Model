@@ -217,23 +217,20 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
 
     if start_date == '2020-03-15':
-        with open(samples_path+'initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+        with open(samples_path+'initial_states-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
 
     elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
-        with open(samples_path+'summer_2021-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+        with open(samples_path+'summer_2021-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
     else:
         raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
 
-    # Convert to right age groups using demographic wheiging
-    # TODO: Convert from size [number_age_groups x 5 doses] to [number_age_groups x 4 doses]
-
     for key,value in initial_states.items():
-        converted_value = np.zeros([len(age_classes),value.shape[1]-1])
-        for i in range(value.shape[1]-1):
+        converted_value = np.zeros([len(age_classes),value.shape[1]])
+        for i in range(value.shape[1]):
             column = value[:,i]
             data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
             converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
