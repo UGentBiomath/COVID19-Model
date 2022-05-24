@@ -584,9 +584,8 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters.loc[(
         slice(None), ['partial', 'full', 'boosted']), 'waning'] = 200
 
-    # Cut everything not needed
+    # Cut everything not needed from the VOC dataframe
     VOC_parameters = VOC_parameters.loc[VOCs]
-    #vaccine_parameters = vaccine_parameters.loc[VOCs, slice(None)]
 
     # Save a copy in a pickle
     VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)

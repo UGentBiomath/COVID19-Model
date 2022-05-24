@@ -174,7 +174,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     # Population size, interaction matrices and the model parameters
     initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-    # Load currently saved VOC parameters
+    # Load previous vaccine parameters and currently saved VOC/vaccine parameters
+    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
@@ -194,12 +195,19 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
-    # Time-dependent (first) vaccination function, updating N_vacc
-    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes)
+    # Time-dependent (first) vaccination function, updating N_vacc. Hypothetical functions administers no boosters but extends the dataframe of incidences with half a year.
+    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_national.pkl'))
+    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, hypothetical_function=True)
     # Extract the smoothed dataframe
     df_incidences = N_vacc_function.df
+    # Check if the vaccination efficacies must be updated
+    rescaling_update=False
+    if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
+        rescaling_update = True
+    elif update_data == True:
+        rescaling_update = True
     # Construct the efficacy function subject to waning
-    efficacy_function = make_vaccination_efficacy_function(update=False, df_incidences=df_incidences, vaccine_params=vaccine_params,
+    efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, df_incidences=df_incidences, vaccine_params=vaccine_params,
                                               VOCs=VOCs, age_classes=age_classes)
 
     ####################

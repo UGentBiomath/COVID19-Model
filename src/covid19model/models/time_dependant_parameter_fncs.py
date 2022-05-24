@@ -260,7 +260,7 @@ class make_N_vacc_function():
         vacc_order = list(range(len(age_classes)))[::-1]
         stop_idx = len(age_classes)
         refusal = 0.1*np.ones(len(age_classes))
-        extend_weeks = 24        
+        extend_weeks = 26
         
         ############################################################
         ## Check if Sciensano changed the definition of the doses ##
@@ -299,10 +299,19 @@ class make_N_vacc_function():
 
         df = self.smooth_incidences(df, filter_length, agg)
         
+        #########################
+        ## Step 4: Save a copy ##
+        ######################### 
+
+        if agg:
+            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_incidence_{agg}.pkl"))
+        else:
+            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_incidence_national.pkl"))
+
         ##################################################
-        ## Step 4: Assign relevant (meta)data to object ##
-        ##################################################
-        
+        ## Step 5: Assign relevant (meta)data to object ##
+        ##################################################        
+
         # Dataframe 
         self.df = df
         # Number of spatial patches
