@@ -515,6 +515,13 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM, dC, dC_icurec, dICUstar, dR, dD, dH_in, dH_out, dH_tot)
 
+class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
+
+    @staticmethod
+    def integrate(t):
+        pass
+    
+
 class COVID19_SEIQRD_spatial_rescaling(BaseModel):
     """
     SEIQRD model identical to COVID19_SEIQRD_spatial_stratified_vacc, but built to implement the VOC, vaccination, and seasonality effects as a rescaling parameter from a time-dependent parameter function, rather than additional metapopulation compartments. Hopefully this will establish a significant speed-up. In particular in combination with the just-in-time addition.
