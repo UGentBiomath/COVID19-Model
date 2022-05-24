@@ -109,6 +109,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+model.parameters['zeta'] = 1/365
 
 if __name__ == '__main__':
 
@@ -131,7 +132,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 30
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -167,17 +168,17 @@ if __name__ == '__main__':
     pars4 = ['amplitude',]
     bounds4 = ((0,0.40),)
     # Waning antibody immunity
-    pars5 = ['zeta',]
-    bounds5 = ((1e-6,1e-2),)
+    #pars5 = ['zeta',]
+    #bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
-    theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12, 0.002]
+    theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -242,20 +243,20 @@ if __name__ == '__main__':
     log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
-    pert1 = [0.03,]
+    pert1 = [0.05,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.20, 0.20, 0.20, 0.20, 0.20]
+    pert2 = [0.30, 0.30, 0.30, 0.30, 0.30]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.10, 0.10]
+    pert3 = [0.30, 0.30]
     # pars4 = ['amplitude']
-    pert4 = [0.50,] 
+    pert4 = [0.10,] 
     # pars5 = ['zeta',]
-    pert5 = [0.20,]
+    #pert5 = [0.20,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A', '$\zeta$']
+    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
