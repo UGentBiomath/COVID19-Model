@@ -287,7 +287,7 @@ def initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=10, agg=
         for key in ['f_VOC', 'E_susc', 'E_inf', 'E_hosp']:
             time_dependent_parameters.pop(key)
 
-    model = COVID19_SEIQRD_spatial_rescaling(initial_states, params, spatial='prov', time_dependent_parameters=time_dependent_parameters)
+    model = COVID19_SEIQRD_spatial_rescaling(initial_states, params, agg=agg, time_dependent_parameters=time_dependent_parameters)
 
     return model, BASE_samples_dict, initN
 
