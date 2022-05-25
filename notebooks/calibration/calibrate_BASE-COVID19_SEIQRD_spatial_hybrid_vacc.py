@@ -162,7 +162,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 6
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.15, 1.60),(1.25,2.00))
+    bounds3 = ((1.15, 1.50),(1.25,2.00))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -209,8 +209,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
-    theta = [0.0398, 0.0407, 0.0517, 0.2, 0.2, 0.38, 0.4, 0.2, 1.3, 1.35, 0.15]
+    theta = [0.0398, 0.042, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
 
     ####################################
     ## Local Nelder-mead optimization ##
