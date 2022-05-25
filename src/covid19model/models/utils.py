@@ -113,16 +113,10 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
             converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
-    ##############################################################################
-    ## Explicit vaccination module requires quite some parameters to be defined ##
-    ##############################################################################
+    ##########################################################################
+    ## Vaccination module requires some additional parameters to be defined ##
+    ##########################################################################
     
-    # TODO: Make this default after making the spatial version
-
-    # Drop rescaling parameters
-    for key in ['E_susc', 'E_inf', 'E_hosp']:
-        params.pop(key)
-
     # Define dummy vaccine efficacies
     e_i=e_s=e_h=np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
 
@@ -267,16 +261,10 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                 converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
-    ##############################################################################
-    ## Explicit vaccination module requires quite some parameters to be defined ##
-    ##############################################################################
+    ##########################################################################
+    ## Vaccination module requires some additional parameters to be defined ##
+    ##########################################################################
     
-    # TODO: Make this default after making the spatial version
-
-    # Drop rescaling parameters
-    for key in ['E_susc', 'E_inf', 'E_hosp']:
-        params.pop(key)
-
     # Define dummy vaccine efficacies
     e_i=e_h=e_s = np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
     

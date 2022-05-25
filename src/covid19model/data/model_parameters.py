@@ -433,16 +433,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
         pars_dict['Nc_work'] = Nc_dict['work']
 
-    #################################
-    ## Dummy rescaling vaccination ##
-    #################################
-
-    if agg:
-        # Value of one equals no vaccination --> value is modified in time-dependant parameter function
-        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones([G, age_stratification_size])
-    else:
-        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones(age_stratification_size)
-
     ############################
     ## BASE fitted parameters ##
     ############################
