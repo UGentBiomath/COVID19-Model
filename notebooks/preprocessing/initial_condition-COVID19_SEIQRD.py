@@ -65,44 +65,45 @@ df_hosp = df_hosp.groupby(by=['date']).sum()
 
 # Use predefined initialization 
 model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+
+##############################
+## Change initial condition ##
+##############################
+
 # Derive dose stratification size
-dose_stratification_size = model.initial_states['S'].shape[1]
+D = model.initial_states['S'].shape[1]
 # Start with infected individuals in first age group
-E0 = np.zeros([age_stratification_size,dose_stratification_size])
-E0[0:6,0] = 100
+E0 = np.zeros([age_stratification_size,D])
+E0[0:6,0] = 10000
 # Ajust initial condition
-model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
+model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
                              "E": E0,
                              "I": E0
                              })
 for key,value in model.initial_states.items():
     if ((key != 'S') & (key != 'E') & (key != 'I')):
-        model.initial_states.update({key: np.zeros([age_stratification_size,dose_stratification_size])})
+        model.initial_states.update({key: np.zeros([age_stratification_size,D])})
+
+#########################
+## Set warmup and beta ##
+#########################
+
 # Set a fixed warmup time of 21 days (= time between Krokusvakantie en eerste datapunt)
 warmup = 2
+# Set beta to an estimate that is close to the value from the calibrations
+model.parameters['beta'] = 0.04
+theta = [model.parameters['beta'],]
+pars=['beta',]
 
-######################################
-## Find a good beta value using PSO ##
-######################################
+###################################################################
+## Manually find a good number of corresponding initial infected ##
+###################################################################
 
 # Define dataset
 start_calibration=df_hosp.index.min()
 end_calibration='2020-05-01'
 end_visualization=end_calibration
 data=[df_hosp['H_in'][start_calibration:end_calibration]]
-# Define state to calibrate to
-states = ["H_in"]
-# Define PSO settings
-pars = ['beta']
-bounds=((0.010,0.050),)
-processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count())/2-1)
-multiplier_pso = 30
-maxiter = n_pso
-popsize = multiplier_pso*processes
-# run optimisation
-#theta = pso.fit_pso(model,data,pars,states,bounds,maxiter=maxiter,popsize=popsize,
-#                    start_date=start_calibration, processes=processes, warmup=warmup)
-theta = [model.parameters['beta'],]
 
 # Visualize new fit
 # Assign estimate
@@ -111,27 +112,21 @@ model.parameters = pars_PSO
 # Perform simulation
 out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 # Visualize fit
-ax = plot_PSO(out, data, states, pd.to_datetime(start_calibration)-pd.Timedelta(days=warmup), end_visualization)
+ax = plot_PSO(out, data, ['H_in',], pd.to_datetime(start_calibration)-pd.Timedelta(days=warmup), end_visualization)
 plt.show()
 plt.close()
 
-####################################
-## Ask the user for manual tweaks ##
-####################################
-
-satisfied = not click.confirm('Do you want to make manual tweaks to beta?', default=False)
+satisfied = not click.confirm('Do you want to make manual tweaks to the initial number of infected?', default=False)
 while not satisfied:
     # Prompt for input
     import ast
-    new_value = ast.literal_eval(input("What should the initial number of infected be?"))
-    model.initial_states['E'][0:6,0] = float(new_value[0])
-    model.initial_states['I'][0:6,0] = float(new_value[0])
-    warmup = float(new_value[1])
-    model.parameters['beta'] = float(new_value[2])
+    new_value = ast.literal_eval(input("What should the initial number of infected be? "))
+    model.initial_states['E'][0:6,0] = float(new_value)
+    model.initial_states['I'][0:6,0] = float(new_value)
     # Perform simulation
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize fit
-    ax = plot_PSO(out, data, states, pd.to_datetime(start_calibration)-pd.Timedelta(days=warmup), end_visualization)
+    ax = plot_PSO(out, data, ['H_in',], pd.to_datetime(start_calibration)-pd.Timedelta(days=warmup), end_visualization)
     plt.show()
     plt.close()
     # Satisfied?
