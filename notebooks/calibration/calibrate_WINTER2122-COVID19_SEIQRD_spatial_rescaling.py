@@ -1,5 +1,5 @@
 """
-This script contains a calibration of national COVID-19 SEIQRD model to hospitalization data in Belgium starting in the summer of 2021.
+This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium starting in the summer of 2021.
 
 python npy_to_samples_dict.py -f BE_WINTER2122_2022-01-17.npy -k 'beta' 'mentality' 'K_inf_omicron' 'K_hosp_omicron' -ak 'warmup' 'n_chains' 'start_calibration' 'end_calibration' -av 0 20 2020-08-01 2022-xx-xx
 python emcee-manual-thinning.py -f BE_WINTER2122_2022-01-17.json -n 20 -k 'beta' 'mentality' 'K_inf_omicron' 'K_hosp_omicron' -l '$\beta$' '$M$' '$K_{inf, omicron}$' '$K_{hosp, omicron}$' -r '(0.06,0.08)' '(0,1)' '(0,2.5)' '(0,1)' -d xxx -t xx -s
@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
 # Import packages containing functions to load in necessary data
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
@@ -135,7 +135,7 @@ if not args.end_calibration:
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(update_data=update_data, age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), agg=agg)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(update_data=update_data, age_stratification_size=age_stratification_size, VOCs=['delta', 'omicron'], start_date=start_calibration.strftime("%Y-%m-%d"), agg=agg)
 
 ##########################################
 ## Visualize the vaccination efficacies ##

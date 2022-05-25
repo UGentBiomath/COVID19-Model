@@ -41,13 +41,12 @@ class BaseModel:
     state_2d = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False, spatial=None):
+                 discrete=False, agg=None):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
-        self.spatial = spatial
-
+        self.agg = agg
         if self.stratification:
             self.stratification_size = []
             for axis in self.stratification:
@@ -271,20 +270,14 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
-        spatial_options = {'mun', 'arr', 'prov'}
-        if self.spatial:
-            # verify wether the spatial parameter value is OK
-            if self.spatial not in spatial_options:
+        agg_options = {'mun', 'arr', 'prov'}
+        if self.agg:
+            # verify wether the agg parameter value is OK
+            if self.agg not in agg_options:
                 raise ValueError(
-                    f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
+                    f"'agg={self.agg}' is not a valid choice. Choose from '{agg_options}'"
                 )
         
-        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argumen
-        #elif self.coordinates and ('place' in self.coordinates):
-        #    raise ValueError(
-        #        f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
-        #    )
-
         # Call integrate function with initial values to check if the function returns all states
         fun = self._create_fun(None)
         y0 = list(itertools.chain(*self.initial_states.values()))
@@ -542,8 +535,8 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    if (self.coordinates[i] == 'place') and self.spatial:
-                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    if (self.coordinates[i] == 'place') and self.agg:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.agg)})
                     elif self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:

@@ -269,7 +269,7 @@ def get_proximus_mobility_data(agg):
         # Create list of datetime objects
         all_available_dates.append(pd.to_datetime(datum, format="%Y%m%d"))
         # Load the CSV as a np.array
-        place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values#.drop(index='Foreigner', columns='ABROAD').values
+        place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
         # Create list of places
         all_available_places.append(place)
     # Create new empty dataframe with available dates. Load mobility later

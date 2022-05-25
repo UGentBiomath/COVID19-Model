@@ -22,7 +22,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
 # Import packages containing functions to load in necessary data
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
@@ -132,7 +132,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
 
 if __name__ == '__main__':
 
@@ -189,24 +189,24 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.60),(1.30,2.00))
+    bounds3 = ((1.15, 1.60),(1.25,2.00))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
     # Waning antibody immunity
-    pars5 = ['zeta',]
-    bounds5 = ((1e-4,6e-3),)
+    #pars5 = ['zeta',]
+    #bounds5 = ((1e-4,6e-3),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 + pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
+    bounds = bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
     # Setup objective function without priors and with negative weights 
     #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29, 0.002] # Derived from Calibration 2022-04-10
-    theta = [0.0398, 0.0407, 0.0517, 0.2, 0.2, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12, 0.002] # A fresh start
+    theta = [0.0398, 0.0407, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
+    theta = [0.0398, 0.0407, 0.0517, 0.2, 0.2, 0.38, 0.4, 0.2, 1.3, 1.35, 0.15]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -306,15 +306,15 @@ if __name__ == '__main__':
     # pars4 = ['amplitude']
     pert4 = [0.80,] 
     # pars5 = ['zeta']
-    pert5 = [0.10,]
+    #pert5 = [0.10,]
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
                 '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
-                '$A$', \
-                '$\zeta$']
+                '$A$']
+                #'$\zeta$']
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Set up the sampler backend if needed
@@ -359,7 +359,7 @@ if __name__ == '__main__':
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
-        'warmup' : warmup,
+        'warmup' : 0,
         'start_date_FULL' : start_calibration,
         'end_date_FULL': end_calibration,
         'n_chains_FULL' : nwalkers
