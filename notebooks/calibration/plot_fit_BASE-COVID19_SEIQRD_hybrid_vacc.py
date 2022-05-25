@@ -120,7 +120,7 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 ## Perform simulations ##
 #########################
 
-print('\n1) Simulating COVID19_SEIQRD_stratified_vacc '+str(args.n_samples)+' times')
+print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
 out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
