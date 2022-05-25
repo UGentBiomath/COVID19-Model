@@ -124,9 +124,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         params.pop(key)
 
     # Define dummy vaccine efficacies
-    e_i = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
-    e_h = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
-    e_s = np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_i=e_s=e_h=np.ones([len(age_classes), len(efficacy_function.df_efficacies.index.get_level_values('dose').unique()), len(vaccine_params.index.get_level_values('VOC').unique())])
 
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
