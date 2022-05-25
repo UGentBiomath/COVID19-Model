@@ -114,7 +114,7 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_national as draw_fcn
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as draw_fcn
 
 #########################
 ## Perform simulations ##

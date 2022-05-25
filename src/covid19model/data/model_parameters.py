@@ -376,7 +376,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
     pars_dict['dhospital'] = 6.4
-    pars_dict['zeta'] = 1/365
+    pars_dict['zeta'] = np.log(2)/365 # one year
 
     #######################
     ## Dummy seasonality ##
@@ -450,12 +450,11 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not spatial:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_test_hybrid_vacc_SAMPLES_2022-05-23.json'
+        base_dict_name = 'BE_BASE_hybrid_vacc_SAMPLES_2022-05-24.json'
         base_samples_dict = json.load(
             open(os.path.join(samples_path, base_dict_name)))
         pars_dict.update({
             'beta': np.mean(base_samples_dict['beta']),
-            'zeta': np.mean(base_samples_dict['zeta']),
             'eff_schools': np.mean(base_samples_dict['eff_schools']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),

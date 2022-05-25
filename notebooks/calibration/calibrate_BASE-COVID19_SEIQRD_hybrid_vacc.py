@@ -109,7 +109,6 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
-model.parameters['zeta'] = 1/365
 
 if __name__ == '__main__':
 
@@ -132,9 +131,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 30
+    multiplier_mcmc = 15
     max_n = n_mcmc
-    print_n = 20
+    print_n = 10
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
@@ -163,7 +162,7 @@ if __name__ == '__main__':
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.40),(1.30,2.4))
+    bounds3 = ((1.20,1.60),(1.30,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.40),)
