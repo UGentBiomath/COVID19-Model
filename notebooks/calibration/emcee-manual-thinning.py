@@ -92,9 +92,9 @@ samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args
 # -------------------------------------------------------
 
 # Chains schools
-idx = np.mean(samples[:,:,3],axis=0) >= 0.05
-print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
-samples=samples[:,idx,:]
+#idx = np.mean(samples[:,:,3],axis=0) >= 0.05
+#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
+#samples=samples[:,idx,:]
 
 # Convert to flat samples
 flat_samples = samples[:,0,:]
