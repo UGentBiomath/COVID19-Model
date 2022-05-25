@@ -32,6 +32,10 @@ from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
+# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
+# The following line of code prevents this from happening
+os.environ["OMP_NUM_THREADS"] = "1"
+
 ####################################
 ## Public or private spatial data ##
 ####################################
