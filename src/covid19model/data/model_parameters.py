@@ -196,7 +196,7 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
 
 
 def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left'),
-                                  spatial=None):
+                                  agg=None):
     """
     Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
@@ -212,7 +212,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
         10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
 
-    spatial : string
+    agg : string
         Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
         'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
         mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
@@ -248,7 +248,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         c : probability of hospitalisation in Cohort (non-ICU)
         m_C : mortality in Cohort
         m_ICU : mortality in ICU
-        p : mobility parameter per region. Only loads when spatial is not None
+        p : mobility parameter per region. Only loads when agg is not None
 
         Spatially stratified parameters
         -------------------------------
@@ -274,15 +274,15 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Initial population ##
     ########################
 
-    if spatial:
-        if spatial not in ['mun', 'arr', 'prov', 'test']:
+    if agg:
+        if agg not in ['mun', 'arr', 'prov', 'test']:
             raise ValueError(
                 "spatial stratification '{0}' is not legitimate. Possible spatial "
                 "stratifications are 'mun', 'arr', 'prov' or 'test'".format(
-                    spatial)
+                    agg)
             )
 
-    initN = construct_initN(age_classes, spatial)
+    initN = construct_initN(age_classes, agg)
     age_stratification_size = len(age_classes)
     if age_stratification_size == 3:
         age_path = '0_20_60/'
@@ -399,11 +399,11 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Spatial parameters ##
     ########################
 
-    if spatial:
+    if agg:
 
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
-        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + spatial + '.csv'
+        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
         mobility_df = pd.read_csv(os.path.join(
             abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
@@ -417,7 +417,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
         pars_dict['place'] = NIS
         # Read areas per region, ordered in ascending NIS values
-        area_data = '../../../data/interim/demographic/area_' + spatial + '.csv'
+        area_data = '../../../data/interim/demographic/area_' + agg + '.csv'
         area_df = pd.read_csv(os.path.join(
             abs_dir, area_data), index_col='NIS')
         # Make sure the regions are ordered well
@@ -437,7 +437,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Dummy rescaling vaccination ##
     #################################
 
-    if spatial:
+    if agg:
         # Value of one equals no vaccination --> value is modified in time-dependant parameter function
         pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones([G, age_stratification_size])
     else:
@@ -447,7 +447,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## BASE fitted parameters ##
     ############################
 
-    if not spatial:
+    if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
         base_dict_name = 'BE_BASE_hybrid_vacc_SAMPLES_2022-05-24.json'
@@ -472,7 +472,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
             'beta_M': np.mean(base_samples_dict['beta_M']),
-            'zeta': np.mean(base_samples_dict['zeta']),
             'eff_schools': np.mean(base_samples_dict['eff_schools']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),

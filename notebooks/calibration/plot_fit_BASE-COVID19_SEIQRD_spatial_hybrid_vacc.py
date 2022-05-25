@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_poisson, add_negative_binomial
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
@@ -111,13 +111,13 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
 
 #######################
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial as draw_fnc
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
 
 #########################
 ## Perform simulations ##
@@ -138,13 +138,13 @@ fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
 # National
 # Visualize structural uncertainty
-mean = out['H_in'].sum(dim='Nc').sum(dim='place').mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
-lower = out['H_in'].sum(dim='Nc').sum(dim='place').quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
-upper = out['H_in'].sum(dim='Nc').sum(dim='place').quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
+mean = out['H_in'].sum(dim='Nc').sum(dim='place').sum(dim='doses').mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
+lower = out['H_in'].sum(dim='Nc').sum(dim='place').sum(dim='doses').quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
+upper = out['H_in'].sum(dim='Nc').sum(dim='place').sum(dim='doses').quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
 ax[0].plot(simtime, mean, '--', color='blue', linewidth=1)
 ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
 # Visualize negative binomial uncertainty
-mean = out['H_in'].sum(dim='Nc').sum(dim='place').mean(dim='draws').values
+mean = out['H_in'].sum(dim='Nc').sum(dim='place').sum(dim='doses').mean(dim='draws').values
 # Initialize a column vector to append to
 vector = np.zeros((len(simtime),1))
 # Loop over number of negative binomial draws
@@ -180,7 +180,7 @@ for idx,NIS_list in enumerate(NIS_lists):
     data = 0
     pop = 0
     for NIS in NIS_list:
-        mean = mean + out['H_in'].sel(place=NIS).sum(dim='Nc').values
+        mean = mean + out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values
         data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
         pop = pop + sum(initN.loc[NIS].values)
 
@@ -207,7 +207,7 @@ print('3) Visualizing provincial fit')
 fig,ax = plt.subplots(nrows=int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[0:int(np.floor(len(out.coords['place'])/2)+1)]):
     pop = sum(initN.loc[NIS].values)
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop*100000
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -225,7 +225,7 @@ plt.close()
 fig,ax = plt.subplots(nrows=len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(out.coords['place'].values[(len(out.coords['place']) - int(np.floor(len(out.coords['place'])/2)+1)+1):]):
     pop = sum(initN.loc[NIS].values)
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').values, dispersion, args.n_draws_per_sample)/pop*100000
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
     ax[idx].plot(simtime, mean,'--', color='blue')
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
     ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -243,7 +243,7 @@ print('4) Visualize the seroprevalence fit')
 
 # Plot fraction of immunes
 
-mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='place').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='place').sum(dim='doses').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
 
 fig,ax = plt.subplots(figsize=(12,4))
 ax.plot(simtime,mean,'--', color='blue')
