@@ -71,18 +71,10 @@ df_hosp = df_hosp.loc[(slice(None), slice(None)), 'H_in']
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=args.agg)
 
-#######################################################
-## Set parameter values of all calibrated parameters ##
-#######################################################
-
-# This is done by default in model_parameters, make sure the right BASE dictionary is provided
-
 ##############################
 ## Change initial condition ##
 ##############################
 
-# Warmup of one month by default
-warmup = 2
 # Determine size of space and dose stratification size
 G = model.initial_states['S'].shape[0]
 N = model.initial_states['S'].shape[1]
@@ -97,17 +89,22 @@ for state,value in model.initial_states.items():
     if ((state != 'S') & (state != 'E') & (state != 'I')):
         model.initial_states.update({state: np.zeros([G,N,D])})
 
-#######################################
-## Write a custom objective function ##
-#######################################
+##########################
+## Set warmup and beta ##
+#########################
 
+# Warmup of two days
+warmup = 2
 # Set beta
 theta = [0.04, 0.04, 0.05]
 pars = ['beta_R', 'beta_U', 'beta_M']
 model.parameters['beta_R'] = theta[0]
 model.parameters['beta_U'] = theta[1]
 model.parameters['beta_M'] = theta[2]
-model.parameters['l1'] = 7
+
+###########################################
+## Visualize the result per spatial unit ##
+###########################################
 
 # Start- and enddates of visualizations
 start_calibration=df_hosp.index.get_level_values('date').min()
@@ -115,9 +112,6 @@ end_calibration='2020-05-01'
 end_visualization=end_calibration
 data=[df_hosp[start_calibration:end_calibration],]
 
-###########################################
-## Visualize the result per spatial unit ##
-###########################################
 
 # for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 #     # Assign estimate
@@ -140,10 +134,10 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     plt.show()
 #     plt.close()
 
-#     satisfied = not click.confirm('Do you want to make manual tweaks to beta?', default=False)
+#     satisfied = not click.confirm('Do you want to make manual tweaks to initial number of infected?', default=False)
 #     while not satisfied:
 #         # Prompt for input
-#         val = input("What should the value of beta be? ")
+#         val = input("What should the initial number of infected be? ")
 #         model.initial_states['E'][idx,0:6,0] = val
 #         model.initial_states['I'][idx,0:6,0] = val
 #         # Assign estimate
