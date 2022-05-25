@@ -247,19 +247,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
     if ((start_date == '2020-03-23') | (start_date == '2020-03-22') | (start_date == '2020-03-21') | (start_date == '2020-03-20') | (start_date == '2020-03-19') |
         (start_date == '2020-03-18') | (start_date == '2020-03-17') | (start_date == '2020-03-16') | (start_date == '2020-03-15') ) :
-        with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_rescaling.pickle', 'rb') as handle:
+        with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_hybrid_vacc.pickle', 'rb') as handle:
             load = pickle.load(handle)
             initial_states = load[start_date]
-    
-    # Expand into stratified size
-    for state,value in initial_states.items():
-        if ((state == 'S') | (state == 'R')):
-            new_value = 0.1*np.ones([value.shape[0], value.shape[1], D])
-            new_value[:,:,0] = value
-        else:
-            new_value = np.zeros([value.shape[0], value.shape[1], D])
-            new_value[:,:,0] = value
-        initial_states[state] = new_value
 
     # Convert to the right age groups
     for key,value in initial_states.items():

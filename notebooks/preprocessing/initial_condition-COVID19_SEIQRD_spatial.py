@@ -25,7 +25,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.data import sciensano
 from covid19model.optimization.pso import *
-from covid19model.optimization.utils import assign_PSO, plot_PSO
+from covid19model.optimization.utils import assign_PSO
+from covid19model.visualization.optimization import plot_PSO
 from covid19model.visualization.output import _apply_tick_locator 
 
 ############################
@@ -67,8 +68,8 @@ df_hosp = df_hosp.loc[(slice(None), slice(None)), 'H_in']
 ## Initialize the model ##
 ##########################
 
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=args.agg)
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=args.agg)
 
 #######################################################
 ## Set parameter values of all calibrated parameters ##
@@ -81,30 +82,32 @@ model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(ag
 ##############################
 
 # Warmup of one month by default
-warmup = 30
+warmup = 2
 # Determine size of space and dose stratification size
 G = model.initial_states['S'].shape[0]
 N = model.initial_states['S'].shape[1]
+D = model.initial_states['S'].shape[2]
 # Reset S
-S = initN.values
-# 1 exposed individual per NIS in ages 0:5
-E = np.zeros([G, N])
-E[:,0:3] = 1
-# 1 exposed individual per NIS in ages 0:5
-I = np.zeros([G, N])
-I[:,0:3] = 1
-model.initial_states.update({"S": S, "E": E, "I": I})
+S = np.concatenate( (np.expand_dims(initN,axis=2), 0.1*np.ones([G,N,3])), axis=2)
+# 1 exposed individual per NIS in ages 0:3
+E0 = np.zeros([G, N, D])
+E0[:,0:6,0] = 1
+model.initial_states.update({"S": S, "E": E0, "I": E0})
 for state,value in model.initial_states.items():
     if ((state != 'S') & (state != 'E') & (state != 'I')):
-        model.initial_states.update({state: np.zeros([G,N])})
+        model.initial_states.update({state: np.zeros([G,N,D])})
 
 #######################################
 ## Write a custom objective function ##
 #######################################
 
-# Initial guess for betas
-theta = [0.08, 0.08, 0.10]
+# Set beta
+theta = [0.04, 0.04, 0.05]
 pars = ['beta_R', 'beta_U', 'beta_M']
+model.parameters['beta_R'] = theta[0]
+model.parameters['beta_U'] = theta[1]
+model.parameters['beta_M'] = theta[2]
+model.parameters['l1'] = 7
 
 # Start- and enddates of visualizations
 start_calibration=df_hosp.index.get_level_values('date').min()
@@ -124,7 +127,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #     # Visualize
 #     fig,ax = plt.subplots(figsize=(12,4))
-#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #     ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
@@ -141,8 +144,8 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     while not satisfied:
 #         # Prompt for input
 #         val = input("What should the value of beta be? ")
-#         model.initial_states['E'][idx,0:3] = val
-#         model.initial_states['I'][idx,0:3] = val
+#         model.initial_states['E'][idx,0:6,0] = val
+#         model.initial_states['I'][idx,0:6,0] = val
 #         # Assign estimate
 #         pars_PSO = assign_PSO(model.parameters, pars, theta)
 #         model.parameters = pars_PSO
@@ -150,7 +153,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #         # Visualize new fit
 #         fig,ax = plt.subplots(figsize=(12,4))
-#         ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+#         ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #         ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #         ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #         ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
@@ -169,30 +172,22 @@ data=[df_hosp[start_calibration:end_calibration],]
 ## Hard-code result ##
 ######################
 
-warmup = 30
-betas = [0.08, 0.08, 0.10]
-
-model.parameters['beta_R'] = betas[0]
-model.parameters['beta_U'] = betas[1]
-model.parameters['beta_M'] = betas[2]
-
-initial_infected = [2.5, 0.2, 0.01, 0.8, 1.1, 1, 2, 1.5, 1.2, 0.3, 0.15]
-E = np.zeros([G,N])
-I = np.zeros([G,N])
+initial_infected = [2700, 1000, 250, 2800, 1500, 1800, 2000, 2000, 2000, 400, 500]
+E = np.zeros([G,N,D])
+I = np.zeros([G,N,D])
 for idx, val in enumerate(initial_infected):
-    E[idx,0:3] = val
-    I[idx,0:3] = val
-    model.initial_states.update({'E': E, 'I': I})
+    E0[idx,0:6,0] = val
+    model.initial_states.update({'E': E0, 'I': E0})
 # Simulate
 out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 
-# Visualize
+#Visualize
 # for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 #     # Perform simulation
 #     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #     # Visualize new fit
 #     fig,ax = plt.subplots(figsize=(12,4))
-#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc'),'--', color='blue')
+#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #     ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
@@ -217,7 +212,7 @@ for date in dates:
         # Select first column only for non-dose stratified model
         initial_states_per_date.update({state: out[state].sel(time=pd.to_datetime(date)).values})
     initial_states.update({date: initial_states_per_date})
-with open(results_path+'initial_states-COVID19_SEIQRD_spatial_rescaling.pickle', 'wb') as fp:
+with open(results_path+'initial_states-COVID19_SEIQRD_spatial_hybrid_vacc.pickle', 'wb') as fp:
     pickle.dump(initial_states, fp)
 
 # Work is done
