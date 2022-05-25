@@ -69,7 +69,7 @@ model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
 dose_stratification_size = model.initial_states['S'].shape[1]
 # Start with infected individuals in first age group
 E0 = np.zeros([age_stratification_size,dose_stratification_size])
-E0[0:3,0] = 100
+E0[0:6,0] = 100
 # Ajust initial condition
 model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,2]), np.zeros([age_stratification_size,dose_stratification_size-3])), axis=1),
                              "E": E0,
@@ -79,7 +79,7 @@ for key,value in model.initial_states.items():
     if ((key != 'S') & (key != 'E') & (key != 'I')):
         model.initial_states.update({key: np.zeros([age_stratification_size,dose_stratification_size])})
 # Set a fixed warmup time of 21 days (= time between Krokusvakantie en eerste datapunt)
-warmup = 21
+warmup = 2
 
 ######################################
 ## Find a good beta value using PSO ##
@@ -123,9 +123,9 @@ satisfied = not click.confirm('Do you want to make manual tweaks to beta?', defa
 while not satisfied:
     # Prompt for input
     import ast
-    new_value = ast.literal_eval(input("What should the value of beta be? "))
-    model.initial_states['E'][0:3,0] = float(new_value[0])
-    model.initial_states['I'][0:3,0] = float(new_value[0])
+    new_value = ast.literal_eval(input("What should the initial number of infected be?"))
+    model.initial_states['E'][0:6,0] = float(new_value[0])
+    model.initial_states['I'][0:6,0] = float(new_value[0])
     warmup = float(new_value[1])
     model.parameters['beta'] = float(new_value[2])
     # Perform simulation
