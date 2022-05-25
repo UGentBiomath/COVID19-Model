@@ -376,7 +376,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
     pars_dict['dhospital'] = 6.4
-    pars_dict['zeta'] = 1/365
+    pars_dict['zeta'] = np.log(2)/365
 
     #######################
     ## Dummy seasonality ##
@@ -473,7 +473,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
             'beta_M': np.mean(base_samples_dict['beta_M']),
-            'zeta': np.mean(base_samples_dict['zeta']),
             'eff_schools': np.mean(base_samples_dict['eff_schools']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),

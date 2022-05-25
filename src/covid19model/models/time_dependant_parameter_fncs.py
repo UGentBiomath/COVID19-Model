@@ -2139,7 +2139,7 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            r=1.03
+            r=1.05
             mat[idx_F,:,:] *= r*1.03
             mat[idx_Bxl,:,:] *= r*1.12
             mat[idx_W,:,:] *= r*1.09
