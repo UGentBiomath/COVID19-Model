@@ -41,7 +41,7 @@ from covid19model.data import sciensano
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_rescaling,  output_to_visuals, add_poisson, add_negative_binomial
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_poisson, add_negative_binomial
 from covid19model.visualization.utils import colorscale_okabe_ito
 
 #############################
@@ -111,13 +111,13 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_rescaling(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
 
 #######################
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial as draw_fnc
+from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
 
 #########################
 ## Perform simulations ##

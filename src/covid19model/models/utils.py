@@ -546,7 +546,7 @@ def draw_fnc_COVID19_SEIQRD_national(param_dict,samples_dict):
         param_dict[names[idx]] = np.array(param_val)
     return param_dict
 
-def draw_fnc_COVID19_SEIQRD_spatial(param_dict,samples_dict):
+def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
     """
     A function to draw samples from the estimated posterior distributions of the model parameters.
     Tailored for use with the spatial COVID-19 SEIQRD model.
@@ -577,7 +577,6 @@ def draw_fnc_COVID19_SEIQRD_spatial(param_dict,samples_dict):
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]
 
     # Hospitalization
     # ---------------
