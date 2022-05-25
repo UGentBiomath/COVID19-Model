@@ -485,10 +485,10 @@ def load_samples_dict(filepath, age_stratification_size=10):
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
 
-def draw_fnc_COVID19_SEIQRD_national(param_dict,samples_dict):
+def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     """
     A function to draw samples from the estimated posterior distributions of the model parameters.
-    Tailored for use with the national COVID-19 SEIQRD model.
+    Tailored for use with the national COVID-19 SEIQRD model with the hybrid vaccination implementation.
 
     Parameters
     ----------
@@ -513,8 +513,7 @@ def draw_fnc_COVID19_SEIQRD_national(param_dict,samples_dict):
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['zeta'] = samples_dict['zeta'][idx]  
+    param_dict['amplitude'] = samples_dict['amplitude'][idx] 
 
     # Hospitalization
     # ---------------
