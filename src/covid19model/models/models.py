@@ -389,11 +389,11 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         #################################################
 
         # Hospitalization propensity
-        y=sum(f_VOC*K_hosp)
-        x=(y-1)*sum(h)/sum(1-h)
-        h=h+(1-h)*x
-        #h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        #h[h > 1] = 1
+        #y=sum(f_VOC*K_hosp)
+        #x=(y-1)*sum(h)/sum(1-h)
+        #h=h+(1-h)*x
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
@@ -557,11 +557,11 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         #################################################
 
         # Hospitalization propensity
-        y=sum(f_VOC*K_hosp)
-        x=(y-1)*sum(h)/sum(1-h)
-        h=h+(1-h)*x
-        #h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        #h[h > 1] = 1
+        #y=sum(f_VOC*K_hosp)
+        #x=(y-1)*sum(h)/sum(1-h)
+        #h=h+(1-h)*x
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
