@@ -109,6 +109,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+model.parameters['K_hosp']=np.array([1,1], np.float64)
 
 if __name__ == '__main__':
 
@@ -178,6 +179,7 @@ if __name__ == '__main__':
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
     theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12]
+    theta = [0.04, 0.25, 0.27, 0.4, 0.4, 0.2, 1.4, 1.5, 0.15]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -246,7 +248,7 @@ if __name__ == '__main__':
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2 = [0.30, 0.30, 0.30, 0.30, 0.30]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.30, 0.30]
+    pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
     pert4 = [0.10,] 
     # pars5 = ['zeta',]
