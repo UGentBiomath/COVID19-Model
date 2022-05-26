@@ -137,6 +137,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
+model.parameters['K_hosp']=np.array([1,1], np.float64)
 
 if __name__ == '__main__':
 
@@ -210,6 +211,7 @@ if __name__ == '__main__':
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
     theta = [0.0398, 0.042, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
+    theta = [0.0398, 0.042, 0.0517, 0.2, 0.49, 0.261, 0.305, 0.213, 1.48, 1.6, 0.29]
 
     ####################################
     ## Local Nelder-mead optimization ##
