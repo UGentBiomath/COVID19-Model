@@ -132,7 +132,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 15
+    multiplier_mcmc = 20
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -178,8 +178,7 @@ if __name__ == '__main__':
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
-    theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12]
-    theta = [0.04, 0.25, 0.27, 0.4, 0.4, 0.2, 1.4, 1.5, 0.15]
+    theta = [0.04, 0.18, 0.34, 0.42, 0.35, 0.2, 1.45, 1.5, 0.22]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -244,13 +243,13 @@ if __name__ == '__main__':
     log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
-    pert1 = [0.05,]
+    pert1 = [0.03,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.30, 0.30, 0.30, 0.30, 0.30]
+    pert2 = [0.80, 0.80, 0.80, 0.80, 0.80]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.10, 0.10]
+    pert3 = [0.20, 0.20]
     # pars4 = ['amplitude']
-    pert4 = [0.10,] 
+    pert4 = [0.80,] 
     # pars5 = ['zeta',]
     #pert5 = [0.20,]
     # Add them together and perturbate
