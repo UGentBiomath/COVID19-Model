@@ -163,7 +163,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 6
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -194,7 +194,7 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.15, 1.50),(1.25,2.00))
+    bounds3 = ((1.20, 1.60),(1.30,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -303,11 +303,11 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.10, 0.10, 0.10]
+    pert1=[0.05, 0.05, 0.05]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2=[0.50, 0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.10, 0.10]
+    pert3 = [0.20, 0.20]
     # pars4 = ['amplitude']
     pert4 = [0.80,] 
     # pars5 = ['zeta']
