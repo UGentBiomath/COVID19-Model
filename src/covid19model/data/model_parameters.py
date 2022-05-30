@@ -384,7 +384,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     # Value of one equals no seasonality --> value is modified in time-dependant parameter function
     pars_dict['seasonality'] = 1
-    pars_dict['peak_shift'] = 0
+    pars_dict['peak_shift'] = 0 # High on Jan. 1st, Low on July 1st.
     pars_dict['amplitude'] = 0
 
     ###############
@@ -440,7 +440,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_BASE_hybrid_vacc_SAMPLES_2022-05-24.json'
+        base_dict_name = 'BE_BASE_enddate_20211014_SAMPLES_2022-05-29.json'
         base_samples_dict = json.load(
             open(os.path.join(samples_path, base_dict_name)))
         pars_dict.update({
@@ -455,7 +455,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        base_dict_name = 'prov_BASE_SAMPLES_2022-04-21.json'
+        base_dict_name = 'prov_BASE_waning_150d_SAMPLES_2022-05-28.json'
         base_samples_dict = json.load(
             open(os.path.join(samples_path, base_dict_name)))
         pars_dict.update({
@@ -570,7 +570,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # waning:
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 200
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 150
 
     # Cut everything not needed from the VOC dataframe
     VOC_parameters = VOC_parameters.loc[VOCs]
