@@ -109,7 +109,6 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
-model.parameters['K_hosp']=np.array([1,1], np.float64)
 
 if __name__ == '__main__':
 

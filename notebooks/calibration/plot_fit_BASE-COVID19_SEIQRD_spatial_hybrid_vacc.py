@@ -117,7 +117,6 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ##########################
 
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration)
-model.parameters['K_hosp']=np.array([1,1], np.float64)
 
 #######################
 ## Sampling function ##
