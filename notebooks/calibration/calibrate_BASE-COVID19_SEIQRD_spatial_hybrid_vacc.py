@@ -137,6 +137,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
+model.parameters['K_hosp']=np.array([1,1], np.float64)
 
 if __name__ == '__main__':
 
@@ -162,7 +163,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 6
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -193,7 +194,7 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.15, 1.50),(1.25,2.00))
+    bounds3 = ((1.20, 1.60),(1.30,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -210,6 +211,7 @@ if __name__ == '__main__':
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
     theta = [0.0398, 0.042, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
+    theta = [0.0398, 0.042, 0.0517, 0.2, 0.49, 0.261, 0.305, 0.213, 1.48, 1.6, 0.29]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -301,11 +303,11 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.10, 0.10, 0.10]
+    pert1=[0.05, 0.05, 0.05]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2=[0.50, 0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.10, 0.10]
+    pert3 = [0.20, 0.20]
     # pars4 = ['amplitude']
     pert4 = [0.80,] 
     # pars5 = ['zeta']

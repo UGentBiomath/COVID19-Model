@@ -1477,7 +1477,7 @@ class make_contact_matrix_function():
         idx_W = [2, 6, 7, 9, 10]
         mentality_summer_2020_lockdown = np.array([mentality, 0*mentality, # F
                                                 2*mentality, # W
-                                                2*mentality, # Bxl
+                                                1*mentality, # Bxl
                                                 0.5*mentality, 2*mentality, # F
                                                 4*mentality, 4*mentality, # W
                                                 0*mentality, # F
@@ -1563,9 +1563,9 @@ class make_contact_matrix_function():
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             r=1.0
-            mat[idx_F,:,:] *= r*1.03
-            mat[idx_Bxl,:,:] *= r*1.12
-            mat[idx_W,:,:] *= r*1.09
+            mat[idx_F,:,:] *= r*1.06
+            mat[idx_Bxl,:,:] *= r*1.13
+            mat[idx_W,:,:] *= r*1.12
             return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
