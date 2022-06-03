@@ -868,14 +868,14 @@ def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend
     alpha=1
     
     # Draw everything in week_colour in currently open plt environment
-    ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha)
+    ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha, zorder=-1)
     
     # Overdraw weekends
     for d in range(days_count):
         d_datetime = sdate + pd.Timedelta(days=d)
         # if Saturday
         if d_datetime.isoweekday() == 6:
-            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=2), facecolor=weekend_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=2), facecolor=weekend_color, alpha=alpha, zorder=-1)
     
     # Overdraw vacation
     vacation_dict = school_vacations_dict()
@@ -883,7 +883,7 @@ def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend
         d_datetime = sdate + pd.Timedelta(days=d)
         # if vacation
         if d_datetime in vacation_dict:
-            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha, zorder=-1)
     
     return
     
