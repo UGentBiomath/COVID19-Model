@@ -136,8 +136,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
-model.parameters['K_hosp']=np.array([1,1], np.float64)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
 
 if __name__ == '__main__':
 
@@ -148,6 +147,7 @@ if __name__ == '__main__':
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
     alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(alpha_weighted))
     plt.show()

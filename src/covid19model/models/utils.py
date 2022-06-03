@@ -12,7 +12,7 @@ import pickle
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date='2020-03-15', update_data=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -49,8 +49,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ## Load necessary data ##
     #########################
 
-    # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    # Interaction matricesm model parameters, samples dictionary
+    Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -90,6 +90,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ####################
     ## Initial states ##
     ####################
+
+    if not start_date:
+        start_date = samples_dict['start_calibration']
 
     samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
 
@@ -132,19 +135,22 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ## Initialize the model ##
     ##########################
 
+    # Construct dictionary of time dependent parameters
+    time_dependent_parameters={'Nc' : policy_function,
+                               'f_VOC' : VOC_function,
+                               'seasonality' : seasonality_function,}
+    if vaccination:
+        time_dependent_parameters.update({'N_vacc' : N_vacc_function,
+                               'e_s' : efficacy_function.e_s,
+                               'e_i' : efficacy_function.e_i,
+                               'e_h' : efficacy_function.e_h})                      
+                     
     # Initialize model
-    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params,
-                        time_dependent_parameters={'Nc': policy_function,
-                                                   'seasonality': seasonality_function, 
-                                                   'N_vacc': N_vacc_function,
-                                                   'e_i' : efficacy_function.e_i,
-                                                   'e_s' : efficacy_function.e_s,
-                                                   'e_h' : efficacy_function.e_h,
-                                                   'f_VOC':VOC_function})
+    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, time_dependent_parameters=time_dependent_parameters)
 
-    return model, BASE_samples_dict, initN
+    return model, samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date='2020-03-17', update_data=False):
+def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -185,7 +191,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #########################
 
     # Population size, interaction matrices and the model parameters
-    initN, Nc_dict, params, BASE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, agg=agg)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, agg=agg)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -232,7 +238,10 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ####################
     ## Initial states ##
     ####################
-    
+
+    if not start_date:
+        start_date = samples_dict['start_calibration']
+
     G = len(df_incidences.index.get_level_values('NIS').unique())
     N = len(age_classes)
     D = len(efficacy_function.df_efficacies.index.get_level_values('dose').unique())
@@ -267,14 +276,13 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     
     # Define dummy vaccine efficacies
     e_i=e_h=e_s = np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
-    
-    # Vaccination parameters when using the stratified vaccination model
+    # Add vaccination parameters to parameter dictionary
     params.update({'N_vacc': np.zeros([G, N, D]),
-                   'doses': np.zeros(D),
-                   'e_i': e_i,
-                   'e_s': e_s,
-                   'e_h': e_h,
-                   })
+                'doses': np.zeros(D),
+                'e_i': e_i,
+                'e_s': e_s,
+                'e_h': e_h,
+                })  
 
     ##########################
     ## Initialize the model ##
@@ -284,17 +292,18 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'Nc_work' : policy_function_work,
                                'place' : mobility_function,
                                'f_VOC' : VOC_function,
-                               'N_vacc' : N_vacc_function,
+                               'seasonality' : seasonality_function,}
+    
+    if vaccination:
+        time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
-                               'e_h' : efficacy_function.e_h,
-                               'seasonality' : seasonality_function}
+                               'e_h' : efficacy_function.e_h})                      
+                               
 
     model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, agg=agg, time_dependent_parameters=time_dependent_parameters)
 
-    return model, BASE_samples_dict, initN
-
-    pass
+    return model, samples_dict, initN
 
 def load_samples_dict(filepath, age_stratification_size=10):
     """
@@ -583,6 +592,7 @@ def add_negative_binomial(output_array, alpha, n_draws_per_sample=100, LL=0.05*0
                 vector = np.append(vector, np.expand_dims(np.random.negative_binomial(1/alpha, (1/alpha)/(output_array[n,:] + (1/alpha)), size = output_array.shape[1]), axis=1), axis=1)
         except:
             warnings.warn("I had to remove a simulation result from the output because there was a negative value in it..")
+
     # Remove first column
     vector = np.delete(vector, 0, axis=1)
     #  Compute mean and median

@@ -175,18 +175,17 @@ if __name__ == '__main__':
     bounds2=((0.01,0.99),)
     # Omicron infectivity
     pars3 = ['K_inf',]
-    bounds3 = ((1.3,2.60),)
+    bounds3 = ((1.2,2.80),)
     # Omicron severity
     pars4 = ['K_hosp',]
-    bounds4 = ((0.05,0.70),)
+    bounds4 = ((0.01,0.80),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     # run optimization
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = np.array([0.058, 0.5, 2.2, 0.08]) # Starting estimated based on calibration until 2022-03-01
-    theta = np.array([0.0592, 0.462, 1.81, 0.28]) # Starting estimate based on calibration until 2022-01-15
+    theta = np.array([0.0555, 0.462, 2.8, 0.06]) #Starting estimate based on calibration until 2022-01-15
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -255,9 +254,9 @@ if __name__ == '__main__':
     # pars2 = ['mentality',]
     pert2=[0.20,]
     # pars4 = ['K_inf',]
-    pert3=[0.30,]
+    pert3=[0.99,]
     # pars5 = ['K_hosp']
-    pert4 = [0.95,] 
+    pert4 = [0.99,] 
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
