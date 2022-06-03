@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
+from covid19model.models.utils import load_samples_dict
 from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
 
@@ -441,8 +442,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
         base_dict_name = 'BE_BASE_enddate_20211014_SAMPLES_2022-05-29.json'
-        base_samples_dict = json.load(
-            open(os.path.join(samples_path, base_dict_name)))
+        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': np.mean(base_samples_dict['beta']),
             'eff_schools': np.mean(base_samples_dict['eff_schools']),
@@ -456,8 +456,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
         base_dict_name = 'prov_BASE_waning_150d_SAMPLES_2022-05-28.json'
-        base_samples_dict = json.load(
-            open(os.path.join(samples_path, base_dict_name)))
+        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
@@ -470,7 +469,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
 
-    return initN, Nc_dict, pars_dict, base_samples_dict
+    return Nc_dict, pars_dict, base_samples_dict, initN
 
 
 def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pars_dict=None):
