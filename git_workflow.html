@@ -14,6 +14,7 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -88,13 +89,13 @@
            <div itemprop="articleBody">
              
   <section id="git-workflow">
-<h1>Git workflow<a class="headerlink" href="#git-workflow" title="Permalink to this headline">¶</a></h1>
+<h1>Git workflow<a class="headerlink" href="#git-workflow" title="Permalink to this heading">¶</a></h1>
 <p>This step-by-step git approach is a your <em>safe haven</em> on working with git. When you stick to these guidelines,
 you will be succesfully using the ‘Github workflow’ we apply for the COVID 19 model.
 The <code class="docutils literal notranslate"><span class="pre">master</span></code> branch is holy to us and should be on all time a working, up-to-date representation of the functionalities!</p>
 <p>This workflow flow assumes you have <a class="reference external" href="https://help.github.com/en/github/getting-started-with-github/fork-a-repo">forked</a> the COVID repository of Biomath (called <code class="docutils literal notranslate"><span class="pre">upstream</span></code> by default) to your own Github account (called <code class="docutils literal notranslate"><span class="pre">origin</span></code> by default) and cloned your own version to your computer.</p>
 <section id="before-i-start-working">
-<h2>Before I start working<a class="headerlink" href="#before-i-start-working" title="Permalink to this headline">¶</a></h2>
+<h2>Before I start working<a class="headerlink" href="#before-i-start-working" title="Permalink to this heading">¶</a></h2>
 <ul>
 <li><p><strong>STEP 1</strong>: Update the master branch on my PC to make sure it is aligned with the remote master (<code class="docutils literal notranslate"><span class="pre">upstream</span></code>):</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout master
@@ -124,7 +125,7 @@ Switch to existing topic branch:</p>
 </ul>
 </section>
 <section id="while-editing">
-<h2>While editing<a class="headerlink" href="#while-editing" title="Permalink to this headline">¶</a></h2>
+<h2>While editing<a class="headerlink" href="#while-editing" title="Permalink to this heading">¶</a></h2>
 <ul>
 <li><p><strong>STEP 3.x</strong>: adapt in tex, code,… (multiple times)</p>
 <ul>
@@ -143,7 +144,7 @@ Switch to existing topic branch:</p>
 </ul>
 </section>
 <section id="edits-on-branch-ready">
-<h2>Edits on branch ready<a class="headerlink" href="#edits-on-branch-ready" title="Permalink to this headline">¶</a></h2>
+<h2>Edits on branch ready<a class="headerlink" href="#edits-on-branch-ready" title="Permalink to this heading">¶</a></h2>
 <ul>
 <li><p><strong>STEP 4</strong>: Pull request to add your changes to the current master. Choose your option:</p>
 <ul>
@@ -175,7 +176,7 @@ Switch to existing topic branch:</p>
 </ul>
 </section>
 <section id="pull-request-can-not-be-merged">
-<h2>Pull request can not be merged<a class="headerlink" href="#pull-request-can-not-be-merged" title="Permalink to this headline">¶</a></h2>
+<h2>Pull request can not be merged<a class="headerlink" href="#pull-request-can-not-be-merged" title="Permalink to this heading">¶</a></h2>
 <ul>
 <li><p><strong>STEP 7</strong>: master has changed and there are conflicts: update your working branch with rebase</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>  git checkout name_existing_branch

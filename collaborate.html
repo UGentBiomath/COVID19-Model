@@ -14,6 +14,7 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -98,10 +99,10 @@
            <div itemprop="articleBody">
              
   <section id="start-to-collaborate">
-<h1>Start to collaborate<a class="headerlink" href="#start-to-collaborate" title="Permalink to this headline">¶</a></h1>
+<h1>Start to collaborate<a class="headerlink" href="#start-to-collaborate" title="Permalink to this heading">¶</a></h1>
 <p>When working on the model or the model code, make sure to read the following guidelines and keep them in mind. The main purpose of being rigid about the structure of the repository is to improve the general collaboration while keeping structure of the code in the long run and support reproducibility of the work. Still, it is work in progress and it should not block your work. In case you get stuck on something or you have a suggestion for improvement, feel free to open an <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/issues/new">New Issue</a> on the repository.</p>
 <section id="using-data">
-<h2>Using data<a class="headerlink" href="#using-data" title="Permalink to this headline">¶</a></h2>
+<h2>Using data<a class="headerlink" href="#using-data" title="Permalink to this heading">¶</a></h2>
 <p>Data is crucial for both the setup and the evaluation of the models and all the required data is collected in the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory. To organize the data sets, the <code class="docutils literal notranslate"><span class="pre">data</span></code> directory has been split up:</p>
 <ul class="simple">
 <li><p>A <code class="docutils literal notranslate"><span class="pre">raw</span></code> folder contains data as it has been downloaded from the original source, <strong>without any changes</strong> made (neither manual or using code). For each of the data sets it is crucial to describe the source (URL, contact person,…) from which this data set was derived.</p></li>
@@ -117,7 +118,7 @@
 </ul>
 </section>
 <section id="notebooks-are-for-exploration-and-communication">
-<h2>Notebooks are for exploration and communication<a class="headerlink" href="#notebooks-are-for-exploration-and-communication" title="Permalink to this headline">¶</a></h2>
+<h2>Notebooks are for exploration and communication<a class="headerlink" href="#notebooks-are-for-exploration-and-communication" title="Permalink to this heading">¶</a></h2>
 <p>Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:</p>
 <ul class="simple">
 <li><p>Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-twallema-model-network.ipynb).</p></li>
@@ -135,7 +136,7 @@
 <p><a class="reference external" href="https://mybinder.org/v2/gh/UGentBiomath/COVID19-Model/master"><img alt="Binder" src="https://mybinder.org/badge_logo.svg" /></a></p>
 </section>
 <section id="documentation-website">
-<h2>Documentation website<a class="headerlink" href="#documentation-website" title="Permalink to this headline">¶</a></h2>
+<h2>Documentation website<a class="headerlink" href="#documentation-website" title="Permalink to this heading">¶</a></h2>
 <p>Documentation consists of both the technical matter about the code as well as background information on the models. To keep these up to date and centralized, we use <a class="reference external" href="https://www.sphinx-doc.org/en/master/">Sphinx</a> which enables us to keep the documentation together on a website.</p>
 <p>The Sphinx setup provides the usage of both <code class="docutils literal notranslate"><span class="pre">.rst</span></code> file, i.e. <a class="reference external" href="https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html">restructuredtext</a> as well as <code class="docutils literal notranslate"><span class="pre">.md</span></code> files, i.e. <a class="reference external" href="https://www.markdownguide.org/basic-syntax/">Markdown</a>. The latter is generally experienced as easier to write, while the former provides more advanced functionalities. Existing pages of the documentation reside in <code class="docutils literal notranslate"><span class="pre">~/docs/</span></code> and can be adjusted directly. In case you want to build the documentation locally, make sure you have the development dependencies installed (<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">&quot;.[develop]&quot;</span></code>) to run the sphinx build script. To build locally, use,</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">build_sphinx</span>
@@ -144,7 +145,7 @@
 <p>When you want to create a new page, make sure to add the page to the <code class="docutils literal notranslate"><span class="pre">index.rst</span></code> in order to make the page part of the website. The website is build automatically using <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/blob/master/.github/workflows/deploy.yml#L22-L24">github actions</a> and the output is deployed to <a class="reference external" href="https://ugentbiomath.github.io/COVID19-Model/">https://ugentbiomath.github.io/COVID19-Model/</a>. The resulting html-website is created in the directory <code class="docutils literal notranslate"><span class="pre">build/html</span></code>. Double click any of the <code class="docutils literal notranslate"><span class="pre">html</span></code> file in the folder to open the website in your browser (no server required).</p>
 </section>
 <section id="the-covid19model-python-package">
-<h2>The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package<a class="headerlink" href="#the-covid19model-python-package" title="Permalink to this headline">¶</a></h2>
+<h2>The <code class="docutils literal notranslate"><span class="pre">covid19model</span></code> Python package<a class="headerlink" href="#the-covid19model-python-package" title="Permalink to this heading">¶</a></h2>
 <p>The code inside the <code class="docutils literal notranslate"><span class="pre">src/covid19model</span></code> directory is actually a Python package, which provides a number of additional benefits on the maintenance of the code.</p>
 <p>Before doing any changes, always make sure your own version of your code (i.e. <code class="docutils literal notranslate"><span class="pre">fork</span></code>) is up to date with the <code class="docutils literal notranslate"><span class="pre">master</span></code> of the <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model">main repository </a>. First, check out the <strong><a class="reference internal" href="git_workflow.html"><span class="doc std std-doc">git workflow</span></a></strong> for a step-by-step explanation of the proposed workflow. For more information, see also:</p>
 <ul class="simple">
@@ -165,11 +166,11 @@
 </ul>
 </section>
 <section id="repository-layout-overview">
-<h2>Repository layout overview<a class="headerlink" href="#repository-layout-overview" title="Permalink to this headline">¶</a></h2>
+<h2>Repository layout overview<a class="headerlink" href="#repository-layout-overview" title="Permalink to this heading">¶</a></h2>
 <p>As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a <a class="reference external" href="https://github.com/UGentBiomath/COVID19-Model/issues/new/choose">New issue</a>.</p>
 <p><strong>Remember:</strong> Anyone should be able to reproduce the final products with only the <code class="docutils literal notranslate"><span class="pre">code</span></code> in <code class="docutils literal notranslate"><span class="pre">src</span></code> and the data in <code class="docutils literal notranslate"><span class="pre">data/raw</span></code>!</p>
 <section id="data">
-<h3>data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
+<h3>data<a class="headerlink" href="#data" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── data                                    &lt;- cfr. current set of data sets
 │   ├── raw                                 &lt;- data as provided in raw format
 │   │   ├── UZGent
@@ -185,7 +186,7 @@
 </div>
 </section>
 <section id="code">
-<h3>code<a class="headerlink" href="#code" title="Permalink to this headline">¶</a></h3>
+<h3>code<a class="headerlink" href="#code" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── src                                     &lt;- all reusable code blocks
 │   ├── covid19model
 |   │   ├── data                            &lt;- any code required for data reading and manipulation
@@ -199,7 +200,7 @@
 </div>
 </section>
 <section id="documentation">
-<h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h3>
+<h3>documentation<a class="headerlink" href="#documentation" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── docs                                    &lt;- documentation
 │   ├── conf.py
 │   ├── index.rst                           &lt;- explanations are written inside markdown or st files
@@ -213,7 +214,7 @@
 </div>
 </section>
 <section id="hpc-specific-code">
-<h3>HPC specific code<a class="headerlink" href="#hpc-specific-code" title="Permalink to this headline">¶</a></h3>
+<h3>HPC specific code<a class="headerlink" href="#hpc-specific-code" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── hpc
 │   ├── calibrate_stochastic.py
 │   ├── README.md
@@ -223,7 +224,7 @@
 </div>
 </section>
 <section id="notebooks">
-<h3>notebooks<a class="headerlink" href="#notebooks" title="Permalink to this headline">¶</a></h3>
+<h3>notebooks<a class="headerlink" href="#notebooks" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── notebooks                               &lt;- notebooks are collected here
 │   ├── 0.1-user-content.ipynb              &lt;- notebook per version-user-content
 │   ├── templates                           &lt;- demo notebooks that can be used as starting point (and binder intro)
@@ -237,7 +238,7 @@
 </div>
 </section>
 <section id="automate-stuff">
-<h3>automate stuff<a class="headerlink" href="#automate-stuff" title="Permalink to this headline">¶</a></h3>
+<h3>automate stuff<a class="headerlink" href="#automate-stuff" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── .github                                 &lt;- Automate specific steps with github actions
 │   ├── workflows
 │   │   ├── deploy.yml
@@ -246,7 +247,7 @@
 </div>
 </section>
 <section id="other-info">
-<h3>other info<a class="headerlink" href="#other-info" title="Permalink to this headline">¶</a></h3>
+<h3>other info<a class="headerlink" href="#other-info" title="Permalink to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>├── LICENSE
 ├── environment.yml
 ├── setup.py
