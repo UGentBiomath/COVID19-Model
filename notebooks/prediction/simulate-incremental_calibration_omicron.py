@@ -1,6 +1,6 @@
 """
 This script plots the results of incremental calibrations of the vaccine stratified national model (`COVID19_SEIQRD_rescaling_vacc`) to the daily number of hospitalizations during the outbreak of omicron (Jan. - Mar. 2022).
-The model was calibrated on 2022-01-15, 2022-02-01, 2022-02-07, 2022-02-15 and 2022-03-01.
+The model was calibrated on 2022-01-21, 2022-02-01, 2022-02-07.
 
 Arguments:
 ----------
@@ -24,6 +24,7 @@ import datetime
 import argparse
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 import matplotlib.pyplot as plt
 from covid19model.data import sciensano
 from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
@@ -52,11 +53,9 @@ end_sim = '2022-03-07'
 # Confidence level used to visualise model fit
 conf_int = 0.05
 # Names of sample dictionaries
-samples_dict_names = ['BE_stratified_vacc_WINTER2122_20220115_SAMPLES_2022-05-10.json',
-                      'BE_stratified_vacc_WINTER2122_20220121_SAMPLES_2022-05-10.json',
-                      'BE_stratified_vacc_WINTER2122_20220201_SAMPLES_2022-05-10.json',
-                      'BE_stratified_vacc_WINTER2122_20220207_SAMPLES_2022-05-10.json',
-                      'BE_stratified_vacc_WINTER2122_20220215_SAMPLES_2022-05-10.json']
+samples_dict_names = ['BE_WINTER2122_enddate_20220121_SAMPLES_2022-06-03.json',
+                      'BE_WINTER2122_enddate_20220201_SAMPLES_2022-06-03.json',
+                      'BE_WINTER2122_enddate_20220207_SAMPLES_2022-06-03.json']
 
 ##############################
 ## Define results locations ##
@@ -160,10 +159,12 @@ def draw_fcn(param_dict,samples_dict):
 ## Simulate model ##
 ####################
 
+out_lst=[]
 simtime_list=[]
 df_2plot_list=[]
 for idx,samples_dict in enumerate(samples_dict_list):
     out = model.sim(end_sim,start_date=start_calibration,warmup=warmup_list[idx],N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, verbose=True)
+    out_lst.append(out)
     df_2plot_list.append(output_to_visuals(out, ['H_in'], alpha=dispersion_list[idx], n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5))
     simtime_list.append(out['time'].values)
 
@@ -171,48 +172,55 @@ for idx,samples_dict in enumerate(samples_dict_list):
 ## Visualize result ##
 ######################
 
-fig,ax=plt.subplots(nrows=len(samples_dict_list),ncols=3, sharex='col', figsize=(12,3*len(samples_dict_list)),gridspec_kw={'width_ratios': [1,1,3]})
+alpha_scatter = 0.5
+alpha_structural = 0.05#1/(0.25*args.n_samples)
+alpha_statistical = 0.15
+
+fig,ax=plt.subplots(nrows=len(samples_dict_list),ncols=2, sharex='col', figsize=(12,3*len(samples_dict_list)),gridspec_kw={'width_ratios': [1,3]})
 
 for idx,samples_dict in enumerate(samples_dict_list):
 
-    ################
-    ## Histograms ##
-    ################
+    #################
+    ## Scatterplot ##
+    #################
 
-    # K_inf
-    ax[idx,0].hist(samples_dict['K_inf_omicron'], bins=10, color='blue', density=True, histtype='bar', ec='black', alpha=0.6)
-    ax[idx,0].set_xlabel('$K_{inf,\ omicron}$')
-    ax[idx,0].set_xlim([1.3, 2.6])
-    ax[idx,0].set_xticks([1.625, 2.275])
-    ax[idx,0].set_xticklabels([1.625, 2.275])
-    ax[idx,0].axes.get_yaxis().set_visible(False)
-    ax[idx,0].spines['left'].set_visible(False)
+    # Define x and y
+    x = samples_dict['K_inf_omicron']
+    y = samples_dict['K_hosp_omicron']
+    # Define maximum and minimum of x and y
+    xmin, xmax = 1, 3
+    ymin, ymax = 0, 0.5
+    # Peform the kernel density estimate
+    xx, yy = np.mgrid[xmin:xmax:200j, ymin:ymax:200j]
+    positions = np.vstack([xx.ravel(), yy.ravel()])
+    values = np.vstack([x, y])
+    kernel = st.gaussian_kde(values)
+    f = np.reshape(kernel(positions).T, xx.shape)
+    # Plot resultin kde
+    #cfset = ax[idx,0].contourf(xx, yy, f, cmap='Blues')
+    # Plot datapoints
+    ax[idx,0].scatter(samples_dict['K_inf_omicron'], samples_dict['K_hosp_omicron'], color='black', alpha=0.02, linestyle='None', s=2, linewidth=0.2)
     ax[idx,0].grid(False)
-
-    # K_hosp
-    ax[idx,1].hist(samples_dict['K_hosp_omicron'], bins=10, color='blue', density=True, histtype='bar', ec='black', alpha=0.6)
-    ax[idx,1].set_xlabel('$K_{hosp,\ omicron}$')
-    ax[idx,1].set_xlim([0, 0.6])
-    ax[idx,1].set_xticks([0.2, 0.4])
-    ax[idx,1].set_xticklabels([0.2,0.4])
-    ax[idx,1].axes.get_yaxis().set_visible(False)
-    ax[idx,1].spines['left'].set_visible(False)
-    ax[idx,1].grid(False)
+    ax[idx,0].set_ylabel('$K_{hosp, omicron}$')
+    if idx==len(samples_dict_list)-1:
+        ax[idx,0].set_xlabel('$K_{inf, omicron}$')
 
     ######################
     ## Model prediction ##
     ######################
 
-    ax[idx,2].plot(df_2plot_list[idx]['H_in','mean'],'--', color='blue')
-    ax[idx,2].fill_between(simtime_list[idx], df_2plot_list[idx]['H_in','lower'], df_2plot_list[idx]['H_in','upper'],alpha=0.20, color = 'blue')
-    ax[idx,2].scatter(df_hosp[start_calibration:end_calibration_list[idx]].index,df_hosp['H_in'][start_calibration:end_calibration_list[idx]], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax[idx,2].scatter(df_hosp[pd.to_datetime(end_calibration_list[idx])+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration_list[idx])+datetime.timedelta(days=1):end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-    ax[idx,2] = _apply_tick_locator(ax[idx,2])
-    ax[idx,2].xaxis.set_major_locator(plt.MaxNLocator(3))
-    ax[idx,2].set_xlim(start_calibration,end_sim)
-    ax[idx,2].set_ylim([0,1000])
-    ax[idx,2].set_ylabel('$H_{in}$ (-)', fontsize=12)
-    ax[idx,2].grid(False)
+    for i in range(args.n_samples):
+        ax[idx,1].plot(out_lst[idx]['time'].values, out_lst[idx]['H_in'].sum(dim=['Nc','doses']).values[i,:], color='blue', linewidth=3, alpha=alpha_structural)
+    #ax[idx,1].plot(df_2plot_list[idx]['H_in','mean'],'--', color='blue')
+    ax[idx,1].fill_between(simtime_list[idx], df_2plot_list[idx]['H_in','lower'], df_2plot_list[idx]['H_in','upper'],alpha=alpha_statistical, color = 'blue')
+    ax[idx,1].scatter(df_hosp[start_calibration:end_calibration_list[idx]].index,df_hosp['H_in'][start_calibration:end_calibration_list[idx]], color='red', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx,1].scatter(df_hosp[pd.to_datetime(end_calibration_list[idx])+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration_list[idx])+datetime.timedelta(days=1):end_sim], color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx,1] = _apply_tick_locator(ax[idx,1])
+    ax[idx,1].xaxis.set_major_locator(plt.MaxNLocator(3))
+    ax[idx,1].set_xlim(start_calibration,end_sim)
+    ax[idx,1].set_ylim([0,1000])
+    ax[idx,1].set_ylabel('$H_{in}$ (-)', fontsize=12)
+    ax[idx,1].grid(False)
 
 plt.tight_layout()
 plt.show()
