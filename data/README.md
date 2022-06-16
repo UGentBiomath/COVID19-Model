@@ -143,10 +143,16 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 #### QALY model
 
+##### Core
+
 + `Life_table_Belgium_2019.csv` contains the probability of dying at a given age for the Belgian population as of 2019.  
 + `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality-of-life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
 + `hospital_data_qaly.xlsx` contains the total reported costs of hospital healthcare in Belgium per disease group as well as the estimated cost per QALY gained for the same groups.
-+ `De_Wilder_QoL_scores.xlsx` contains three datasheets: 1) QoL_scores, 2) prevalence_comorbidities and 3) SMR. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases, extrapolated from `data/raw/QALYs/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The prevalence_comorbidities sheet contains the chronical disease distribution of the Belgian population, extrapolated from the distribution in `data/raw/QALYs/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The column `rel_risk_Charlson` comes from the following study by Charlson et. al, 1994 (https://pubmed.ncbi.nlm.nih.gov/7722560/). The column `weighted_sum` contains the weighted sums of the average comorbidity profile with the `rel_risk_Charlson`. The `SMR` sheet contains an estimate of the "Standardized Mortality Ratio" per age group and is obtained by scaling the `rel_risk_Charlson` column with the `weighted_sum` column in the `prevalence_comorbidities` sheet.
++ `De_Wilder_QoL_scores.xlsx` contains three datasheets: 1) QoL_scores, 2) prevalence_comorbidities and 3) SMR. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases, extrapolated from `data/raw/QALY_model/core/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The prevalence_comorbidities sheet contains the chronical disease distribution of the Belgian population, extrapolated from the distribution in `data/raw/QALY_model/core/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The column `rel_risk_Charlson` comes from the following study by Charlson et. al, 1994 (https://pubmed.ncbi.nlm.nih.gov/7722560/). The column `weighted_sum` contains the weighted sums of the average comorbidity profile with the `rel_risk_Charlson`. The `SMR` sheet contains an estimate of the "Standardized Mortality Ratio" per age group and is obtained by scaling the `rel_risk_Charlson` column with the `weighted_sum` column in the `prevalence_comorbidities` sheet.
+
+##### Postponement of non-COVID-19 care
++ `costs_hospital_belgium.csv` I don't know where this comes from, this must be checked.
++ `MZG 20XX.xlsx` contains for every patient hospitalized in the Ghent University Hospital during year 20XX the 1) Type of hospitalization, 2) Age of the patient (binned per 5 years age), 3) Date of hospitalization, date of hospital discharge, 4) Pathology (MDC classification). These data are confidential, contact tijs.alleman@ugent.be if their use is necessary.
 
 #### Sciensano
 
