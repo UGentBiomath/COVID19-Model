@@ -15,7 +15,6 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ############################
 
 import os
-import sys
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -36,7 +35,7 @@ for idx,name in enumerate(name_raw_list):
     path_list.append(os.path.join(abs_dir,rel_dir,name))
 # Location of results
 result_folder='../../data/interim/QALY_model/postponement_non_covid_care/UZG/'
-result_name='MZG_2017_2021.xlsx'
+result_name='MZG_2017_2021.csv'
 result_path = os.path.join(abs_dir,result_folder,result_name)
 # Load datasets and merge them togheter
 df = pd.concat(
