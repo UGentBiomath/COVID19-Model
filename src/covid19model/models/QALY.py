@@ -10,13 +10,13 @@ class QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/QALYs/Life_table_Belgium_2019.csv'),sep=';',index_col=0)
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=';',index_col=0)
         # Compute the vector mu_x and append to life table
         self.life_table['mu_x']= self.compute_death_rate(self.life_table['q_x'])     
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x'] 
         # Load comorbidity QoL scores for the Belgian population from Lisa Van Wilder
-        QoL_Van_Wilder=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALYs/De_Wilder_QoL_scores.xlsx"),index_col=0,sheet_name='QoL_scores')
+        QoL_Van_Wilder=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"),index_col=0,sheet_name='QoL_scores')
         QoL_Van_Wilder.columns = ['0','1','2','3+']
         QoL_Van_Wilder.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         self.QoL_Van_Wilder = QoL_Van_Wilder
@@ -31,7 +31,7 @@ class QALY_model():
         # Compute the QoL scores of the studied population
         self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
         # Load comorbidity SMR estimates
-        SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALYs/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
+        SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
         SMR_pop_df.columns = ['0','1','2','3+']
         SMR_pop_df.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         self.SMR_pop_df = SMR_pop_df
@@ -211,7 +211,7 @@ class QALY_model():
             An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
             
         self.QoL_df : pd.Dataframe
-            Quality-of-life utility weights, as imported from `~/data/interim/QALYs/QoL_scores_Belgium_2018_v3.csv`.
+            Quality-of-life utility weights, as imported from `~/data/interim/QALY_model/QoL_scores_Belgium_2018_v3.csv`.
             Must contain two columns: "group_limit" and "QoL_score"
 
         population : string
@@ -290,7 +290,7 @@ class QALY_model():
             An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
             
         self.QoL_df : pd.Dataframe
-            Quality-of-life utility weights, as imported from `~/data/interim/QALYs/QoL_scores_Belgium_2018_v3.csv`.
+            Quality-of-life utility weights, as imported from `~/data/interim/QALY_model/QoL_scores_Belgium_2018_v3.csv`.
             Must contain two columns: "group_limit" and "QoL_score"
 
         population : string
@@ -459,7 +459,7 @@ def lost_QALYs_hospital_care (reduction,granular=False):
    
     # Import hospital care cost per disease group and cost per QALY
     #cost per qauly (EUR), total spent (mill EUR) 
-    hospital_data=pd.read_excel("../../data/interim/QALYs/hospital_data_qalys.xlsx", sheet_name='hospital_data')
+    hospital_data=pd.read_excel("../../data/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data')
         
     # Average calculations
      
