@@ -162,7 +162,7 @@ data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-R0_job-R0
 data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE2-FULL_job-FULL_1000xPSO_20000xMCMC_arr_2021-06-08.json
 data/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE2-FULL_job-FULL_1000xPSO_20000xMCMC_arr_2021-08-24.json
 
-# Do not upload postponenent of non-COVID-19 care 
+# Do not upload raw data on postponenent of non-COVID-19 care 
 data/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2017.xlsx
 data/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2018.xlsx
 data/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2019.xlsx
@@ -170,5 +170,7 @@ data/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2020.xlsx
 data/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2021_sem1.xlsx
 # Do not upload intermediary step in computation of postponenement of non-COVID-19 care timeseries
 data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2017_2021.xlsx
+# Do not upload final dataset of postponenement of non-COVID-19 care timeseries
+data/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_sem1_normalized.csv
 # Do not upload COVID19-Model.code-workspace for VS Studio
 COVID19-Model.code-workspace
