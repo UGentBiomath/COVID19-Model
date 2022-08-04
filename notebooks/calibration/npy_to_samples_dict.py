@@ -7,19 +7,23 @@ Arguments:
     Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 -k:
     Names of the parameters sampled.
+-ak:
+    Alternate keywords to be added to the dictionary
+-av:
+    Corresponding alternate values to be added to the dictionary
 
 
 Returns:
 --------
-Cornerplot of MCMC chains.
+A .json version of the chains
 
 Example use:
 ------------
 python npy_to_samples_dict.py
-    -f BE_WAVE1_R0_COMP_EFF_2021-04-20.npy
-    -k 'beta' 'omega' 'da' 'l' 'prev_work' 'prev_rest' 'prev_home' 'zeta'
-    -ak 'warmup' 'n_chains_beta'
-    -av 32 16
+    -f BE_CORE_SAMPLES_20xx-xx-xx.npy
+    -k 'beta_R' 'beta_U' 'beta_M' 'eff_schools' 'eff_work' 'eff_rest' 'mentality' 'eff_home' 'K_inf_abc' 'K_inf_delta' 'amplitude' 'zeta'
+    -ak 'warmup' 'n_chains' 'start_calibration' 'end_calibration'
+    -av 0 60 2020-03-17 2021-10-01
 """
 
 __author__      = "Tijs Alleman"
@@ -48,7 +52,7 @@ args = parser.parse_args()
 # Load samples
 # ------------
 
-flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename))
+flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename))
 
 # ----------------
 # Build dictionary
@@ -64,5 +68,5 @@ for count,name in enumerate(args.additional_keys):
 # Save dictionary
 # ---------------
 
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)[:-4]+'.json', 'w') as fp:
+with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)[:-4]+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

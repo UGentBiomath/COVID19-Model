@@ -319,8 +319,6 @@ def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=
     theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
     """
 
-#     print('CHECKPOINT: start of fit_pso function')
-    
     # Exceptions
     if processes > mp.cpu_count():
         raise ValueError(
@@ -333,9 +331,8 @@ def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=
     # Run pso algorithm on MLE objective function
     # -------------------------------------------
 
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model,data,states,parNames), kwargs={'weights': weights, 'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
+    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model, data, states, parNames), kwargs={'weights': weights, 'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
 
     theta_hat = p_hat
 
     return theta_hat
-

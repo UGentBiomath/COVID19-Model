@@ -83,7 +83,7 @@ def get_apple_mobility_data(update=True):
 
     return df_apple
 
-def get_google_mobility_data(update=True, plot=False, filename_plot=None):
+def get_google_mobility_data(update=True, provincial=False, plot=False, filename_plot=None):
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
@@ -94,6 +94,8 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     update : boolean (default True)
         True if you want to update the data,
         False if you want to read only previously saved data
+    provincial : boolean (default False)
+        True to return the google mobility data per province (10 provinces + Brussels)
     plot : boolean (default False)
         If True, return a preformatted plot of the data
     filename_viz: string
@@ -103,8 +105,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     Returns
     -----------
     data : pandas.DataFrame
-        DataFrame with the google mobility data on daily basis. The following columns
-        are returned:
+        DataFrame with the google mobility data on daily basis. The following columns are returned:
 
         - retail_recreation : Mobility trends for places such as restaurants, cafés, shopping centres, theme parks, museums, libraries and cinemas.
         - grocery : Mobility trends for places such as grocery shops, food warehouses, farmers markets, specialty food shops and pharmacies.
@@ -112,6 +113,12 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         - transport: Mobility trends for places that are public transport hubs, such as underground, bus and train stations.
         - work: Mobility trends for places of work.
         - residential: Mobility trends for places of residence.
+    
+        If provincial data is requested the resulting dataframe has a pandas multiindex containing two levels: 1) date and 2) region.
+        To access multi-indexed data, use the 'loc' method: df.loc[(index_val_1, index_val_2), column_name].
+        F.i. df[('2020-03-15', 'Brussels'), :] returns the mobility reductions on March 15th, 2020 in Brussels.
+        To access the entries corresponding to an entire index level (f.i. all dates), use the slice method.
+        F.i. df[(slice(None), 'Brussels'),:] returns the mobility reductions in Brussels on all possible dates
 
     Notes
     ----------
@@ -137,6 +144,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
     abs_dir = os.path.dirname(__file__)
     dtypes = {'sub_region_1': str, 'sub_region_2': str}
 
+    # Update data if necessary
     if update:
         # download raw data
         df = pd.read_csv(url, parse_dates=['date'], dtype=dtypes)
@@ -152,28 +160,57 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
             '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv'),
             parse_dates=['date'], dtype=dtypes)
 
-    # Extract values
-    data=df[df['sub_region_1'].isnull().values]
-
-    # Assign data to output variables
+    # Map column names
     variable_mapping = {
-        'retail_and_recreation_percent_change_from_baseline': 'retail_recreation',
-        'grocery_and_pharmacy_percent_change_from_baseline': 'grocery',
-        'parks_percent_change_from_baseline': 'parks',
-        'transit_stations_percent_change_from_baseline': 'transport',
-        'workplaces_percent_change_from_baseline': 'work',
-        'residential_percent_change_from_baseline': 'residential'
+    'retail_and_recreation_percent_change_from_baseline': 'retail_recreation',
+    'grocery_and_pharmacy_percent_change_from_baseline': 'grocery',
+    'parks_percent_change_from_baseline': 'parks',
+    'transit_stations_percent_change_from_baseline': 'transport',
+    'workplaces_percent_change_from_baseline': 'work',
+    'residential_percent_change_from_baseline': 'residential'
     }
-    data = data.rename(columns=variable_mapping)
-    data = data.set_index("date")
-    data.index.freq = 'D'
-    data = data[list(variable_mapping.values())]
+    df = df.rename(columns=variable_mapping)
+
+    if provincial == True:
+        # Hardcode a dictionary to convert region name to NIS
+        regions = ['Brussels', 'Antwerp', 'East Flanders', 'Flemish Brabant', 'Limburg', 'West Flanders', 'Hainaut', 'Liege', 'Luxembourg', 'Province of Namur', 'Walloon Brabant']
+        corresponding_NIS = [21000, 10000, 40000, 20001, 70000, 30000, 50000, 60000, 80000, 90000, 20002]
+        region_to_NIS_dict = dict(zip(regions, corresponding_NIS))        
+        # Extract region names and append Brussels
+        regions = list(df['sub_region_2'].dropna().unique())
+        regions.insert(0,'Brussels')
+        # Build multiindex dataframe
+        iterables = [df['date'].unique(), corresponding_NIS]
+        index = pd.MultiIndex.from_product(iterables, names=["date", "NIS"])
+        new_df = pd.DataFrame(index=index, columns=list(variable_mapping.values()))
+        # Loop over regions
+        for region in regions:
+            NIS = region_to_NIS_dict[region]
+            if region == 'Brussels':
+                new_df.loc[(slice(None),NIS),:] = df.loc[(df['sub_region_1'] == 'Brussels')][list(variable_mapping.values())].values
+            else:
+                new_df.loc[(slice(None),NIS),:] = df[df['sub_region_2']==region][list(variable_mapping.values())].values
+            # Replace NaN with the last observed non-null value forward
+            new_df.loc[(slice(None),NIS),:] = new_df.loc[(slice(None),NIS),:].fillna(method='ffill')
+        df = new_df
+    else:
+            
+        # Extract national values
+        df=df[df['sub_region_1'].isnull().values]
+        df = df.set_index("date")
+        df.index.freq = 'D'
+        df = df[list(variable_mapping.values())]
 
     if filename_plot and not plot:
         print("Filename plot has no effect, plot is not activated. Set `plot=True` to create plot.")
 
     if plot:
-        fig, ax = google_mobility(data)
+        if provincial:
+            print("\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            print("Plotting of provincial-level google community mobility data is not implemented (yet).")
+            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n")
+
+        fig, ax = google_mobility(df)
         
         if filename_plot:
             plt.savefig(filename_plot, dpi=600, bbox_inches='tight',
@@ -181,7 +218,7 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
         else:
             plt.show()
 
-    return data
+    return df
 
 
 
@@ -190,25 +227,21 @@ def get_google_mobility_data(update=True, plot=False, filename_plot=None):
 ####################################
 
 # Load all data in a big DataFrame
-def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
+def get_proximus_mobility_data(agg):
     """
-    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
+    Function that fetches all available mobility data and adds it to a DataFrame with dates as indices and numpy matrices as values. The loaded data are provided as fractions of the staytime between regions within Belgium.
+    
+    Make sure to regularly update the mobility data with the notebook notebooks/preprocessing/Quick-update_mobility-matrices.ipynb to get the data for the most recent days. Also returns the average mobility over all available data, which might NOT always be desirable as a back-up mobility.
     
     Input
     -----
     agg : str
-        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'
-    dtype : str
-        Choose the type of mobility data to return. Either 'fractional' (default), staytime (all available hours for region g spent in h), or visits (all unique visits from region g to h)
-    beyond_borders : boolean
-        If true, also include mobility abroad and mobility from foreigners
+        Denotes the spatial aggregation at hand. Either 'prov', 'arr' or 'mun'. NOTE currently only 'prov' data is available.
     
     Returns
     -------
     proximus_mobility_data : pd.DataFrame
         DataFrame with datetime objects as indices ('DATE') and np.arrays ('place') as value column
-    proximus_mobility_data_avg : np.array
-        average mobility matrix over all available dates
     """
 
     ### Validate input ###
@@ -218,18 +251,13 @@ def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
                     "spatial stratification '{0}' is not legitimate. Possible spatial "
                     "stratifications are 'mun', 'arr', or 'prov'".format(agg)
                 )
-    if dtype not in ['fractional', 'staytime', 'visits']:
-        raise ValueError(
-                    "data type '{0}' is not legitimate. Possible mobility matrix "
-                    "data types are 'fractional', 'staytime', or 'visits'".format(dtype)
-                )
     
     ### Load all available data ###
     
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    data_location = f'../../../data/interim/mobility/{agg}/fractional'
     
     # Iterate over all available interim mobility data
     all_available_dates=[]
@@ -241,25 +269,14 @@ def get_proximus_mobility_data(agg, dtype='fractional', beyond_borders=False):
         # Create list of datetime objects
         all_available_dates.append(pd.to_datetime(datum, format="%Y%m%d"))
         # Load the CSV as a np.array
-        if beyond_borders:
-            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values
-        else:
-            place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
-            if dtype=='fractional':
-                # make sure the rows sum up to 1 nicely again after dropping a row and a column
-                place = place / place.sum(axis=1)
-                # This still introduces some numerical imperfections, so add the offset to the diagonal element
-                np.fill_diagonal(place, place.diagonal() + (np.ones(place.shape[0]) - place.sum(axis=1)))
+        place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values#.drop(index='Foreigner', columns='ABROAD').values
         # Create list of places
         all_available_places.append(place)
     # Create new empty dataframe with available dates. Load mobility later
     df = pd.DataFrame({'DATE' : all_available_dates, 'place' : all_available_places}).set_index('DATE')
     proximus_mobility_data = df.copy()
     
-    # Take average of all available mobility data
-    proximus_mobility_data_avg = df['place'].values.mean()
-    
-    return proximus_mobility_data, proximus_mobility_data_avg
+    return proximus_mobility_data
 
 
 def update_staytime_mobility_matrix(raw_dir, interim_dir, agg='arr', verbose=True, normalise=True):
@@ -455,7 +472,7 @@ def check_missing_dates(dates, data_location):
     missing = set(dates).difference(set(full_list))
     return missing
 
-def load_datafile_proximus(date, data_location):
+def load_datafile_proximus(date, data_location, agg='postalcode'):
     """
     Load an entire raw Proximus data file
     
@@ -465,26 +482,54 @@ def load_datafile_proximus(date, data_location):
         Single date in the shape YYYYMMDD
     data_location: str
         Name of directory (relative or absolute) that contains all Proximus data files
+    agg: str
+        'postalcode' (default) or 'arr'
         
     Output
     ------
     datafile: pandas DataFrame
     """
-    suffix = proximus_mobility_suffix()
-    datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
-    # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
-    datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
-                                                                                         'postalcode' : str,
-                                                                                         'imsisinpostalcode' : float,
-                                                                                         'habitatants' : float,
-                                                                                         'nrofimsi' : float,
-                                                                                         'visitors' : float,
-                                                                                         'est_staytime' : float,
-                                                                                         'total_est_staytime' : float,
-                                                                                         'est_staytime_perc' : float})
+    if agg=='postalcode':
+        suffix = proximus_mobility_suffix()
+        datafile_name = data_location + 'outputPROXIMUS122747corona' + date + suffix
+        # Note: the dtypes must not be int, because some int values are > 2^31 and this cannot be handled for int32
+        datafile = pd.read_csv(datafile_name, sep=';', decimal=',', dtype={'mllp_postalcode' : str,
+                                                                                             'postalcode' : str,
+                                                                                             'imsisinpostalcode' : float,
+                                                                                             'habitatants' : float,
+                                                                                             'nrofimsi' : float,
+                                                                                             'visitors' : float,
+                                                                                             'est_staytime' : float,
+                                                                                             'total_est_staytime' : float,
+                                                                                             'est_staytime_perc' : float})
+    elif agg=='arr':
+        name1 = f'corona_report_proximus_district2district_{date}_{date}.csv'
+        name2 = f'output_PROXIMUS_122747_coronadistrict_{date}_AZUREREF001.csv'
+        try:
+            datafile = pd.read_csv(data_location+name1, sep=';', decimal=',', dtype={'mllp_district' : str,
+                                                                                     'district' : str,
+                                                                                     'imsisindistrict' : float,
+                                                                                     'habitatants' : float,
+                                                                                     'nrofimsi' : float,
+                                                                                     'visitors' : float,
+                                                                                     'est_staytime' : float,
+                                                                                     'total_est_staytime' : float,
+                                                                                     'est_staytime_perc' : float})
+        except:
+            datafile = pd.read_csv(data_location+name2, sep=';', decimal=',', dtype={'mllp_district' : str,
+                                                                                     'district' : str,
+                                                                                     'imsisindistrict' : float,
+                                                                                     'habitatants' : float,
+                                                                                     'nrofimsi' : float,
+                                                                                     'visitors' : float,
+                                                                                     'est_staytime' : float,
+                                                                                     'total_est_staytime' : float,
+                                                                                     'est_staytime_perc' : float})
+    else:
+        raise Exception("agg must be 'arr' or 'postalcode'.")
     return datafile    
     
-def load_mmprox(datafile, values='nrofimsi'):
+def load_mmprox(datafile, values='nrofimsi', agg='postalcode'):
     """
     Process raw Proximus datafile into a mobility matrix for either nrofimsi values or est_staytime values
     
@@ -494,15 +539,24 @@ def load_mmprox(datafile, values='nrofimsi'):
         loaded from load_datafile_proximus
     values: str
         Either 'nrofimsi' (visit counts) or 'est_staytime' (estimated staytime)
+    agg: str
+        'postalcode' (default) or 'arr'
     
     Output
     ------
     mmprox: pandas.DataFrame
         pandas DataFrames with visit counts or estimated staytime between postal codes.
     """
-    mmprox = datafile.pivot_table(values=values,
+    if agg=='postalcode':
+        mmprox = datafile.pivot_table(values=values,
                                   index='mllp_postalcode',
                                   columns='postalcode').fillna(value=0)
+    elif agg=='arr':
+        mmprox = datafile.pivot_table(values=values,
+                                  index='mllp_district',
+                                  columns='district').fillna(value=0)
+    else:
+        raise Exception("agg must be 'arr' or 'postalcode'.")
     return mmprox
 
 def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
@@ -539,7 +593,7 @@ def complete_home_staytime(mmprox, missing_seconds, minus_sleep=True):
             
     return mmprox_added_home_staytime
 
-def GDPR_staytime(mmprox, est_hidden_staytime):
+def GDPR_staytime(mmprox, values=0):
     """
     Changes every -1 value for the staytime in the origin-destination matrix with the corresponding estimated value
     
@@ -547,8 +601,8 @@ def GDPR_staytime(mmprox, est_hidden_staytime):
     -----
     mmprox: pandas DataFrame
         Mobility matrix with postal codes as indices and as column heads, and est_staytime as values
-    est_hidden_staytime: pandas DataFrame
-        Output of est_hidden_staytime_per_pc: indices are origin postal codes, column contains estimated staytime values
+    values: float or pandas.DataFrame
+        Either a value (None by defulOutput of est_hidden_staytime_per_pc: indices are origin postal codes, column contains estimated staytime values
         
     Returns
     -------
@@ -556,10 +610,11 @@ def GDPR_staytime(mmprox, est_hidden_staytime):
         Dataframe identical to mmprox (input), but with every -1 value changed by the corresponding estimated time
     """
     # Make series from est_hidden_staytime
-    est_hidden_series = pd.Series(data=est_hidden_staytime['est_hidden_staytime'], index=est_hidden_staytime.index)
+    if type(values) == pd.core.frame.DataFrame:
+        values = pd.Series(data=est_hidden_staytime['est_hidden_staytime'], index=est_hidden_staytime.index)
     
     # Replace every -1 value with the corresponding estimated value that is protected
-    mmprox_added_hidden_staytime = mmprox.mask(mmprox==-1, other=est_hidden_series, axis=0)
+    mmprox_added_hidden_staytime = mmprox.mask(mmprox==-1, other=values, axis=0)
     
     return mmprox_added_hidden_staytime
     
@@ -920,7 +975,7 @@ def est_hidden_staytime_per_pc(datafile):
 
 # Aggregate
 
-def mm_aggregate(mmprox, agg='mun'):
+def mm_aggregate(mmprox, agg='mun', from_agg='postalcode'):
     """
     Aggregate cleaned-up mobility dataframes at the aggregation level of municipalities, arrondissements or provinces
     
@@ -930,6 +985,8 @@ def mm_aggregate(mmprox, agg='mun'):
         Mobility matrix with postal codes as indices and as column heads, and visit counts or visit lenghts as values
     agg: str
         The level at which to aggregate. Choose between 'mun', 'arr' or 'prov'. Default is 'mun'.
+    from_agg: str
+        The starting level from which to aggregate. Only 'arr' implemented so far. 'postalcode' does nothing.
         
     Output
     ------
@@ -938,83 +995,113 @@ def mm_aggregate(mmprox, agg='mun'):
     """
     # validate
     mmprox_shape = mmprox.shape
-    if mmprox_shape != (1148, 1148):
+    if from_agg != 'arr' and mmprox_shape != (1148, 1148):
         raise Exception(f"The input dataframe is of the shape {mmprox_shape}, not (1148, 1148) which is all 1147 postal codes + destinations/origins abroad. Fix this first.")
     if agg not in ['mun', 'arr', 'prov']:
         raise Exception("The aggregation level must be either municipality ('mun'), arrondissements ('arr') or provinces ('prov').")
     
-    # copy dataframe and load the postal-code-to-NIS-value translator
-    mmprox_agg = mmprox.copy()
-    pc_to_nis = load_pc_to_nis()
-    
-    rename_abroad = 'ABROAD'
-    rename_foreigner = 'Foreigner'
-    
-    # initiate renaming dictionaries
-    rename_col_dict = dict({})
-    rename_idx_dict = dict({})
-    for pc in mmprox_agg.columns:
-        if pc != 'ABROAD':
-            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
-            rename_col_dict[pc] = NIS
-    rename_col_dict['ABROAD'] = rename_abroad
-    for pc in mmprox_agg.index:
-        if pc != 'Foreigner':
-            NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
-            rename_idx_dict[pc] = NIS
-    rename_idx_dict['Foreigner'] = rename_foreigner
-    
-    # Rename the column names and indices to prepare for merging
-    mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
-    
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
-    mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
-    
-    if agg in ['arr', 'prov']:
+    if agg=='prov' and from_agg=='arr':
         # Rename columns
-        for nis in mmprox_agg.columns:
-            if nis != 'ABROAD':
-                new_nis = nis[:-3] + '000'
-                mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+        for nis in mmprox.columns:
+            if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
+                new_nis = nis[:-4] + '0000'
+                mmprox = mmprox.rename(columns={nis : new_nis})
+            if nis in ['23000', '24000']:
+                new_nis = '20001'
+                mmprox = mmprox.rename(columns={nis : new_nis})
+            if nis == '25000':
+                new_nis = '20002'
+                mmprox = mmprox.rename(columns={nis : new_nis})
 
         # Rename rows
-        for nis in mmprox_agg.index:
-            if nis != 'Foreigner':
-                new_nis = nis[:-3] + '000'
-                mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+        for nis in mmprox.index:
+            if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                new_nis = nis[:-4] + '0000'
+                mmprox = mmprox.rename(index={nis : new_nis})
+            if nis in ['23000', '24000']:
+                new_nis = '20001'
+                mmprox = mmprox.rename(index={nis : new_nis})
+            if nis == '25000':
+                new_nis = '20002'
+                mmprox = mmprox.rename(index={nis : new_nis})
 
         # Collect rows and columns with the same NIS code, and automatically order column/row names
+        mmprox_agg = mmprox.groupby(level=0, axis=1).sum()
+        mmprox_agg = mmprox.groupby(level=0, axis=0).sum()#.astype(int)
+    
+    else:
+        # copy dataframe and load the postal-code-to-NIS-value translator
+        mmprox_agg = mmprox.copy()
+        pc_to_nis = load_pc_to_nis()
+
+        rename_abroad = 'ABROAD'
+        rename_foreigner = 'Foreigner'
+
+        # initiate renaming dictionaries
+        rename_col_dict = dict({})
+        rename_idx_dict = dict({})
+        for pc in mmprox_agg.columns:
+            if pc != 'ABROAD':
+                NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+                rename_col_dict[pc] = NIS
+        rename_col_dict['ABROAD'] = rename_abroad
+        for pc in mmprox_agg.index:
+            if pc != 'Foreigner':
+                NIS = str(pc_to_nis[pc_to_nis['Postcode']==int(pc)]['NISCode'].values[0])
+                rename_idx_dict[pc] = NIS
+        rename_idx_dict['Foreigner'] = rename_foreigner
+
+        # Rename the column names and indices to prepare for merging
+        mmprox_agg = mmprox_agg.rename(columns=rename_col_dict, index=rename_idx_dict)
+
         mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
         mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
-        
-        if agg == 'prov':
+
+        if agg in ['arr', 'prov']:
             # Rename columns
             for nis in mmprox_agg.columns:
-                if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
-                    new_nis = nis[:-4] + '0000'
-                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
-                if nis in ['23000', '24000']:
-                    new_nis = '20001'
-                    mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
-                if nis == '25000':
-                    new_nis = '20002'
+                if nis != 'ABROAD':
+                    new_nis = nis[:-3] + '000'
                     mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
 
             # Rename rows
             for nis in mmprox_agg.index:
-                if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
-                    new_nis = nis[:-4] + '0000'
-                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
-                if nis in ['23000', '24000']:
-                    new_nis = '20001'
-                    mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
-                if nis == '25000':
-                    new_nis = '20002'
+                if nis != 'Foreigner':
+                    new_nis = nis[:-3] + '000'
                     mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
 
             # Collect rows and columns with the same NIS code, and automatically order column/row names
             mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
             mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
+
+            if agg == 'prov':
+                # Rename columns
+                for nis in mmprox_agg.columns:
+                    if nis not in ['ABROAD', '21000', '23000', '24000', '25000']: # Brussels is '11th province'
+                        new_nis = nis[:-4] + '0000'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                    if nis in ['23000', '24000']:
+                        new_nis = '20001'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+                    if nis == '25000':
+                        new_nis = '20002'
+                        mmprox_agg = mmprox_agg.rename(columns={nis : new_nis})
+
+                # Rename rows
+                for nis in mmprox_agg.index:
+                    if nis not in ['Foreigner', '21000', '23000', '24000', '25000']:
+                        new_nis = nis[:-4] + '0000'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                    if nis in ['23000', '24000']:
+                        new_nis = '20001'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+                    if nis == '25000':
+                        new_nis = '20002'
+                        mmprox_agg = mmprox_agg.rename(index={nis : new_nis})
+
+                # Collect rows and columns with the same NIS code, and automatically order column/row names
+                mmprox_agg = mmprox_agg.groupby(level=0, axis=1).sum()
+                mmprox_agg = mmprox_agg.groupby(level=0, axis=0).sum()#.astype(int)
     
     return mmprox_agg
     
@@ -1025,7 +1112,72 @@ def complete_data_clean(mmprox, agg='mun'):
     mmprox_clean = mm_aggregate( fill_missing_pc( GDPR_replace(mmprox) ), agg=agg)
     return mmprox_clean
 
+def complete_data_clean_new(unprocessed_data, initN):
+    """
+    unprocessed_data: DataFrame
+        Loaded with load_datafile_proximus()
+    initN: np.array
+        Loaded with initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        
+    Example use:
+        unprocessed_data = load_datafile_proximus(pd.Timestamp(2021, 1, 1), data_location)
+        initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        mmprox_clean = complete_data_clean_new(unprocessed_data, initN)
+    """
+    # Takes about twenty seconds per date
+    # Make array of all unique postalcodes in the data
+    pc_array = unprocessed_data.mllp_postalcode.unique()
 
+    # Loop over all postal codes and fill in GDPR protected data with an estimate
+    # It is important to do this in the first step: this will compensate automatically at the provincial level
+    for pc in pc_array:
+        # Define two masks
+        mask_mllp = unprocessed_data['mllp_postalcode']==pc
+        mask_GDPR = unprocessed_data['est_staytime']==-1
+
+        # Number of GDPR protected data points for this particular postalcode
+        GDPR_protected_size = unprocessed_data[mask_mllp & mask_GDPR].est_staytime.size
+
+        # Calculate the reported total est_staytime versus the calculated (summed) total est_staytime
+        total_est_staytime = unprocessed_data.loc[mask_mllp, 'total_est_staytime'].values[0]
+        summed_est_staytime = unprocessed_data[mask_mllp][['est_staytime']].sum(axis=0).values[0]
+
+        # Calculate number of hidden seconds and make up for summing the -1 values
+        hidden_seconds = total_est_staytime - summed_est_staytime + GDPR_protected_size
+        hidden_seconds_per_pc = hidden_seconds / GDPR_protected_size
+
+        # Distribute all hidden seconds evenly to all GDPR-protected postalcodes
+        unprocessed_data.loc[mask_mllp & mask_GDPR,'est_staytime'] = hidden_seconds_per_pc
+        
+    # Next, merge all postalcodes together in provinces
+    # Note that this still contains 'Foreigner' and 'ABROAD'
+
+    # pc-to-pc matrix
+    mmprox = load_mmprox(unprocessed_data, values='est_staytime')
+
+    # Add postalcodes that Proximus has missed
+    mmprox = fill_missing_pc(mmprox)
+
+    # Aggregate at the level of provinces
+    mmprox = mm_aggregate(mmprox, agg='prov')
+
+    # Loop over province NIS values and add unregistered waking-life seconds
+    for NIS in initN.index:
+        NIS_pop = initN.sum(axis=1).loc[NIS]
+        available_seconds_NIS = NIS_pop * 60 * 60 * 16 # 8 hours asleep
+        registered_seconds_NIS = mmprox.loc[str(NIS)].sum()
+        unregistered_seconds_NIS = available_seconds_NIS - registered_seconds_NIS
+        mmprox.loc[str(NIS), str(NIS)] += unregistered_seconds_NIS
+        
+    # Now we only have to deal with the 'ABROAD' category, which might be a pain in the ass ...
+    # The final step is to just normalise everything
+
+    mmprox_clean = mmprox.drop(index=['Foreigner'], columns=['ABROAD'])
+    mmprox_clean = mmprox_clean.div(mmprox_BE.sum(axis=1),axis=0)
+
+    # Clearly the vast majority of time is spent in the home province, which obiously makes sense.
+    
+    return mmprox_clean
 
 # Temporal aggregation/averaging
 def average_mobility(mmprox_dict):

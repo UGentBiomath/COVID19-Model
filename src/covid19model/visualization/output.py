@@ -737,102 +737,153 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
     return graphs
             
 
-def school_vacations_dict():
+def school_vacations_dict(explicit=False):
     """
-    Returns dictionary with datetime objects as keys and lengths of vacations as values
+    Returns dictionary with pd.Timestamp objects as keys and lengths of vacations as values when not explicit. When explicit==True, returns numpy array with all Timestamps
+    
+    Input
+    -----
+        explicit : boolean
+            if True, return numpy array with all holiday Timestamps. False by default.
     """
     # Define school vacations
     vacation_dict=dict({})
-    sdate_krokus = datetime.datetime(2020, 2, 24, 0, 0)
+    sdate_krokus = pd.Timestamp(2020, 2, 24, 0, 0)
     len_krokus = 7
     vacation_dict[sdate_krokus]=len_krokus
     
-    sdate_paas = datetime.datetime(2020, 4, 6, 0, 0)
+    sdate_paas = pd.Timestamp(2020, 4, 6, 0, 0)
     len_paas = 14
     vacation_dict[sdate_paas]=len_paas
     
-    sdate_arbeid = datetime.datetime(2020, 5, 1, 0, 0)
+    sdate_arbeid = pd.Timestamp(2020, 5, 1, 0, 0)
     len_arbeid = 1
     vacation_dict[sdate_arbeid]=len_arbeid
     
-    sdate_hemelvaart = datetime.datetime(2020, 5, 21, 0, 0)
+    sdate_hemelvaart = pd.Timestamp(2020, 5, 21, 0, 0)
     len_hemelvaart = 2
     vacation_dict[sdate_hemelvaart]=len_hemelvaart
     
-    sdate_pinkster = datetime.datetime(2020, 6, 1, 0, 0)
+    sdate_pinkster = pd.Timestamp(2020, 6, 1, 0, 0)
     len_pinkster = 1
     vacation_dict[sdate_pinkster]=len_pinkster
     
-    sdate_zomer = datetime.datetime(2020, 7, 1, 0, 0)
+    sdate_zomer = pd.Timestamp(2020, 7, 1, 0, 0)
     len_zomer = 62
     vacation_dict[sdate_zomer]=len_zomer
     
-    sdate_herfst = datetime.datetime(2020, 11, 2, 0, 0)
+    sdate_herfst = pd.Timestamp(2020, 11, 2, 0, 0)
     len_herfst = 7
     vacation_dict[sdate_herfst]=len_herfst
     
-    sdate_wapen = datetime.datetime(2020, 11, 11, 0, 0)
+    sdate_wapen = pd.Timestamp(2020, 11, 11, 0, 0)
     len_wapen = 1
     vacation_dict[sdate_wapen]=len_wapen
     
-    sdate_kerst = datetime.datetime(2020, 12, 21, 0, 0)
-    len_kerst = 14
+    # sdate_kerst = pd.Timestamp(2020, 12, 21, 0, 0)
+    sdate_kerst = pd.Timestamp(2020, 12, 19, 0, 0)
+    len_kerst = 16 #14
     vacation_dict[sdate_kerst]=len_kerst
     
-    sdate_krokus21 = datetime.datetime(2021, 2, 15, 0, 0)
+    sdate_krokus21 = pd.Timestamp(2021, 2, 15, 0, 0)
     len_krokus21 = 7
     vacation_dict[sdate_krokus21]=len_krokus21
     
-    sdate_paas21 = datetime.datetime(2021, 4, 5, 0, 0)
-    len_paas21 = 14
+    # sdate_paas21 = pd.Timestamp(2021, 4, 5, 0, 0)
+    sdate_paas21 = pd.Timestamp(2021, 3, 26, 0, 0)
+    len_paas21 = 23 #14
     vacation_dict[sdate_paas21]=len_paas21
+    
+    sdate_arbeid21 = pd.Timestamp(2021, 5, 1, 0, 0)
+    len_arbeid21 = 1
+    vacation_dict[sdate_arbeid21]=len_arbeid21
+    
+    sdate_hemelvaart21 = pd.Timestamp(2021, 5, 13, 0, 0)
+    len_hemelvaart21 = 2
+    vacation_dict[sdate_hemelvaart21]=len_hemelvaart21
+    
+    sdate_pinkster21 = pd.Timestamp(2021, 5, 23, 0, 0)
+    len_pinkster21 = 1
+    vacation_dict[sdate_pinkster21]=len_pinkster21
+    
+    sdate_zomer21 = pd.Timestamp(2021, 7, 1, 0, 0)
+    len_zomer21 = 62
+    vacation_dict[sdate_zomer21]=len_zomer21
+    
+    sdate_herfst21 = pd.Timestamp(2021, 11, 1, 0, 0)
+    len_herfst21 = 7
+    vacation_dict[sdate_herfst21]=len_herfst21
+    
+    sdate_wapen21 = pd.Timestamp(2021, 11, 11, 0, 0)
+    len_wapen21 = 1
+    vacation_dict[sdate_wapen21]=len_wapen21
+    
+    sdate_kerst21 = pd.Timestamp(2021, 12, 27, 0, 0) # Actually the schools were closed one week early
+    len_kerst21 = 14
+    vacation_dict[sdate_kerst21]=len_kerst21
+    
+    if explicit:
+        all_holidays = []
+        for date, duration in vacation_dict.items():
+            for day in range(duration):
+                holiday = (date + pd.Timedelta(days=day))#.date()
+                all_holidays.append(holiday)
+        vacation_dict = np.array(all_holidays)
     
     return vacation_dict
     
-def color_timeframes(sdate, edate, ax=None, frametype='all'):
+def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend_color='wheat', vacation_color='khaki', frametype='all'):
     """
     Function to color the background in mobility plot according to the timeframe (business day, weekend, school vacation day)
     
     Input
     -----
-    sdate: datetime object
+    sdate: datetime object or pd.Timestamp
         Start date of coloring
-    edate: datetime object
+    edate: datetime object or pd.Timestamp
         End date of coloring
     ax: matplotlib.axes._subplots.AxesSubplot
         Axis to add the coloring to the axes in argument.
     frametype: str
         Choose which frames to color. 'all', 'business', 'weekend' or 'vacation'. Not yet implemented
     """
+    if week_color==None:
+        week_color='blanchedalmond'
+    if weekend_color==None:
+        weekend_color='wheat'
+    if vacation_color==None:
+        vacation_color='khaki'
+    
+    # Convert everything to pd.Timestamp
+    sdate = pd.Timestamp(sdate)
+    edate = pd.Timestamp(edate)
+    
     # Determine total number of days
     days_count = (edate-sdate).days+1
     
     # Get specified or current axis
     ax = ax or plt.gca()
     
-   # Choose colours
-    week_color = 'blanchedalmond'
-    weekend_color = 'wheat'
-    vacation_color = 'khaki'
+   # Choose alpha
     alpha=1
     
     # Draw everything in week_colour in currently open plt environment
-    ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha)
+    ax.axvspan(sdate, edate, facecolor=week_color, alpha=alpha, zorder=-1)
     
     # Overdraw weekends
     for d in range(days_count):
-        d_datetime = sdate + datetime.timedelta(days=d)
+        d_datetime = sdate + pd.Timedelta(days=d)
         # if Saturday
         if d_datetime.isoweekday() == 6:
-            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=2), facecolor=weekend_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=2), facecolor=weekend_color, alpha=alpha, zorder=-1)
     
     # Overdraw vacation
     vacation_dict = school_vacations_dict()
     for d in range(days_count):
-        d_datetime = sdate + datetime.timedelta(days=d)
+        d_datetime = sdate + pd.Timedelta(days=d)
         # if vacation
         if d_datetime in vacation_dict:
-            ax.axvspan(d_datetime, d_datetime + datetime.timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha)
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha, zorder=-1)
     
     return
     
@@ -842,7 +893,7 @@ def check_dtype(datum):
     
     Input
     -----
-    datum: datetime object
+    datum: pd.Timestamp object
     
     Returns
     -------
@@ -859,7 +910,7 @@ def check_dtype(datum):
         datum_type = 'business'
     # overwrite if sdate is a vacation day
     for d in vacation_dict:
-        if (datum >= d) and (datum < d + datetime.timedelta(days=vacation_dict[d])):
+        if (datum >= d) and (datum < d + pd.Timedelta(days=vacation_dict[d])):
             datum_type = 'vacation'
     return datum_type
 
@@ -869,13 +920,17 @@ def draw_baseline(sdate, edate, baselines, ax=None):
     
     Input
     -----
-    sdate: datetime object
+    sdate: datetime object or pd.Timestamp
         Start date of baseline drawing
-    edate: datetime object
+    edate: datetime object or pd.Timestamp
         End date of baseline drawing
     baselines: tuple
         Tuple with (business, weekend, vacation) baseline values, in that order
     """
+    # Convert to pd.Timestamp
+    sdate = pd.Timestamp(sdate)
+    edate = pd.Timestamp(edate)
+    
     # Determine total number of days
     days_count = (edate-sdate).days+1
     
@@ -898,18 +953,18 @@ def draw_baseline(sdate, edate, baselines, ax=None):
     previous_type = sdate_type
     previous_d = 0
     for d in range(days_count):
-        d_datetime = sdate + datetime.timedelta(days=d)
+        d_datetime = sdate + pd.Timedelta(days=d)
         new_type = check_dtype(d_datetime)
         if new_type != previous_type:
-            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
+            previous_d_datetime = sdate + pd.Timedelta(days=previous_d)
             ax.plot((previous_d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
             ax.plot((d_datetime, d_datetime), (baselines_dict[previous_type], baselines_dict[new_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
             
             previous_type = new_type
             previous_d = d
         elif (d == days_count-1):
-            previous_d_datetime = sdate + datetime.timedelta(days=previous_d)
-            ax.plot((previous_d_datetime, d_datetime + datetime.timedelta(days=1)), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
+            previous_d_datetime = sdate + pd.Timedelta(days=previous_d)
+            ax.plot((previous_d_datetime, d_datetime + pd.Timedelta(days=1)), (baselines_dict[previous_type], baselines_dict[previous_type]), color=color, linestyle=linestyle, alpha=alpha, linewidth=linewidth)
             
 
     return

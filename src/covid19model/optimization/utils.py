@@ -2,19 +2,23 @@ import gc
 import os
 import sys
 import emcee
+import datetime
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from multiprocessing import Pool
+from multiprocessing import Pool, get_context
 from covid19model.visualization.optimization import traceplot
 from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
-# Path to figures and samples --> used by run_MCMC
-fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIRD/')
-samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIRD/calibrations/')
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, spatial_unit, run_date, job, agg=None, progress=True):
+def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, processes, agg=None, progress=True):
+    
+    # Define path to figures and samples
+    fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
+    samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
+    
     # Determine save path
     if agg:
         if agg not in ['mun', 'arr', 'prov']:
@@ -24,7 +28,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     else:
         fig_path_agg = f'{fig_path}/national/'
         samples_path_agg = f'{samples_path}/national/'
-    
+    # Determine data of calibration
+    run_date = str(datetime.date.today())
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # We'll track how the average autocorrelation time estimate changes
@@ -35,10 +40,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     # Initialize autocorr vector and autocorrelation figure
     autocorr = np.zeros([1,ndim])
 
-    with Pool() as pool:
+    with get_context("spawn").Pool(processes=processes) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
-                        args=objective_fcn_args, kwargs=objective_fcn_kwargs)
-        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True):
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs,
+                        moves=[(emcee.moves.DEMove(), 0.5),(emcee.moves.KDEMove(bw_method='scott'), 0.5)])
+        for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
@@ -50,12 +56,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # Hardcode threshold values defining convergence
             thres_multi = 50.0
             thres_frac = 0.03
-
             # Compute the autocorrelation time so far
             tau = sampler.get_autocorr_time(tol=0)
             autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
             index += 1
-
             # Update autocorrelation plot
             n = print_n * np.arange(0, index + 1)
             y = autocorr[:index+1,:]
@@ -68,21 +72,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
             ax.set_xlabel("number of steps")
             ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            if job == 'FULL':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_COMP_EFF_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-            elif job == 'R0':
-                fig.savefig(fig_path_agg+'autocorrelation/'+spatial_unit+'_AUTOCORR_R0_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
-
+            fig.savefig(fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
             # Update traceplot
-            if job == 'FULL':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_COMP_EFF_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-            elif job == 'R0':
-                traceplot(sampler.get_chain(),labels,
-                            filename=fig_path_agg+'traceplots/'+spatial_unit+'_TRACE_R0_'+run_date+'.pdf',
-                            plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-
+            traceplot(sampler.get_chain(),labels,
+                        filename=fig_path_agg+'traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
+                        plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
+            # Garbage collection
             plt.close('all')
             gc.collect()
 
@@ -110,16 +105,10 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
-            if job == 'FULL':
-                with open(samples_path+str(spatial_unit)+'_R0_COMP_EFF_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
-            elif job == 'R0':
-                with open(samples_path+str(spatial_unit)+'_R0_'+run_date+'.npy', 'wb') as f:
-                    np.save(f,flat_samples)
-                    f.close()
-                    gc.collect()
+            with open(samples_path_agg+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
+                np.save(f,flat_samples)
+                f.close()
+                gc.collect()
 
     return sampler
 
@@ -129,21 +118,21 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
     Parameters
     ----------
 
-    theta : list (of floats)
+    theta : list (of floats) or np.array
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     pert : list (of floats)
         Relative perturbation factors (plus-minus) on PSO estimate
 
     multiplier : int
-        Multiplier determining the total numer of markov chains that will be run by emcee.
-        Total nr. chains = multiplier * nr. parameters
-        Default (minimum): 2
+        Multiplier determining the total number of markov chains that will be run by emcee.
+        Typically, total nr. chains = multiplier * nr. parameters
+        Default (minimum): 2 (one chain will result in an error in emcee)
         
     bounds : array of tuples of floats
         Ordered boundaries for the parameter values, e.g. ((0.1, 1.0), (1.0, 10.0)) if there are two parameters.
         Note: bounds must not be zero, because the perturbation is based on a percentage of the value,
-        and any percentage of zero returns zero, causing a 
+        and any percentage of zero returns zero, causing an error regarding linear dependence of walkers
         
     verbose : boolean
         Print user feedback to stdout
@@ -165,9 +154,10 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         raise Exception('The parameter value array "theta" must have the same length as the perturbation value array "pert".')
     if bounds and (len(bounds) != len(theta)):
         raise Exception('If bounds is not None, it must contain a tuple for every parameter in theta')
-        
+    # Convert theta to np.array
+    theta = np.array(theta)
+    # Define clipping values: perturbed value must not fall outside this range
     if bounds:
-        # Define clipping values: perturbed value must not fall outside this range
         lower_bounds = [bounds[i][0]/(1-pert[i]) for i in range(len(bounds))]
         upper_bounds = [bounds[i][1]/(1+pert[i]) for i in range(len(bounds))]
     
@@ -191,8 +181,8 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-
-def assign_PSO(param_dict, pars, theta):
+from .objective_fcns import thetas_to_thetas_dict
+def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
     Parameters
@@ -200,10 +190,10 @@ def assign_PSO(param_dict, pars, theta):
     param_dict : dict
         Model parameters dictionary
 
-    pars : list (of strings)
+    parNames : list (of strings)
         Names of model parameters estimated using PSO
 
-    theta : list (of floats)
+    thetas : list (of floats)
         Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
 
     Returns
@@ -226,90 +216,36 @@ def assign_PSO(param_dict, pars, theta):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    # Assign results to model.parameters
-    if 'warmup' not in pars:
-        for idx, par in enumerate(pars):
-            param_dict[par] = theta[idx]
+    thetas_dict,n = thetas_to_thetas_dict(thetas, parNames, param_dict)
+    for i, (param,value) in enumerate(thetas_dict.items()):
+        if param == 'warmup':
+            warmup = int(round(value))
+        else:
+            param_dict.update({param : value})
+
+    if 'warmup' not in thetas_dict.keys():
         return param_dict
     else:
-        for idx, par in enumerate(pars):
-            if par == 'warmup':
-                warmup = theta[idx]
-            else:
-                param_dict[par] = theta[idx]
         return warmup, param_dict
 
-def plot_PSO(output, theta, pars, data, states, start_calibration, end_calibration):
+from covid19model.optimization.objective_fcns import log_prior_custom
+def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
     """
-    A generic function to visualize a PSO estimate on multiple dataseries
-
-    Parameters
-    ----------
-
-    output : xr.DataArray
-        Model simulation
-
-    theta : list (of floats)
-        Result of PSO calibration, results must correspond to the order of the parameter names list (pars)
-
-    pars : list (of strings)
-        Names of model parameters estimated using PSO
-
-    data : list
-        List containing dataseries to compare model output to in calibration objective function
-
-    states :
-        List containing the names of the model states that must be matched to the corresponding dataseries in 'data'
-
-    start_calibration : string
-        Startdate of calibration, 'YYYY-MM-DD'
-
-    end_calibration : string
-        Enddate of calibration, 'YYYY-MM-DD'
-
-    Returns
-    -------
-
-    fig: plt figure
-
-    Example use
-    -----------
-
-    # run optimisation
-    theta = pso.fit_pso(model, data, pars, states, weights, bounds, maxiter=maxiter, popsize=popsize,start_date=start_calibration, processes=processes)
-    # Assign estimates to model parameters dictionary
-    warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
-    # Perform simulation
-    out = model.sim(end_calibration,start_date=start_calibration,warmup=warmup,draw_fcn=draw_fcn,samples={})
-    # Plot result
-    plot_PSO(out, theta, pars, data, states, start_calibration, end_calibration)
-
+    A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
     """
 
-    # Visualize fit
-    if len(states) == 1:
-        idx = 0
-        fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
-        try: # spatial case
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
-            ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        except:
-            ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-            ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax.set_xlim([start_calibration,end_calibration])
-    else:
-        fig,axes = plt.subplots(nrows=len(states),ncols=1,figsize=(12,4*len(states)),sharex=True)
-        for idx,ax in enumerate(axes):
-            try: # spatial
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc').sum(dim='place'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx].sum(axis=1), \
-                           color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            except:
-                ax.plot(output['time'],output[states[idx]].sum(dim='Nc'),'--', color='blue')
-                ax.scatter(data[idx].index,data[idx], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax.set_xlim([start_calibration,end_calibration])
-    ax = _apply_tick_locator(ax)
-    return ax
+    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
+    pars = pars + pars_prior 
+    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
+    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
+    pert = pert + len(pars_prior)*[0.02,]
+    log_prior_fcn = log_prior_fcn + len(pars_prior)*[log_prior_custom,]
+    for par in pars_prior:
+        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
+        density_my_par_norm = density_my_par/np.sum(density_my_par)
+        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
+    return pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args
+
 
 def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
     """
@@ -470,3 +406,187 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
                 R0_list.append(R0_temp)
             R0_stratified_dict[i] = R0_list
     return R0, R0_stratified_dict
+
+from scipy.optimize import minimize
+def variance_analysis(series, resample_frequency):
+
+    """ A function to analyze the relationship between the variance and the mean in a timeseries of data
+        ================================================================================================
+       
+        The timeseries is binned and the mean and variance of the datapoints within this bin are estimated.
+        Several statistical models are then fitted to the relationship between the mean and variance.
+        The statistical models are: gaussian (var = c), poisson (var = mu), quasi-poisson (var = theta*mu), negative binomial (var = mu + alpha*mu**2)
+
+        Parameters
+        ----------
+
+            series: pd.Series
+                Timeseries of data to be analyzed. The series must have a pd.Timestamp index labeled 'date' for the time dimension.
+                Additionally, this function supports the addition of one more dimension (f.i. space) using a multiindex.
+                This function is not intended to study the variance of datasets containing multiple datapoints on the same date. 
+            
+            resample_frequency: str
+                This function approximates the average and variance in the timeseries data by binning the timeseries. The resample frequency denotes the number of days in each bin.
+                Valid options are: 'W': weekly, '2W': biweekly, 'M': monthly, etc.
+
+        Output
+        ------
+
+            result: pd.Dataframe
+                Contains the estimated parameter(s) and the Akaike Information Criterion (AIC) of the fitted statistical model.
+                If two index levels are present (thus 'date' and 'other index level'), the result pd.Dataframe contains the result stratified per 'other index level'.
+
+            ax: axes object
+                Contains a plot of the estimated mean versus variance, togheter with the fitted statistical models. The best-fitting model is less transparent than the other models.
+       
+       """
+
+    #################
+    ## Bookkeeping ##
+    #################
+
+    # Input checks
+    if 'date' not in series.index.names:
+            raise ValueError(
+            "Indexname 'date' not found. Make sure the time dimension index is named 'date'. Current index dimensions: {0}".format(series.index.names)
+            )           
+    if len(series.index.names) > 2:
+        raise ValueError(
+            "The maximum number of index dimensions is two and must always include a time dimension named 'date'. Valid options are thus: 'date', or ['date', 'something else']. Current index dimensions: {0}".format(series.index.names)
+            )
+    # Relevant parameters
+    if len(series.index.names) == 1:
+        secundary_index = False
+        secundary_index_name = None
+        secundary_index_values = None
+    else:
+        secundary_index = True
+        secundary_index_name = series.index.names[series.index.names != 'date']
+        secundary_index_values = series.index.get_level_values(series.index.names[series.index.names != 'date'])
+
+    ###########################################
+    ## Define variance models and properties ##
+    ###########################################
+
+    gaussian = lambda mu, var : var*np.ones(len(mu))
+    poisson = lambda mu, dummy : mu
+    quasi_poisson = lambda mu, theta : mu*theta
+    negative_binomial = lambda mu, alpha : mu + alpha*mu**2
+    models = [gaussian, poisson, quasi_poisson, negative_binomial]
+    n_model_pars = [1, 0, 1, 1]
+    model_names = ['gaussian', 'poisson', 'quasi-poisson', 'negative binomial']
+
+    ##########################################################
+    ## Define error function for parameter estimation (SSE) ##
+    ##########################################################
+
+    error = lambda model_par, model, mu_data, var_data : sum((model(mu_data,model_par) - var_data)**2)
+
+    #################################
+    ## Approximate mu, var couples ##
+    #################################
+
+    # needed to generate data to calibrate our variance model to
+    if not secundary_index:
+        rolling_mean = series.ewm(span=7, adjust=False).mean()
+        mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
+        var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')]).mean())
+    else:
+        rolling_mean = series.groupby(level=secundary_index_name, group_keys=False).apply(lambda x: x.ewm(span=7, adjust=False).mean())
+        mu_data = (series.groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
+        var_data = (((series-rolling_mean)**2).groupby([pd.Grouper(freq=resample_frequency, level='date')] + [secundary_index_values]).mean())
+    
+    # Protect calibration against nan values
+    merge = pd.merge(mu_data, var_data, right_index=True, left_index=True).dropna()
+    mu_data = merge.iloc[:,0]
+    var_data = merge.iloc[:,1]
+
+    ###################################
+    ## Preallocate results dataframe ##
+    ###################################
+
+    if not secundary_index:
+        results = pd.DataFrame(index=model_names, columns=['theta', 'AIC'], dtype=np.float64)
+    else:
+        iterables = [series.index.get_level_values(secundary_index_name).unique(), model_names]  
+        index = pd.MultiIndex.from_product(iterables, names=[secundary_index_name, 'model'])
+        results = pd.DataFrame(index=index, columns=['theta', 'AIC'], dtype=np.float64)
+
+    ########################
+    ## Perform estimation ##
+    ########################
+
+    if not secundary_index:
+        for i,model in enumerate(models):
+            opt = minimize(error, 0, args=(model, mu_data.values, var_data.values))
+            results.loc[model_names[i], 'theta'] = opt['x'][0]
+            n = len(mu_data.values)
+            results.loc[model_names[i], 'AIC'] = n*np.log(opt['fun']/n) + 2*n_model_pars[i]
+    else:
+        for index in secundary_index_values.unique():
+            for i, model in enumerate(models):
+                opt = minimize(error, 0, args=(model,mu_data.loc[slice(None), index].values, var_data.loc[slice(None), index].values))
+                results.loc[(index, model_names[i]), 'theta'] = opt['x'][0]
+                n = len(mu_data.loc[slice(None), index].values)
+                results.loc[(index, model_names[i]), 'AIC'] = n*np.log(opt['fun']/n) + 2*n_model_pars[i]
+
+    ##########################
+    ## Make diagnostic plot ##
+    ##########################
+    from itertools import compress
+    linestyles = ['-', '-.', ':', '--']
+
+    if not secundary_index:
+        fig,ax=plt.subplots(figsize=(12,4))
+        ax.scatter(mu_data, var_data, color='black', alpha=0.5, linestyle='None', facecolors='none', s=60, linewidth=2)
+        mu_model = np.linspace(start=0, stop=max(mu_data))
+        # Find model with lowest AIC
+        best_model = list(compress(model_names, results['AIC'].values == min(results['AIC'].values)))[0]
+        for idx, model in enumerate(models):
+            if model_names[idx] == best_model:
+                ax.plot(mu_model, model(mu_model, results.loc[model_names[idx], 'theta']), linestyles[idx], color='black', linewidth='2')
+            else:
+                ax.plot(mu_model, model(mu_model, results.loc[model_names[idx], 'theta']), linestyles[idx], color='black', linewidth='2', alpha=0.2)
+            model_names[idx] += ' (AIC: {:.0f})'.format(results.loc[model_names[idx], 'AIC'])
+        ax.grid(False)
+        ax.set_ylabel('Estimated variance')
+        ax.set_xlabel('Estimated mean')
+        ax.legend(['data',]+model_names, bbox_to_anchor=(0.05, 1), loc='upper left', fontsize=12)
+
+    else:
+        # Compute figure size
+        ncols = 3
+        nrows = int(np.ceil(len(secundary_index_values.unique())/ncols))
+        fig,ax=plt.subplots(ncols=ncols, nrows=nrows, figsize=(12,12))
+        i=0
+        j=0
+        for k, index in enumerate(secundary_index_values.unique()):
+            # Determine right plot index
+            if ((k % ncols == 0) & (k != 0)):
+                j = 0
+                i += 1
+            elif k != 0:
+                j += 1
+            # Plot data
+            ax[i,j].scatter(mu_data.loc[slice(None), index].values, var_data.loc[slice(None), index].values, color='black', alpha=0.5, facecolors='none', linestyle='None', s=60, linewidth=2)
+            # Find best model
+            best_model = list(compress(model_names, results.loc[(index, slice(None)), 'AIC'].values == min(results.loc[(index, slice(None)), 'AIC'].values)))[0]
+            # Plot models
+            mu_model = np.linspace(start=0, stop=max(mu_data.loc[slice(None), index].values))
+            for l, model in enumerate(models):
+                if model_names[l] == best_model:
+                    ax[i,j].plot(mu_model, model(mu_model, results.loc[(index,model_names[l]), 'theta']), linestyles[l], color='black', linewidth='2')
+                else:
+                    ax[i,j].plot(mu_model, model(mu_model, results.loc[(index,model_names[l]), 'theta']), linestyles[l], color='black', linewidth='2', alpha=0.2)
+            # Format axes
+            ax[i,j].grid(False)
+            # Add xlabels and ylabels
+            if j == 0:
+                ax[i,j].set_ylabel('Estimated variance')
+            if i == nrows-1:
+                ax[i,j].set_xlabel('Estimated mean')
+            # Add a legend
+            title = secundary_index_name + ': ' + str(index)
+            ax[i,j].legend(['data',]+model_names, bbox_to_anchor=(0.05, 1), loc='upper left', fontsize=7, title=title, title_fontsize=8)
+
+    return results, ax

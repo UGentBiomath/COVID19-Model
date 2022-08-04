@@ -3,26 +3,16 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - pip
-  - ipython
+  - python=3.10
   - jupyter
-  - notebook
-  - matplotlib>3
+  - matplotlib
   - numpy
   - scipy
   - xarray
-  - networkx
   - pandas
-  - ipywidgets
-  - xlrd
-  - scikit-learn
-  - openpyxl
   - emcee
   - corner
   - geopandas
-  - descartes
-  - pyarrow
   - zarr
-  - ujson
-  - openpyxl
   - SAlib
+  - numba

@@ -38,15 +38,15 @@ class BaseModel:
     stratification = None
     apply_compliance_to = None
     coordinates = None
+    state_2d = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False, spatial=None):
+                 discrete=False, agg=None):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
-        self.spatial = spatial
-
+        self.agg = agg
         if self.stratification:
             self.stratification_size = []
             for axis in self.stratification:
@@ -65,6 +65,10 @@ class BaseModel:
             self._function_parameters = []
 
         self._validate()
+
+        # Added to use 2D states
+        if self.state_2d:
+            self.split_point = (len(self.state_names) - 1) * self.stratification_size[0]
 
     def _fill_initial_state_with_zero(self):
         for state in self.state_names:
@@ -151,6 +155,7 @@ class BaseModel:
             for stratified_names in self.parameters_stratified_names:
                 if stratified_names:
                     specified_params += stratified_names
+
         if self.stratification:
             specified_params += self.stratification
 
@@ -166,11 +171,18 @@ class BaseModel:
 
         if self._function_parameters:
             extra_params = [item for sublist in self._function_parameters for item in sublist]
-            # TODO check that it doesn't duplicate any existing parameter
-            # Line below removes duplicate arguments
+
+            # TODO check that it doesn't duplicate any existing parameter (completed?)
+            # Line below removes duplicate arguments in time dependent parameter functions
             extra_params = OrderedDict((x, True) for x in extra_params).keys()
             specified_params += extra_params
-            self._n_function_params = len(extra_params)
+            len_before = len(specified_params)
+            # Line below removes duplicate arguments with integrate defenition
+            specified_params = OrderedDict((x, True) for x in specified_params).keys()
+            len_after = len(specified_params)
+            # Line below computes number of integrate arguments used in time dependent parameter functions
+            n_duplicates = len_before - len_after
+            self._n_function_params = len(extra_params) - n_duplicates
         else:
             self._n_function_params = 0
 
@@ -208,15 +220,24 @@ class BaseModel:
 
         def validate_initial_states(values, name, object_name):
             values = np.asarray(values)
-            if list(values.shape) != self.stratification_size:
-                raise ValueError(
-                    "The stratification parameters '{strat}' indicates a "
-                    "stratification size of {strat_size}, but {obj} '{name}' "
-                    "has length {val}".format(
-                        strat=self.stratification, strat_size=self.stratification_size,
-                        obj=object_name, name=name, val=list(values.shape)
+            if self.state_2d:
+                if name in self.state_2d:
+                    if list(values.shape) != [self.stratification_size[0],self.stratification_size[0]]:
+                        raise ValueError(
+                            "{obj} {name} was defined as a two-dimensional state "
+                            "but has size {size}, instead of {desired_size}"
+                            .format(obj=object_name,name=name,size=list(values.shape),desired_size=[self.stratification_size[0],self.stratification_size[0]])
+                            )
+            else:
+                if list(values.shape) != self.stratification_size:
+                    raise ValueError(
+                        "The stratification parameters '{strat}' indicates a "
+                        "stratification size of {strat_size}, but {obj} '{name}' "
+                        "has length {val}".format(
+                            strat=self.stratification, strat_size=self.stratification_size,
+                            obj=object_name, name=name, val=list(values.shape)
+                        )
                     )
-                )
 
         # the size of the stratified parameters
         if self.parameters_stratified_names:
@@ -249,19 +270,14 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
-        spatial_options = {'mun', 'arr', 'prov'}
-        if self.spatial:
-            # verify wether the spatial parameter value is OK
-            if self.spatial not in spatial_options:
+        agg_options = {'mun', 'arr', 'prov'}
+        if self.agg:
+            # verify wether the agg parameter value is OK
+            if self.agg not in agg_options:
                 raise ValueError(
-                    f"'spatial={self.spatial}' is not a valid choice. Choose from '{spatial_options}'"
+                    f"'agg={self.agg}' is not a valid choice. Choose from '{agg_options}'"
                 )
-        # if coordinates contain 'place', the coordinates are taken from read_coordinates_nis, which needs a spatial argument
-        elif self.coordinates and ('place' in self.coordinates):
-            raise ValueError(
-                f"'spatial' argument in model initialisation cannot be None. Choose from '{spatial_options}' in order to load NIS coordinates into the xarray output"
-            )
-
+        
         # Call integrate function with initial values to check if the function returns all states
         fun = self._create_fun(None)
         y0 = list(itertools.chain(*self.initial_states.values()))
@@ -293,15 +309,28 @@ class BaseModel:
         def func(t, y, pars={}):
             """As used by scipy -> flattend in, flattend out"""
 
-            # for the moment assume sequence of parameters, vars,... is correct
-            size_lst=[len(self.state_names)]
-            for size in self.stratification_size:
-                size_lst.append(size)
-            y_reshaped = y.reshape(tuple(size_lst))
+            # -------------------------------------------------------------
+            # Flatten y and construct dictionary of states and their values
+            # -------------------------------------------------------------
 
-            state_params = dict(zip(self.state_names, y_reshaped))
+            if not self.state_2d:
+                # for the moment assume sequence of parameters, vars,... is correct
+                size_lst=[len(self.state_names)]
+                for size in self.stratification_size:
+                    size_lst.append(size)
+                y_reshaped = y.reshape(tuple(size_lst))
+                state_params = dict(zip(self.state_names, y_reshaped))
+            else:
+                # incoming y -> different reshape for 1D vs 2D variables  (2)
+                y_1d, y_2d = np.split(y, [self.split_point])
+                y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
+                y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
+                state_params = state_params = dict(zip(self.state_names, [y_1d,y_2d]))
 
+            # --------------------------------------
             # update time-dependent parameter values
+            # --------------------------------------
+
             params = pars.copy()
 
             if self.time_dependent_parameters:
@@ -313,14 +342,25 @@ class BaseModel:
                     func_params = {key: params[key] for key in self._function_parameters[i]}
                     params[param] = param_func(date, state_params, pars[param], **func_params)
 
-            if self._n_function_params > 0:
-                model_pars = list(params.values())[:-self._n_function_params]
-            else:
-                model_pars = list(params.values())
-            
+            # ----------------------------------
+            # construct list of model parameters
+            # ----------------------------------
 
-            dstates = self.integrate(t, *y_reshaped, *model_pars)
-            return np.array(dstates).flatten()
+            if self._n_function_params > 0:
+	            model_pars = list(params.values())[:-self._n_function_params]
+            else:
+	            model_pars = list(params.values())
+
+            # -------------------
+            # perform integration
+            # -------------------
+
+            if not self.state_2d:
+                dstates = self.integrate(t, *y_reshaped, *model_pars)
+                return np.array(dstates).flatten()
+            else:
+                dstates = self.integrate(t, *y_1d, y_2d, *model_pars)
+                return np.concatenate([np.array(state).flatten() for state in dstates])
 
         return func
 
@@ -332,6 +372,10 @@ class BaseModel:
         t0, t1 = time
         t_eval = np.arange(start=t0, stop=t1 + 1, step=1)
         
+        if self.state_2d:
+            for state in self.state_2d:
+                self.initial_states[state] = self.initial_states[state].flatten()
+
         # Initial conditions must be one long list of values
         y0 = list(itertools.chain(*self.initial_states.values()))
         while np.array(y0).ndim > 1:
@@ -340,7 +384,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            y0,
-                           args=[self.parameters], t_eval=t_eval)
+                           args=[self.parameters], t_eval=t_eval, method='RK23', rtol=5e-3)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
@@ -381,7 +425,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, to_sample=['beta','l','tau','prevention'], verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -491,8 +535,8 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    if (self.coordinates[i] == 'place') and self.spatial:
-                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.spatial)})
+                    if (self.coordinates[i] == 'place') and self.agg:
+                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.agg)})
                     elif self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
@@ -503,12 +547,26 @@ class BaseModel:
             for size in self.stratification_size:
                 size_lst.append(size)
         size_lst.append(len(output["t"]))
-        y_reshaped = output["y"].reshape(tuple(size_lst))
+
+        if not self.state_2d:
+            y_reshaped = output["y"].reshape(tuple(size_lst))
+            zip_star = zip(self.state_names, y_reshaped)
+        else:
+            # assuming only 1 2D variable!
+            size_lst[0] = size_lst[0]-1
+            y_1d, y_2d = np.split(output["y"], [self.split_point])
+            y_1d_reshaped = y_1d.reshape(tuple(size_lst))
+            y_2d_reshaped = y_2d.reshape(self.stratification_size[0], self.stratification_size[0],len(output["t"]))
+            zip_star=zip(self.state_names[:-1],y_1d_reshaped)
 
         data = {}
-        for var, arr in zip(self.state_names, y_reshaped):
+        for var, arr in zip_star:
             xarr = xarray.DataArray(arr, coords=coords, dims=dims)
             data[var] = xarr
+        
+        if self.state_2d:
+            xarr = xarray.DataArray(y_2d_reshaped,coords=coords,dims=[self.stratification[0],self.stratification[0],'time'])
+            data[self.state_names[-1]] = xarr
 
         attrs = {'parameters': dict(self.parameters)}
         return xarray.Dataset(data, attrs=attrs)
