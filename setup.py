@@ -19,8 +19,8 @@ setup(
         'emcee',
         'xarray',
         'rbfopt',
-        'numba'
-        'SAlib'
+        'numba',
+        'SAlib',
     ],
     extras_require={
         "develop":  ["pytest",
