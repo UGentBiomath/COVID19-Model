@@ -276,13 +276,13 @@ class make_N_vacc_function():
         ####################################
         ## Step 1: Perform age conversion ##
         ####################################
-        
+
         # Only perform age conversion if necessary
         if len(age_classes) != len(df.index.get_level_values('age').unique()):
             df = self.age_conversion(df, age_classes, agg)
         elif (age_classes != df.index.get_level_values('age').unique()).any():
             df = self.age_conversion(df, age_classes, agg)
-        
+
         ###############################################
         ## Step 2: Hypothetical vaccination campaign ##
         ###############################################
@@ -464,7 +464,7 @@ class make_N_vacc_function():
         
         
         from covid19model.data.utils import convert_age_stratified_quantity
-        
+
         # Define a new dataframe with the desired age groups
         iterables=[]
         for index_name in df.index.names:
@@ -473,8 +473,8 @@ class make_N_vacc_function():
             else:
                 iterables += [desired_age_classes]
         index = pd.MultiIndex.from_product(iterables, names=df.index.names)
-        df_new = pd.Series(index=index, dtype=float)
-        
+        df_new = pd.Series(index=index, name=df.name, dtype=float)
+
         # Loop to the dataseries level and perform demographic aggregation
         if agg:
             for date in df.index.get_level_values('date').unique():
@@ -485,6 +485,7 @@ class make_N_vacc_function():
         else:
             for date in df.index.get_level_values('date').unique():
                 for dose in df.index.get_level_values('dose').unique():
+                    data = df.loc[date, slice(None), dose].reset_index().set_index('age')
                     df_new.loc[date, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes).values
 
         return df_new
