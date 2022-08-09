@@ -5,24 +5,6 @@ from scipy.special import gammaln
 import sys
 import inspect
 
-def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
-    dict={}
-    idx = 0
-    total_n_values = 0
-    for param in parameter_names:
-        try:
-            dict[param] = np.array(thetas[idx:idx+len(model_parameter_dictionary[param])], np.float64)
-            total_n_values += len(dict[param])
-            idx = idx + len(model_parameter_dictionary[param])
-        except:
-            if ((isinstance(model_parameter_dictionary[param], float)) | (isinstance(model_parameter_dictionary[param], int))):
-                dict[param] = thetas[idx]
-                total_n_values += 1
-                idx = idx + 1
-            else:
-                raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
-    return dict, total_n_values
-
 ##############################
 ## Log-likelihood functions ##
 ##############################
@@ -391,6 +373,7 @@ class log_posterior_probability():
 
     @staticmethod
     def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
+
         dict={}
         idx = 0
         total_n_values = 0
@@ -406,6 +389,7 @@ class log_posterior_probability():
                     idx = idx + 1
                 else:
                     raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
+    
         return dict, total_n_values
 
     @staticmethod
