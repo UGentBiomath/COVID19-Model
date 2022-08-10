@@ -16,7 +16,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = False
-n_samples = 18*1200
+n_samples = 16000
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/'
 results_name='sobol_'+problem_name
@@ -107,22 +107,27 @@ log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'], [], []]
 
 print('\n3) Setting up the Sobol sensitivity problem')
 
+# Code relies on parameters 'a' and 'h' being in position 2 and 4 respectively!
 problem_grouped = {
-    'num_vars': 11,
+    'num_vars': 12,
     'groups': ['Group_1','Group_1','Group_1','Group_1',
-              'Group_2',
+              'Group_2'
               'Group_3',
-              'Group_4', 'Group_4', 'Group_4', 'Group_4', 'Group_4'],
+              'Group_4',
+              'Group_5', 'Group_5', 'Group_5', 'Group_5', 'Group_5'],
     'names': ['beta','omega','a','da',
+              'h',
               'amplitude',
               'zeta',
               'mentality','eff_schools', 'eff_work', 'eff_rest', 'eff_home'],
-    'labels': ['$R_{0}$: $\\beta$, $\\omega$, a, $d_{a}$',
+    'labels': ['$R_{0}$: $\\beta$, $\\omega$, $a$, $d_{a}$',
+               '$h$',
                '$A_{s}$',
                '$\\zeta$',
                '$N_{c}$: M, $\Omega_{schools}$ ,\n  $\Omega_{work}$, $\Omega_{rest}$, $\Omega_{home}$'],
     'bounds': [
         [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0.50*model.parameters['omega'], 1.50*model.parameters['omega']],[0.01, 0.57],[0.50*model.parameters['da'], 1.50*model.parameters['da']],
+        [0.01, 0.14],
         [0.50*model.parameters['amplitude'], 1.50*model.parameters['amplitude']],
         [0.50*model.parameters['zeta'], 1.50*model.parameters['zeta']],
         [0,1],[0,1],[0,1],[0,1],[0,1]
@@ -130,17 +135,20 @@ problem_grouped = {
 }
 
 problem_ungrouped = {
-    'num_vars': 11,
+    'num_vars': 12,
     'names': ['beta','omega','a','da',
+              'h',
               'amplitude',
               'zeta',
               'mentality','eff_schools', 'eff_work', 'eff_rest', 'eff_home'],
-    'labels': ['$\\beta$', '$\\omega$', 'a', '$d_{a}$',
+    'labels': ['$\\beta$', '$\\omega$', '$a$', '$d_{a}$',
+               '$h$',
                '$A_{s}$',
                '$\\zeta$',
-               'M', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$'],
+               '$M$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$'],
     'bounds': [
         [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0.50*model.parameters['omega'], 1.50*model.parameters['omega']],[0.01, 0.57],[0.50*model.parameters['da'], 1.50*model.parameters['da']],
+        [0.01, 0.14],
         [0.50*model.parameters['amplitude'], 1.50*model.parameters['amplitude']],
         [0.50*model.parameters['zeta'], 1.50*model.parameters['zeta']],
         [0,1],[0,1],[0,1],[0,1],[0,1]
@@ -156,12 +164,13 @@ problem = problems[problem_name]
 ## Setup the sensitivity analysis helper functions ##
 #####################################################
 
+virgin_a = model.parameters['a']
+virgin_h = model.parameters['h']
+
 def adjust_h(overall_h):
-    virgin_h = np.array(model.parameters['h'])
     return list(virgin_h*(overall_h/0.115)) # Verified 11.5% is the implemented Belgian population average (04/08/2022)
 
 def adjust_a(overall_a):
-    virgin_a = np.array(model.parameters['a'])
     return list(virgin_a*(overall_a/0.57)) # Verified 57.0% is the implemented Belgian population average (04/08/2022)
 
 def draw_fcn(param_dict,samples_dict):
@@ -178,7 +187,7 @@ def evaluate_model(thetas):
     thetas = list(thetas)
     # Rescale 'a' and 'h' from population averages to vectors
     thetas[2] = adjust_a(thetas[2]) 
-    #thetas[4] = adjust_h(thetas[4])
+    thetas[4] = adjust_h(thetas[4])
     # Flatten the resulting list containing a mix of lists and floats
     thetas = list(flatten(thetas))
     return objective_function(thetas, simulation_kwargs={'draw_fcn': draw_fcn})
@@ -193,8 +202,9 @@ warnings.filterwarnings('ignore')
 
 # Perform sampling
 param_values = saltelli.sample(problem, n_samples, calc_second_order=calc_second_order)
-rt = param_values.shape[0]*0.232*(18/n_cpus)/3600
-print("\n\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
+rt = param_values.shape[0]*0.401*(18/n_cpus)/3600
+print("\n\t{0} samples per parameter resulting in a total of {1} model evaluations.".format(n_samples, param_values.shape[0]))
+print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
 # Evaluate model (automatic multiprocessing and suppression of warnings)
 start = time.time()
