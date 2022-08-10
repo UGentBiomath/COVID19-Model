@@ -181,7 +181,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-from .objective_fcns import thetas_to_thetas_dict
+from .objective_fcns import log_posterior_probability 
 def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
@@ -216,7 +216,7 @@ def assign_PSO(param_dict, parNames, thetas):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    thetas_dict,n = thetas_to_thetas_dict(thetas, parNames, param_dict)
+    thetas_dict,n = log_posterior_probability.thetas_to_thetas_dict(thetas, parNames, param_dict)
     for i, (param,value) in enumerate(thetas_dict.items()):
         if param == 'warmup':
             warmup = int(round(value))
