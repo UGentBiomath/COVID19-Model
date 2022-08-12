@@ -16,7 +16,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 200
+n_samples = 20000
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/'
 results_name='sobol_'+problem_name
@@ -202,7 +202,7 @@ warnings.filterwarnings('ignore')
 
 # Perform sampling
 param_values = saltelli.sample(problem, n_samples, calc_second_order=calc_second_order)
-rt = param_values.shape[0]*0.401*(18/n_cpus)/3600
+rt = param_values.shape[0]*0.554*(18/n_cpus)/3600
 print("\n\t{0} samples per parameter resulting in a total of {1} model evaluations.".format(n_samples, param_values.shape[0]))
 print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
