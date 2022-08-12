@@ -15,8 +15,8 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 # Sobol analysis
 n_cpus = 18
 problem_name = 'ungrouped'
-calc_second_order = False
-n_samples = 16000
+calc_second_order = True
+n_samples = 200
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/'
 results_name='sobol_'+problem_name
@@ -228,40 +228,14 @@ print('\n5) Saving result')
 if calc_second_order:
     total_Si, first_Si, second_Si = Si.to_df()
     if save:
-        pd.concat([pd.concat([total_Si, first_Si], axis=1), second_Si]).to_csv(results_folder+results_name+'.csv')
+        writer = pd.ExcelWriter(results_folder+results_name+'_'+run_date+'.xlsx')
+        S1ST = pd.concat([total_Si, first_Si], axis=1).to_excel(writer, sheet_name='S1ST')
+        S2 = pd.DataFrame(Si['S2'], index=problem['names'], columns=problem['names']).to_excel(writer, sheet_name='S2')
+        S2_conf = pd.DataFrame(Si['S2_conf'], index=problem['names'], columns=problem['names']).to_excel(writer, sheet_name='S2_conf')
+        writer.save()
 else:
     total_Si, first_Si = Si.to_df()
     if save:
-        pd.concat([total_Si, first_Si], axis=1).to_csv(results_folder+results_name+'.csv')
-
-#############################
-## Visualize sobol weights ##
-#############################
-
-df_plot = pd.concat([total_Si, first_Si], axis=1)
-
-fig,ax=plt.subplots(figsize=(12,4))
-# Bar plot
-ax = df_plot.plot(kind = "bar", y = ["S1", "ST"], yerr=df_plot[['S1_conf', 'ST_conf']].values.T, capsize=8,
-                  color=['white','black'], alpha=0.4, edgecolor='black', ax=ax)
-# Legend
-ax.legend(bbox_to_anchor=(1, 1))
-# Labels
-if problem_name == 'grouped':
-    labels = problem_grouped['labels']
-else:
-    labels = problem_ungrouped['labels']
-x_pos = np.arange(len(labels))
-plt.xticks(x_pos, labels, rotation=0)
-# Axes limit
-ax.set_ylim([0,1])
-# Grid
-ax.grid(False)
-# Visualize
-plt.tight_layout()
-#plt.show()
-# Save
-if save:
-    fig.savefig(results_folder+results_name+'.pdf')
-# Close
-plt.close()
+        writer = pd.ExcelWriter(results_folder+results_name+'_'+run_date+'.xlsx')
+        S1ST = pd.concat([total_Si, first_Si], axis=1).to_excel(writer, sheet_name='S1ST')
+        writer.save()
