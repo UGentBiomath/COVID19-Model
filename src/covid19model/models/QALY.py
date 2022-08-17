@@ -5,8 +5,42 @@ from covid19model.data.utils import convert_age_stratified_property
 
 class QALY_model():
 
-    def __init__(self, comorbidity_distribution):
-        self.comorbidity_distribution = comorbidity_distribution
+    def __init__(self, comorbidity_parameters=None):
+
+        # Build dataframe with default comorbidity_parameters (SMR=1, delta_QoL=0 for all ages)
+        iterables = [pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'),['SMR','delta_QoL']]
+        index = pd.MultiIndex.from_product(iterables, names=['age_group', 'metric'])
+        default_comorbidity_parameters = pd.DataFrame(index=index, columns=['BE',])
+        default_comorbidity_parameters.columns.name = 'population'
+        default_comorbidity_parameters.loc[(slice(None),'SMR'),:] = 1
+        default_comorbidity_parameters.loc[(slice(None),'delta_QoL'),:] = 0
+
+        # Append additional data of comorbid populations
+        if isinstance(comorbidity_parameters, pd.DataFrame):
+            # Input checks
+            if comorbidity_parameters.index.names != ['age_group', 'metric']:
+                raise ValueError("Gimme two indices m8")
+
+            for name in comorbidity_parameters.index.get_level_values('metric').unique():
+                if name not in default_comorbidity_parameters.index.get_level_values('metric').unique():
+                    raise ValueError("Only SMR and delta_QoL permitted")
+            if (('SMR' not in default_comorbidity_parameters.index.get_level_values('metric').unique())|('delta_QoL' not in default_comorbidity_parameters.index.get_level_values('metric').unique())):
+                raise ValueError("SMR or delta_QoL not present")
+            # Population name may not be equal to 'BE'
+            
+            # Age conversion
+            tmp_comorbidity_parameters = pd.DataFrame(index=default_comorbidity_parameters.index, columns=comorbidity_parameters.columns)
+            for metric in comorbidity_parameters.index.get_level_values('metric').unique():
+                for population in comorbidity_parameters.columns:
+                    tmp_comorbidity_parameters.loc[(slice(None), metric), population] = convert_age_stratified_property(comorbidity_parameters[population].loc[slice(None), metric], default_comorbidity_parameters.index.get_level_values('age_group').unique()).values
+            comorbidity_parameters = tmp_comorbidity_parameters
+            # Merge
+            self.comorbidity_parameters = pd.concat([default_comorbidity_parameters,comorbidity_parameters], axis=1)
+        else:
+            # What if I give some bullshit list or a dictionary?
+            self.comorbidity_parameters = default_comorbidity_parameters
+            pass
+
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
@@ -14,22 +48,20 @@ class QALY_model():
         # Compute the vector mu_x and append to life table
         self.life_table['mu_x']= self.compute_death_rate(self.life_table['q_x'])     
         # Define mu_x explictly to enhance readability of the code
-        self.mu_x = self.life_table['mu_x'] 
-        # Load comorbidity QoL scores for the Belgian population from Lisa Van Wilder
-        QoL_Van_Wilder=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"),index_col=0,sheet_name='QoL_scores')
-        QoL_Van_Wilder.columns = ['0','1','2','3+']
-        QoL_Van_Wilder.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
-        self.QoL_Van_Wilder = QoL_Van_Wilder
+        self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores
         self.QoL_Belgium = pd.Series(index=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
-        # Convert Belgian QoL and Van Wilder QoL to age bins of self.comorbidity_distribution
-        self.QoL_Belgium = convert_age_stratified_property(self.QoL_Belgium, self.comorbidity_distribution.index)
-        tmp_QoL_Van_Wilder = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.QoL_Van_Wilder.columns)
-        for column in self.QoL_Van_Wilder.columns:
-            tmp_QoL_Van_Wilder[column] = convert_age_stratified_property(self.QoL_Van_Wilder[column], self.comorbidity_distribution.index)
-        self.QoL_Van_Wilder = tmp_QoL_Van_Wilder
+        
+        
+        # Convert Belgian QoL to age bins of SMR_distribution
+        #self.QoL_Belgium = convert_age_stratified_property(self.QoL_Belgium, self.comorbidity_distribution.index)
+                
+
+        
         # Compute the QoL scores of the studied population
         self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
+
+
         # Load comorbidity SMR estimates
         SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
         SMR_pop_df.columns = ['0','1','2','3+']
