@@ -59,91 +59,6 @@ class QALY_model():
         self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores (source: ...)
         self.QoL_Belgium = pd.Series(index=default_age_bins, data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
-        
-        
-        # Compute the QoL scores of the studied population
-        #self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
-        # Load comorbidity SMR estimates
-        #SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
-        #SMR_pop_df.columns = ['0','1','2','3+']
-        #SMR_pop_df.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
-        #self.SMR_pop_df = SMR_pop_df
-        # Convert comorbidity SMR estimates to age bins of self.comorbidity_distribution
-        #tmp_SMR_pop_df = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.SMR_pop_df.columns)
-        #for column in self.SMR_pop_df.columns:
-        #    tmp_SMR_pop_df[column] = convert_age_stratified_property(self.SMR_pop_df[column], self.comorbidity_distribution.index)
-        #self.SMR_pop_df = tmp_SMR_pop_df
-        # Compute the SMR of the studied population
-        #self.SMR_df = self.build_comorbidity_SMR(self.comorbidity_distribution, self.SMR_pop_df)
-
-    def build_comorbidity_SMR(self, comorbidity_distribution, population_SMR):
-        """ A function to compute the Standardized Mortality Ratios (SMRs) in a studied population, based on the comorbidity distribution of the studied population and the comorbidity distribution of the Belgian population
-
-        Parameters
-        ----------
-        comorbidity_distribution : pd.Dataframe
-            A dataframe containing the studied population fraction with x comorbidities.
-            This dataframe is the input of the comorbidity-QALY model. The studied population are usually recovered or deceased COVID-19 patients in hospitals.
-            The dataframe must have te age group as its index and make use of a pandas multicolumn, where the first level denotes the population (usually R or D, but the code is written to use n populations). 
-            The second level denotes the number of comorbidities, which must be equal to 0, 1, 2 or 3+.
-
-        population_SMR : pd.Dataframe
-            A dataframe containing the age-stratified SMRs for individuals with 0, 1, 2 or 3+ comorbidities in the general Belgian population.
-            Computed using the comorbidity distributions for the general Belgian population obtained from Lisa Van Wilder, and the relative risk of dying by Charslon et. al (computation performed in MS Excel).
-
-        Returns
-        -------
-        SMR_df: pd.DataFrame
-            The weighted Standardized Mortality Ratios (SMRs) in the studied population. 
-            An SMR > 1 indicates the studied population is less healthy than the general Belgian population.
-        """
-
-        # Extract names of populations
-        populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
-        # Initialize dataframe
-        df = pd.DataFrame(index=population_SMR.index, columns=populations)
-        # Fill dataframe
-        for idx,age_group in enumerate(df.index):
-            for jdx,pop in enumerate(populations):
-                df.loc[age_group, pop] = sum(comorbidity_distribution.loc[age_group, pop]*population_SMR.loc[age_group])
-        # Append SMR of average Belgian
-        df.loc[slice(None), 'BE'] = 1
-        return df
-
-    def build_comorbidity_QoL(self, comorbidity_distribution, comorbidity_QoL, average_QoL):
-        """ A function to compute the QoL scores in a studied population, based on the comorbidity distribution of the studied population and the QoL scores for 0, 1, 2, 3+ comorbidities for the Belgian population
-
-        Parameters
-        ----------
-        comorbidity_distribution : pd.Dataframe
-            A dataframe containing the studied population fraction with x comorbidities.
-            This dataframe is the input of the comorbidity-QALY model. The studied population are usually recovered or deceased COVID-19 patients in hospitals.
-            The dataframe must have te age group as its index and make use of a pandas multicolumn, where the first level denotes the population (usually R or D, but the code is written to use n populations). 
-            The second level denotes the number of comorbidities, which must be equal to 0, 1, 2 or 3+.
-
-        comorbidity_QoL : pd.Dataframe
-            A dataframe containing the age-stratified QoL scores for individuals with 0, 1, 2 or 3+ comorbidities in the general Belgian population.
-            Obtained from Lisa Van Wilder.
-
-        average_QoL : pd.Series
-            A series containing the average QoL score for the (Belgian) population
-
-        Returns
-        -------
-        QoL_df: pd.DataFrame
-            The comorbidity-weighted QoL scores of the studied population. 
-        """
-        # Extract names of populations
-        populations = list(comorbidity_distribution.columns.get_level_values(0).unique())
-        # Initialize dataframe
-        df = pd.DataFrame(index=comorbidity_QoL.index, columns=populations)
-        # Fill dataframe
-        for idx,age_group in enumerate(df.index):
-            for jdx,pop in enumerate(populations):
-                df.loc[age_group, pop] = sum(comorbidity_distribution.loc[age_group, pop]*comorbidity_QoL.loc[age_group])
-        # Append SMR of average Belgian
-        df.loc[slice(None), 'BE'] = average_QoL
-        return df
 
     def compute_death_rate(self, q_x):
         """ A function to compute the force of mortality (instantaneous death rate at age x)
@@ -239,13 +154,12 @@ class QALY_model():
         self.mu_x : list or np.array
             Instantaneous death rage at age x 
 
-        self.SMR_df : pd.Dataframe
-            "Standardized mortality ratio" (SMR) is the ratio of observed deaths in a study group to expected deaths in the general population.
-            An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
-            
-        self.QoL_df : pd.Dataframe
-            Quality-of-life utility weights, as imported from `~/data/interim/QALY_model/QoL_scores_Belgium_2018_v3.csv`.
-            Must contain two columns: "group_limit" and "QoL_score"
+        self.QoL_Belgium: pd.DataFrame
+            Average Quality-of-Life scores of the Belgian population.
+
+        self.comorbidity_parameters: pd.DataFrame
+            Dataframe containing SMR and delta_QoL per age group of a user-defined comorbid population.
+            By default initialized for population 'BE' with SMR=1 and delta_QoL = 0 for every age group.
 
         population : string
             Choice of QoL scores and SMR of a comorbid population defined by the user.
@@ -266,6 +180,10 @@ class QALY_model():
             Quality-adjusted ife expectancy at age x
         """
 
+        # Adjust Quality-of-life scores and SMRs
+        QoL_population = self.QoL_Belgium + self.comorbidity_parameters.loc[(slice(None),'delta_QoL'), population].values
+        SMR_population = self.comorbidity_parameters.loc[(slice(None), 'SMR'), population]
+
         # Pre-allocate results
         QALE_x = np.zeros(len(self.mu_x))
         # Loop over x
@@ -274,20 +192,20 @@ class QALY_model():
             dQALE = np.zeros([len(self.mu_x)-x-1])
             # Set age-dependant utility weights to lowest possible
             j=0
-            age_limit=self.QoL_df.index[j].right - 1
-            QoL_x=self.QoL_df[population].values[j]
+            age_limit=QoL_population.index[j].right - 1
+            QoL_x=QoL_population.values[j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
-                k = np.where(self.QoL_df.index.contains(x))[0][-1]
-                age_limit = self.QoL_df.index[k].right - 1
-                SMR_x = self.SMR_df[population].values[k]
+                k = np.where(QoL_population.index.contains(x))[0][-1]
+                age_limit = QoL_population.index[k].right - 1
+                SMR_x = SMR_population.values[k]
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
-                j = np.where(self.QoL_df.index.contains(i))[0][-1]
-                age_limit = self.QoL_df.index[j].right - 1
+                j = np.where(QoL_population.index.contains(i))[0][-1]
+                age_limit = QoL_population.index[j].right - 1
                 # Choose the right QoL score
-                QoL_x = self.QoL_df[population].values[j]
+                QoL_x = QoL_population.values[j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
@@ -316,19 +234,15 @@ class QALY_model():
         self.mu_x : list or np.array
             Instantaneous death rage at age x 
 
-        self.SMR_df : pd.Dataframe
-            "Standardized mortality ratio" (SMR) is the ratio of observed deaths in a study group to expected deaths in the general population.
-            An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
-            
-        self.QoL_df : pd.Dataframe
-            Quality-of-life utility weights, as imported from `~/data/interim/QALY_model/QoL_scores_Belgium_2018_v3.csv`.
-            Must contain two columns: "group_limit" and "QoL_score"
+        self.QoL_Belgium: pd.DataFrame
+            Average Quality-of-Life scores of the Belgian population.
 
+        self.comorbidity_parameters: pd.DataFrame
+            Dataframe containing SMR and delta_QoL per age group of a user-defined comorbid population.
+            By default initialized for population 'BE' with SMR=1 and delta_QoL = 0 for every age group.
         population : string
-            Choice of QoL scores. Valid options are 'Belgium', 'R' and 'D'.
-            'Belgium' : Overall QoL scores for the Belgian population by De Wilder et. al and an SMR=1 are applied (this represents average QALY loss)
-            'R' : QoL scores and SMR for those recovering from COVID-19 in the hospital (most likely higher quality than average)
-            'D' : QoL scores and SMR for those dying from COVID-19 in the hospital (most likely lower quality than average)
+            Choice of QoL scores and SMR of a comorbid population defined by the user.
+            Default option 'BE' uses QoL scores of the Belgian population and an SMR of one, corresponding to accounting for average comorbidity.
 
         r : float
             Discount rate (default 3%)
@@ -348,6 +262,10 @@ class QALY_model():
             Quality-adjusted life years remaining at age x
         """
 
+        # Adjust Quality-of-life scores and SMRs
+        QoL_population = self.QoL_Belgium + self.comorbidity_parameters.loc[(slice(None),'delta_QoL'), population].values
+        SMR_population = self.comorbidity_parameters.loc[(slice(None), 'SMR'), population]
+
         # Pre-allocate results
         QALY_x = np.zeros(len(self.mu_x))
         # Loop over x
@@ -356,20 +274,22 @@ class QALY_model():
             dQALY = np.zeros([len(self.mu_x)-x-1])
             # Set age-dependant utility weights to lowest possible
             j=0
-            age_limit=self.QoL_df.index[j].right -1
-            QoL_x=self.QoL_df[population].values[j]
+            age_limit=QoL_population.index[j].right -1
+            QoL_x=QoL_population.values[j]
             # Calculate the SMR at age x
             if ((SMR_method == 'convergent')|(SMR_method == 'constant')):
-                k = np.where(self.QoL_df.index.contains(x))[0][-1]
-                age_limit = self.QoL_df.index[k].right - 1
-                SMR_x = self.SMR_df[population].values[k]
+                k = np.where(QoL_population.index.contains(x))[0][-1]
+                age_limit = QoL_population.index[k].right - 1
+                SMR_x = SMR_population.values[k]
+            else:
+                raise ValueError("Invalid SMR method")
             # Loop over years remaining after year x
             for i in range(x,len(self.mu_x)-1):
                 # Find the right age bin
-                j = np.where(self.QoL_df.index.contains(i))[0][-1]
-                age_limit = self.QoL_df.index[j].right - 1
+                j = np.where(QoL_population.index.contains(i))[0][-1]
+                age_limit = QoL_population.index[j].right - 1
                 # Choose the right QoL score
-                QoL_x = self.QoL_df[population].values[j]
+                QoL_x = QoL_population.values[j]
                 # Choose the right SMR
                 if SMR_method == 'convergent':
                     # SMR gradually converges to one by end of life
@@ -415,19 +335,6 @@ class QALY_model():
         QALY_binned = pd.Series(index=model_bins, data=QALY_binned)
         QALY_binned.index.name = 'age_group'
         return QALY_binned
-
-    def build_binned_QALY_df(self, r=0.03, SMR_method='convergent', model_bins=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')):
-        # Extract names of populations
-        populations = list(self.SMR_df.columns.get_level_values(0).unique())
-        # Initialize empty dataframe
-        df = pd.DataFrame()
-        # Loop over populations
-        for pop in populations:
-            QALY_x = self.compute_QALY_x(population=pop, SMR_method='convergent',r=r)
-            binned_QALY = self.bin_QALY_x(QALY_x, model_bins)
-            binned_QALY.name = pop
-            df = df.append(binned_QALY)
-        return df.T
 
     def append_acute_QALY_losses(self, out, binned_QALY_df):
 
