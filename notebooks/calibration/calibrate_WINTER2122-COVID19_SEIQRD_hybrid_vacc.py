@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[slice(None, end_calibration), 'H_in'], 'W')
-    print(results)
+    dispersion = results.loc['negative binomial', 'theta']
     plt.show()
     plt.close()
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     states = ["H_in",]
     weights = [1,]
     log_likelihood_fnc = [ll_negative_binomial,]
-    log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'],]
+    log_likelihood_fnc_args = [dispersion,]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -301,7 +301,9 @@ if __name__ == '__main__':
 
     samples_dict.update({'n_chains': nwalkers,
                         'start_calibration': start_calibration,
-                        'end_calibration': end_calibration})
+                        'end_calibration': end_calibration,
+                        'dispersion': dispersion,
+                        'warmup': 0})
 
     with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

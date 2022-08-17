@@ -146,10 +146,10 @@ if __name__ == '__main__':
 
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
-    alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print(results)
     print('\n')
-    print('spatially-weighted overdispersion: ' + str(alpha_weighted))
+    print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
     plt.show()
     plt.close()
 
@@ -364,10 +364,11 @@ if __name__ == '__main__':
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
-        'warmup' : 0,
-        'start_date_FULL' : start_calibration,
-        'end_date_FULL': end_calibration,
-        'n_chains_FULL' : nwalkers
+        'start_calibration' : start_calibration,
+        'end_calibration': end_calibration,
+        'n_chains' : nwalkers,
+        'dispersion': dispersion_weighted,
+        'warmup': 0
     })
 
     json_file = f'{samples_path}{str(identifier)}_{run_date}.json'
