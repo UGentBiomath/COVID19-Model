@@ -441,7 +441,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_BASE_enddate_20211014_SAMPLES_2022-05-29.json'
+        base_dict_name = 'national_BASE_enddate_20211014_SAMPLES_2022-05-29.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': np.mean(base_samples_dict['beta']),

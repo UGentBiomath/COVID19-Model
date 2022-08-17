@@ -14,6 +14,7 @@ import sys
 import ast
 import click
 import json
+import pickle
 import emcee
 import datetime
 import argparse
@@ -56,7 +57,7 @@ else:
     high_performance_computing = False
 # Identifier (name)
 if args.identifier:
-    identifier = 'BE_' + str(args.identifier)
+    identifier = 'national_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations
@@ -84,7 +85,7 @@ fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
 samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Path where samples backend should be stored
-backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/backends/'
+backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/national/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -257,6 +258,7 @@ if __name__ == '__main__':
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
     labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    pars_postprocessing = ['beta', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
@@ -269,6 +271,12 @@ if __name__ == '__main__':
     ## Run MCMC sampler ##
     ######################
 
+    # Write settings to a .txt
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
+    'dispersion': dispersion, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing}
+    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
@@ -294,15 +302,15 @@ if __name__ == '__main__':
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
     samples_dict.update({'n_chains': nwalkers,
-                        'start_calibration': start_calibration,
-                        'end_calibration': end_calibration,
+                        'start_calibration': args.start_calibration,
+                        'end_calibration': args.end_calibration,
                         'dispersion': dispersion,
                         'warmup': 0
                         })
 
-    with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')

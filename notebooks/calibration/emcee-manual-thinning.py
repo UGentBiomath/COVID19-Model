@@ -4,12 +4,12 @@ The script allows the user to extract samples from a .json samples dictionary an
 
 Arguments:
 ----------
--f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--n:
-    Number of parallel Markov chains (= nwalkers = n_parameters*2 by default)
--k:
-    Names of the parameters to be extracted, discarded, thinned and plotted.
+-agg:
+    Spatial aggregation level (national, prov or arr)
+-ID:
+    Identifier + aggregation level of the samples dictionary to be loaded.
+-d:
+    Date of calibration
 -d:
     Number of samples to be discarded at beginning of MCMC chain.
 -t:
@@ -25,10 +25,7 @@ Example use:
 ------------
 
 python emcee-manual-thinning.py 
-    -f BE_CORE_SAMPLES_2022-01-28.json
-    -n 60
-    -k 'beta' 'eff_schools' 'eff_work' 'eff_rest' 'mentality' 'eff_home' 'K_inf_abc' 'K_inf_delta' 'amplitude' 'zeta'
-    -l '$\beta$' '$\Omega_{schools}$' '$\Omega_{work}$' '$\Omega_{rest}$' 'M' '$\Omega_{home}$' '$K_{inf,alpha}$' '$K_{inf,delta}$' 'A' '$\zeta$'
+    -f national_BASE_SAMPLES_2022-01-28.json
     -r '(0,0.05)' '(0,0.05)' '(0,0.05)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(1,2.4)' '(1,2.4)' '(0,0.40)' '(0.0001, 0.007)'
     -d 1000
     -t 20
@@ -40,11 +37,11 @@ To do's:
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# ----------------------
-# Load required packages
-# ----------------------
+############################
+## Load required packages ##
+############################
 
 import ast
 import json
@@ -56,16 +53,15 @@ import matplotlib.pyplot as plt
 from covid19model.optimization.utils import samples_dict_to_emcee_chain
 from covid19model.visualization.optimization import traceplot
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--filename", help="Samples dictionary name")
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-ID", "--identifier", help="Calibration identifier")
+parser.add_argument("-date", "--date", help="Calibration date")
 parser.add_argument("-r", "--range", help="Range used in cornerplot",nargs='+')
-parser.add_argument("-n", "--n_chains", help="Number of parallel MCMC chains")
-parser.add_argument("-k", "--keys", help="List containing keys of sampled parameters",nargs='+')
-parser.add_argument("-l", "--labels", help="List containing labels to be used in visualisations",nargs='+')
 parser.add_argument("-d", "--discard", help="Number of samples to be discarded per MCMC chain")
 parser.add_argument("-t", "--thin", help="Thinning factor of MCMC chain")
 parser.add_argument("-s", "--save", help="Save thinned samples dictionary",action='store_true')
@@ -75,21 +71,24 @@ range_lst=[]
 for tpl in args.range:
     range_lst.append(ast.literal_eval(tpl))
 
-# -----------------------
-# Load samples dictionary
-# -----------------------
+#############################
+## Load samples dictionary ##
+#############################
 
-samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)))
+samples_dict = json.load(open(f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'+str(args.agg)+'_'+str(args.identifier)+'_SAMPLES_'+str(args.date)+'.json'))
+n_chains = samples_dict['n_chains']
+keys = samples_dict['parameters']
+labels = samples_dict['labels']
 
-# ------------------------------------------
-# Convert samples dictionary to emcee format
-# ------------------------------------------
+################################################
+## Convert samples dictionary to emcee format ##
+################################################
 
-samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,args.keys,int(args.n_chains),discard=int(args.discard),thin=int(args.thin))
+samples,flat_samples=samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=int(args.discard),thin=int(args.thin))
 
-# -------------------------------------------------------
-# Optional: remove chains stuck in undesired local minima
-# -------------------------------------------------------
+#############################################################
+## Optional: remove chains stuck in undesired local minima ##
+#############################################################
 
 # Chains schools
 #idx = np.mean(samples[:,:,3],axis=0) >= 0.05
@@ -101,9 +100,9 @@ flat_samples = samples[:,0,:]
 for i in range(1,samples.shape[1]):
     flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
 
-# -----------------
-# Make a cornerplot
-# -----------------
+#######################
+## Make a cornerplot ##
+#######################
 
 CORNER_KWARGS = dict(
     smooth=0.90,
@@ -123,7 +122,7 @@ CORNER_KWARGS = dict(
 # Path where figures should be stored
 fig_path = '../../results/calibrations/COVID19_SEIQRD/national/'
 # Cornerplots of samples
-fig = corner.corner(flat_samples, labels=args.labels, **CORNER_KWARGS)
+fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
 # for control of labelsize of x,y-ticks:
 #ticks=[[0,0.50,0.10],[0,1,2],[0,4,8,12],[0,4,8,12],[0,1,2],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1],[0,0.25,0.50,1]],
 for idx,ax in enumerate(fig.get_axes()):
@@ -134,9 +133,10 @@ plt.tight_layout()
 #plt.savefig('corner.pdf', bbox_inches='tight')
 plt.show()
 
-# ---------------
-# Save dictionary
-# ---------------
+#####################
+## Save dictionary ##
+#####################
+
 if args.save:
     samples_dict_new = {}
     for count,name in enumerate(args.keys):

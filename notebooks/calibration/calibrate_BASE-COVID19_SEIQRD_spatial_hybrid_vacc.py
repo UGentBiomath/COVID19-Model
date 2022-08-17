@@ -17,6 +17,7 @@ import sys
 import datetime
 import argparse
 import pandas as pd
+import pickle
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -335,6 +336,11 @@ if __name__ == '__main__':
     ## Run MCMC sampler ##
     ######################
 
+    # Write settings to a .txt
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion, 'warmup': 0}
+    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
@@ -364,14 +370,14 @@ if __name__ == '__main__':
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
-        'start_calibration' : start_calibration,
-        'end_calibration': end_calibration,
+        'start_calibration' : args.start_calibration,
+        'end_calibration': args.end_calibration,
         'n_chains' : nwalkers,
         'dispersion': dispersion_weighted,
         'warmup': 0
     })
 
-    json_file = f'{samples_path}{str(identifier)}_{run_date}.json'
+    json_file = f'{samples_path}{agg}_{str(identifier)}_SAMPLES_{run_date}.json'
     with open(json_file, 'w') as fp:
         json.dump(samples_dict, fp)
 

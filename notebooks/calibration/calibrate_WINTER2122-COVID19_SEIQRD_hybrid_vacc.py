@@ -18,6 +18,7 @@ import sys
 import ast
 import click
 import json
+import pickle
 import emcee
 import datetime
 import argparse
@@ -68,7 +69,7 @@ else:
 if args.identifier:
     identifier = str(args.identifier)
     # Spatial unit: depesnds on aggregation
-    identifier = f'BE_{identifier}'
+    identifier = f'national_{identifier}'
 else:
     raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations
@@ -274,7 +275,12 @@ if __name__ == '__main__':
     ######################
     ## Run MCMC sampler ##
     ######################
-
+    
+    # Write settings to a .txt
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion, 'warmup': 0}
+    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
@@ -300,14 +306,14 @@ if __name__ == '__main__':
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
     samples_dict.update({'n_chains': nwalkers,
-                        'start_calibration': start_calibration,
-                        'end_calibration': end_calibration,
+                        'start_calibration': args.start_calibration,
+                        'end_calibration': args.end_calibration,
                         'dispersion': dispersion,
                         'warmup': 0})
 
-    with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
