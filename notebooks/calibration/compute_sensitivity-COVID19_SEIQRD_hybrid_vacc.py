@@ -24,7 +24,7 @@ results_name='sobol_'+problem_name
 # Model setup
 n_age_groups = 10
 start_calibration = '2020-03-15'
-end_calibration = '2020-11-01'
+end_calibration = '2020-10-01'
 
 ############################
 ## Load Required Packages ##
