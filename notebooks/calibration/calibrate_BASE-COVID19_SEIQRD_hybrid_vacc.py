@@ -157,17 +157,17 @@ if __name__ == '__main__':
 
     # transmission
     pars1 = ['beta',]
-    bounds1=((0.003,0.080),)
+    bounds1=((0.001,0.080),)
     # Effectivity parameters
-    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality']
+    bounds2=((0,2),(0,2),(0,2),(0,2))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.60),(1.30,2.4))
+    bounds3 = ((1.20,1.50),(1.30,2.4))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
+    bounds4 = ((0,0.50),)
     # Waning antibody immunity
     #pars5 = ['zeta',]
     #bounds5 = ((1e-6,1e-2),)
@@ -179,7 +179,11 @@ if __name__ == '__main__':
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
-    theta = [0.04, 0.18, 0.34, 0.42, 0.35, 0.2, 1.45, 1.5, 0.22]
+    theta = [0.04, 0.18, 0.34, 0.42, 0.35, 1.45, 1.5, 0.22]
+
+    model.parameters['eff_home']=1
+    model.parameters['da']=5
+    theta = [0.0135, 1.0, 1.2, 1.3, 0.35, 1.45, 1.5, 0.15]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -246,19 +250,19 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     pert1 = [0.03,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.80, 0.80, 0.80, 0.80, 0.80]
+    pert2 = [0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.20, 0.20]
+    pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.80,] 
+    pert4 = [0.50,] 
     # pars5 = ['zeta',]
     #pert5 = [0.20,]
     # Add them together and perturbate
     pert = pert1 + pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
-    pars_postprocessing = ['beta', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home', 'K_inf_abc', 'K_inf_delta', 'amplitude']
+    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    pars_postprocessing = ['beta', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
