@@ -1,10 +1,15 @@
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.visualization.sensitivity import plot_sobol_indices_bar, plot_sobol_indices_circular
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-f", "--filename", help="Sensitivity analysis filename")
+args = parser.parse_args()
+
 # Load data
-results_folder = '../../results/calibrations/COVID19_SEIQRD/national/others/'
-results_name = 'sobol_ungrouped_2022-08-12.xlsx'
+results_folder = '../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity'
+results_name = args.filename
 S1ST = pd.read_excel(results_folder+results_name, sheet_name='S1ST', index_col=[0])
 S2 = pd.read_excel(results_folder+results_name, sheet_name='S2', index_col=[0])
 

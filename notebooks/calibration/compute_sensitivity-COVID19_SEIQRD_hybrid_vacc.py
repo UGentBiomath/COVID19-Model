@@ -16,9 +16,9 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 20000
+n_samples = 200
 save=True
-results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/'
+results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity'
 results_name='sobol_'+problem_name
 
 # Model setup
