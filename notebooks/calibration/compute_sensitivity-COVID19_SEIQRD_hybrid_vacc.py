@@ -129,7 +129,7 @@ problem_grouped = {
         [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
         [0.01, 0.14],
         [0, 0.50],
-        [1e-6, 2.0*model.parameters['zeta']],
+        [1e-6, 3.0*model.parameters['zeta']],
         [0,1],[0,1],[0,1],[0,1],[0,1]
                ]
 }
@@ -150,7 +150,7 @@ problem_ungrouped = {
         [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
         [0.01, 0.14],
         [0, 0.50],
-        [1e-6, 2.0*model.parameters['zeta']], # no waning --> half a year
+        [1e-6, 3.0*model.parameters['zeta']], # no waning --> half a year
         [0,1],[0,1],[0,1],[0,1],[0,1]
                ]
 }
