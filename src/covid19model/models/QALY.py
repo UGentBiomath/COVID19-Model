@@ -7,8 +7,9 @@ class QALY_model():
 
     def __init__(self, comorbidity_parameters=None):
 
+        default_age_bins = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
         # Build dataframe with default comorbidity_parameters (SMR=1, delta_QoL=0 for all ages)
-        iterables = [pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'),['SMR','delta_QoL']]
+        iterables = [default_age_bins,['SMR','delta_QoL']]
         index = pd.MultiIndex.from_product(iterables, names=['age_group', 'metric'])
         default_comorbidity_parameters = pd.DataFrame(index=index, columns=['BE',])
         default_comorbidity_parameters.columns.name = 'population'
@@ -17,17 +18,22 @@ class QALY_model():
 
         # Append additional data of comorbid populations
         if isinstance(comorbidity_parameters, pd.DataFrame):
-            # Input checks
-            if comorbidity_parameters.index.names != ['age_group', 'metric']:
-                raise ValueError("Gimme two indices m8")
 
+            # Input checks
+            if len(comorbidity_parameters.index.names) != 2:
+                raise ValueError("Invalid indices provided for input 'comorbidity_parameters': {0}. Only 'age_groups' and 'metric' can be used as index names.".format(list(comorbidity_parameters.index.names)))
+            for name in comorbidity_parameters.index.names:
+                if name not in ['age_group', 'metric']:
+                    raise ValueError("Invalid index name '{0}' for input 'comorbidity_parameters'. Only 'age_groups' and 'metric' can be used as index names.".format(name))
+            if not isinstance(comorbidity_parameters.index.get_level_values('age_group'), pd.IntervalIndex):
+                    raise ValueError("Index 'age_groups' of input 'comorbidity_parameters' must be of type IntervalIndex")
+            if len(comorbidity_parameters.index.get_level_values('metric').unique()) != 2:
+                raise ValueError("Invalid metrics provided for input 'comorbidity_parameters': {0}. Only comorbidity metrics permitted are 'SMR' and 'delta_QoL'".format(list(comorbidity_parameters.index.get_level_values('metric').unique())))
             for name in comorbidity_parameters.index.get_level_values('metric').unique():
                 if name not in default_comorbidity_parameters.index.get_level_values('metric').unique():
-                    raise ValueError("Only SMR and delta_QoL permitted")
-            if (('SMR' not in default_comorbidity_parameters.index.get_level_values('metric').unique())|('delta_QoL' not in default_comorbidity_parameters.index.get_level_values('metric').unique())):
-                raise ValueError("SMR or delta_QoL not present")
-            # Population name may not be equal to 'BE'
-            
+                    raise ValueError("Invalid comorbidity metric '{0}' for input 'comorbidity_parameters'. Only comorbidity metrics permitted are 'SMR' and 'delta_QoL'.".format(name))
+            if 'BE' in list(comorbidity_parameters.columns.values):
+                raise ValueError("The population name provided in input 'comorbidity_parameters' must not equal 'BE'.")
             # Age conversion
             tmp_comorbidity_parameters = pd.DataFrame(index=default_comorbidity_parameters.index, columns=comorbidity_parameters.columns)
             for metric in comorbidity_parameters.index.get_level_values('metric').unique():
@@ -36,10 +42,12 @@ class QALY_model():
             comorbidity_parameters = tmp_comorbidity_parameters
             # Merge
             self.comorbidity_parameters = pd.concat([default_comorbidity_parameters,comorbidity_parameters], axis=1)
+
         else:
-            # What if I give some bullshit list or a dictionary?
-            self.comorbidity_parameters = default_comorbidity_parameters
-            pass
+            if not comorbidity_parameters:
+                self.comorbidity_parameters = default_comorbidity_parameters
+            else:
+                raise ValueError("Invalid input type '{0}' for input 'comorbidity_parameters'. Input must of type 'pd.DataFrame'.".format(type(comorbidity_parameters)))
 
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
@@ -49,31 +57,24 @@ class QALY_model():
         self.life_table['mu_x']= self.compute_death_rate(self.life_table['q_x'])     
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x']
-        # Define overall Belgian QoL scores
-        self.QoL_Belgium = pd.Series(index=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
+        # Define overall Belgian QoL scores (source: ...)
+        self.QoL_Belgium = pd.Series(index=default_age_bins, data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
         
-        
-        # Convert Belgian QoL to age bins of SMR_distribution
-        #self.QoL_Belgium = convert_age_stratified_property(self.QoL_Belgium, self.comorbidity_distribution.index)
-                
-
         
         # Compute the QoL scores of the studied population
-        self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
-
-
+        #self.QoL_df = self.build_comorbidity_QoL(self.comorbidity_distribution, self.QoL_Van_Wilder, self.QoL_Belgium)
         # Load comorbidity SMR estimates
-        SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
-        SMR_pop_df.columns = ['0','1','2','3+']
-        SMR_pop_df.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
-        self.SMR_pop_df = SMR_pop_df
+        #SMR_pop_df=pd.read_excel(os.path.join(abs_dir,"../../../data/interim/QALY_model/De_Wilder_QoL_scores.xlsx"), index_col=0, sheet_name='SMR')
+        #SMR_pop_df.columns = ['0','1','2','3+']
+        #SMR_pop_df.index = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
+        #self.SMR_pop_df = SMR_pop_df
         # Convert comorbidity SMR estimates to age bins of self.comorbidity_distribution
-        tmp_SMR_pop_df = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.SMR_pop_df.columns)
-        for column in self.SMR_pop_df.columns:
-            tmp_SMR_pop_df[column] = convert_age_stratified_property(self.SMR_pop_df[column], self.comorbidity_distribution.index)
-        self.SMR_pop_df = tmp_SMR_pop_df
+        #tmp_SMR_pop_df = pd.DataFrame(index=self.comorbidity_distribution.index, columns=self.SMR_pop_df.columns)
+        #for column in self.SMR_pop_df.columns:
+        #    tmp_SMR_pop_df[column] = convert_age_stratified_property(self.SMR_pop_df[column], self.comorbidity_distribution.index)
+        #self.SMR_pop_df = tmp_SMR_pop_df
         # Compute the SMR of the studied population
-        self.SMR_df = self.build_comorbidity_SMR(self.comorbidity_distribution, self.SMR_pop_df)
+        #self.SMR_df = self.build_comorbidity_SMR(self.comorbidity_distribution, self.SMR_pop_df)
 
     def build_comorbidity_SMR(self, comorbidity_distribution, population_SMR):
         """ A function to compute the Standardized Mortality Ratios (SMRs) in a studied population, based on the comorbidity distribution of the studied population and the comorbidity distribution of the Belgian population
@@ -247,10 +248,8 @@ class QALY_model():
             Must contain two columns: "group_limit" and "QoL_score"
 
         population : string
-            Choice of QoL scores. Valid options are 'Belgium', 'R' and 'D'.
-            'Belgium' : Overall QoL scores for the Belgian population by De Wilder et. al and an SMR=1 are applied (this represents average QALY loss)
-            'R' : QoL scores and SMR for those recovering from COVID-19 in the hospital (most likely higher quality than average)
-            'D' : QoL scores and SMR for those dying from COVID-19 in the hospital (most likely lower quality than average)
+            Choice of QoL scores and SMR of a comorbid population defined by the user.
+            Default option 'BE' uses QoL scores of the Belgian population and an SMR of one, corresponding to not accouting for additional comorbidities.
 
         SMR_method : string
             Choice of SMR model for remainder of life. Valid options are 'convergent' and 'constant'.
