@@ -502,6 +502,8 @@ class BaseModel:
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
 
+        # Old linear case used _sim_single_ directly
+        
         # Parallel case: https://www.delftstack.com/howto/python/python-pool-map-multiple-arguments/#parallel-function-execution-with-multiple-arguments-using-the-pool.starmap-method
 
         # Construct list of drawn dictionaries
