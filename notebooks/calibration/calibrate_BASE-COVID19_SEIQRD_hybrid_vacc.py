@@ -137,7 +137,7 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:20]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,3),(0,3),(0,3),(0,1))
+    bounds2=((0,2.5),(0,2.5),(0,2.5),(0,1))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
@@ -180,12 +180,6 @@ if __name__ == '__main__':
     #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
     theta = [0.04, 0.18, 0.34, 0.42, 0.35, 1.45, 1.5, 0.22]
-
-    model.parameters['l1'] = model.parameters['l2'] = 1
-    model.parameters['da']=5
-    model.parameters['eff_home']=0
-    
-    theta = [0.0125, 0.6, 1.95, 2.05, 0.55, 1.35, 1.4, 0.15] #[0.0135, 1.0, 1.2, 1.3, 0.35, 1.45, 1.5, 0.15] --> eff_home = 0
 
     ####################################
     ## Local Nelder-mead optimization ##
