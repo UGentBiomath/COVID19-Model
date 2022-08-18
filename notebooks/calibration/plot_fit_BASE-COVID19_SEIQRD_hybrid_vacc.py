@@ -11,6 +11,8 @@ Arguments:
     Date of calibration
 -n_ag : int
     Number of age groups used in the model
+-p : int
+    Number of cores
 -n : int
     Number of model trajectories used to compute the model uncertainty.
 -k : int
@@ -25,7 +27,7 @@ python plot_fit_COVID19_SEIQRD_stratified_vacc.py -f BE_WAVE2_stratified_vacc_R0
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -53,6 +55,7 @@ parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
+parser.add_argument("-p", "--processes", help="Number of cpus used to perform computation", default=1, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
 args = parser.parse_args()
@@ -128,7 +131,7 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict)
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
