@@ -74,7 +74,7 @@ model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
 D = model.initial_states['S'].shape[1]
 # Start with infected individuals in first age group
 E0 = np.zeros([age_stratification_size,D])
-E0[0:6,0] = 10000
+E0[0:7,0] = 10000
 # Ajust initial condition
 model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
                              "E": E0,
