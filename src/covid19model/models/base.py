@@ -417,6 +417,9 @@ class BaseModel:
         return output
 
     def _mp_sim_single(self, drawn_parameters, time, actual_start_date):
+        """
+        A Multiprocessing-compatible wrapper for _sim_single, assigns the drawn dictionary and runs _sim_single
+        """
         self.parameters.update(drawn_parameters)
         out = self._sim_single(time, actual_start_date)
         return out
@@ -432,7 +435,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False, processes=1):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -512,8 +515,13 @@ class BaseModel:
                 drawn_dictionaries.append({})
 
         # Run simulations
-        with mp.Pool(processes) as p:
-            output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date), drawn_dictionaries)
+        if processes: # Needed 
+            with mp.Pool(processes) as p:
+                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date), drawn_dictionaries)
+        else:
+            output=[]
+            for dictionary in drawn_dictionaries:
+                output.append(self._mp_sim_single(dictionary, time, actual_start_date))
 
         # Append results
         out = output[0]
