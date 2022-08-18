@@ -1,12 +1,14 @@
 import inspect
 import itertools
 
-import numpy as np
-from scipy.integrate import solve_ivp
 import xarray
-import pandas as pd
-from collections import OrderedDict
 import copy
+import numpy as np
+import pandas as pd
+import multiprocessing as mp
+from functools import partial
+from scipy.integrate import solve_ivp
+from collections import OrderedDict
 from .utils import read_coordinates_nis
 
 class BaseModel:
@@ -414,6 +416,11 @@ class BaseModel:
         }
         return output
 
+    def _mp_sim_single(self, drawn_parameters, time, actual_start_date):
+        self.parameters.update(drawn_parameters)
+        out = self._sim_single(time, actual_start_date)
+        return out
+
     def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
@@ -425,7 +432,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False, processes=1):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -457,8 +464,8 @@ class BaseModel:
             Sample dictionary used by draw_fcn.
             # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
 
-        to_sample : list
-            list of parameters to sample by draw_fcn, default ['beta','l','tau','prevention']
+        processes: int
+            Number of cores to distribute the N draws over.
 
         Returns
         -------
@@ -491,21 +498,27 @@ class BaseModel:
                 )
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
-        # Perform first simulation as preallocation
-        if verbose==True:
-            print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
-        if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples)
-        out = self._sim_single(time, actual_start_date)
-        # Repeat N - 1 times and concatenate
-        for n in range(N-1):
-            if verbose==True:
-                print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
 
+        # Parallel case: https://www.delftstack.com/howto/python/python-pool-map-multiple-arguments/#parallel-function-execution-with-multiple-arguments-using-the-pool.starmap-method
+
+        # Construct list of drawn dictionaries
+        drawn_dictionaries=[]
+        for n in range(N):
             if draw_fcn:
+                out={} # Need because of global dictionaries and voodoo magic
+                out.update(draw_fcn(self.parameters,samples))
+                drawn_dictionaries.append(out)
+            else:
+                drawn_dictionaries.append({})
 
-                self.parameters = draw_fcn(self.parameters,samples)
-            out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
+        # Run simulations
+        with mp.Pool(processes) as p:
+            output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date), drawn_dictionaries)
+
+        # Append results
+        out = output[0]
+        for xarr in output[1:]:
+            out = xarray.concat([out, xarr], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
