@@ -133,9 +133,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 20
+    multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 10
+    print_n = 20
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
     states = ["H_in", "R", "R"]
@@ -160,11 +160,11 @@ if __name__ == '__main__':
     bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,2),(0,2),(0,2),(0,2))
+    bounds2=((0,3),(0,3),(0,3),(0,1))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.50),(1.30,2.4))
+    bounds3 = ((1.20,1.40),(1.40,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -181,9 +181,10 @@ if __name__ == '__main__':
     #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
     theta = [0.04, 0.18, 0.34, 0.42, 0.35, 1.45, 1.5, 0.22]
 
-    model.parameters['eff_home']=1
     model.parameters['da']=5
-    theta = [0.0135, 1.0, 1.2, 1.3, 0.35, 1.45, 1.5, 0.15]
+    model.parameters['eff_home']=0
+    
+    theta = [0.012, 0.6, 2.0, 2.05, 0.55, 1.35, 1.4, 0.15] #[0.0135, 1.0, 1.2, 1.3, 0.35, 1.45, 1.5, 0.15] --> eff_home = 0
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -250,11 +251,11 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     pert1 = [0.03,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.50, 0.50, 0.50, 0.50]
+    pert2 = [0.10, 0.10, 0.10, 0.10]
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.50,] 
+    pert4 = [0.10,] 
     # pars5 = ['zeta',]
     #pert5 = [0.20,]
     # Add them together and perturbate

@@ -366,7 +366,7 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
 
     idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
     param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
-    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
+    #param_dict['eff_home'] = samples_dict['eff_home'][idx]      
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]

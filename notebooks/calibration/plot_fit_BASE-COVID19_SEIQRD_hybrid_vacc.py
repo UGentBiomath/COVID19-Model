@@ -3,8 +3,12 @@ This script can be used to plot the model fit of the national COVID-19 SEIQRD mo
 
 Arguments:
 ----------
--f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
+-agg:
+    Spatial aggregation level (national, prov or arr)
+-ID:
+    Identifier + aggregation level of the samples dictionary to be loaded.
+-d:
+    Date of calibration
 -n_ag : int
     Number of age groups used in the model
 -n : int
@@ -44,7 +48,9 @@ from covid19model.models.utils import load_samples_dict
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--filename", help="Samples dictionary name")
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-ID", "--identifier", help="Calibration identifier")
+parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
@@ -68,9 +74,9 @@ conf_int = 0.05
 ##############################
 
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
+fig_path = f'../../results/calibrations/COVID19_SEIQRD/{str(args.agg)}/others/WAVE2/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
@@ -80,7 +86,7 @@ for directory in [fig_path, samples_path]:
 ## Load samples dictionary ##
 #############################
 
-samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
+samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
 warmup = 0
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
@@ -107,8 +113,9 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
+model.parameters['da']=5
+model.parameters['eff_home'] = 0
 
 #######################
 ## Sampling function ##
