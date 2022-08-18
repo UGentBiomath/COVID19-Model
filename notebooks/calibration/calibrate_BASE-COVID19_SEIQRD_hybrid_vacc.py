@@ -164,7 +164,7 @@ if __name__ == '__main__':
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.40),(1.40,2.4))
+    bounds3 = ((1.15,1.40),(1.40,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
