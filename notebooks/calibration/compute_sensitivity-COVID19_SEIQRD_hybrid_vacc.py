@@ -15,10 +15,10 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 # Sobol analysis
 n_cpus = 18
 problem_name = 'ungrouped'
-calc_second_order = False
-n_samples = 16000
+calc_second_order = True
+n_samples = 200
 save=True
-results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/'
+results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity'
 results_name='sobol_'+problem_name
 
 # Model setup
@@ -126,10 +126,10 @@ problem_grouped = {
                '$\\zeta$',
                '$N_{c}$: M, $\Omega_{schools}$ ,\n  $\Omega_{work}$, $\Omega_{rest}$, $\Omega_{home}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0.50*model.parameters['omega'], 1.50*model.parameters['omega']],[0.01, 0.57],[0.50*model.parameters['da'], 1.50*model.parameters['da']],
+        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
         [0.01, 0.14],
-        [0.50*model.parameters['amplitude'], 1.50*model.parameters['amplitude']],
-        [0.50*model.parameters['zeta'], 1.50*model.parameters['zeta']],
+        [0, 0.50],
+        [1e-6, 3.0*model.parameters['zeta']],
         [0,1],[0,1],[0,1],[0,1],[0,1]
                ]
 }
@@ -147,10 +147,10 @@ problem_ungrouped = {
                '$\\zeta$',
                '$M$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0.50*model.parameters['omega'], 1.50*model.parameters['omega']],[0.01, 0.57],[0.50*model.parameters['da'], 1.50*model.parameters['da']],
+        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
         [0.01, 0.14],
-        [0.50*model.parameters['amplitude'], 1.50*model.parameters['amplitude']],
-        [0.50*model.parameters['zeta'], 1.50*model.parameters['zeta']],
+        [0, 0.50],
+        [1e-6, 3.0*model.parameters['zeta']], # no waning --> half a year
         [0,1],[0,1],[0,1],[0,1],[0,1]
                ]
 }
@@ -202,7 +202,7 @@ warnings.filterwarnings('ignore')
 
 # Perform sampling
 param_values = saltelli.sample(problem, n_samples, calc_second_order=calc_second_order)
-rt = param_values.shape[0]*0.401*(18/n_cpus)/3600
+rt = param_values.shape[0]*0.554*(18/n_cpus)/3600
 print("\n\t{0} samples per parameter resulting in a total of {1} model evaluations.".format(n_samples, param_values.shape[0]))
 print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
@@ -228,40 +228,14 @@ print('\n5) Saving result')
 if calc_second_order:
     total_Si, first_Si, second_Si = Si.to_df()
     if save:
-        pd.concat([pd.concat([total_Si, first_Si], axis=1), second_Si]).to_csv(results_folder+results_name+'.csv')
+        writer = pd.ExcelWriter(results_folder+results_name+'_'+run_date+'.xlsx')
+        S1ST = pd.concat([total_Si, first_Si], axis=1).to_excel(writer, sheet_name='S1ST')
+        S2 = pd.DataFrame(Si['S2'], index=problem['names'], columns=problem['names']).to_excel(writer, sheet_name='S2')
+        S2_conf = pd.DataFrame(Si['S2_conf'], index=problem['names'], columns=problem['names']).to_excel(writer, sheet_name='S2_conf')
+        writer.save()
 else:
     total_Si, first_Si = Si.to_df()
     if save:
-        pd.concat([total_Si, first_Si], axis=1).to_csv(results_folder+results_name+'.csv')
-
-#############################
-## Visualize sobol weights ##
-#############################
-
-df_plot = pd.concat([total_Si, first_Si], axis=1)
-
-fig,ax=plt.subplots(figsize=(12,4))
-# Bar plot
-ax = df_plot.plot(kind = "bar", y = ["S1", "ST"], yerr=df_plot[['S1_conf', 'ST_conf']].values.T, capsize=8,
-                  color=['white','black'], alpha=0.4, edgecolor='black', ax=ax)
-# Legend
-ax.legend(bbox_to_anchor=(1, 1))
-# Labels
-if problem_name == 'grouped':
-    labels = problem_grouped['labels']
-else:
-    labels = problem_ungrouped['labels']
-x_pos = np.arange(len(labels))
-plt.xticks(x_pos, labels, rotation=0)
-# Axes limit
-ax.set_ylim([0,1])
-# Grid
-ax.grid(False)
-# Visualize
-plt.tight_layout()
-#plt.show()
-# Save
-if save:
-    fig.savefig(results_folder+results_name+'.pdf')
-# Close
-plt.close()
+        writer = pd.ExcelWriter(results_folder+results_name+'_'+run_date+'.xlsx')
+        S1ST = pd.concat([total_Si, first_Si], axis=1).to_excel(writer, sheet_name='S1ST')
+        writer.save()
