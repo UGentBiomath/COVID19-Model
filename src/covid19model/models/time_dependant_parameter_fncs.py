@@ -1152,7 +1152,7 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (eff_home*self.Nc_all['home'] + mentality*(
+            CM = (mentality*(eff_home*self.Nc_all['home'] + 
                     eff_schools*school*self.Nc_all['schools'] +
                     eff_work*values_dict['work']*self.Nc_all['work'] +
                     eff_rest*values_dict['transport']*self.Nc_all['transport'] +
