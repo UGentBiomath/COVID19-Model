@@ -1222,6 +1222,9 @@ class make_contact_matrix_function():
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
+
+        eff_schools=eff_work
+
         t = pd.Timestamp(t.date())
 
         # Convert compliance l to dates
