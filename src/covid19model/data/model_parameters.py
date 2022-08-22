@@ -313,23 +313,21 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     # Susceptibility (Davies et al.)
     pars_dict['s'] = np.ones(age_stratification_size, np.float64)
 
-    # Hospitalization propensity (manually fitted)
+    # Hospitalization propensity (manually fitted to deaths in hospital on 2020-07-01 per age category)
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
                           data=[0.01, 0.01, 0.02, 0.03, 0.03, 0.06, 0.20, 0.50, 0.80])
 
     # Relative symptoms dataframe (Wu et al., 2020)
     #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
     #                         data=[0.053, 0.072, 0.408, 1.000, 1.349, 1.993, 2.849, 3.046, 3.240])
-
-    # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
-    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
-                         data=[0.181, 0.224, 0.305, 0.355, 0.646])
-
     # https://www.medrxiv.org/content/10.1101/2022.05.05.22274697v1.full.pdf
     #rel_symptoms = 1-pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45),
     #                                                            (45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
     #                         data=[0.33, 0.36, 0.33, 0.28, 0.24, 0.23, 0.21, 0.16, 0.12, 0.08])
 
+    # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
+    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
+                         data=[0.181, 0.224, 0.305, 0.355, 0.646])
 
     def rescale_relative_to_absolute(relative_data, desired_pop_avg_fraction):
         """ A function to rescale age-structured relative information into absolute population information.
