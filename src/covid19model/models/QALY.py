@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from covid19model.data.utils import convert_age_stratified_property
 
-class QALY_model():
+class life_table_QALY_model():
 
     def __init__(self, comorbidity_parameters=None):
 
@@ -335,38 +335,6 @@ class QALY_model():
         QALY_binned = pd.Series(index=model_bins, data=QALY_binned)
         QALY_binned.index.name = 'age_group'
         return QALY_binned
-
-    def append_acute_QALY_losses(self, out, binned_QALY_df):
-
-        # https://link.springer.com/content/pdf/10.1007/s40271-021-00509-z.pdf
-        
-        ##################
-        ## Mild disease ##
-        ##################
-
-        # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4690729/ --> Table A2 --> utility weight = 0.659
-        # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.43=0.57
-        out['QALYs_mild'] = out['M']*np.expand_dims(np.expand_dims((self.QoL_df['Belgium']-0.659)/365,axis=1),axis=0)
-
-        #####################
-        ## Hospitalization ##
-        #####################
-
-        # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4690729/ --> Table A2 --> utility weight = 0.514
-        # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.50 = 0.50
-        out['QALYs_cohort'] = out['C']*np.expand_dims(np.expand_dims((self.QoL_df['Belgium']-0.50)/365,axis=1),axis=0) + out['C_icurec']*np.expand_dims(np.expand_dims((self.QoL_df['Belgium']-0.50)/365,axis=1),axis=0)
-        
-        # https://www.valueinhealthjournal.com/article/S1098-3015(21)00034-6/fulltext --> Table 2 --> 1-0.60 = 0.40
-        out['QALYs_ICU'] = out['ICU']*np.expand_dims(np.expand_dims((self.QoL_df['Belgium']-0.40)/365,axis=1),axis=0)
-
-        ###########
-        ## Death ##
-        ###########
-        m_C_nt = 0.4
-        m_ICU_nt = 0.8
-        out['QALYs_death'] = out['D']*np.expand_dims(np.expand_dims(binned_QALY_df['D'],axis=1),axis=0)
-        out['QALYs_treatment'] = (m_C_nt*out['R_C'] + m_ICU_nt*out['R_C'])*np.expand_dims(np.expand_dims(binned_QALY_df['R'],axis=1),axis=0)
-        return out
 
 def lost_QALYs_hospital_care (reduction,granular=False):
     
