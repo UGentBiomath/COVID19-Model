@@ -64,7 +64,7 @@ df_hosp = df_hosp.groupby(by=['date']).sum()
 ##########################
 
 # Use predefined initialization 
-model, CORE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
 ##############################
 ## Change initial condition ##
@@ -89,9 +89,18 @@ for key,value in model.initial_states.items():
 #########################
 
 # Set a fixed warmup time of 21 days (= time between Krokusvakantie en eerste datapunt)
-warmup = 2
+warmup = 1
 # Set beta to an estimate that is close to the value from the calibrations
-model.parameters['beta'] = 0.04
+
+model.parameters['beta'] = 0.012
+model.parameters['eff_work'] = 1.28
+model.parameters['eff_rest'] = 1.58
+model.parameters['eff_home'] = 1
+model.parameters['amplitude'] = 0.15
+model.parameters['mentality'] = 0.6
+model.parameters['l1'] = model.parameters['l2'] = 5
+model.parameters['da'] = 5
+
 theta = [model.parameters['beta'],]
 pars=['beta',]
 

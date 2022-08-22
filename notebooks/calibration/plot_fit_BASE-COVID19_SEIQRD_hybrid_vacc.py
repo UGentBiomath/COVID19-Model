@@ -118,6 +118,10 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 
+model.parameters['l1'] = model.parameters['l2'] = 5
+model.parameters['da'] = 5
+model.parameters['eff_home'] = 1
+
 #######################
 ## Sampling function ##
 #######################
@@ -185,6 +189,7 @@ ax1 = _apply_tick_locator(ax1)
 ax1.set_xlim(start_sim,end_sim)
 ax1.set_ylabel('Daily hospitalizations (-)', fontsize=12)
 ax1.get_yaxis().set_label_coords(-0.1,0.5)
+ax1.grid(False)
 # Plot hospital total
 ax2.plot(simtime, df_2plot['H_tot', 'mean'],'--', color='blue')
 ax2.fill_between(simtime, df_2plot['H_tot', 'lower'], df_2plot['H_tot', 'upper'], alpha=0.20, color = 'blue')
@@ -192,6 +197,7 @@ ax2.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['H_tot'][start_cali
 ax2 = _apply_tick_locator(ax2)
 ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
 ax2.get_yaxis().set_label_coords(-0.1,0.5)
+ax2.grid(False)
 # Deaths
 ax3.plot(simtime, df_2plot['D', 'mean'],'--', color='blue')
 ax3.scatter(deaths_hospital[start_calibration:end_sim].index,deaths_hospital[start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -201,6 +207,7 @@ ax3 = _apply_tick_locator(ax3)
 ax3.set_xlim('2020-03-01',end_sim)
 ax3.set_ylabel('Deaths in hospitals (-)', fontsize=12)
 ax3.get_yaxis().set_label_coords(-0.1,0.5)
+ax3.grid(False)
 # Plot fraction of immunes
 ax4.plot(df_2plot['R','mean'][start_calibration:'2021-03-01']/sum(initN)*100,'--', color='blue')
 yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
@@ -214,6 +221,7 @@ ax4.set_xlim(start_sim,end_sim)
 ax4.set_ylim(0,25)
 ax4.set_ylabel('Seroprelevance (%)', fontsize=12)
 ax4.get_yaxis().set_label_coords(-0.1,0.5)
+ax4.grid(False)
 
 plt.tight_layout()
 plt.show()
