@@ -1141,7 +1141,7 @@ class make_contact_matrix_function():
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
             else:
-                # Extract last 14 days and take the mean
+                # Extract last 7 days and take the mean
                 row = -self.df_google[-7:-1].mean()/100
             
             # Extract values
@@ -1152,7 +1152,7 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (mentality*(eff_home*self.Nc_all['home'] + 
+            CM = (eff_home*self.Nc_all['home'] + mentality*(
                     eff_schools*school*self.Nc_all['schools'] +
                     eff_work*values_dict['work']*self.Nc_all['work'] +
                     eff_rest*values_dict['transport']*self.Nc_all['transport'] +
