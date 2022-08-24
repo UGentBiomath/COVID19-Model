@@ -1136,7 +1136,7 @@ class make_contact_matrix_function():
 
         else:
             if t < self.df_google_start:
-                return self.Nc_all['total']
+                row = -self.df_google[0:7].mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
