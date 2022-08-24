@@ -142,7 +142,7 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:19]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:18]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
@@ -182,8 +182,7 @@ if __name__ == '__main__':
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    theta = [0.0195, 0.8, 0.82, 0.52, 1.35, 1.65, 0.2] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts
-    #theta = [0.015, 0.95, 1.8, 0.25, 1.4, 1.65, 0.32] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts except home
+    theta = [0.019, 0.82, 0.82, 0.52, 1.35, 1.65, 0.2]
 
     ####################################
     ## Local Nelder-mead optimization ##
