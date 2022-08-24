@@ -116,30 +116,10 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
-##############################
-## Change initial condition ##
-##############################
-
-# Derive dose stratification size
-D = model.initial_states['S'].shape[1]
-# Start with infected individuals in first age group
-E0 = np.zeros([age_stratification_size,D])
-E0[:,0] = 1
-# Ajust initial condition
-model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
-                             "E": E0,
-                             "I": E0
-                             })
-for key,value in model.initial_states.items():
-    if ((key != 'S') & (key != 'E') & (key != 'I')):
-        model.initial_states.update({key: np.zeros([age_stratification_size,D])})
-
-model.parameters['l1'] = 7
-model.parameters['l2'] = 7
+# Should be changed in model_parameters.py upon recalibration spatial model
 model.parameters['da'] = 5
-model.parameters['eff_home'] = 1
 
 #######################
 ## Sampling function ##
@@ -251,50 +231,40 @@ plt.close()
 
 print('3) Visualizing fit on deaths (not working for 10 age groups)')
 
-# dates = ['2020-04-01','2020-05-01','2020-07-01']
+dates = ['2020-04-01','2020-05-01','2020-07-01']
 
-# fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(14,4*len(dates)),sharex=True)
-# if len(dates) == 1:
-#    axes = [axes,]
+fig,axes = plt.subplots(nrows=len(dates),ncols=1,figsize=(14,4*len(dates)),sharex=True)
+if len(dates) == 1:
+   axes = [axes,]
 
-# for idx,date in enumerate(dates):
-#    data_sciensano = []
-#    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
-#        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
+for idx,date in enumerate(dates):
+   data_sciensano = []
+   for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
+       data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
     
-#    axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)],color='black',marker='v',zorder=1)
-#    yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
-#    yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(time=date)].values
-#    yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)]
-#    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
-#                       y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(time=date)],
-#                       yerr=yerr,
-#                       color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
-#    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
-#    axes[idx].set_xticklabels(['[0,10(','[10,20(','[20,30(','[30,40(','[40,50(','[50,60(','[60,70(','[70,80(','[80,120('])
-#    axes[idx].set_ylabel('Cumulative hospital deaths')
-#    #axes[idx].set_title(date)
-#    axes[idx].grid(False)
-# plt.show()
-# if args.save:
-#    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
-#    fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
+   axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)],color='black',marker='v',zorder=1)
+   yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
+   yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(time=date)].values
+   yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)]
+   axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
+                      y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(time=date)],
+                      yerr=yerr,
+                      color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
+   axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
+   axes[idx].set_xticklabels(['[0,10(','[10,20(','[20,30(','[30,40(','[40,50(','[50,60(','[60,70(','[70,80(','[80,120('])
+   axes[idx].set_ylabel('Cumulative hospital deaths')
+   #axes[idx].set_title(date)
+   axes[idx].grid(False)
+plt.show()
+if args.save:
+   fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.pdf', dpi=300, bbox_inches='tight')
+   fig.savefig(fig_path+args.filename[:-5]+'_DEATHS.png', dpi=300, bbox_inches='tight')
 
-#######################################
-## Save states during summer of 2021 ##
-#######################################
+##########################################
+## Save a copy of the simulation result ##
+##########################################
 
-print('4) Save states during summer of 2021')
-import pickle
-# Path where the pickle with initial conditions should be stored
-pickle_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
-# Save initial states
-dates = ['2021-08-01', '2021-09-01']
-initial_states={}
-for date in dates:
-    initial_states_per_date = {}
-    for state in out.data_vars:
-        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
-    initial_states.update({date: initial_states_per_date})
-with open(pickle_path+'summer_2021-COVID19_SEIQRD_hybrid_vacc.pickle', 'wb') as fp:
-    pickle.dump(initial_states, fp)
+print('4) Save a copy of the simulation output')
+# Path where the xarray should be stored
+file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+#out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')

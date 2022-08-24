@@ -109,26 +109,11 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
-##############################
-## Change initial condition ##
-##############################
-
-#Derive dose stratification size
-D = model.initial_states['S'].shape[1]
-# Start with infected individuals in first age group
-E0 = np.zeros([age_stratification_size,D])
-E0[:,0] = 1
-# Ajust initial condition
-model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
-                            "E": E0,
-                            "I": E0
-                            })
-for key,value in model.initial_states.items():
-    if ((key != 'S') & (key != 'E') & (key != 'I')):
-        model.initial_states.update({key: np.zeros([age_stratification_size,D])})
-
+# Should be changed in model_parameters.py upon recalibration spatial model
+model.parameters['da'] = 5
+# Assumed
 warmup = 62
 
 if __name__ == '__main__':
@@ -199,12 +184,6 @@ if __name__ == '__main__':
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
     theta = [0.0195, 0.8, 0.82, 0.52, 1.35, 1.65, 0.2] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts
     #theta = [0.015, 0.95, 1.8, 0.25, 1.4, 1.65, 0.32] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts except home
-
-    # Assume effectivities are equal to one
-    model.parameters['eff_home'] = 1
-    model.parameters['l1'] = 7
-    model.parameters['l2'] = 7
-    model.parameters['da'] = 5
 
     ####################################
     ## Local Nelder-mead optimization ##

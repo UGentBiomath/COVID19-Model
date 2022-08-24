@@ -317,14 +317,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
                           data=[0.01, 0.01, 0.02, 0.03, 0.03, 0.06, 0.20, 0.50, 0.80])
 
-    # Relative symptoms dataframe (Wu et al., 2020)
-    #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-    #                         data=[0.053, 0.072, 0.408, 1.000, 1.349, 1.993, 2.849, 3.046, 3.240])
-    # https://www.medrxiv.org/content/10.1101/2022.05.05.22274697v1.full.pdf
-    #rel_symptoms = 1-pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45),
-    #                                                            (45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'),
-    #                         data=[0.33, 0.36, 0.33, 0.28, 0.24, 0.23, 0.21, 0.16, 0.12, 0.08])
-
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
     rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
                          data=[0.181, 0.224, 0.305, 0.355, 0.646])
@@ -449,14 +441,14 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'national_test_SAMPLES_2022-08-21.json'
+        base_dict_name = 'national_test_SAMPLES_2022-08-24.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': np.mean(base_samples_dict['beta']),
-            'eff_schools': 0, # np.mean(base_samples_dict['eff_schools']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
-            'eff_home': 0, #np.mean(base_samples_dict['eff_home']),
+            'eff_home': 1,
+            'eff_schools': 0,
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
