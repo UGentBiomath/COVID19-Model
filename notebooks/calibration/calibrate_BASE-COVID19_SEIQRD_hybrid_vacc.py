@@ -111,6 +111,26 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
 
+##############################
+## Change initial condition ##
+##############################
+
+#Derive dose stratification size
+D = model.initial_states['S'].shape[1]
+# Start with infected individuals in first age group
+E0 = np.zeros([age_stratification_size,D])
+E0[:,0] = 1
+# Ajust initial condition
+model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
+                            "E": E0,
+                            "I": E0
+                            })
+for key,value in model.initial_states.items():
+    if ((key != 'S') & (key != 'E') & (key != 'I')):
+        model.initial_states.update({key: np.zeros([age_stratification_size,D])})
+
+warmup = 62
+
 if __name__ == '__main__':
 
     #############################################################
@@ -133,7 +153,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -164,7 +184,7 @@ if __name__ == '__main__':
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.15,1.40),(1.40,2.4))
+    bounds3 = ((1.15,1.50),(1.40,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -177,18 +197,14 @@ if __name__ == '__main__':
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
-    #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
-    theta = [0.04, 0.18, 0.34, 0.42, 0.35, 1.45, 1.5, 0.22]
+    theta = [0.0195, 0.8, 0.82, 0.52, 1.35, 1.65, 0.2] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts
+    #theta = [0.015, 0.95, 1.8, 0.25, 1.4, 1.65, 0.32] # Option 1: initcond: 1 E, 1I; warmup 62 days; eff_home=1; mentality on all contacts except home
 
-    theta = [0.012, 1.45, 2.5, 0.55, 1.22, 1.35, 0.18] # test, 2022-08-19 (eff_home=0, normal mentality, 0.7*mentality tweak)
-    #theta = [0.012, 0.6, 1.85, 0.02, 1.2, 1.5, 0.05] # test_1, 2022-08-21 (eff_home=1, mentality only on home contacts)
-    theta = [0.012, 1.28, 1.58, 0.6, 1.23, 1.58, 0.15] # test_1, 2022-08-21 (eff_home=1, mentality on all contacts)
-    theta = [0.0087, 1.53, 3.04, 0.56, 1.26, 1.42, 0.18] # test_1, 2022-08-21 (eff_home=1, mentality on all contacts)
-
-    model.parameters['l1'] = model.parameters['l2'] = 5
-    model.parameters['da'] = 5
+    # Assume effectivities are equal to one
     model.parameters['eff_home'] = 1
+    model.parameters['l1'] = 7
+    model.parameters['l2'] = 7
+    model.parameters['da'] = 5
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -211,9 +227,9 @@ if __name__ == '__main__':
         model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration)
+        out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
         plt.show()
         plt.close()
 
@@ -234,9 +250,9 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration)
+            out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
             # Visualize fit
-            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
             plt.show()
             plt.close()
             # Satisfied?
@@ -263,7 +279,7 @@ if __name__ == '__main__':
     # pars5 = ['zeta',]
     #pert5 = [0.20,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
+    pert =  pert1 + pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
     labels = ['$\\beta$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
@@ -282,14 +298,14 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing}
+    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'warmup': warmup}}, backend, identifier, processes)
 
     #####################
     ## Process results ##

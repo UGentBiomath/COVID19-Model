@@ -74,7 +74,7 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
 D = model.initial_states['S'].shape[1]
 # Start with infected individuals in first age group
 E0 = np.zeros([age_stratification_size,D])
-E0[0:7,0] = 10000
+E0[:,0] = 1
 # Ajust initial condition
 model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
                              "E": E0,
@@ -84,25 +84,31 @@ for key,value in model.initial_states.items():
     if ((key != 'S') & (key != 'E') & (key != 'I')):
         model.initial_states.update({key: np.zeros([age_stratification_size,D])})
 
+
+
 #########################
 ## Set warmup and beta ##
 #########################
 
-# Set a fixed warmup time of 21 days (= time between Krokusvakantie en eerste datapunt)
-warmup = 1
-# Set beta to an estimate that is close to the value from the calibrations
-
-model.parameters['beta'] = 0.012
-model.parameters['eff_work'] = 1.28
-model.parameters['eff_rest'] = 1.58
+# Set an initial warmup time 
+warmup = 33
+# Assume effectivities are equal to one
+model.parameters['eff_work'] = 1
+model.parameters['eff_rest'] = 1
 model.parameters['eff_home'] = 1
-model.parameters['amplitude'] = 0.15
-model.parameters['mentality'] = 0.6
-model.parameters['l1'] = model.parameters['l2'] = 5
+model.parameters['amplitude'] = 0.20
+model.parameters['l1'] = 14
+model.parameters['l2'] = 7
 model.parameters['da'] = 5
 
-theta = [model.parameters['beta'],]
-pars=['beta',]
+# Choose an assumed R0
+import ast
+R0_desired = float(ast.literal_eval(input("What should the basic reproduction (R0) number be? ")))
+model.parameters['beta'] = R0_desired/((np.mean(model.parameters['a'])*model.parameters['da'] + model.parameters['omega'])*model.parameters['Nc'].sum(axis=1).mean())
+print(f"The resulting per-contact per-minute infection probability (beta) is: {round(model.parameters['beta'],4)}")
+
+theta = [31,]
+pars=['warmup',]
 
 ###################################################################
 ## Manually find a good number of corresponding initial infected ##
@@ -116,8 +122,8 @@ data=[df_hosp['H_in'][start_calibration:end_calibration]]
 
 # Visualize new fit
 # Assign estimate
-pars_PSO = assign_PSO(model.parameters, pars, theta)
-model.parameters = pars_PSO
+#pars_PSO = assign_PSO(model.parameters, pars, theta)
+#model.parameters = pars_PSO
 # Perform simulation
 out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 # Visualize fit
@@ -125,13 +131,10 @@ ax = plot_PSO(out, data, ['H_in',], pd.to_datetime(start_calibration)-pd.Timedel
 plt.show()
 plt.close()
 
-satisfied = not click.confirm('Do you want to make manual tweaks to the initial number of infected?', default=False)
+satisfied = not click.confirm('Do you want to make manual tweaks to the value of warmup?', default=False)
 while not satisfied:
     # Prompt for input
-    import ast
-    new_value = ast.literal_eval(input("What should the initial number of infected be? "))
-    model.initial_states['E'][0:6,0] = float(new_value)
-    model.initial_states['I'][0:6,0] = float(new_value)
+    warmup = int(ast.literal_eval(input("What should the value of warmup be? ")))
     # Perform simulation
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize fit

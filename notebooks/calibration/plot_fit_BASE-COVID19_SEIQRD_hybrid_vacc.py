@@ -90,7 +90,7 @@ for directory in [fig_path, samples_path]:
 #############################
 
 samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
-warmup = 0
+warmup = samples_dict['warmup']
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
 start_sim = start_calibration
@@ -118,7 +118,26 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 
-model.parameters['l1'] = model.parameters['l2'] = 5
+##############################
+## Change initial condition ##
+##############################
+
+# Derive dose stratification size
+D = model.initial_states['S'].shape[1]
+# Start with infected individuals in first age group
+E0 = np.zeros([age_stratification_size,D])
+E0[:,0] = 1
+# Ajust initial condition
+model.initial_states.update({"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
+                             "E": E0,
+                             "I": E0
+                             })
+for key,value in model.initial_states.items():
+    if ((key != 'S') & (key != 'E') & (key != 'I')):
+        model.initial_states.update({key: np.zeros([age_stratification_size,D])})
+
+model.parameters['l1'] = 7
+model.parameters['l2'] = 7
 model.parameters['da'] = 5
 model.parameters['eff_home'] = 1
 
