@@ -315,7 +315,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     # Hospitalization propensity (manually fitted to deaths in hospital on 2020-07-01 per age category)
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                          data=[0.01, 0.01, 0.02, 0.03, 0.03, 0.06, 0.20, 0.50, 0.80])
+                          data=[0.01, 0.01, 0.02, 0.03, 0.03, 0.10, 0.22, 0.60, 0.85])
 
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
     rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
