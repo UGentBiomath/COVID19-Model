@@ -365,7 +365,7 @@ def lost_QALYs_hospital_care (reduction,granular=False):
    
     # Import hospital care cost per disease group and cost per QALY
     #cost per qauly (EUR), total spent (mill EUR) 
-    hospital_data=pd.read_excel("../../data/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data')
+    hospital_data=pd.read_excel("../../data/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data', index_col=0)
         
     # Average calculations
      
@@ -373,8 +373,7 @@ def lost_QALYs_hospital_care (reduction,granular=False):
         lost_QALYs = reduction*(hospital_data['total_spent']*1e6/hospital_data['cost_per_qaly']).sum()/365
     else:
         
-        data_per_disease=pd.DataFrame(columns=['disease_group','gained_qalys','lost_qalys'])
-        data_per_disease['disease_group']=hospital_data['disease_group']
+        data_per_disease=pd.DataFrame(index=hospital_data.index, columns=['gained_qalys','lost_qalys'])
         #Number of QALYs gained per year per disease group
         data_per_disease['gained_qalys']=hospital_data['total_spent']*1000000/hospital_data['cost_per_qaly']
         # Number of QALYs lost per year per disease group
