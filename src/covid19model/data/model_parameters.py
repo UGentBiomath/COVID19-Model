@@ -317,9 +317,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
                           data=np.array([0.01, 0.01, 0.02, 0.03, 0.03, 0.10, 0.22, 0.60, 0.85]))
 
+    #print(sum(hosp_prop*construct_initN(hosp_prop.index, None))/sum(construct_initN(hosp_prop.index, None)))
+
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
     rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
                          data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
+    
+    #print(sum(rel_symptoms*construct_initN(rel_symptoms.index, None))/sum(construct_initN(rel_symptoms.index, None)))
 
     def rescale_relative_to_absolute(relative_data, desired_pop_avg_fraction):
         """ A function to rescale age-structured relative information into absolute population information.
