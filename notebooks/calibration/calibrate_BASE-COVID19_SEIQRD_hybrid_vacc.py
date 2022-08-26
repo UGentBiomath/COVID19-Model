@@ -111,14 +111,6 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration, update_data=False)
 
-# Should be changed in model_parameters.py upon recalibration spatial model
-model.parameters['da'] = 5
-model.parameters['l1'] = 10
-model.parameters['l2'] = 5
-model.parameters['eff_home'] = 1
-# Assumed
-warmup = 70
-
 if __name__ == '__main__':
 
     #############################################################
@@ -141,11 +133,11 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:18]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:19]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
