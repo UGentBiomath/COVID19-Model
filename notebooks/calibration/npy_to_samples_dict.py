@@ -3,15 +3,16 @@ This script coverts an MCMC chain saved in .npy binary format to a .json samples
 
 Arguments:
 ----------
--f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
--k:
-    Names of the parameters sampled.
+-agg:
+    Spatial aggregation level (national, prov or arr)
+-ID:
+    Identifier + aggregation level of the samples dictionary to be loaded.
+-d:
+    Date of calibration
 -ak:
     Alternate keywords to be added to the dictionary
 -av:
-    Corresponding alternate values to be added to the dictionary
-
+    Corresponding alternate values to be added to the dictionary (added as strings)
 
 Returns:
 --------
@@ -20,53 +21,63 @@ A .json version of the chains
 Example use:
 ------------
 python npy_to_samples_dict.py
-    -f BE_CORE_SAMPLES_20xx-xx-xx.npy
-    -k 'beta_R' 'beta_U' 'beta_M' 'eff_schools' 'eff_work' 'eff_rest' 'mentality' 'eff_home' 'K_inf_abc' 'K_inf_delta' 'amplitude' 'zeta'
-    -ak 'warmup' 'n_chains' 'start_calibration' 'end_calibration'
-    -av 0 60 2020-03-17 2021-10-01
+    -a national
+    -ID BASE
+    -d 2022-08-17
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# ----------------------
-# Load required packages
-# ----------------------
+############################
+## Load required packages ##
+############################
 
+import pickle
 import json
 import argparse
 import numpy as np
 
-# -----------------------
-# Handle script arguments
-# -----------------------
+#############################
+## Handle script arguments ##
+#############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--filename", help="Samples dictionary name")
-parser.add_argument("-k", "--keys", help="List containing keys of sampled parameters",nargs='+')
-parser.add_argument("-ak", "--additional_keys", help="List containing keys of sampled parameters",nargs='+')
-parser.add_argument("-av", "--additional_values", help="List containing keys of sampled parameters",nargs='+')
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-ID", "--identifier", help="Calibration identifier")
+parser.add_argument("-d", "--date", help="Calibration date")
+parser.add_argument("-ak", "--additional_keys", help="List containing keys of sampled parameters",nargs='+', default=None)
+parser.add_argument("-av", "--additional_values", help="List containing keys of sampled parameters",nargs='+', default=None)
 args = parser.parse_args()
 
-# ------------
-# Load samples
-# ------------
+###############################
+## Load samples and settings ##
+###############################
 
-flat_samples = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename))
+flat_samples = np.load(f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.npy')
+with open(f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'+str(args.agg)+'_'+str(args.identifier) + '_SETTINGS_' + str(args.date) + '.pkl', 'rb') as f:
+    settings = pickle.load(f)
 
-# ----------------
-# Build dictionary
-# ----------------
+######################
+## Build dictionary ##
+######################
+
+keys = settings['parameters']
 
 samples_dict = {}
-for count,name in enumerate(args.keys):
+# Samples
+for count,name in enumerate(keys):
     samples_dict[name] = flat_samples[:,count].tolist()
-for count,name in enumerate(args.additional_keys):
-    samples_dict[name] = args.additional_values[count]
+# Settings
+samples_dict.update(settings)
+# Additional keys and value pairs
+if args.additional_keys:
+    for count,name in enumerate(args.additional_keys):
+        samples_dict[name] = args.additional_values[count]
 
-# ---------------
-# Save dictionary
-# ---------------
+######################
+## Save dictionary ##
+#####################
 
-with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename)[:-4]+'.json', 'w') as fp:
+with open(f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{args.agg}/'+str(args.agg)+'_'+str(args.identifier)+'_SAMPLES_'+str(args.date)+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

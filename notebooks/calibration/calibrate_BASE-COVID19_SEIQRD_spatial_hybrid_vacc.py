@@ -17,6 +17,7 @@ import sys
 import datetime
 import argparse
 import pandas as pd
+import pickle
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -146,10 +147,10 @@ if __name__ == '__main__':
 
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
-    alpha_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print(results)
     print('\n')
-    print('spatially-weighted overdispersion: ' + str(alpha_weighted))
+    print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
     plt.show()
     plt.close()
 
@@ -335,6 +336,11 @@ if __name__ == '__main__':
     ## Run MCMC sampler ##
     ######################
 
+    # Write settings to a .txt
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion, 'warmup': 0}
+    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
@@ -364,13 +370,14 @@ if __name__ == '__main__':
         samples_dict[name] = flat_samples[:,count].tolist()
 
     samples_dict.update({
-        'warmup' : 0,
-        'start_date_FULL' : start_calibration,
-        'end_date_FULL': end_calibration,
-        'n_chains_FULL' : nwalkers
+        'start_calibration' : args.start_calibration,
+        'end_calibration': args.end_calibration,
+        'n_chains' : nwalkers,
+        'dispersion': dispersion_weighted,
+        'warmup': 0
     })
 
-    json_file = f'{samples_path}{str(identifier)}_{run_date}.json'
+    json_file = f'{samples_path}{agg}_{str(identifier)}_SAMPLES_{run_date}.json'
     with open(json_file, 'w') as fp:
         json.dump(samples_dict, fp)
 

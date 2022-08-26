@@ -591,5 +591,4 @@ class BaseModel:
             xarr = xarray.DataArray(y_2d_reshaped,coords=coords,dims=[self.stratification[0],self.stratification[0],'time'])
             data[self.state_names[-1]] = xarr
 
-        attrs = {'parameters': dict(self.parameters)}
-        return xarray.Dataset(data, attrs=attrs)
+        return xarray.Dataset(data)

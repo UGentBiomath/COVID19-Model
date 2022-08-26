@@ -91,30 +91,26 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ## Initial states ##
     ####################
 
+    # age- and dose stratification size
+    N = len(age_classes)
+    D = len(efficacy_function.df_efficacies.index.get_level_values('dose').unique())
+
     if not start_date:
-        start_date = samples_dict['start_calibration']
-
-    samples_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-
-    if start_date == '2020-03-15':
-        with open(samples_path+'initial_states-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
-
-    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01')):
-        with open(samples_path+'summer_2021-COVID19_SEIQRD_hybrid_vacc.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
+        # Start with one exposed and one presymptomatic individual in every age group
+        E0 = I0 = np.zeros([age_stratification_size,D])
+        E0[:,0] = I0[:,0] = 1/(10/N) # Model calibrated with one sick individual in 10 age groups by default --> needs to be rescaled to remain accurate
+        # Construct initial states dictionary (other states get filled with zeros automatically)
+        initial_states={"S": np.concatenate( (np.expand_dims(initN, axis=1), np.ones([age_stratification_size,D-1])), axis=1),
+                        "E": E0,
+                        "I": E0
+                        }
     else:
-        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-15, 2021-08-01 or 2021-09-01".format(start_date))
-
-    for key,value in initial_states.items():
-        converted_value = np.zeros([len(age_classes),value.shape[1]])
-        for i in range(value.shape[1]):
-            column = value[:,i]
-            data = pd.Series(index=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), data=column)
-            converted_value[:,i] = convert_age_stratified_quantity(data, age_classes).values
-        initial_states.update({key: converted_value})
+        reference_sim_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
+        reference_sim_name = 'national_REF_SIMULATION_2022-08-25.nc'
+        out = xr.open_dataset(reference_sim_path+reference_sim_name)
+        initial_states={}
+        for data_var in out.keys():
+            initial_states.update({data_var: out.sel(time=start_date)[data_var].values})
 
     ##########################################################################
     ## Vaccination module requires some additional parameters to be defined ##
@@ -364,10 +360,8 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
 
     """
 
-    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))
-    param_dict['eff_schools'] = samples_dict['eff_schools'][idx]    
-    param_dict['eff_home'] = samples_dict['eff_home'][idx]      
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    #idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))  
+    idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))      
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
