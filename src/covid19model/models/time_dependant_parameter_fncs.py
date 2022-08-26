@@ -1136,12 +1136,12 @@ class make_contact_matrix_function():
 
         else:
             if t < self.df_google_start:
-                return self.Nc_all['total']
+                row = -self.df_google[0:7].mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[t]/100
             else:
-                # Extract last 14 days and take the mean
+                # Extract last 7 days and take the mean
                 row = -self.df_google[-7:-1].mean()/100
             
             # Extract values
@@ -1152,7 +1152,7 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (eff_home*self.Nc_all['home'] + mentality*(
+            CM = (mentality*(eff_home*self.Nc_all['home'] + 
                     eff_schools*school*self.Nc_all['schools'] +
                     eff_work*values_dict['work']*self.Nc_all['work'] +
                     eff_rest*values_dict['transport']*self.Nc_all['transport'] +
@@ -1222,6 +1222,9 @@ class make_contact_matrix_function():
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
+
+        eff_schools=eff_work
+
         t = pd.Timestamp(t.date())
 
         # Convert compliance l to dates
@@ -1310,12 +1313,12 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
         elif t9 < t <= t10:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
         elif t10 < t <= t11:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
         elif t11 < t <= t12:
@@ -1325,10 +1328,9 @@ class make_contact_matrix_function():
         elif t13 < t <= t14:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
-            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
-            return 1.14*mat
+            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
         elif t17 < t <= t18:

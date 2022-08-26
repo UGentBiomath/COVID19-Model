@@ -310,16 +310,16 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Susceptibility, hospitalization propensity and asymptomatic fraction ##
     ##########################################################################
 
-    # Susceptibility (Davies et al.)
+    # Susceptibility
     pars_dict['s'] = np.ones(age_stratification_size, np.float64)
 
-    # Hospitalization propensity (manually fitted)
+    # Hospitalization propensity (manually fitted to deaths in hospital on 2020-07-01 per age category)
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                          data=[0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80])
+                          data=np.array([0.01, 0.01, 0.02, 0.03, 0.03, 0.10, 0.22, 0.60, 0.85]))
 
-    # Relative symptoms dataframe (Wu et al., 2020)
-    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                             data=[0.053, 0.072, 0.408, 1.000, 1.349, 1.993, 2.849, 3.046, 3.240])
+    # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
+    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
+                         data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
 
     def rescale_relative_to_absolute(relative_data, desired_pop_avg_fraction):
         """ A function to rescale age-structured relative information into absolute population information.
@@ -336,7 +336,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     pars_dict['h'] = np.array(convert_age_stratified_property(
         hosp_prop, age_classes).values, np.float64)
-    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
+    #rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['a'] = np.array(
         1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
 
@@ -441,16 +441,19 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_BASE_enddate_20211014_SAMPLES_2022-05-29.json'
+        base_dict_name = 'national_REF_SAMPLES_2022-08-25.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta': np.mean(base_samples_dict['beta']),
-            'eff_schools': np.mean(base_samples_dict['eff_schools']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
-            'eff_home': np.mean(base_samples_dict['eff_home']),
             'mentality': np.mean(base_samples_dict['mentality']),
-            'amplitude': np.mean(base_samples_dict['amplitude']),
+            'amplitude': np.mean(base_samples_dict['amplitude']),            
+            'eff_home': 1,
+            'eff_schools': 0,
+            'beta': base_samples_dict['beta'],
+            'da': 5,
+            'l1': 10,
+            'l2': 5,
         })
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
