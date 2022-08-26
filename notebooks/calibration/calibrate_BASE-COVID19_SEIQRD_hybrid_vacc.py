@@ -137,11 +137,11 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:19]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:22]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-    log_likelihood_fnc_args = [dispersion, [], []]
+    weights = np.array([1, 1, 1]) # Scores of individual contributions: Dataset: 0, total ll: -4590, Dataset: 1, total ll: -4694, Dataset: 2, total ll: -4984
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [dispersion, dispersion, dispersion]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -186,6 +186,8 @@ if __name__ == '__main__':
     # ID: REF, date: 2022-08-24
     # To run: omit start_date argument from `initialize_COVID19_SEIQRD_hybrid_vacc`
     theta = [0.0235, 0.459, 0.765, 0.506, 1.3, 1.45, 0.204] #   --> warmup 70, eff_home=1, mentality on all contacts, ID: REF, date: 2022-08-24
+    warmup=70
+    
     # After MCMC, the plot_fit method was used to save a copy of this calibration
 
     # Second calibration round
