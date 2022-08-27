@@ -360,8 +360,9 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
 
     """
 
-    #idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))  
-    idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))      
+    idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))  
+    #idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))    
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
