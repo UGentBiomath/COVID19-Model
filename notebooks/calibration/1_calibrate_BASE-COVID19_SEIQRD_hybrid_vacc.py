@@ -111,15 +111,12 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
-from covid19model.data import model_parameters
-age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
-Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-
-def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
-    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
-    return sum((R0_i*initN)/sum(initN))
-
-print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
+# Set all effectivities and mentality to 1, disable amplitude.
+model.parameters['amplitude'] = 0
+model.parameters['eff_home'] = 1
+model.parameters['eff_work'] = 1
+model.parameters['eff_rest'] = 1
+model.parameters['mentality'] = 1
 
 if __name__ == '__main__':
 
@@ -143,15 +140,15 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 9
     max_n = n_mcmc
     print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
-    states = ["H_in", "R", "R"]
-    weights = np.array([1, 1, 1]) # Scores of individual contributions: Dataset: 0, total ll: -4590, Dataset: 1, total ll: -4694, Dataset: 2, total ll: -4984
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [dispersion, dispersion, dispersion]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], ]
+    states = ["H_in",]
+    weights = np.array([1,]) # Scores of individual contributions: Dataset: 0, total ll: -4590, Dataset: 1, total ll: -4694, Dataset: 2, total ll: -4984
+    log_likelihood_fnc = [ll_negative_binomial,]
+    log_likelihood_fnc_args = [dispersion,]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -165,64 +162,17 @@ if __name__ == '__main__':
     ## Global PSO optimization ##
     #############################
 
-    # transmission
+    # Transmission
     pars1 = ['beta',]
     bounds1=((0.001,0.080),)
-    # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,4),(0,4),(0,1))
-    # Variants
-    pars3 = ['K_inf',]
-    # Must supply the bounds
-    bounds3 = ((1.15,1.35),(1.40,2.4))
-    # Seasonality
-    pars4 = ['amplitude',]
-    bounds4 = ((0,0.50),)
-    # Waning antibody immunity
-    #pars5 = ['zeta',]
-    #bounds5 = ((1e-6,1e-2),)
+    # Warmup
+    pars2 = ['warmup',]
+    bounds2=((0,62),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4
-    bounds =  bounds1 + bounds2 + bounds3 + bounds4
-    # run optimizat
-    #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-    #                    start_date=start_calibration, warmup=warmup, processes=processes)
-
-    # First caliration round
-    # ----------------------
-
-    # Warmup was found to give the best results when set to 70 days
-    # Eff_home = 1 (assumption), mentality on all contacts
-    # ID: REF, date: 2022-08-24
-    # To run: omit start_date argument from `initialize_COVID19_SEIQRD_hybrid_vacc`
-    theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
-    warmup=70
-    
-    theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
-    warmup=(pd.to_datetime('2020-03-15')-pd.to_datetime('2020-02-05'))/pd.Timedelta(days=1)
-    print(warmup)
-
-    # After MCMC, the plot_fit method was used to save a copy of this calibration
-
-    # Second calibration round
-    # ------------------------
-
-    # Now set start date of the model to '2020-03-15' in `initialize_COVID19_SEIQRD_hybrid_vacc` and warmup=0
-    # The goal of the previous calibration was mainly to find a warmup, beta combination that results in a good overall fit
-    # This warmup,beta were used to get a good initial state estimate on '2020-03-15', then warmup can be set to 0 (speeds up computation) + beta can be omitted from calibration (will correlate with effectivities) 
-    #warmup = 0
-    #model.parameters['beta'] = 0.0191
-    #theta = [0.45, 1.3, 0.506, 1.3, 1.44, 0.22]
-
-    ####################################
-    ## Local Nelder-mead optimization ##
-    ####################################
-
-    # Define objective function
-    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
-    # Run Nelder Mead optimization
-    step = len(bounds)*[0.10,]
-    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
+    pars = pars1 + pars2
+    bounds =  bounds1 + bounds2
+    # Initial estimate
+    theta = [0.027, 42]
 
     ###################
     ## Visualize fit ##
@@ -230,14 +180,12 @@ if __name__ == '__main__':
 
     if high_performance_computing:
         
-        print(theta)
         # Assign estimate
-        model.parameters = assign_PSO(model.parameters, pars, theta)
+        warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
-        end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+        out = model.sim(end_calibration,start_date=start_calibration, warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_calibration)
         plt.show()
         plt.close()
 
@@ -255,12 +203,12 @@ if __name__ == '__main__':
             print(theta)
             # Visualize new fit
             # Assign estimate
-            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            warmup, pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+            out = model.sim(end_calibration,start_date=start_calibration, warmup=warmup)
             # Visualize fit
-            ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
+            ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_calibration)
             plt.show()
             plt.close()
             # Satisfied?
@@ -277,21 +225,15 @@ if __name__ == '__main__':
     log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
-    pert1 = [0.01,]
-    # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.05, 0.05, 0.05]
-    # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.05, 0.05]
-    # pars4 = ['amplitude']
-    pert4 = [0.05,] 
-    # pars5 = ['zeta',]
-    #pert5 = [0.20,]
+    pert1 = [0.02,]
+    # pars2 = ['warmup']
+    pert2 = [0.05,]
     # Add them together and perturbate
-    pert =  pert1+pert2 + pert3 + pert4 #+ pert5
+    pert =  pert1 + pert2
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$','$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
-    pars_postprocessing = ['beta','eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
+    labels = ['$\\beta$','W',]
+    pars_postprocessing = ['beta','warmup']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
@@ -306,7 +248,7 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+    'dispersion': dispersion, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
@@ -338,8 +280,6 @@ if __name__ == '__main__':
                         'start_calibration': args.start_calibration,
                         'end_calibration': args.end_calibration,
                         'dispersion': dispersion,
-                        'warmup': warmup,
-                        'beta': model.parameters['beta'],
                         'starting_estimate': theta
                         })
 
