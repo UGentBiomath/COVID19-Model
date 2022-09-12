@@ -118,6 +118,7 @@ Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_param
 def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
     R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
     return sum((R0_i*initN)/sum(initN))
+
 print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
 
 if __name__ == '__main__':
@@ -181,8 +182,8 @@ if __name__ == '__main__':
     #pars5 = ['zeta',]
     #bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
-    bounds =  bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
+    pars = pars1 + pars2 + pars3 + pars4
+    bounds =  bounds1 + bounds2 + bounds3 + bounds4
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
@@ -194,10 +195,13 @@ if __name__ == '__main__':
     # Eff_home = 1 (assumption), mentality on all contacts
     # ID: REF, date: 2022-08-24
     # To run: omit start_date argument from `initialize_COVID19_SEIQRD_hybrid_vacc`
-    theta = [0.0235, 0.459, 0.765, 0.506, 1.3, 1.45, 0.204] #   --> warmup 70, eff_home=1, mentality on all contacts, ID: REF, date: 2022-08-24
     theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
     warmup=70
     
+    theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
+    warmup=(pd.to_datetime('2020-03-15')-pd.to_datetime('2020-02-05'))/pd.Timedelta(days=1)
+    print(warmup)
+
     # After MCMC, the plot_fit method was used to save a copy of this calibration
 
     # Second calibration round
