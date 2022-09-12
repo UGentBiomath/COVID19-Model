@@ -456,8 +456,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
             'eff_schools': 0,
             'beta': base_samples_dict['beta'],
             'da': 5,
-            'l1': 10,
-            'l2': 5,
+            'l1': 7,
+            'l2': 7,
         })
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
