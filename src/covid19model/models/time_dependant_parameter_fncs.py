@@ -1232,7 +1232,7 @@ class make_contact_matrix_function():
         l2_days = pd.Timedelta(l2, unit='D')
 
         # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t1 = pd.Timestamp('2020-03-16') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
         t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
