@@ -483,7 +483,7 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         ## calculate total population ##
         ################################
 
-        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M + C + C_icurec + ICU + R_post_vacc, axis=1),axis=1) # sum over doses
+        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M_R + M_H + C + C_icurec + ICU + R_post_vacc, axis=1),axis=1) # sum over doses
 
         #################################
         ## Compute system of equations ##
