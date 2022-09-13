@@ -111,15 +111,18 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
 
-from covid19model.data import model_parameters
-age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
-Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+#from covid19model.data import model_parameters
+#age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
+#Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
 
-def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
-    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
-    return sum((R0_i*initN)/sum(initN))
+#def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
+#    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
+#    return sum((R0_i*initN)/sum(initN))
 
-print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
+#print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
+
+model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
+warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
 
 if __name__ == '__main__':
 
@@ -166,53 +169,27 @@ if __name__ == '__main__':
     #############################
 
     # transmission
-    pars1 = ['beta',]
-    bounds1=((0.001,0.080),)
+    #pars1 = ['beta',]
+    #bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,4),(0,4),(0,1))
+    bounds2=((0,2),(0,2),(0,1))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.15,1.35),(1.40,2.4))
+    bounds3 = ((1.15,1.50),(1.45,2.4))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
-    # Waning antibody immunity
-    #pars5 = ['zeta',]
-    #bounds5 = ((1e-6,1e-2),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4
-    bounds =  bounds1 + bounds2 + bounds3 + bounds4
+    pars = pars2 + pars3 + pars4
+    bounds =  bounds2 + bounds3 + bounds4
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-    # First caliration round
-    # ----------------------
-
-    # Warmup was found to give the best results when set to 70 days
-    # Eff_home = 1 (assumption), mentality on all contacts
-    # ID: REF, date: 2022-08-24
-    # To run: omit start_date argument from `initialize_COVID19_SEIQRD_hybrid_vacc`
-    theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
-    warmup=70
-    
-    theta = [0.024, 0.48, 0.765, 0.506, 1.3, 1.45, 0.204]
-    warmup=(pd.to_datetime('2020-03-15')-pd.to_datetime('2020-02-05'))/pd.Timedelta(days=1)
-    print(warmup)
-
-    # After MCMC, the plot_fit method was used to save a copy of this calibration
-
-    # Second calibration round
-    # ------------------------
-
-    # Now set start date of the model to '2020-03-15' in `initialize_COVID19_SEIQRD_hybrid_vacc` and warmup=0
-    # The goal of the previous calibration was mainly to find a warmup, beta combination that results in a good overall fit
-    # This warmup,beta were used to get a good initial state estimate on '2020-03-15', then warmup can be set to 0 (speeds up computation) + beta can be omitted from calibration (will correlate with effectivities) 
-    #warmup = 0
-    #model.parameters['beta'] = 0.0191
-    #theta = [0.45, 1.3, 0.506, 1.3, 1.44, 0.22]
+    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18] #
+    theta = [0.58, 0.6, 0.46, 1.35, 1.5, 0.25] # --> Davies 'a'
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -277,21 +254,19 @@ if __name__ == '__main__':
     log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
-    pert1 = [0.01,]
+    #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2 = [0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.05,] 
-    # pars5 = ['zeta',]
-    #pert5 = [0.20,]
     # Add them together and perturbate
-    pert =  pert1+pert2 + pert3 + pert4 #+ pert5
+    pert =  pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$','$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
-    pars_postprocessing = ['beta','eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    pars_postprocessing = ['eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
