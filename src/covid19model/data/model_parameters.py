@@ -314,14 +314,17 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['s'] = np.ones(age_stratification_size, np.float64)
 
     # Hospitalization propensity (manually fitted to deaths in hospital on 2020-07-01 per age category)
-    hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                          data=np.array([0.01, 0.01, 0.02, 0.03, 0.03, 0.10, 0.22, 0.60, 0.85]))
-
+    hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
+                          data=np.array([0.01, 0.01, 0.015, 0.025, 0.03, 0.06, 0.12, 0.40, 0.70, 0.99]))
     #print(sum(hosp_prop*construct_initN(hosp_prop.index, None))/sum(construct_initN(hosp_prop.index, None)))
 
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
-    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
-                         data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
+    #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
+    #                     data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
+
+    # https://www.nature.com/articles/s41591-020-0962-9
+    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
+                         data=np.array([0.28, 0.20, 0.23, 0.28, 0.35, 0.43, 0.55, 0.66, 0.70, 0.70]))
     
     #print(sum(rel_symptoms*construct_initN(rel_symptoms.index, None))/sum(construct_initN(rel_symptoms.index, None)))
 
@@ -340,6 +343,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     pars_dict['h'] = np.array(convert_age_stratified_property(
         hosp_prop, age_classes).values, np.float64)
+
     #rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['a'] = np.array(
         1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
@@ -375,7 +379,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ###################################
 
     pars_dict['l1'] = 7
-    pars_dict['l2'] = 7
+    pars_dict['l2'] = 10
     pars_dict['da'] = 7
     pars_dict['dm'] = 7
     pars_dict['sigma'] = 4.54
