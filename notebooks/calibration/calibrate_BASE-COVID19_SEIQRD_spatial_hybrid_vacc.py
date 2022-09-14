@@ -9,10 +9,14 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
+# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
+# The following line of code prevents this from happening
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+
 # Load standard packages
 import ast
 import click
-import os
 import sys
 import datetime
 import argparse
@@ -32,10 +36,6 @@ from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poiss
 from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
-
-# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
-# The following line of code prevents this from happening
-os.environ["OMP_NUM_THREADS"] = "1"
 
 ####################################
 ## Public or private spatial data ##
@@ -148,10 +148,10 @@ if __name__ == '__main__':
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    print(results)
+    #print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
-    plt.show()
+    #plt.show()
     plt.close()
 
     ##########################
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.042, 0.0517, 0.49, 0.261, 0.305, 1.48, 1.6, 0.29]
+    theta = [0.022, 0.022, 0.022, 0.7, 0.5, 0.25, 1.48, 1.8, 0.3]
 
     ####################################
     ## Local Nelder-mead optimization ##
