@@ -168,10 +168,10 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
+    weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
     log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, [], []]
 
     print('\n--------------------------------------------------------------------------------------')
@@ -191,28 +191,24 @@ if __name__ == '__main__':
     bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    pars2 = ['eff_work', 'eff_rest', 'mentality']
+    bounds2=((0,2),(0,2),(0,2))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.30,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
-    # Waning antibody immunity
-    #pars5 = ['zeta',]
-    #bounds5 = ((1e-4,6e-3),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
+    pars = pars1 + pars2 + pars3 + pars4  
+    bounds = bounds1 + bounds2 + bounds3 + bounds4
     # Setup objective function without priors and with negative weights 
     #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.042, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
-    theta = [0.0398, 0.042, 0.0517, 0.2, 0.49, 0.261, 0.305, 0.213, 1.48, 1.6, 0.29]
+    theta = [0.0398, 0.042, 0.0517, 0.49, 0.261, 0.305, 1.48, 1.6, 0.29]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -306,21 +302,18 @@ if __name__ == '__main__':
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.05, 0.05, 0.05]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2=[0.50, 0.50, 0.50, 0.50, 0.50]
+    pert2=[0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.20, 0.20]
     # pars4 = ['amplitude']
     pert4 = [0.80,] 
-    # pars5 = ['zeta']
-    #pert5 = [0.10,]
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
+    pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
+                '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$']
-                #'$\zeta$']
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Set up the sampler backend if needed
@@ -337,7 +330,7 @@ if __name__ == '__main__':
     ######################
 
     # Write settings to a .txt
-    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion, 'warmup': 0}
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion_weighted, 'warmup': 0}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
