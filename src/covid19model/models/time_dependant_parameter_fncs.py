@@ -1224,7 +1224,7 @@ class make_contact_matrix_function():
         '''
 
         # Assumption eff_schools = eff_work
-        #eff_schools=eff_work
+        eff_schools=eff_work
 
         t = pd.Timestamp(t.date())
         # Convert compliance l to dates
