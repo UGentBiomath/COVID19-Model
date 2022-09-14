@@ -1223,16 +1223,16 @@ class make_contact_matrix_function():
             Effective contact matrix (output of __call__ function)
         '''
 
+        # Assumption eff_schools = eff_work
         eff_schools=eff_work
 
         t = pd.Timestamp(t.date())
-
         # Convert compliance l to dates
         l1_days = pd.Timedelta(l1, unit='D')
         l2_days = pd.Timedelta(l2, unit='D')
 
         # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t1 = pd.Timestamp('2020-03-16') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
         t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
@@ -1279,9 +1279,9 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
         elif t1 < t <= t1 + l1_days:
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
