@@ -1440,7 +1440,7 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-16') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -1481,13 +1481,13 @@ class make_contact_matrix_function():
         idx_F = [0, 1, 4, 5, 8]
         idx_Bxl = [3,]
         idx_W = [2, 6, 7, 9, 10]
-        mentality_summer_2020_lockdown = np.array([mentality, 0*mentality, # F
-                                                2*mentality, # W
-                                                1*mentality, # Bxl
-                                                0.5*mentality, 2*mentality, # F
-                                                4*mentality, 4*mentality, # W
-                                                0*mentality, # F
-                                                1*mentality, 2*mentality]) # W
+        mentality_summer_2020_lockdown = np.array([1.5*mentality, 0*mentality, # F
+                                                1.5*mentality, # W
+                                                1.5*mentality, # Bxl
+                                                0.5*mentality, 1.5*mentality, # F
+                                                3*mentality, 3*mentality, # W
+                                                1*mentality, # F
+                                                1*mentality, 1*mentality]) # W
 
         co_F = 1
         co_W = 1
@@ -1569,7 +1569,7 @@ class make_contact_matrix_function():
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             r=1.0
-            mat[idx_F,:,:] *= r*1.06
+            mat[idx_F,:,:] *= r*1.0
             mat[idx_Bxl,:,:] *= r*1.13
             mat[idx_W,:,:] *= r*1.12
             return mat 

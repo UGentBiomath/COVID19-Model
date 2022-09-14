@@ -208,7 +208,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.022, 0.022, 0.022, 0.7, 0.5, 0.25, 1.48, 1.8, 0.3]
+    theta = [0.018, 0.018, 0.022, 0.7, 1.0, 0.3, 1.5, 1.7, 0.25]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration)
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
