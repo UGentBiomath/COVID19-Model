@@ -1670,7 +1670,7 @@ class make_contact_matrix_function():
             ################
 
             # Define key dates 
-            t1 = pd.Timestamp('2020-03-15') # start of lockdown
+            t1 = pd.Timestamp('2020-03-16') # start of lockdown
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
             t3 = pd.Timestamp('2020-08-10') # end of mentality easing
             t4 = pd.Timestamp('2020-10-19') # start of lockdown
@@ -1682,9 +1682,9 @@ class make_contact_matrix_function():
 
             # Define number of contacts
             if t <= t1:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
             elif t1 < t <= t1 + l1_days:
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t1, l1)
             elif t1 + l1_days < t <= t2:
