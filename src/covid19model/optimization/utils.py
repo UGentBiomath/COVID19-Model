@@ -216,17 +216,22 @@ def assign_PSO(param_dict, parNames, thetas):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
+    # Find out if 'warmup' needs to be estimated
+    warmup_position=None
+    if 'warmup' in parNames:
+        warmup_position=parNames.index('warmup')
+        warmup = thetas[warmup_position]
+        parNames = [x for x in parNames if x != "warmup"]
+        thetas = [x for (i,x) in enumerate(thetas) if i != warmup_position]
+
     thetas_dict,n = log_posterior_probability.thetas_to_thetas_dict(thetas, parNames, param_dict)
     for i, (param,value) in enumerate(thetas_dict.items()):
-        if param == 'warmup':
-            warmup = int(round(value))
-        else:
             param_dict.update({param : value})
 
-    if 'warmup' not in thetas_dict.keys():
-        return param_dict
-    else:
+    if warmup_position:
         return warmup, param_dict
+    else:
+        return param_dict
 
 from covid19model.optimization.objective_fcns import log_prior_custom
 def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):

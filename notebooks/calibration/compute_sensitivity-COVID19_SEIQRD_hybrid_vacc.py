@@ -109,49 +109,49 @@ print('\n3) Setting up the Sobol sensitivity problem')
 
 # Code relies on parameters 'a' and 'h' being in position 2 and 4 respectively!
 problem_grouped = {
-    'num_vars': 12,
+    'num_vars': 10,
     'groups': ['Group_1','Group_1','Group_1','Group_1',
               'Group_2'
               'Group_3',
               'Group_4',
-              'Group_5', 'Group_5', 'Group_5', 'Group_5', 'Group_5'],
+              'Group_5', 'Group_5', 'Group_5'],
     'names': ['beta','omega','a','da',
               'h',
               'amplitude',
               'zeta',
-              'mentality','eff_schools', 'eff_work', 'eff_rest', 'eff_home'],
+              'mentality', 'eff_work', 'eff_rest'],
     'labels': ['$R_{0}$: $\\beta$, $\\omega$, $a$, $d_{a}$',
                '$h$',
                '$A_{s}$',
                '$\\zeta$',
-               '$N_{c}$: M, $\Omega_{schools}$ ,\n  $\Omega_{work}$, $\Omega_{rest}$, $\Omega_{home}$'],
+               '$N_{c}$: M, $\Omega_{work}$, $\Omega_{rest}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
-        [0.01, 0.14],
+        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
+        [0.05, 0.17],
         [0, 0.50],
-        [1e-6, 3.0*model.parameters['zeta']],
-        [0,1],[0,1],[0,1],[0,1],[0,1]
+        [1e-6, 4.0*model.parameters['zeta']],
+        [0,1],[0,1],[0,1]
                ]
 }
 
 problem_ungrouped = {
-    'num_vars': 12,
+    'num_vars': 10,
     'names': ['beta','omega','a','da',
               'h',
               'amplitude',
               'zeta',
-              'mentality','eff_schools', 'eff_work', 'eff_rest', 'eff_home'],
+              'mentality', 'eff_work', 'eff_rest'],
     'labels': ['$\\beta$', '$\\omega$', '$a$', '$d_{a}$',
                '$h$',
                '$A_{s}$',
                '$\\zeta$',
-               '$M$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$'],
+               '$M$', '$\Omega_{work}$', '$\Omega_{rest}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.10, 0.57],[2, 10],
-        [0.01, 0.14],
+        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
+        [0.05, 0.17],
         [0, 0.50],
-        [1e-6, 3.0*model.parameters['zeta']], # no waning --> half a year
-        [0,1],[0,1],[0,1],[0,1],[0,1]
+        [1e-6, 4.0*model.parameters['zeta']], # no waning --> three months
+        [0,1],[0,1],[0,1]
                ]
 }
 
@@ -168,10 +168,10 @@ virgin_a = model.parameters['a']
 virgin_h = model.parameters['h']
 
 def adjust_h(overall_h):
-    return list(virgin_h*(overall_h/0.115)) # Verified 11.5% is the implemented Belgian population average (04/08/2022)
+    return list(virgin_h*(overall_h/0.149)) # Verified 14.9% is the implemented Belgian population average (26/08/2022)
 
 def adjust_a(overall_a):
-    return list(virgin_a*(overall_a/0.57)) # Verified 57.0% is the implemented Belgian population average (04/08/2022)
+    return list(virgin_a*(overall_a/0.714)) # Verified 71.4% is the implemented Belgian population average (26/08/2022)
 
 def draw_fcn(param_dict,samples_dict):
     param_dict['sigma'] = 5.2*np.ones(len(param_dict['sigma'])) - param_dict['omega']

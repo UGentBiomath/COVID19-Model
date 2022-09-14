@@ -440,9 +440,11 @@ class log_posterior_probability():
         # Add exception for estimation of warmup
         if self.warmup_position:
             simulation_kwargs.update({'warmup': thetas[self.warmup_position]})
-
-        # Convert thetas for model parameters to a dictionary with key-value pairs
-        thetas_dict, n = self.thetas_to_thetas_dict(thetas, self.parameter_names, self.model.parameters)
+            # Convert thetas for model parameters to a dictionary with key-value pairs
+            thetas_dict, n = self.thetas_to_thetas_dict([x for (i,x) in enumerate(thetas) if i != self.warmup_position], [x for x in self.parameter_names if x != "warmup"], self.model.parameters)
+        else:
+            # Convert thetas for model parameters to a dictionary with key-value pairs
+            thetas_dict, n = self.thetas_to_thetas_dict(thetas, self.parameter_names, self.model.parameters)
 
         # Assign thetas for model parameters to the model object
         for param,value in thetas_dict.items():
