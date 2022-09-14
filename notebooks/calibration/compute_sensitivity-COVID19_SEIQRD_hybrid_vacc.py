@@ -16,7 +16,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 300
+n_samples = 50
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
@@ -25,6 +25,15 @@ results_name='sobol_'+problem_name
 n_age_groups = 10
 start_calibration = '2020-03-15'
 end_calibration = '2020-10-01'
+
+###########################################
+## Limit number of threads numpy can use ##
+###########################################
+
+#https://stackoverflow.com/questions/30791550/limit-number-of-threads-in-numpy
+
+import os
+os.environ["OMP_NUM_THREADS"] = "1" 
 
 ############################
 ## Load Required Packages ##
@@ -203,6 +212,7 @@ print("\n\t{0} samples per parameter resulting in a total of {1} model evaluatio
 print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
 # Evaluate model (automatic multiprocessing and suppression of warnings)
+
 start = time.time()
 thetas = param_values
 mp_pool = mp.Pool(n_cpus)
