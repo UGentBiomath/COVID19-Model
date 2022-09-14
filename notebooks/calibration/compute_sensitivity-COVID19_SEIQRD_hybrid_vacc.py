@@ -18,7 +18,7 @@ problem_name = 'ungrouped'
 calc_second_order = True
 n_samples = 300
 save=True
-results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity'
+results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
 
 # Model setup
