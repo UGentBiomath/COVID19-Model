@@ -13,10 +13,10 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ##########################
 
 # Sobol analysis
-n_cpus = 18
+n_cpus = 12
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 50
+n_samples = 1000
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
@@ -131,7 +131,7 @@ problem_grouped = {
                '$\\zeta$',
                '$N_{c}$: M, $\Omega_{work}$, $\Omega_{rest}$'],
     'bounds': [
-        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.85],[2, 10],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
         [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']],
@@ -152,7 +152,7 @@ problem_ungrouped = {
                '$\\zeta$',
                '$M$', '$\Omega_{work}$', '$\Omega_{rest}$'],
     'bounds': [
-        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.85],[2, 10],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
         [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']], # no waning --> three months
