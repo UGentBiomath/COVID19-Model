@@ -28,7 +28,7 @@ print('\n(1) Loading data\n')
 # Names and location of datasets
 abs_dir = os.getcwd()
 rel_dir = '../../data/raw/QALY_model/postponement_non_covid_care/UZG/'
-name_raw_list=['MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021_sem1.xlsx']
+name_raw_list=['MZG_2016.xlsx','MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021.xlsx']
 # Construct list of locations
 path_list=[]
 for idx,name in enumerate(name_raw_list):

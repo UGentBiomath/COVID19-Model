@@ -3,7 +3,7 @@ This script converts the intermediate dataset on the postponement of non-COVID-1
 folder (not on github, contact tijs.alleman@ugent.be) into the final format (postponement of care vs. prepandemic baseline)
 
 The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2017-2021).
-The intermediate dataframe is not on Github because of its size (70 Mb). The computation is demanding, taking roughly 9 hrs on an Intel® Xeon(R) W-2295 CPU @ 3.00GHz.
+The intermediate dataframe is not on Github because of its size (70 Mb).
 
 The final timeseries to be used in the analysis is a pd.DataFrame containing the data from 2020-2021 (pandemic data), given as a percentage reduction compared to a prepandemic baseline (2017-2019).
 The computation was split because step 1 takes much longer than step 2.
