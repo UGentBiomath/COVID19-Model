@@ -146,7 +146,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 20
     max_n = n_mcmc
     print_n = 20
     # Define dataset
@@ -188,8 +188,7 @@ if __name__ == '__main__':
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
 
-    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18] #
-    theta = [0.58, 0.6, 0.46, 1.35, 1.5, 0.25] # --> Davies 'a'
+    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -256,11 +255,11 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.05, 0.05, 0.05]
+    pert2 = [0.10, 0.10, 0.10]
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.05,] 
+    pert4 = [0.10,] 
     # Add them together and perturbate
     pert =  pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)

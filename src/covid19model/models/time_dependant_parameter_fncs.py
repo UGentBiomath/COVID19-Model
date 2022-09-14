@@ -1223,10 +1223,10 @@ class make_contact_matrix_function():
             Effective contact matrix (output of __call__ function)
         '''
 
+        # Assumption eff_schools = eff_work
         eff_schools=eff_work
 
         t = pd.Timestamp(t.date())
-
         # Convert compliance l to dates
         l1_days = pd.Timedelta(l1, unit='D')
         l2_days = pd.Timedelta(l2, unit='D')
@@ -1328,9 +1328,9 @@ class make_contact_matrix_function():
         elif t13 < t <= t14:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
-            return 1.0*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t15 < t <= t16:
-            return 1.0*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
+            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
         elif t17 < t <= t18:

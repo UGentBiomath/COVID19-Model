@@ -106,7 +106,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                         }
     else:
         reference_sim_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
-        reference_sim_name = 'national_REF_SIMULATION_2022-08-25.nc'
+        reference_sim_name = 'national_REF_SIMULATION_2022-09-13.nc'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
         for data_var in out.keys():
@@ -360,7 +360,6 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
 
     """
 
-    #idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))  
     idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
     param_dict['eff_work'] = samples_dict['eff_work'][idx]
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
