@@ -164,7 +164,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.027, 0.027, 0.0305, 0.3, 0.6, 0.53, 1.35, 1.65, 0.25]
+    theta = [0.027, 0.027, 0.031, 0.3, 0.6, 0.53, 1.35, 1.65, 0.25]
 
     ####################################
     ## Local Nelder-mead optimization ##

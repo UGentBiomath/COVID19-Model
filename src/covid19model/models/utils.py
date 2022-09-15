@@ -235,27 +235,37 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initial states ##
     ####################
 
-    if not start_date:
-        start_date = samples_dict['start_calibration']
-
+    # Space, age, dose sizes
     G = len(df_incidences.index.get_level_values('NIS').unique())
     N = len(age_classes)
     D = len(efficacy_function.df_efficacies.index.get_level_values('dose').unique())
 
-    # Get correct initial condition
-    samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
-    if ((start_date == '2020-03-23') | (start_date == '2020-03-22') | (start_date == '2020-03-21') | (start_date == '2020-03-20') | (start_date == '2020-03-19') |
-        (start_date == '2020-03-18') | (start_date == '2020-03-17') | (start_date == '2020-03-16') | (start_date == '2020-03-15') ) :
-        with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_hybrid_vacc.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
-    elif ((start_date == '2021-08-01') | (start_date == '2021-09-01') | (start_date == '2021-10-01')):
-        with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'rb') as handle:
-            load = pickle.load(handle)
-            initial_states = load[start_date]
+    if not start_date:
+        # Number of susceptibles
+        S0 = np.concatenate( (np.expand_dims(initN,axis=2), 0.01*np.ones([G,N,3])), axis=2)
+        # Start with one exposed and one presymptomatic individual in every age group
+        E0 = I0 = np.zeros([G,N,D])
+        E0[:,:,0] = I0[:,:,0] = 1 # Model calibrated with one sick individual in 10 age groups by default --> needs to be rescaled to remain accurate
+        # Construct initial states dictionary (other states get filled with zeros automatically)
+        initial_states={"S": S0,
+                        "E": E0,
+                        "I": E0
+                        }
     else:
-        raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-17, 2021-08-01 or 2021-09-01".format(start_date))
-        
+        # Get correct initial condition
+        samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
+        if ((start_date == '2020-03-23') | (start_date == '2020-03-22') | (start_date == '2020-03-21') | (start_date == '2020-03-20') | (start_date == '2020-03-19') |
+            (start_date == '2020-03-18') | (start_date == '2020-03-17') | (start_date == '2020-03-16') | (start_date == '2020-03-15') ) :
+            with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_hybrid_vacc.pickle', 'rb') as handle:
+                load = pickle.load(handle)
+                initial_states = load[start_date]
+        elif ((start_date == '2021-08-01') | (start_date == '2021-09-01') | (start_date == '2021-10-01')):
+            with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'rb') as handle:
+                load = pickle.load(handle)
+                initial_states = load[start_date]
+        else:
+            raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-17, 2021-08-01 or 2021-09-01".format(start_date))
+            
     # Convert to the right age groups
     for key,value in initial_states.items():
         converted_value = np.zeros([G, N, D])
