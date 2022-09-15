@@ -164,7 +164,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, [], []]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, results.loc[(slice(None), 'negative binomial'), 'theta'].values, results.loc[(slice(None), 'negative binomial'), 'theta'].values]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     bounds2=((0,2),(0,2),(0,2))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.60),(1.30,2.20))
+    bounds3 = ((1.20, 1.45),(1.40,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.018, 0.018, 0.022, 0.7, 1.0, 0.3, 1.5, 1.7, 0.25]
+    theta = [0.027, 0.027, 0.0305, 0.3, 0.6, 0.53, 1.35, 1.65, 0.25]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -300,13 +300,13 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.05, 0.05, 0.05]
+    pert1=[0.10, 0.10, 0.10]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
     pert2=[0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.20, 0.20]
+    pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.80,] 
+    pert4 = [0.50,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots

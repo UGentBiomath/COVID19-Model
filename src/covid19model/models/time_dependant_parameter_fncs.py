@@ -1456,7 +1456,7 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-06-01') # Start of relaxations
+        t18 = pd.Timestamp('2021-05-15') # Start of relaxations
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t20 = pd.Timestamp('2021-08-01') # End of easing on mentality
 
@@ -1481,11 +1481,18 @@ class make_contact_matrix_function():
         idx_F = [0, 1, 4, 5, 8]
         idx_Bxl = [3,]
         idx_W = [2, 6, 7, 9, 10]
-        mentality_summer_2020_lockdown = np.array([1.5*mentality, 0*mentality, # F
-                                                1.5*mentality, # W
-                                                1.5*mentality, # Bxl
-                                                0.5*mentality, 1.5*mentality, # F
-                                                3*mentality, 3*mentality, # W
+        # mentality_summer_2020_lockdown = np.array([1.5*mentality, 0*mentality, # F
+        #                                         1.5*mentality, # W
+        #                                         3*mentality, # Bxl
+        #                                         0.5*mentality, 1.5*mentality, # F
+        #                                         3*mentality, 3*mentality, # W
+        #                                         1*mentality, # F
+        #                                         1*mentality, 1*mentality]) # W
+        mentality_summer_2020_lockdown = np.array([1*mentality, 1*mentality, # F
+                                                1*mentality, # W
+                                                1, # Bxl
+                                                0.5*mentality, 1*mentality, # F
+                                                1, 1, # W
                                                 1*mentality, # F
                                                 1*mentality, 1*mentality]) # W
 
@@ -1565,16 +1572,23 @@ class make_contact_matrix_function():
         elif t13 < t <= t14:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.15
+            mat[idx_W,:,:] *= 1.10
+            return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            r=1.0
-            mat[idx_F,:,:] *= r*1.0
-            mat[idx_Bxl,:,:] *= r*1.13
-            mat[idx_W,:,:] *= r*1.12
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.15
+            mat[idx_W,:,:] *= 1.10
             return mat 
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.15
+            mat[idx_W,:,:] *= 1.10
+            return mat                          
         elif t17 < t <= t18:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t18 < t <= t19:
