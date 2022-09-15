@@ -1127,7 +1127,7 @@ class make_contact_matrix_function():
                 mentality = mentality[:, np.newaxis, np.newaxis]
 
             # Construct contact matrix
-            CM = (eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] + mentality*(
+            CM = (mentality*(eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] 
                     (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                     (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                     (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
