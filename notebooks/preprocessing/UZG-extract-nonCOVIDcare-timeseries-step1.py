@@ -28,15 +28,17 @@ print('\n(1) Loading data\n')
 # Names and location of datasets
 abs_dir = os.getcwd()
 rel_dir = '../../data/raw/QALY_model/postponement_non_covid_care/UZG/'
-name_raw_list=['MZG_2016.xlsx','MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021.xlsx']
+name_raw_list=['MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021_sem1.xlsx']
 # Construct list of locations
 path_list=[]
 for idx,name in enumerate(name_raw_list):
     path_list.append(os.path.join(abs_dir,rel_dir,name))
 # Location of results
 result_folder='../../data/interim/QALY_model/postponement_non_covid_care/UZG/'
-result_name='MZG_2017_2021.csv'
+result_name='MZG_2016_2021.csv'
 result_path = os.path.join(abs_dir,result_folder,result_name)
+if not os.path.exists(os.path.join(abs_dir,result_folder)):
+    os.makedirs(os.path.join(abs_dir,result_folder))
 # Load datasets and merge them togheter
 df = pd.concat(
     map(pd.read_excel, path_list))
