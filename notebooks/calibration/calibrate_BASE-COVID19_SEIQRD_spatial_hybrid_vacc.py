@@ -50,7 +50,7 @@ public = True
 # general
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
-parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-18')
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-15')
 parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, results.loc[(slice(None), 'negative binomial'), 'theta'].values, results.loc[(slice(None), 'negative binomial'), 'theta'].values]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, dispersion_weighted, dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -314,6 +314,7 @@ if __name__ == '__main__':
                 '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$']
+    pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Set up the sampler backend if needed
@@ -330,7 +331,8 @@ if __name__ == '__main__':
     ######################
 
     # Write settings to a .txt
-    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion_weighted, 'warmup': 0}
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
+    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     

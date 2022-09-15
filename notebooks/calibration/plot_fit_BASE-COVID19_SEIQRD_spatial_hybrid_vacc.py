@@ -29,37 +29,33 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
-#os.environ['MKL_NUM_THREADS'] = '1'
-#os.environ['NUMEXPR_NUM_THREADS'] = '1'
 
 ############################
 ## Load required packages ##
 ############################
 
-import sys, getopt
 import pickle
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from covid19model.data import sciensano
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_poisson, add_negative_binomial
-from covid19model.visualization.utils import colorscale_okabe_ito
-
 #############################
 ## Handle script arguments ##
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--filename", help="Samples dictionary name")
+parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr or prov (default).", default = 'prov', type=str)
+parser.add_argument("-ID", "--identifier", help="Calibration identifier")
+parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n", "--n_samples", help="Number of samples used to visualise model fit", default=100, type=int)
 parser.add_argument("-k", "--n_draws_per_sample", help="Number of binomial draws per sample drawn used to visualize model fit", default=1, type=int)
 parser.add_argument("-s", "--save", help="Save figures",action='store_true')
+parser.add_argument("-p", "--processes", help="Number of cpus used to perform computation", default=1, type=int)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
-parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr or prov (default).", default = 'prov', type=str)
 args = parser.parse_args()
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
@@ -93,7 +89,8 @@ for directory in [fig_path, samples_path]:
 #############################
 
 from covid19model.models.utils import load_samples_dict
-samples_dict = load_samples_dict(samples_path+str(args.filename), age_stratification_size=age_stratification_size)
+samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
+warmup = float(samples_dict['warmup'])
 dispersion = float(samples_dict['dispersion'])
 # Start of calibration warmup and beta
 start_calibration = samples_dict['start_calibration']
@@ -130,7 +127,7 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vac
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,N=args.n_samples,draw_fcn=draw_fnc,samples=samples_dict, verbose=True)
+out = model.sim(end_sim,start_date=start_sim, warmup=warmup, N=args.n_samples, draw_fcn=draw_fnc, samples=samples_dict, verbose=True, processes=int(args.processes))
 simtime = out['time'].values
 
 #######################
