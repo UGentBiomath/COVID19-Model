@@ -80,27 +80,29 @@ G = model.initial_states['S'].shape[0]
 N = model.initial_states['S'].shape[1]
 D = model.initial_states['S'].shape[2]
 # Reset S
-S = np.concatenate( (np.expand_dims(initN,axis=2), 0.1*np.ones([G,N,3])), axis=2)
+S = np.concatenate( (np.expand_dims(initN,axis=2), 0.01*np.ones([G,N,3])), axis=2)
 # 1 exposed individual per NIS in ages 0:3
 E0 = np.zeros([G, N, D])
-E0[:,0:6,0] = 1
+E0[:,:,0] = 1
 model.initial_states.update({"S": S, "E": E0, "I": E0})
 for state,value in model.initial_states.items():
     if ((state != 'S') & (state != 'E') & (state != 'I')):
         model.initial_states.update({state: np.zeros([G,N,D])})
 
-##########################
-## Set warmup and beta ##
-#########################
+# Assume effectivities are equal to one, no seasonality
+model.parameters['eff_work'] = 1
+model.parameters['eff_rest'] = 1
+model.parameters['eff_home'] = 1
+model.parameters['amplitude'] = 0
 
-# Warmup of two days
-warmup = 2
-# Set beta
-theta = [0.04, 0.04, 0.05]
-pars = ['beta_R', 'beta_U', 'beta_M']
-model.parameters['beta_R'] = theta[0]
-model.parameters['beta_U'] = theta[1]
-model.parameters['beta_M'] = theta[2]
+# Set warmup to date of first infected in Belgium
+warmup = pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05')
+
+# Set betas to assume R0=3.3
+model.parameters['beta_R'] = model.parameters['beta_U'] = model.parameters['beta_M'] = 0.027
+
+# Disable mobility
+model.parameters['p'] = 0*model.parameters['p']
 
 ###########################################
 ## Visualize the result per spatial unit ##
@@ -108,15 +110,14 @@ model.parameters['beta_M'] = theta[2]
 
 # Start- and enddates of visualizations
 start_calibration=df_hosp.index.get_level_values('date').min()
-end_calibration='2020-05-01'
+end_calibration='2020-04-01'
 end_visualization=end_calibration
 data=[df_hosp[start_calibration:end_calibration],]
 
-
 # for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 #     # Assign estimate
-#     pars_PSO = assign_PSO(model.parameters, pars, theta)
-#     model.parameters = pars_PSO
+#     #pars_PSO = assign_PSO(model.parameters, pars, theta)
+#     #model.parameters = pars_PSO
 #     # Perform simulation
 #     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #     # Visualize
@@ -124,7 +125,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
-#     ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
+#     ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
 #     # Add a box with the NIS code
 #     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
 #     ax.text(0.02, 0.88, 'NIS: '+str(NIS), transform=ax.transAxes, fontsize=13, verticalalignment='center', bbox=props)
@@ -138,11 +139,11 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     while not satisfied:
 #         # Prompt for input
 #         val = input("What should the initial number of infected be? ")
-#         model.initial_states['E'][idx,0:6,0] = val
-#         model.initial_states['I'][idx,0:6,0] = val
+#         model.initial_states['E'][idx,:,0] = val
+#         model.initial_states['I'][idx,:,0] = val
 #         # Assign estimate
-#         pars_PSO = assign_PSO(model.parameters, pars, theta)
-#         model.parameters = pars_PSO
+#         #pars_PSO = assign_PSO(model.parameters, pars, theta)
+#         #model.parameters = pars_PSO
 #         # Perform simulation
 #         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #         # Visualize new fit
@@ -150,7 +151,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #         ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #         ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #         ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
-#         ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
+#         ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
 #         # Add a box with the NIS code
 #         props = dict(boxstyle='round', facecolor='white', alpha=0.5)
 #         ax.text(0.02, 0.88, 'NIS: '+str(NIS), transform=ax.transAxes, fontsize=13, verticalalignment='center', bbox=props)
@@ -166,33 +167,33 @@ data=[df_hosp[start_calibration:end_calibration],]
 ## Hard-code result ##
 ######################
 
-initial_infected = [2700, 1000, 250, 2800, 1500, 1800, 2000, 2000, 2000, 400, 500]
+initial_infected = [0.40, 0.15, 0.04, 0.50, 0.18, 0.25, 0.30, 0.30, 0.25, 0.08, 0.08] # Mobility disabled
 E = np.zeros([G,N,D])
 I = np.zeros([G,N,D])
 for idx, val in enumerate(initial_infected):
-    E0[idx,0:6,0] = val
+    E0[idx,:,0] = val
     model.initial_states.update({'E': E0, 'I': E0})
 # Simulate
 out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 
 #Visualize
-# for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
-#     # Perform simulation
-#     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
-#     # Visualize new fit
-#     fig,ax = plt.subplots(figsize=(12,4))
-#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
-#     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-#     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
-#     ax.axvline(x=pd.Timestamp('2020-03-18'),linestyle='--',linewidth=1,color='black')
-#     # Add a box with the NIS code
-#     props = dict(boxstyle='round', facecolor='white', alpha=0.5)
-#     ax.text(0.02, 0.88, 'NIS: '+str(NIS), transform=ax.transAxes, fontsize=13, verticalalignment='center', bbox=props)
-#     # Format axis
-#     ax = _apply_tick_locator(ax)
-#     # Display figure
-#     plt.show()
-#     plt.close()
+for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
+    # Perform simulation
+    out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+    # Visualize new fit
+    fig,ax = plt.subplots(figsize=(12,4))
+    ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+    ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
+    ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
+    # Add a box with the NIS code
+    props = dict(boxstyle='round', facecolor='white', alpha=0.5)
+    ax.text(0.02, 0.88, 'NIS: '+str(NIS), transform=ax.transAxes, fontsize=13, verticalalignment='center', bbox=props)
+    # Format axis
+    ax = _apply_tick_locator(ax)
+    # Display figure
+    plt.show()
+    plt.close()
 
 ##############################################
 ## Save initial states for the virgin model ##
