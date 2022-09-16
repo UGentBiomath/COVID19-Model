@@ -29,9 +29,9 @@ print('\n(1) Loading intermediate dataset\n')
 
 # Name and location of intermediate dataset
 abs_dir = os.getcwd()
-rel_dir = '../../data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2017_2021.xlsx'
+rel_dir = '../../data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.csv'
 # Name and location of saved dataframe
-result_folder =  '../../data/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_sem1_normalized.csv'
+result_folder =  '../../data/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_normalized.csv'
 # Load data
 df = pd.read_csv(os.path.join(abs_dir, rel_dir), index_col=[0,1,2,3], parse_dates=True)
 
