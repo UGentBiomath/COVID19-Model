@@ -76,8 +76,6 @@ with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*len
                 # Convert the date to week and day number
                 data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
                 data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
-                # In a leap year, the method returns 366 days (and we'll simply throw it out since 2016 will not be in the final baseline)
-                #data['date'] = data['date'][data['date']!=366]
                 # Perform a groupby 'date' operation with mean() to take the mean of all values with similar daynumber
                 d = data.groupby(by=['week_number','day_number']).mean().squeeze()
                 b = baseline_df.loc[APR_MDC_key, age_group, stay_type, slice(None), slice(None)]
@@ -107,8 +105,8 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*len(
                 # Reset index to 'unlock' the date
                 data.reset_index(inplace=True)
                 # Convert the date to week and day number
-                data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
-                data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
+                data.loc[slice(None), 'week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+                data.loc[slice(None), 'day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
                 # Extract baseline
                 baseline = baseline_df.loc[(APR_MDC_key, age_group, stay_type, slice(None), slice(None))]
                 # Perform computation
@@ -121,7 +119,8 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*len(
                     else:
                         tmp[idx] = 1
                 # Assign result
-                target_df.loc[(APR_MDC_key, age_group, stay_type, slice(None)),:]['versus_baseline'] = tmp
+                target_df['versus_baseline'].loc[(APR_MDC_key, age_group, stay_type, slice(None))] = tmp
+
             pbar.update(1)
 
 #################
