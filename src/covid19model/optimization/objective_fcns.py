@@ -424,9 +424,9 @@ class log_posterior_probability():
                 if 'NIS' in list(df.index.names):
                     # Spatial data (must have 'date' first and then 'NIS')
                     for jdx,NIS in enumerate(df.index.get_level_values('NIS').unique()):
-                        new_xarray = out[states[idx]].sel(place=NIS)
+                        new_xarray = out[states[idx]].sel(NIS=NIS)
                         for dimension in out.dims:
-                            if ((dimension != 'time') & (dimension != 'place')):
+                            if ((dimension != 'time') & (dimension != 'NIS')):
                                 new_xarray = new_xarray.sum(dim=dimension)
                         ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
                         # Temporarily use overdisperion found from H_in for every NIS
