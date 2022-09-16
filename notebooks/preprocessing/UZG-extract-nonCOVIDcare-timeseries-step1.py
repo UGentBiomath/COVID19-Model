@@ -3,8 +3,8 @@ This script converts the data on the postponement of non-COVID-19 care, provided
 folder (confidential, contact tijs.alleman@ugent.be) into an intermediate format.
 
 The raw data provided has the following format: Major Diagnostic Group (MDC), Patient age (bins, 5 years), Type of hospitalization, Date of hospital intake, Date of hospital discharge.
-The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2017-2021).
-The intermediate dataframe is not on Github because of its size (70 Mb). The computation is demanding, taking roughly 9 hrs on an Intel® Xeon(R) W-2295 CPU @ 3.00GHz.
+The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2016-2021).
+The intermediate dataframe is not on Github because of its size (100 Mb). The computation is demanding, taking roughly 14 hrs on an Intel® Xeon(R) W-2295 CPU @ 3.00GHz.
 """
 
 __author__      = "Tijs Alleman"

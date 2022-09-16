@@ -1,9 +1,9 @@
 """
-This script converts the intermediate dataset on the postponement of non-COVID-19 care, located in `~/data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2017_2021.xlsx`
+This script converts the intermediate dataset on the postponement of non-COVID-19 care, located in `~/data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.xlsx`
 folder (not on github, contact tijs.alleman@ugent.be) into the final format (postponement of care vs. prepandemic baseline)
 
-The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2017-2021).
-The intermediate dataframe is not on Github because of its size (70 Mb).
+The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2016-2021).
+The intermediate dataframe is not on Github because of its size (100 Mb).
 
 The final timeseries to be used in the analysis is a pd.DataFrame containing the data from 2020-2021 (pandemic data), given as a percentage reduction compared to a prepandemic baseline (2017-2019).
 The computation was split because step 1 takes much longer than step 2.
