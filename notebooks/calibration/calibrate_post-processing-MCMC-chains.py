@@ -44,7 +44,6 @@ import pickle
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from covid19model.optimization.utils import samples_dict_to_emcee_chain
 
 #############################
 ## Handle script arguments ##
@@ -120,16 +119,8 @@ if args.additional_keys:
 #####################
 
 if args.save:
-    samples_dict_new = {}
-    for count,name in enumerate(args.keys):
-        samples_dict_new[name] = flat_samples[:,count].tolist()
-
-    for key,value in samples_dict.items():
-        if key not in args.keys:
-            samples_dict_new[key] = samples_dict[key]
-
-    with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'+str(args.filename), 'w') as fp:
-            json.dump(samples_dict_new, fp)
+    with open(f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', 'w') as fp:
+            json.dump(samples_dict, fp)
 
 #######################
 ## Make a cornerplot ##
