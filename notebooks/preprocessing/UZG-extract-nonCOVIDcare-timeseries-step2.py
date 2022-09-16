@@ -17,6 +17,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ############################
 
 import os
+import sys
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -34,28 +35,34 @@ rel_dir = '../../data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_201
 result_folder =  '../../data/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_normalized.csv'
 # Load data
 df = pd.read_csv(os.path.join(abs_dir, rel_dir), index_col=[0,1,2,3], parse_dates=True)
+# Protection against nans
+df = df.reset_index().dropna()
+df = df.set_index(['APR_MDC_key', 'age_group', 'stay_type', 'date']).sort_index()
 
 ############################################################
 ## Construct baseline dataframe using data from 2017-2019 ##
 ############################################################
 
-print('\n(2) Constructing baseline dataframe using data from 2017-2019\n')
+print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
 
 # Define a target dataframe containing the day-of-year number instead of the date
-day_of_year = np.linspace(1,365,num=364+1, dtype=int)
+week_numbers = list(range(1,53+1))
+day_numbers = list(range(1,7+1))
+#day_of_year = np.linspace(1,365,num=364+1, dtype=int)
 iterables=[]
 names=[]
 for index_name in df.index.names:
     if index_name != 'date':
         iterables += [df.index.get_level_values(index_name).unique()]
         names += [index_name,]
-iterables.append(day_of_year)
-names.append('day_of_year')
+iterables.append(week_numbers)
+iterables.append(day_numbers)
+names.append('week_number')
+names.append('day_number')
 index = pd.MultiIndex.from_product(iterables, names=names)
 baseline_df = pd.Series(index=index, name='n_patients', data=np.zeros(len(index), dtype=int))
-
-# Use all data from the second week of 2017 until beginning of 2020 as baseline
-baseline = df[((df.index.get_level_values('date')<pd.Timestamp('2020-01-01'))&(df.index.get_level_values('date')>=pd.Timestamp('2017-02-01')))]
+# Use all data from the jan. 2016 until jan. 2020 as baseline
+baseline = df[((df.index.get_level_values('date')<pd.Timestamp('2020-01-01'))&(df.index.get_level_values('date')>=pd.Timestamp('2016-01-01')))]
 
 # Loop over all possible indices, convert date to day of year, take average of values with same day-of-year number
 with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*len(baseline.index.get_level_values('age_group').unique())) as pbar:
@@ -66,12 +73,15 @@ with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*len
                 data = baseline.loc[(APR_MDC_key, age_group, stay_type),:]
                 # Reset index to 'unlock' the date
                 data.reset_index(inplace=True)
-                # Convert the date to a daynumber
-                data['date'] = data['date'].apply(lambda x: x.day_of_year).values
+                # Convert the date to week and day number
+                data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+                data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
                 # In a leap year, the method returns 366 days (and we'll simply throw it out since 2016 will not be in the final baseline)
-                data['date'] = data['date'][data['date']!=366]
+                #data['date'] = data['date'][data['date']!=366]
                 # Perform a groupby 'date' operation with mean() to take the mean of all values with similar daynumber
-                baseline_df.loc[APR_MDC_key, age_group, stay_type, slice(None)] = data.groupby(by='date').mean().values.flatten()
+                d = data.groupby(by=['week_number','day_number']).mean().squeeze()
+                b = baseline_df.loc[APR_MDC_key, age_group, stay_type, slice(None), slice(None)]
+                baseline_df.loc[APR_MDC_key, age_group, stay_type, slice(None), slice(None)] = pd.merge(d, b, how='right', on=['week_number','day_number']).fillna(method='ffill')['n_patients_x'].values   
             pbar.update(1)
 
 #####################################################################
@@ -82,13 +92,8 @@ print('\n(3) Normalizing pandemic data (2020-2021) with prepandemic baseline\n')
 
 # Consider all data from the beginning of 2020 as the actual 'data'
 data_df = df[df.index.get_level_values('date')>=pd.Timestamp('2020-01-01')]
-
 # Initialize target dataframe
 target_df = data_df
-# Remove leap year extra day
-tmp=target_df.reset_index()
-tmp=tmp[tmp['date'] != '2020-02-29']
-target_df=tmp.set_index(['APR_MDC_key','age_group','stay_type','date'])
 # Add a column for versus_baseline
 target_df.loc[(),'versus_baseline']=0
 
@@ -101,22 +106,22 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*len(
                 data = data_df.loc[(APR_MDC_key, age_group, stay_type),:]
                 # Reset index to 'unlock' the date
                 data.reset_index(inplace=True)
-                # Convert the date to a daynumber
-                data['date'] = data['date'].apply(lambda x: x.day_of_year).values
-                # In a leap year, the method returns 366 days
-                # Important: Check if year is a leap year, delete entry 60, subtract 1 from all entries above 60
-                data = data[data['date']!=366]
+                # Convert the date to week and day number
+                data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+                data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
                 # Extract baseline
-                baseline = baseline_df.loc[(APR_MDC_key, age_group, stay_type, slice(None))]
+                baseline = baseline_df.loc[(APR_MDC_key, age_group, stay_type, slice(None), slice(None))]
                 # Perform computation
                 tmp=np.zeros(len(data['date'].values))
                 for idx,date in enumerate(data['date'].values):
-                    if baseline[date] != 0:
-                        tmp[idx] = data.iloc[idx]['n_patients']/baseline[date]
+                    week_number = data.iloc[idx]['week_number']
+                    day_number = data.iloc[idx]['day_number']
+                    if baseline.loc[week_number, day_number] != 0:
+                        tmp[idx] = data.iloc[idx]['n_patients']/baseline.loc[week_number, day_number]
                     else:
                         tmp[idx] = 1
                 # Assign result
-                target_df.loc[(APR_MDC_key, age_group, stay_type, slice(None)), 'versus_baseline'] = tmp
+                target_df.loc[(APR_MDC_key, age_group, stay_type, slice(None)),:]['versus_baseline'] = tmp
             pbar.update(1)
 
 #################
