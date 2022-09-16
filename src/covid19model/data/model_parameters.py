@@ -423,7 +423,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
-        pars_dict['place'] = NIS
+        pars_dict['NIS'] = NIS
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + agg + '.csv'
         area_df = pd.read_csv(os.path.join(
@@ -433,7 +433,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
-        p = np.ones(pars_dict['place'].shape[0])
+        p = np.ones(pars_dict['NIS'].shape[0])
         pars_dict['p'] = p
         # Add Nc_work and Nc to parameters
         # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate

@@ -293,7 +293,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
 
     time_dependent_parameters={'Nc' : policy_function,
                                'Nc_work' : policy_function_work,
-                               'place' : mobility_function,
+                               'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
                                'seasonality' : seasonality_function,}
     

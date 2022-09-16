@@ -343,6 +343,10 @@ class log_posterior_probability():
                         "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided a non-empty list of length greater than one.".format(idx,log_likelihood_fnc[idx])
                         )
 
+        # Extract model stratification names and coordinates
+
+        # Check to see if the coordinates in every dataset are in the model and if the labels match
+
         # Find out if 'warmup' needs to be estimated
         self.warmup_position=None
         if 'warmup' in parameter_names:

@@ -533,7 +533,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C', 'C_icurec','ICU', 'R', 'D', 'M_in', 'H_in','H_out','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification = ['place','Nc','doses']
+    stratification = ['NIS','Nc','doses']
     coordinates = [read_coordinates_place(agg='prov'), construct_coordinates_Nc(age_stratification_size=10), ['none', 'partial', 'full', 'boosted']]
 
     @staticmethod
@@ -542,7 +542,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc_work, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, # age-stratified parameters
-                  place, Nc, doses): # stratified parameters that determine stratification dimensions
+                  NIS, Nc, doses): # stratified parameters that determine stratification dimensions
         
         ###################
         ## Format inputs ##
@@ -668,7 +668,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         N = S.shape[1] # age stratification
 
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*place + np.identity(G)*(place @ (1-np.outer(p,p)))
+        place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
         beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
