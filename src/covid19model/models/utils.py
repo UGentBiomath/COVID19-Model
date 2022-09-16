@@ -252,19 +252,15 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                         "I": E0
                         }
     else:
-        # Get correct initial condition
-        samples_path = os.path.join(abs_dir, data_path + 'interim/model_parameters/COVID19_SEIQRD/initial_conditions/'+agg+'/')
-        if ((start_date == '2020-03-23') | (start_date == '2020-03-22') | (start_date == '2020-03-21') | (start_date == '2020-03-20') | (start_date == '2020-03-19') |
-            (start_date == '2020-03-18') | (start_date == '2020-03-17') | (start_date == '2020-03-16') | (start_date == '2020-03-15') ) :
-            with open(samples_path+'initial_states-COVID19_SEIQRD_spatial_hybrid_vacc.pickle', 'rb') as handle:
-                load = pickle.load(handle)
-                initial_states = load[start_date]
-        elif ((start_date == '2021-08-01') | (start_date == '2021-09-01') | (start_date == '2021-10-01')):
-            with open(samples_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'rb') as handle:
-                load = pickle.load(handle)
-                initial_states = load[start_date]
-        else:
-            raise ValueError("Chosen startdate '{0}' is not valid. Choose: 2020-03-17, 2021-08-01 or 2021-09-01".format(start_date))
+        reference_sim_path = os.path.join(abs_dir, data_path + f'/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{agg}/')
+        reference_sim_name = 'prov_INITIAL-CONDITION_2022-09-16.nc'
+        out = xr.open_dataset(reference_sim_path+reference_sim_name)
+        initial_states={}
+        for data_var in out.keys():
+            try:
+                initial_states.update({data_var: out.sel(time=start_date)[data_var].values})
+            except:
+                raise ValueError("Chosen startdate '{0}' not found.".format(start_date))
             
     # Convert to the right age groups
     for key,value in initial_states.items():

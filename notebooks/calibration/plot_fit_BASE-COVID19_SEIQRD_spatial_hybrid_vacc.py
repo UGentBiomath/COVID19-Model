@@ -34,7 +34,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 ## Load required packages ##
 ############################
 
-import pickle
+import sys
 import argparse
 import numpy as np
 import pandas as pd
@@ -264,20 +264,16 @@ plt.tight_layout()
 plt.show()
 plt.close()
 
-#########################################
-## Save states during summer 2021-2022 ##
-#########################################
+###################################
+## Save a copy of the simulation ##
+###################################
 
-# Path where the pickle with initial conditions should be stored
-results_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
-# Save states
-dates = ['2021-08-01', '2021-09-01', '2020-10-01']
-initial_states={}
-for date in dates:
-    initial_states_per_date = {}
-    for state in out.data_vars:
-        # Select first column only for non-dose stratified model
-        initial_states_per_date.update({state: out[state].mean(dim='draws').sel(time=pd.to_datetime(date)).values})
-    initial_states.update({date: initial_states_per_date})
-with open(results_path+'summer_2021-COVID19_SEIQRD_spatial.pickle', 'wb') as fp:
-    pickle.dump(initial_states, fp)
+print('5) Save a copy of the simulation output')
+# Path where the xarray should be stored
+file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
+
+# Work is done
+sys.stdout.flush()
+sys.exit()
+
