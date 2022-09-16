@@ -90,6 +90,10 @@ for i in range(samples_raw.shape[1]):
         samples_discard[:,i,j] = samples_raw[discard:,i,j]
 # Do thin
 samples = samples_discard[::thin,:,:]
+# Chains schools
+#idx = np.mean(samples[:,:,3],axis=0) >= 0.05
+#print('Removed ' + str(len(idx) - np.count_nonzero(idx)) + ' undesired chains\n')
+#samples=samples[:,idx,:]
 # Convert back to flat samples
 flat_samples = samples[:,0,:]
 for i in range(1,samples.shape[1]):
