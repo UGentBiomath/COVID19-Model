@@ -105,8 +105,8 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*len(
                 # Reset index to 'unlock' the date
                 data.reset_index(inplace=True)
                 # Convert the date to week and day number
-                data.loc[slice(None), 'week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
-                data.loc[slice(None), 'day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
+                data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+                data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
                 # Extract baseline
                 baseline = baseline_df.loc[(APR_MDC_key, age_group, stay_type, slice(None), slice(None))]
                 # Perform computation
