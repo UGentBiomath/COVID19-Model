@@ -344,8 +344,20 @@ class log_posterior_probability():
                         )
 
         # Extract model stratification names and coordinates
-
+        model_stratifications = model.stratification
+        model_coordinates = model.coordinates
         # Check to see if the coordinates in every dataset are in the model and if the labels match
+        diff_stratifications=[]
+        for idx, df in enumerate(data):
+            data_stratifications = list(df.index.names)
+            for data_stratification in data_stratifications:
+                if data_stratification != 'date':
+                    if not data_stratification in model_stratifications:
+                        raise ValueError(f"Data stratification {data_stratification} is not a valid model stratification")
+                    elif not (df.index.get_level_values(data_stratification).unique().values == model_coordinates[model_stratifications == data_stratification]).all():
+                        raise ValueError(f"Data coordinates for stratification {data_stratification} do not match model coordinates")
+            data_stratifications.remove('date')
+            diff_stratifications.append(data_stratifications)
 
         # Find out if 'warmup' needs to be estimated
         self.warmup_position=None
@@ -362,6 +374,7 @@ class log_posterior_probability():
         self.log_likelihood_fnc = log_likelihood_fnc
         self.log_likelihood_fnc_args = log_likelihood_fnc_args
         self.weights = weights
+        self.diff_stratifications = diff_stratifications
 
     @staticmethod
     def compute_log_prior_probability(thetas, log_prior_prob_fnc, log_prior_prob_fnc_args):
