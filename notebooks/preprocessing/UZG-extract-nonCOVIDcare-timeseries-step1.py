@@ -83,6 +83,10 @@ mapping={'Cat: 0 - 4': '0-4', 'Cat: 5 - 9': '5-9', 'Cat: 10 - 14': '10-14', 'Cat
          'Cat: 60 - 64': '60-64', 'Cat: 65 - 69': '65-69', 'Cat: 70 - 74': '70-74', 'Cat: 75 - 79': '75-79',
          'Cat: 80 - 84': '80-84', 'Cat: 85 - 89': '85-89', 'Cat: 90 - 94': '90-94', 'Cat: 95+': '95-120'}
 df.age_group=df.age_group.map(lambda x: mapping.get(x) if x else None)
+# Throw out age group equal to nan
+l = len(df)
+df = df.dropna()
+print("\tRemoved {0}/{1} entries with missing age group".format(l-len(df), l))
 # Throw out missing APR-MDC classifications
 print("\tRemoved {0}/{1} entries because APR-MDC classification was missing\n".format(len(df.APR_MDC_key[df.APR_MDC_key=='.']), len(df)))
 df = df[df.APR_MDC_key!='.']
