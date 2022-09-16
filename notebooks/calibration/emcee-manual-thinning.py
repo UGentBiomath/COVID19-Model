@@ -4,14 +4,17 @@ The script allows the user to extract samples from a .json samples dictionary an
 
 Arguments:
 ----------
--agg:
+-a:
     Spatial aggregation level (national, prov or arr)
 -ID:
     Identifier + aggregation level of the samples dictionary to be loaded.
--d:
+-date:
     Date of calibration
--d:
+-discard:
     Number of samples to be discarded at beginning of MCMC chain.
+-r:
+    Axis limits of every parameter in cornerplot, provided as follows: " -r '(0,1)' '(0,1)' ... '(0,1)' "
+    Range argument is optional.
 -t:
     Thinning factor of MCMC chain.
 -s:
@@ -20,19 +23,6 @@ Arguments:
 Returns:
 --------
 Cornerplot of MCMC chains.
-
-Example use:
-------------
-
-python emcee-manual-thinning.py 
-    -f national_BASE_SAMPLES_2022-01-28.json
-    -r '(0,0.05)' '(0,0.05)' '(0,0.05)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(0,1)' '(1,2.4)' '(1,2.4)' '(0,0.40)' '(0.0001, 0.007)'
-    -d 1000
-    -t 20
-    -s
-
-To do's:
-    - Auto-detect ranges of parameters
 
 """
 
@@ -47,11 +37,9 @@ import ast
 import json
 import corner
 import argparse
-import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from covid19model.optimization.utils import samples_dict_to_emcee_chain
-from covid19model.visualization.optimization import traceplot
 
 #############################
 ## Handle script arguments ##
@@ -61,15 +49,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-date", "--date", help="Calibration date")
-parser.add_argument("-r", "--range", help="Range used in cornerplot",nargs='+')
-parser.add_argument("-d", "--discard", help="Number of samples to be discarded per MCMC chain")
+parser.add_argument("-r", "--range", help="Range used in cornerplot", nargs='*')
+parser.add_argument("-discard", "--discard", help="Number of samples to be discarded per MCMC chain")
 parser.add_argument("-t", "--thin", help="Thinning factor of MCMC chain")
-parser.add_argument("-s", "--save", help="Save thinned samples dictionary",action='store_true')
+parser.add_argument("-s", "--save", help="Save thinned samples dictionary", action='store_true')
 args = parser.parse_args()
-
-range_lst=[]
-for tpl in args.range:
-    range_lst.append(ast.literal_eval(tpl))
 
 #############################
 ## Load samples dictionary ##
@@ -104,6 +88,15 @@ for i in range(1,samples.shape[1]):
 ## Make a cornerplot ##
 #######################
 
+if not args.range:
+    range_lst=[]
+    for idx,key in enumerate(keys):
+        range_lst.append([0.80*min(flat_samples[:,idx]), 1.20*max(flat_samples[:,idx])])
+else:
+    range_lst=[]
+    for tpl in args.range:
+        range_lst.append(ast.literal_eval(tpl))
+
 CORNER_KWARGS = dict(
     smooth=0.90,
     label_kwargs=dict(fontsize=24),
@@ -115,8 +108,8 @@ CORNER_KWARGS = dict(
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    range=range_lst,
-    title_fmt=".2E"
+    title_fmt=".2E",
+    range=range_lst
 )
 
 # Path where figures should be stored
@@ -130,7 +123,6 @@ for idx,ax in enumerate(fig.get_axes()):
     ax.grid(False)
 
 plt.tight_layout()
-#plt.savefig('corner.pdf', bbox_inches='tight')
 plt.show()
 
 #####################
