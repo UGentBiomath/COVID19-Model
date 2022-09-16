@@ -1,4 +1,4 @@
-# Copyright (c) 2021 by T.W. Alleman, D. Van Hauwermeiren, BIOMATH, Ghent University. All Rights Reserved.
+# Copyright (c) 2022 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -9,7 +9,7 @@ import numba as nb
 import numpy as np
 from numba import jit
 from .base import BaseModel
-from .utils import stratify_beta
+from .utils import stratify_beta, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
 from ..data.economic_parameters import read_economic_labels
 # Register pandas formatters and converters with matplotlib
@@ -357,7 +357,7 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
-    coordinates = [None, ['none', 'partial', 'full', 'boosted']]
+    coordinates = [construct_coordinates_Nc(age_stratification_size=10), ['none', 'partial', 'full', 'boosted']]
 
     # ..transitions/equations
     @staticmethod
@@ -534,7 +534,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['place','Nc','doses']
-    coordinates = ['place', None, ['none', 'partial', 'full', 'boosted']]
+    coordinates = [read_coordinates_place(agg='prov'), construct_coordinates_Nc(age_stratification_size=10), ['none', 'partial', 'full', 'boosted']]
 
     @staticmethod
     @jit(nopython=True)
