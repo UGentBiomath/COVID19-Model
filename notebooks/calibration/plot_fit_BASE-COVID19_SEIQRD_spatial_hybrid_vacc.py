@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 from covid19model.data import sciensano
 from covid19model.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_poisson, add_negative_binomial
+from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_negative_binomial
 #############################
 ## Handle script arguments ##
 #############################
@@ -245,7 +245,7 @@ print('4) Visualize the seroprevalence fit')
 
 # Plot fraction of immunes
 
-mean, median, lower, upper = add_poisson(out['R'].sum(dim='Nc').sum(dim='NIS').sum(dim='doses').values, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+mean, median, lower, upper = add_negative_binomial(out['R'].sum(dim='Nc').sum(dim='NIS').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
 
 fig,ax = plt.subplots(figsize=(12,4))
 ax.plot(simtime,mean,'--', color='blue')
