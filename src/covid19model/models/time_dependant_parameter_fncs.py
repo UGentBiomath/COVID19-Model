@@ -1481,11 +1481,11 @@ class make_contact_matrix_function():
         idx_F = [0, 1, 4, 5, 8]
         idx_Bxl = [3,]
         idx_W = [2, 6, 7, 9, 10]
-        mentality_summer_2020_lockdown = np.array([1*mentality, 0.75*mentality, # F
-                                                1*mentality, # W
-                                                1.40*mentality, # Bxl
+        mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
+                                                1.25*mentality, # W
+                                                1.50*mentality, # Bxl
                                                 0.5*mentality, 1*mentality, # F
-                                                1.5*mentality, 1.5*mentality, # W
+                                                2*mentality, 2*mentality, # W
                                                 1*mentality, # F
                                                 0.75*mentality, 1*mentality]) # W
 
@@ -1563,18 +1563,22 @@ class make_contact_matrix_function():
         elif t12 < t <= t13:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t13 < t <= t14:
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.18
+            mat[idx_W,:,:] *= 1.10
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.00
+            mat[idx_Bxl,:,:] *= 1.18
+            mat[idx_W,:,:] *= 1.10
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.06
+            mat[idx_Bxl,:,:] *= 1.18
+            mat[idx_W,:,:] *= 1.10
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
