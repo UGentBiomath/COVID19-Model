@@ -1484,8 +1484,8 @@ class make_contact_matrix_function():
         mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
                                                 1.25*mentality, # W
                                                 1.50*mentality, # Bxl
-                                                0.5*mentality, 1*mentality, # F
-                                                1.75*mentality, 2*mentality, # W
+                                                0.75*mentality, 1.25*mentality, # F
+                                                2*mentality, 2*mentality, # W
                                                 1*mentality, # F
                                                 0.75*mentality, 1*mentality]) # W
 
