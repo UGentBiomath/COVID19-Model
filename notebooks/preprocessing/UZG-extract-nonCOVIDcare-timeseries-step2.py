@@ -42,12 +42,14 @@ df = df.reset_index().dropna().groupby(by=['APR_MDC_key', 'date']).sum().sort_in
 ## Construct baseline dataframe using data from 2017-2019 ##
 ############################################################
 
+bootstrap_repeats = 100
+subset_size=3
+
 print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
 
-# Define a target dataframe containing the day-of-year number instead of the date
+# Define a target dataframe containing the week and day number instead of the date
 week_numbers = list(range(1,53+1))
 day_numbers = list(range(1,7+1))
-#day_of_year = np.linspace(1,365,num=364+1, dtype=int)
 iterables=[]
 names=[]
 for index_name in df.index.names:
@@ -58,26 +60,34 @@ iterables.append(week_numbers)
 iterables.append(day_numbers)
 names.append('week_number')
 names.append('day_number')
+# Add bootstrap axis
+iterables.append(list(range(bootstrap_repeats)))
+names.append('bootstrap_sample')
 index = pd.MultiIndex.from_product(iterables, names=names)
 baseline_df = pd.Series(index=index, name='n_patients', data=np.zeros(len(index), dtype=int))
 # Use all data from the jan. 2016 until jan. 2020 as baseline
 baseline = df[((df.index.get_level_values('date')<pd.Timestamp('2020-01-01'))&(df.index.get_level_values('date')>=pd.Timestamp('2016-01-01')))]
 
+names=['week_number', 'day_number']
+iterables=[baseline_df.index.get_level_values('week_number').unique(), baseline_df.index.get_level_values('day_number').unique()]
+index = pd.MultiIndex.from_product(iterables, names=names)
+merge_df = pd.Series(index=index, name='n_patients', data=np.zeros(len(index), dtype=int))
+
 # Loop over all possible indices, convert date to day of year, take average of values with same day-of-year number
-with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())) as pbar:
+with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*bootstrap_repeats) as pbar:
     for APR_MDC_key in baseline.index.get_level_values('APR_MDC_key').unique():
-        # Extract dataseries
-        data = baseline.loc[(APR_MDC_key,),:]
-        # Reset index to 'unlock' the date
-        data.reset_index(inplace=True)
-        # Convert the date to week and day number
-        data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
-        data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
-        # Perform a groupby 'date' operation with mean() to take the mean of all values with similar daynumber
-        d = data.groupby(by=['week_number','day_number']).mean().squeeze()
-        b = baseline_df.loc[APR_MDC_key, slice(None), slice(None)]
-        baseline_df.loc[APR_MDC_key, slice(None), slice(None)] = pd.merge(d, b, how='right', on=['week_number','day_number']).fillna(method='ffill')['n_patients_x'].values   
-    pbar.update(1)
+        for idx in baseline_df.index.get_level_values('bootstrap_sample').unique():
+            # Extract dataseries
+            data = baseline.loc[(APR_MDC_key,),:]
+            # Reset index to 'unlock' the date
+            data.reset_index(inplace=True)
+            # Convert the date to week and day number
+            data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+            data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
+            # Perform a groupby 'date' operation with mean() to take the mean of all values with similar daynumber
+            d = data.groupby(by=['week_number','day_number']).apply(lambda x: np.mean(x.sample(n=subset_size, replace=True)))['n_patients']
+            baseline_df.loc[APR_MDC_key, slice(None), slice(None), idx] = pd.merge(d, merge_df, how='right', on=['week_number','day_number']).fillna(method='ffill')['n_patients_x'].values   
+            pbar.update(1)
 
 #####################################################################
 ## Normalizing pandemic data (2020-2021) with prepandemic baseline ##
@@ -88,35 +98,36 @@ print('\n(3) Normalizing pandemic data (2020-2021) with prepandemic baseline\n')
 # Consider all data from the beginning of 2020 as the actual 'data'
 data_df = df[df.index.get_level_values('date')>=pd.Timestamp('2020-01-01')]
 # Initialize target dataframe
-target_df = data_df
-# Add a column for versus_baseline
-target_df.loc[(),'versus_baseline']=0
+iterables=[data_df.index.get_level_values('APR_MDC_key').unique(), data_df.index.get_level_values('date').unique(), list(range(bootstrap_repeats))]
+names=['APR_MDC_key', 'date', 'bootstrap_sample']
+index = pd.MultiIndex.from_product(iterables, names=names)
+target_df = pd.Series(index=index, name='rel_hospitalizations', data=np.zeros(len(index), dtype=int))
 
 # Loop over all possible indices, convert date to day of year, take average of values with same day-of-year number
-with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())) as pbar:
+with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*bootstrap_repeats) as pbar:
     for APR_MDC_key in data_df.index.get_level_values('APR_MDC_key').unique():
-        # Extract dataseries
-        data = data_df.loc[(APR_MDC_key,),:]
-        # Reset index to 'unlock' the date
-        data.reset_index(inplace=True)
-        # Convert the date to week and day number
-        data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
-        data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
-        # Extract baseline
-        baseline = baseline_df.loc[(APR_MDC_key, slice(None))]
-        # Perform computation
-        tmp=np.zeros(len(data['date'].values))
-        for idx,date in enumerate(data['date'].values):
-            week_number = data.iloc[idx]['week_number']
-            day_number = data.iloc[idx]['day_number']
-            if baseline.loc[slice(None), week_number, day_number].values != 0:
-                tmp[idx] = data.iloc[idx]['n_patients']/baseline.loc[slice(None), week_number, day_number]
-            else:
-                tmp[idx] = 1
-        # Assign result
-        target_df['versus_baseline'].loc[(APR_MDC_key, slice(None))] = tmp
-
-    pbar.update(1)
+        for idx in baseline_df.index.get_level_values('bootstrap_sample').unique():
+            # Extract dataseries
+            data = data_df.loc[(APR_MDC_key,),:]
+            # Reset index to 'unlock' the date
+            data.reset_index(inplace=True)
+            # Convert the date to week and day number
+            data['week_number'] = pd.to_datetime(data['date'].values).isocalendar().week.values
+            data['day_number'] = pd.to_datetime(data['date'].values).isocalendar().day.values
+            # Extract baseline
+            baseline = baseline_df.loc[(APR_MDC_key, slice(None), slice(None), idx)]
+            # Perform computation
+            tmp=np.zeros(len(data['date'].values))
+            for jdx,date in enumerate(data['date'].values):
+                week_number = data.iloc[jdx]['week_number']
+                day_number = data.iloc[jdx]['day_number']
+                if baseline.loc[slice(None), week_number, day_number, slice(None)].values != 0:
+                    tmp[jdx] = data.iloc[idx]['n_patients']/baseline.loc[slice(None), week_number, day_number, slice(None)]
+                else:
+                    tmp[jdx] = 1
+            # Assign result
+            target_df.loc[(APR_MDC_key, slice(None), idx)] = tmp
+            pbar.update(1)
 
 #################
 ## Save result ##
