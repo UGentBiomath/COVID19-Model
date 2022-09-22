@@ -122,7 +122,7 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*boot
                 week_number = data.iloc[jdx]['week_number']
                 day_number = data.iloc[jdx]['day_number']
                 if baseline.loc[slice(None), week_number, day_number, slice(None)].values != 0:
-                    tmp[jdx] = data.iloc[idx]['n_patients']/baseline.loc[slice(None), week_number, day_number, slice(None)]
+                    tmp[jdx] = data.iloc[jdx]['n_patients']/baseline.loc[slice(None), week_number, day_number, slice(None)]
                 else:
                     tmp[jdx] = 1
             # Assign result
