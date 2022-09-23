@@ -43,7 +43,7 @@ df = df.reset_index().dropna().groupby(by=['APR_MDC_key', 'date']).sum().sort_in
 ############################################################
 
 bootstrap_repeats = 100
-subset_size=3
+subset_size=5
 
 print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
 
@@ -129,10 +129,21 @@ with tqdm(total=len(data_df.index.get_level_values('APR_MDC_key').unique())*boot
             target_df.loc[(APR_MDC_key, slice(None), idx)] = tmp
             pbar.update(1)
 
+#########################################################
+## Convert bootstrap samples to meaningfull statistics ##
+#########################################################
+
+new_df = target_df.groupby(by=['APR_MDC_key', 'date']).median().to_frame()
+new_df.rename(columns={'rel_hospitalizations': 'median'}, inplace=True)
+new_df['mean'] = target_df.groupby(by=['APR_MDC_key', 'date']).mean()
+new_df['std'] = target_df.groupby(by=['APR_MDC_key', 'date']).std()
+new_df['q0.025'] = target_df.groupby(by=['APR_MDC_key', 'date']).quantile(q=0.025)
+new_df['q0.975'] = target_df.groupby(by=['APR_MDC_key', 'date']).quantile(q=0.975)
+
 #################
 ## Save result ##
 #################
 
 print('\n(4) Saving result\n')
 
-target_df.to_csv(os.path.join(abs_dir, result_folder))
+new_df.to_csv(os.path.join(abs_dir, result_folder))
