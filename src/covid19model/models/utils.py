@@ -721,12 +721,11 @@ def construct_coordinates_Nc(age_stratification_size=10):
         raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9 (default), or 10.")
 
     if age_stratification_size == 3:
-        return ['0-20','20-60','60+']
+        return pd.IntervalIndex.from_tuples([(0, 20), (20, 60), (60, 120)], closed='left')
     elif age_stratification_size == 9:
-        return ['0-10','10-20','20-30','30-40','40-50','50-60','60-70','70-80','80+']
+        return pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left')
     elif age_stratification_size == 10:
-        return ['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
-
+        return pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left')
 
 def read_areas(agg='arr'):
     """
