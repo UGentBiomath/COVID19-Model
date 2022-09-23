@@ -42,7 +42,7 @@ df = df.reset_index().dropna().groupby(by=['APR_MDC_key', 'date']).sum().sort_in
 ## Construct baseline dataframe using data from 2017-2019 ##
 ############################################################
 
-bootstrap_repeats = 100
+bootstrap_repeats = 200
 subset_size=5
 
 print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
