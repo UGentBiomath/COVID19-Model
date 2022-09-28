@@ -1127,7 +1127,7 @@ class make_contact_matrix_function():
                 mentality = mentality[:, np.newaxis, np.newaxis]
 
             # Construct contact matrix
-            CM = (eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] + mentality*(
+            CM = (mentality*(eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
                     (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                     (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                     (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
@@ -1427,17 +1427,20 @@ class make_contact_matrix_function():
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
-        t = pd.Timestamp(t.date())
 
+        # Assumption eff_schools = eff_work
+        eff_schools=eff_work
+
+        t = pd.Timestamp(t.date())
         # Convert compliance l to dates
         l1_days = pd.Timedelta(l1, unit='D')
         l2_days = pd.Timedelta(l2, unit='D')
 
         # Define key dates of first wave
-        t1 = pd.Timestamp('2020-03-15') # start of lockdown
+        t1 = pd.Timestamp('2020-03-16') # start of lockdown
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
-        t4 = pd.Timestamp('2020-08-10') # Summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
         t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
@@ -1453,7 +1456,7 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-06-01') # Start of relaxations
+        t18 = pd.Timestamp('2021-05-15') # Start of relaxations
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
         t20 = pd.Timestamp('2021-08-01') # End of easing on mentality
 
@@ -1478,13 +1481,13 @@ class make_contact_matrix_function():
         idx_F = [0, 1, 4, 5, 8]
         idx_Bxl = [3,]
         idx_W = [2, 6, 7, 9, 10]
-        mentality_summer_2020_lockdown = np.array([mentality, 0*mentality, # F
-                                                2*mentality, # W
-                                                1*mentality, # Bxl
-                                                0.5*mentality, 2*mentality, # F
-                                                4*mentality, 4*mentality, # W
-                                                0*mentality, # F
-                                                1*mentality, 2*mentality]) # W
+        mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
+                                                1.25*mentality, # W
+                                                1.50*mentality, # Bxl
+                                                0.70*mentality, 1.20*mentality, # F
+                                                2*mentality, 2*mentality, # W
+                                                1*mentality, # F
+                                                0.75*mentality, 1*mentality]) # W
 
         co_F = 1
         co_W = 1
@@ -1513,9 +1516,9 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1) 
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1) 
         elif t1 < t <= t1 + l1_days:
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
@@ -1547,12 +1550,12 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
         elif t9 < t <= t10:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
         elif t10 < t <= t11:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
         elif t11 < t <= t12:
@@ -1560,18 +1563,28 @@ class make_contact_matrix_function():
         elif t12 < t <= t13:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t13 < t <= t14:
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.14
+            mat[idx_W,:,:] *= 1.09
+            mat[2,:,:] *= 1.00/1.09
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.14
+            mat[idx_W,:,:] *= 1.09
+            mat[2,:,:] *= 1.00/1.09
+            return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            r=1.0
-            mat[idx_F,:,:] *= r*1.06
-            mat[idx_Bxl,:,:] *= r*1.13
-            mat[idx_W,:,:] *= r*1.12
-            return mat #self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat[idx_F,:,:] *= 1.0
+            mat[idx_Bxl,:,:] *= 1.14
+            mat[idx_W,:,:] *= 1.09
+            mat[2,:,:] *= 1.00/1.09
+            return mat 
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
         elif t17 < t <= t18:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t18 < t <= t19:
@@ -1667,7 +1680,7 @@ class make_contact_matrix_function():
             ################
 
             # Define key dates 
-            t1 = pd.Timestamp('2020-03-15') # start of lockdown
+            t1 = pd.Timestamp('2020-03-16') # start of lockdown
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
             t3 = pd.Timestamp('2020-08-10') # end of mentality easing
             t4 = pd.Timestamp('2020-10-19') # start of lockdown
@@ -1679,9 +1692,9 @@ class make_contact_matrix_function():
 
             # Define number of contacts
             if t <= t1:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
             elif t1 < t <= t1 + l1_days:
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t1, l1)
             elif t1 + l1_days < t <= t2:

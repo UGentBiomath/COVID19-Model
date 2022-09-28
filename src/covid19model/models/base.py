@@ -9,7 +9,6 @@ import multiprocessing as mp
 from functools import partial
 from scipy.integrate import solve_ivp
 from collections import OrderedDict
-from .utils import read_coordinates_nis
 
 class BaseModel:
     """
@@ -43,12 +42,11 @@ class BaseModel:
     state_2d = None
 
     def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False, agg=None):
+                 discrete=False):
         self.parameters = parameters
         self.initial_states = states
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
-        self.agg = agg
         if self.stratification:
             self.stratification_size = []
             for axis in self.stratification:
@@ -272,14 +270,6 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
-        agg_options = {'mun', 'arr', 'prov'}
-        if self.agg:
-            # verify wether the agg parameter value is OK
-            if self.agg not in agg_options:
-                raise ValueError(
-                    f"'agg={self.agg}' is not a valid choice. Choose from '{agg_options}'"
-                )
-        
         # Call integrate function with initial values to check if the function returns all states
         fun = self._create_fun(None)
         y0 = list(itertools.chain(*self.initial_states.values()))
@@ -435,7 +425,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False, processes=None):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -558,9 +548,7 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    if (self.coordinates[i] == 'place') and self.agg:
-                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.agg)})
-                    elif self.coordinates[i] is not None:
+                    if self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
