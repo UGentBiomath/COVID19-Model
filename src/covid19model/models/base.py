@@ -453,28 +453,28 @@ class BaseModel:
 
         Parameters
         ----------
-        time : int, list of int [start, stop], string or timestamp
-            The start and stop time for the simulation run.
-            If an int is specified, it is interpreted as [0, time].
-            If a string or timestamp is specified, this is interpreted as the end time of the simulation
+        time : 1) int/float, 2) list of int/float of type '[start, stop]', 3) string or timestamp
+            The start and stop "time" for the simulation run.
+            1) Input is converted to [0, time]. Floats are automatically rounded.
+            2) Input is interpreted as [start, stop]. Floats are automatically rounded.
+            3) Date supplied is interpreted as the end date of the simulation
 
         warmup : int
-            Number of days for model warm-up
+            Number of days to simulate prior to start time or date
 
         start_date : str or timestamp
-            Model starts to run on start_date - warmup
+            Must be supplied when using a date as simulation start.
+            Model starts to run on (start_date - warmup)
 
         N : int
             Number of repeated simulations (useful for stochastic models). One by default.
 
         draw_fcn : function
-            A function which takes as its input the dictionary of model parameters 
+            A function which takes as its input the dictionary of model parameters and a samples dictionary
             and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
-            # TO DO: verify draw_fcn
 
         samples : dictionary
-            Sample dictionary used by draw_fcn.
-            # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
+            Sample dictionary used by draw_fcn. Does not need to be supplied if samples_dict is not used in draw_fcn.
 
         processes: int
             Number of cores to distribute the N draws over.
@@ -489,25 +489,47 @@ class BaseModel:
         if start_date is not None:
             actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
-            actual_start_date = None
+            actual_start_date=None
 
-        if isinstance(time, int):
+        # Input checks on supplied simulation time
+        if isinstance(time, float):
+            time = [0, round(time)]
+        elif isinstance(time, int):
             time = [0, time]
-
         elif isinstance(time, list):
-            time = time
-
+            if len(time) > 2:
+                raise ValueError(f"Maximumum length of list-like input of simulation start and stop is two. You have supplied: time={time}. 'Time' must be of format: time=[start, stop].")
+            else:
+                time = [round(item) for item in time]
         elif isinstance(time, (str, pd.Timestamp)):
             if not isinstance(start_date, (str, pd.Timestamp)):
                 raise TypeError(
-                    'start_date needs to be string or timestamp, not None'
+                    "When should the simulation start? Set the input argument 'start_date'.."
                 )
             time = [0, self.date_to_diff(actual_start_date, time)]
-
         else:
             raise TypeError(
-                    'time must be int, list of ints [start, stop], string or timestamp'
+                    "Input argument 'time' must be a single number (int or float), a list of format: time=[start, stop], a string representing of a timestamp, or a timestamp"
                 )
+        
+        # Input check on draw function
+        if draw_fcn:
+            sig = inspect.signature(draw_fcn)
+            keywords = list(sig.parameters.keys())
+            # Verify that names of draw function are param_dict, samples_dict
+            if keywords[0] != "param_dict":
+                raise ValueError(
+                    f"The first parameter of a draw function should be 'param_dict'. Current first parameter: {keywords[0]}"
+                )
+            elif keywords[1] != "samples_dict":
+                raise ValueError(
+                    f"The second parameter of a draw function should be 'samples_dict'. Current second parameter: {keywords[1]}"
+                )
+            elif len(keywords) > 2:
+                raise ValueError(
+                    f"A draw function can only have two input arguments: 'param_dict' and 'samples_dict'. Current arguments: {keywords}"
+                )
+
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
 
