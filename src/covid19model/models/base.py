@@ -376,7 +376,7 @@ class BaseModel:
         return func
 
 
-    def _sim_single(self, time, actual_start_date=None):
+    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3):
         """"""
         fun = self._create_fun(actual_start_date)
 
@@ -395,7 +395,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            y0,
-                           args=[self.parameters], t_eval=t_eval, method='RK23', rtol=5e-3)
+                           args=[self.parameters], t_eval=t_eval, method=method, rtol=rtol)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
@@ -425,12 +425,12 @@ class BaseModel:
         }
         return output
 
-    def _mp_sim_single(self, drawn_parameters, time, actual_start_date):
+    def _mp_sim_single(self, drawn_parameters, time, actual_start_date, method, rtol):
         """
         A Multiprocessing-compatible wrapper for _sim_single, assigns the drawn dictionary and runs _sim_single
         """
         self.parameters.update(drawn_parameters)
-        out = self._sim_single(time, actual_start_date)
+        out = self._sim_single(time, actual_start_date, method, rtol)
         return out
 
     def date_to_diff(self, actual_start_date, end_date):
@@ -444,7 +444,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, processes=None):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -478,6 +478,12 @@ class BaseModel:
 
         processes: int
             Number of cores to distribute the N draws over.
+
+        method: str
+            Method used by Scipy `solve_ivp` for integration of differential equations. Default: 'RK23'.
+        
+        rtol: float
+            Relative tolerance of Scipy `solve_ivp`. Default: 5e-3.
 
         Returns
         -------
@@ -550,11 +556,11 @@ class BaseModel:
         # Run simulations
         if processes: # Needed 
             with mp.Pool(processes) as p:
-                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date), drawn_dictionaries)
+                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date, method=method, rtol=rtol), drawn_dictionaries)
         else:
             output=[]
             for dictionary in drawn_dictionaries:
-                output.append(self._mp_sim_single(dictionary, time, actual_start_date))
+                output.append(self._mp_sim_single(dictionary, time, actual_start_date, method=method, rtol=rtol))
 
         # Append results
         out = output[0]
