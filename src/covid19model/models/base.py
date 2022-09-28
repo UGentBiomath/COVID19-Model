@@ -152,8 +152,14 @@ class BaseModel:
         specified_params = self.parameter_names.copy()
 
         if self.parameters_stratified_names:
-            for stratified_names in self.parameters_stratified_names:
-                if stratified_names:
+            if not isinstance(self.parameters_stratified_names[0], list):
+                if len(self.parameters_stratified_names) == 1:
+                    specified_params += self.parameters_stratified_names
+                else:
+                    for stratified_names in self.parameters_stratified_names:
+                        specified_params += [stratified_names,]
+            else:
+                for stratified_names in self.parameters_stratified_names:
                     specified_params += stratified_names
 
         if self.stratification:
@@ -242,13 +248,26 @@ class BaseModel:
         # the size of the stratified parameters
         if self.parameters_stratified_names:
             i = 0
-            for stratified_names in self.parameters_stratified_names:
-                if stratified_names:
+            if not isinstance(self.parameters_stratified_names[0], list):
+                if len(self.parameters_stratified_names) == 1:
+                    for param in self.parameters_stratified_names:
+                        validate_stratified_parameters(
+                                self.parameters[param], param, "stratified parameter",i
+                            )
+                    i = i + 1
+                else:
+                    for param in self.parameters_stratified_names:
+                        validate_stratified_parameters(
+                                self.parameters[param], param, "stratified parameter",i
+                            )
+                    i = i + 1
+            else:
+                for stratified_names in self.parameters_stratified_names:
                     for param in stratified_names:
                         validate_stratified_parameters(
                             self.parameters[param], param, "stratified parameter",i
                         )
-                i = i + 1
+                    i = i + 1
 
         # the size of the initial states + fill in defaults
         for state in self.state_names:
