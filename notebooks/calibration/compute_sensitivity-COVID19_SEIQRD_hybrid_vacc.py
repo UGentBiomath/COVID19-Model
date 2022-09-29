@@ -13,6 +13,8 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ##########################
 
 # Sobol analysis
+method = 'RK23' 
+rtol = 5e-4
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
@@ -152,7 +154,7 @@ problem_ungrouped = {
                '$\\zeta$',
                '$M$', '$\Omega_{work}$', '$\Omega_{rest}$'],
     'bounds': [
-        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[1, 7],
         [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']], # no waning --> three months
@@ -195,7 +197,7 @@ def evaluate_model(thetas):
     thetas[4] = adjust_h(thetas[4])
     # Flatten the resulting list containing a mix of lists and floats
     thetas = list(flatten(thetas))
-    return objective_function(thetas, simulation_kwargs={'draw_fcn': draw_fcn})
+    return objective_function(thetas, simulation_kwargs={'method': method, 'rtol': rtol, 'draw_fcn': draw_fcn})
 
 ##########################
 ## Perform the analysis ##
