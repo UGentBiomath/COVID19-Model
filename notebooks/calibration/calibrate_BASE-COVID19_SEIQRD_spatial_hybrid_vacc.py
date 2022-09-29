@@ -9,10 +9,14 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
+# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
+# The following line of code prevents this from happening
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+
 # Load standard packages
 import ast
 import click
-import os
 import sys
 import datetime
 import argparse
@@ -33,10 +37,6 @@ from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
-# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
-# The following line of code prevents this from happening
-os.environ["OMP_NUM_THREADS"] = "1"
-
 ####################################
 ## Public or private spatial data ##
 ####################################
@@ -50,7 +50,7 @@ public = True
 # general
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
-parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-18')
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-15')
 parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
@@ -148,10 +148,10 @@ if __name__ == '__main__':
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    print(results)
+    #print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
-    plt.show()
+    #plt.show()
     plt.close()
 
     ##########################
@@ -168,11 +168,11 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, [], []]
+    weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, dispersion_weighted, dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -191,29 +191,27 @@ if __name__ == '__main__':
     bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    pars2 = ['eff_work', 'eff_rest', 'mentality']
+    bounds2=((0,2),(0,2),(0,2))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.60),(1.30,2.20))
+    bounds3 = ((1.20, 1.45),(1.40,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
-    # Waning antibody immunity
-    #pars5 = ['zeta',]
-    #bounds5 = ((1e-4,6e-3),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
+    pars = pars1 + pars2 + pars3 + pars4  
+    bounds = bounds1 + bounds2 + bounds3 + bounds4
     # Setup objective function without priors and with negative weights 
     #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Perform pso
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.0398, 0.042, 0.0517, 0.0262, 0.524, 0.261, 0.305, 0.213, 1.40, 1.57, 0.29] # Derived from Calibration 2022-04-10
-    theta = [0.0398, 0.042, 0.0517, 0.2, 0.49, 0.261, 0.305, 0.213, 1.48, 1.6, 0.29]
+    theta = [0.027, 0.027, 0.032, 0.3, 0.6, 0.53, 1.35, 1.60, 0.25]
 
+    theta = [0.023, 0.0232, 0.0273, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
+    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
@@ -237,7 +235,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim(end_visualization,start_date=start_calibration)
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -304,23 +302,21 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.05, 0.05, 0.05]
+    pert1=[0.10, 0.10, 0.10]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2=[0.50, 0.50, 0.50, 0.50, 0.50]
+    pert2=[0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.20, 0.20]
+    pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.80,] 
-    # pars5 = ['zeta']
-    #pert5 = [0.10,]
+    pert4 = [0.50,] 
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
+    pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$\\Omega_{home}$', \
+                '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$']
-                #'$\zeta$']
+    pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Set up the sampler backend if needed
@@ -337,7 +333,8 @@ if __name__ == '__main__':
     ######################
 
     # Write settings to a .txt
-    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers, 'dispersion': dispersion, 'warmup': 0}
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
+    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     

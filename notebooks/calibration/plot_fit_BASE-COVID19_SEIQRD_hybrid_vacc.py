@@ -34,6 +34,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ############################
 
 import os
+import sys
 import datetime
 import argparse
 import numpy as np
@@ -266,3 +267,7 @@ print('4) Save a copy of the simulation output')
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
 out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
+
+# Work is done
+sys.stdout.flush()
+sys.exit()

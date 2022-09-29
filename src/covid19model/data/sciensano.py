@@ -342,7 +342,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
     abs_dir = os.path.dirname(__file__)
     
     # Load necessary functions
-    from ..models.utils import read_coordinates_nis
+    from ..models.utils import read_coordinates_place
     # Actually, the first age group is 0-18 but no jabs were given < 12 yo before Jan. 2022
     age_groups_data = pd.IntervalIndex.from_tuples([(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
     age_groups_model = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
@@ -491,7 +491,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         ############################## 
 
         # Extract arrondissement's NIS codes
-        NIS_arr = read_coordinates_nis(spatial='arr')
+        NIS_arr = read_coordinates_place(agg='arr')
         # Make a new dataframe
         iterables = [df.index.get_level_values('date').unique(), NIS_arr, df.index.get_level_values('age').unique(), df.index.get_level_values('dose').unique()]
         index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
@@ -511,7 +511,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         ########################
         
         # Extract provincial NIS codes
-        NIS_prov = read_coordinates_nis(spatial='prov')
+        NIS_prov = read_coordinates_place(agg='prov')
         # Make a new dataframe
         iterables = [df.index.get_level_values('date').unique(), NIS_prov, df.index.get_level_values('age').unique(), df.index.get_level_values('dose').unique()]
         index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])

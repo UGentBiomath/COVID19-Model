@@ -379,7 +379,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ###################################
 
     pars_dict['l1'] = 7
-    pars_dict['l2'] = 10
+    pars_dict['l2'] = 7
     pars_dict['da'] = 5
     pars_dict['dm'] = 5
     pars_dict['sigma'] = 4.54
@@ -424,7 +424,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
-        pars_dict['place'] = NIS
+        pars_dict['NIS'] = NIS
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + agg + '.csv'
         area_df = pd.read_csv(os.path.join(
@@ -434,7 +434,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
-        p = np.ones(pars_dict['place'].shape[0])
+        p = np.ones(pars_dict['NIS'].shape[0])
         pars_dict['p'] = p
         # Add Nc_work and Nc to parameters
         # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
@@ -463,16 +463,16 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        base_dict_name = 'prov_BASE_waning_150d_SAMPLES_2022-05-28.json'
+        base_dict_name = 'prov_REF_SAMPLES_2022-09-15.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
             'beta_M': np.mean(base_samples_dict['beta_M']),
-            'eff_schools': np.mean(base_samples_dict['eff_schools']),
+            'eff_home': 1,
+            'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
-            'eff_home': np.mean(base_samples_dict['eff_home']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
