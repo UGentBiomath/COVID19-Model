@@ -38,13 +38,13 @@ class BaseModel:
     parameters_stratified_names = None
     stratification = None
     apply_compliance_to = None
-    coordinates = None
     state_2d = None
 
-    def __init__(self, states, parameters, time_dependent_parameters=None,
+    def __init__(self, states, parameters, coordinates=None, time_dependent_parameters=None,
                  discrete=False):
         self.parameters = parameters
         self.initial_states = states
+        self.coordinates = coordinates
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
         if self.stratification:
