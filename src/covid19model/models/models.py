@@ -357,7 +357,6 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
-    coordinates = [construct_coordinates_Nc(age_stratification_size=10), ['none', 'partial', 'full', 'boosted']]
 
     # ..transitions/equations
     @staticmethod
@@ -534,7 +533,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['NIS','Nc','doses']
-    coordinates = [read_coordinates_place(agg='prov'), construct_coordinates_Nc(age_stratification_size=10), ['none', 'partial', 'full', 'boosted']]
 
     @staticmethod
     @jit(nopython=True)

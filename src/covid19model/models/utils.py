@@ -1,14 +1,12 @@
-from re import A
-import sys
 import os
+import json
 import warnings
 import random
+from re import A
 from numba import jit
 import numpy as np
 import pandas as pd
 import xarray as xr
-import json
-import pickle
 
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
@@ -132,6 +130,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ## Initialize the model ##
     ##########################
 
+    # Define coordinates
+    coordinates = [construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+
     # Construct dictionary of time dependent parameters
     time_dependent_parameters={'Nc' : policy_function,
                                'f_VOC' : VOC_function,
@@ -141,9 +142,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
                                'e_h' : efficacy_function.e_h})                      
-                     
+    
     # Initialize model
-    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, time_dependent_parameters=time_dependent_parameters)
+    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
@@ -291,20 +292,23 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
+    # Define coordinates
+    coordinates = [read_coordinates_place(agg=agg), construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+
+    # Define time-dependent-parameters
     time_dependent_parameters={'Nc' : policy_function,
                                'Nc_work' : policy_function_work,
                                'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
                                'seasonality' : seasonality_function,}
-    
     if vaccination:
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
                                'e_h' : efficacy_function.e_h})                      
                                
-
-    model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, time_dependent_parameters=time_dependent_parameters)
+    # Setup model
+    model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
