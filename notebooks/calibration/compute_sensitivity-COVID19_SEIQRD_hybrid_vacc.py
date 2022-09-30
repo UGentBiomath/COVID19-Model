@@ -1,7 +1,7 @@
 """
 This script contains a Sobol sensitivity analysis of the national COVID-19 SEIQRD model to hospitalization data from 2020-03-15 until 2020-10-01 in Belgium.
 The function used to describe deviations between model and data is the negative binomial which is also used during the calibration.
-Make sure to set the solver to DOP853 with a relative sensitivity of 1e-3 (function `solve_ivp` in `base.py`) to obtain sufficiently accurate results.
+Make sure to increase the solver tolerance to 5e-4 to obtain sufficiently accurate results.
 """
 
 __author__      = "Tijs Alleman"
@@ -18,7 +18,7 @@ rtol = 5e-4
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 10000
+n_samples = 5000
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
@@ -154,7 +154,7 @@ problem_ungrouped = {
                '$\\zeta$',
                '$M$', '$\Omega_{work}$', '$\Omega_{rest}$'],
     'bounds': [
-        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[1, 7],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0.05, 2],[0.20, 0.80],[1, 7],
         [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']], # no waning --> three months
