@@ -1,7 +1,7 @@
 """
 This script contains a Sobol sensitivity analysis of the national COVID-19 SEIQRD model to hospitalization data from 2020-03-15 until 2020-10-01 in Belgium.
 The function used to describe deviations between model and data is the negative binomial which is also used during the calibration.
-Make sure to set the solver to DOP853 with a relative sensitivity of 1e-3 (function `solve_ivp` in `base.py`) to obtain sufficiently accurate results.
+Make sure to increase the solver tolerance to 5e-4 to obtain sufficiently accurate results.
 """
 
 __author__      = "Tijs Alleman"
@@ -13,12 +13,14 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ##########################
 
 # Sobol analysis
+method = 'RK23' 
+rtol = 5e-4
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 200
+n_samples = 5000
 save=True
-results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity'
+results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
 
 # Model setup
@@ -26,14 +28,20 @@ n_age_groups = 10
 start_calibration = '2020-03-15'
 end_calibration = '2020-10-01'
 
+###########################################
+## Limit number of threads numpy can use ##
+###########################################
+
+#https://stackoverflow.com/questions/30791550/limit-number-of-threads-in-numpy
+
+import os
+os.environ["OMP_NUM_THREADS"] = "1" 
+
 ############################
 ## Load Required Packages ##
 ############################
 
-import math
 import warnings
-import argparse
-import os, sys
 import time
 import datetime
 import pandas as pd
@@ -42,10 +50,9 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 from SALib.sample import saltelli
 from SALib.analyze import sobol
-from SALib.plotting.bar import plot as barplot
 from covid19model.data import sciensano
 from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.optimization.objective_fcns import ll_poisson, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.objective_fcns import ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.utils import variance_analysis
 
 print('\n1) Setting up COVID-19 SEIQRD hybrid vacc')
@@ -95,11 +102,11 @@ plt.close()
 ## Initialize the log probability function ##
 #############################################
 
-data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
 states = ["H_in", "R", "R"]
-weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'], [], []]
+weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'], results.loc['negative binomial', 'theta'], results.loc['negative binomial', 'theta']]
 
 #########################################
 ## Setup the Sobol sensitivity problem ##
@@ -126,8 +133,8 @@ problem_grouped = {
                '$\\zeta$',
                '$N_{c}$: M, $\Omega_{work}$, $\Omega_{rest}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
-        [0.05, 0.17],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
+        [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']],
         [0,1],[0,1],[0,1]
@@ -147,8 +154,8 @@ problem_ungrouped = {
                '$\\zeta$',
                '$M$', '$\Omega_{work}$', '$\Omega_{rest}$'],
     'bounds': [
-        [0.50*model.parameters['beta'], 1.50*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
-        [0.05, 0.17],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0.05, 2],[0.20, 0.80],[1, 7],
+        [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']], # no waning --> three months
         [0,1],[0,1],[0,1]
@@ -168,7 +175,7 @@ virgin_a = model.parameters['a']
 virgin_h = model.parameters['h']
 
 def adjust_h(overall_h):
-    return list(virgin_h*(overall_h/0.149)) # Verified 14.9% is the implemented Belgian population average (26/08/2022)
+    return list(virgin_h*(overall_h/0.147)) # Verified 14.7% is the implemented Belgian population average (26/08/2022)
 
 def adjust_a(overall_a):
     return list(virgin_a*(overall_a/0.714)) # Verified 71.4% is the implemented Belgian population average (26/08/2022)
@@ -190,7 +197,7 @@ def evaluate_model(thetas):
     thetas[4] = adjust_h(thetas[4])
     # Flatten the resulting list containing a mix of lists and floats
     thetas = list(flatten(thetas))
-    return objective_function(thetas, simulation_kwargs={'draw_fcn': draw_fcn})
+    return objective_function(thetas, simulation_kwargs={'method': method, 'rtol': rtol, 'draw_fcn': draw_fcn})
 
 ##########################
 ## Perform the analysis ##
@@ -202,11 +209,12 @@ warnings.filterwarnings('ignore')
 
 # Perform sampling
 param_values = saltelli.sample(problem, n_samples, calc_second_order=calc_second_order)
-rt = param_values.shape[0]*0.554*(18/n_cpus)/3600
+rt = param_values.shape[0]*0.01154*(18/n_cpus)/60
 print("\n\t{0} samples per parameter resulting in a total of {1} model evaluations.".format(n_samples, param_values.shape[0]))
 print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
 # Evaluate model (automatic multiprocessing and suppression of warnings)
+
 start = time.time()
 thetas = param_values
 mp_pool = mp.Pool(n_cpus)
