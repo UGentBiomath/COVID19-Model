@@ -224,6 +224,9 @@ class simple_stochastic_SIR(BaseModel):
     @staticmethod
     def integrate(t, S, I, R, beta, gamma, Nc):
         """Basic stochastic SIR model """
+        
+        # Needed in order not to generate the same samples in multiprocessing
+        np.random.seed()
 
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
