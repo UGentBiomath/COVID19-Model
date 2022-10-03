@@ -8,6 +8,7 @@ import sys
 import numba as nb
 import numpy as np
 from numba import jit
+from scipy.stats import poisson
 from .base import BaseModel
 from .utils import stratify_beta, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
@@ -182,11 +183,10 @@ def matmul_q_2D(A,B):
                     out[i, j, q] += A[i, k] * b[k, j]
     return out
 
-from scipy.stats import poisson
 class simple_stochastic_SIR(BaseModel):
     """
     A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
-    Must be simulated in discrete timesteps by adding the argument `discrete=True` in the model initialization.
+    To be simulated with a tau-leaping Gillespie algorithm.
 
     Parameters
     ----------
