@@ -222,16 +222,11 @@ class simple_stochastic_SIR(BaseModel):
     stratification = ['Nc']
 
     @staticmethod
-    def integrate(t, S, I, R, beta, gamma, Nc):
+    def integrate(t, l, S, I, R, beta, gamma, Nc):
         """Basic stochastic SIR model """
-        
+
         # Needed in order not to generate the same samples in multiprocessing
         np.random.seed()
-
-        # Define solver parameters
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        leap = 1/12 # Length of leap (days)
 
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -247,7 +242,7 @@ class simple_stochastic_SIR(BaseModel):
         N=[]
         for idx,rate in enumerate(rates):
             u = np.random.rand(*(rate.shape))
-            draw = poisson.ppf(u, leap*rate)
+            draw = poisson.ppf(u, l*rate)
             if len(limits[idx]) > 1:
                 limit = np.minimum(*(limits[idx]))
             N.append(np.minimum(draw, limit))
