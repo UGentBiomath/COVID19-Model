@@ -103,7 +103,7 @@ warmup = pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05')
 model.parameters['beta_R'] = model.parameters['beta_U'] = model.parameters['beta_M'] = 0.027
 
 # Disable mobility
-model.parameters['p'] = 0*model.parameters['p']
+#model.parameters['p'] = 0*model.parameters['p']
 
 ###########################################
 ## Visualize the result per spatial unit ##
@@ -183,7 +183,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
     # Visualize new fit
     fig,ax = plt.subplots(figsize=(12,4))
-    ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+    ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
     ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')

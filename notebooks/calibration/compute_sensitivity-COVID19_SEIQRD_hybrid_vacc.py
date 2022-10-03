@@ -18,7 +18,7 @@ rtol = 5e-4
 n_cpus = 18
 problem_name = 'ungrouped'
 calc_second_order = True
-n_samples = 5000
+n_samples = 20000
 save=True
 results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
@@ -133,7 +133,7 @@ problem_grouped = {
                '$\\zeta$',
                '$N_{c}$: M, $\Omega_{work}$, $\Omega_{rest}$'],
     'bounds': [
-        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0, 2],[0.20, 0.80],[2, 10],
+        [0.75*model.parameters['beta'], 1.25*model.parameters['beta']],[0.05, 2],[0.20, 0.80],[2, 10],
         [0.02, 0.147],
         [0, 0.50],
         [1e-6, 4.0*model.parameters['zeta']],
@@ -209,7 +209,7 @@ warnings.filterwarnings('ignore')
 
 # Perform sampling
 param_values = saltelli.sample(problem, n_samples, calc_second_order=calc_second_order)
-rt = param_values.shape[0]*0.01154*(18/n_cpus)/60
+rt = param_values.shape[0]*0.0043788*(18/n_cpus)/60
 print("\n\t{0} samples per parameter resulting in a total of {1} model evaluations.".format(n_samples, param_values.shape[0]))
 print("\tExpected runtime: {0} minutes ({1} hours)".format(round(rt*60, 1), round(rt, 1)))
 
