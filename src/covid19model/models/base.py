@@ -491,7 +491,17 @@ class BaseModel:
 
         """
 
+        # Input checks on solver settings
+        if not isinstance(rtol, float):
+            raise TypeError(
+                "Relative solver tolerance 'rtol' must be of type float"
+            )
+        if not isinstance(method, str):
+            raise TypeError(
+                "Solver method 'method' must be of type string"
+            )
 
+        # Adjust startdate with warmup
         if start_date is not None:
             actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
