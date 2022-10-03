@@ -5,24 +5,6 @@ from scipy.special import gammaln
 import sys
 import inspect
 
-def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
-    dict={}
-    idx = 0
-    total_n_values = 0
-    for param in parameter_names:
-        try:
-            dict[param] = np.array(thetas[idx:idx+len(model_parameter_dictionary[param])], np.float64)
-            total_n_values += len(dict[param])
-            idx = idx + len(model_parameter_dictionary[param])
-        except:
-            if ((isinstance(model_parameter_dictionary[param], float)) | (isinstance(model_parameter_dictionary[param], int))):
-                dict[param] = thetas[idx]
-                total_n_values += 1
-                idx = idx + 1
-            else:
-                raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
-    return dict, total_n_values
-
 ##############################
 ## Log-likelihood functions ##
 ##############################
@@ -361,6 +343,22 @@ class log_posterior_probability():
                         "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided a non-empty list of length greater than one.".format(idx,log_likelihood_fnc[idx])
                         )
 
+        # Extract model stratification names and coordinates
+        model_stratifications = model.stratification
+        model_coordinates = model.coordinates
+        # Check to see if the coordinates in every dataset are in the model and if the labels match
+        diff_stratifications=[]
+        for idx, df in enumerate(data):
+            data_stratifications = list(df.index.names)
+            for data_stratification in data_stratifications:
+                if data_stratification != 'date':
+                    if not data_stratification in model_stratifications:
+                        raise ValueError(f"Data stratification {data_stratification} is not a valid model stratification")
+                    elif not (df.index.get_level_values(data_stratification).unique().values == model_coordinates[model_stratifications == data_stratification]).all():
+                        raise ValueError(f"Data coordinates for stratification {data_stratification} do not match model coordinates")
+            data_stratifications.remove('date')
+            diff_stratifications.append(data_stratifications)
+
         # Find out if 'warmup' needs to be estimated
         self.warmup_position=None
         if 'warmup' in parameter_names:
@@ -376,6 +374,7 @@ class log_posterior_probability():
         self.log_likelihood_fnc = log_likelihood_fnc
         self.log_likelihood_fnc_args = log_likelihood_fnc_args
         self.weights = weights
+        self.diff_stratifications = diff_stratifications
 
     @staticmethod
     def compute_log_prior_probability(thetas, log_prior_prob_fnc, log_prior_prob_fnc_args):
@@ -391,6 +390,7 @@ class log_posterior_probability():
 
     @staticmethod
     def thetas_to_thetas_dict(thetas, parameter_names, model_parameter_dictionary):
+
         dict={}
         idx = 0
         total_n_values = 0
@@ -406,6 +406,7 @@ class log_posterior_probability():
                     idx = idx + 1
                 else:
                     raise ValueError('Calibration parameters must be either of type int, float, list or 1D np.array')
+    
         return dict, total_n_values
 
     @staticmethod
@@ -423,9 +424,9 @@ class log_posterior_probability():
                 if 'NIS' in list(df.index.names):
                     # Spatial data (must have 'date' first and then 'NIS')
                     for jdx,NIS in enumerate(df.index.get_level_values('NIS').unique()):
-                        new_xarray = out[states[idx]].sel(place=NIS)
+                        new_xarray = out[states[idx]].sel(NIS=NIS)
                         for dimension in out.dims:
-                            if ((dimension != 'time') & (dimension != 'place')):
+                            if ((dimension != 'time') & (dimension != 'NIS')):
                                 new_xarray = new_xarray.sum(dim=dimension)
                         ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
                         # Temporarily use overdisperion found from H_in for every NIS
@@ -456,9 +457,11 @@ class log_posterior_probability():
         # Add exception for estimation of warmup
         if self.warmup_position:
             simulation_kwargs.update({'warmup': thetas[self.warmup_position]})
-
-        # Convert thetas for model parameters to a dictionary with key-value pairs
-        thetas_dict, n = self.thetas_to_thetas_dict(thetas, self.parameter_names, self.model.parameters)
+            # Convert thetas for model parameters to a dictionary with key-value pairs
+            thetas_dict, n = self.thetas_to_thetas_dict([x for (i,x) in enumerate(thetas) if i != self.warmup_position], [x for x in self.parameter_names if x != "warmup"], self.model.parameters)
+        else:
+            # Convert thetas for model parameters to a dictionary with key-value pairs
+            thetas_dict, n = self.thetas_to_thetas_dict(thetas, self.parameter_names, self.model.parameters)
 
         # Assign thetas for model parameters to the model object
         for param,value in thetas_dict.items():

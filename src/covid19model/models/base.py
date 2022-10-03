@@ -1,13 +1,14 @@
 import inspect
 import itertools
 
-import numpy as np
-from scipy.integrate import solve_ivp
 import xarray
-import pandas as pd
-from collections import OrderedDict
 import copy
-from .utils import read_coordinates_nis
+import numpy as np
+import pandas as pd
+import multiprocessing as mp
+from functools import partial
+from scipy.integrate import solve_ivp
+from collections import OrderedDict
 
 class BaseModel:
     """
@@ -37,16 +38,15 @@ class BaseModel:
     parameters_stratified_names = None
     stratification = None
     apply_compliance_to = None
-    coordinates = None
     state_2d = None
 
-    def __init__(self, states, parameters, time_dependent_parameters=None,
-                 discrete=False, agg=None):
+    def __init__(self, states, parameters, coordinates=None, time_dependent_parameters=None,
+                 discrete=False):
         self.parameters = parameters
         self.initial_states = states
+        self.coordinates = coordinates
         self.time_dependent_parameters = time_dependent_parameters
         self.discrete = discrete
-        self.agg = agg
         if self.stratification:
             self.stratification_size = []
             for axis in self.stratification:
@@ -152,8 +152,14 @@ class BaseModel:
         specified_params = self.parameter_names.copy()
 
         if self.parameters_stratified_names:
-            for stratified_names in self.parameters_stratified_names:
-                if stratified_names:
+            if not isinstance(self.parameters_stratified_names[0], list):
+                if len(self.parameters_stratified_names) == 1:
+                    specified_params += self.parameters_stratified_names
+                else:
+                    for stratified_names in self.parameters_stratified_names:
+                        specified_params += [stratified_names,]
+            else:
+                for stratified_names in self.parameters_stratified_names:
                     specified_params += stratified_names
 
         if self.stratification:
@@ -242,13 +248,26 @@ class BaseModel:
         # the size of the stratified parameters
         if self.parameters_stratified_names:
             i = 0
-            for stratified_names in self.parameters_stratified_names:
-                if stratified_names:
+            if not isinstance(self.parameters_stratified_names[0], list):
+                if len(self.parameters_stratified_names) == 1:
+                    for param in self.parameters_stratified_names:
+                        validate_stratified_parameters(
+                                self.parameters[param], param, "stratified parameter",i
+                            )
+                    i = i + 1
+                else:
+                    for param in self.parameters_stratified_names:
+                        validate_stratified_parameters(
+                                self.parameters[param], param, "stratified parameter",i
+                            )
+                    i = i + 1
+            else:
+                for stratified_names in self.parameters_stratified_names:
                     for param in stratified_names:
                         validate_stratified_parameters(
                             self.parameters[param], param, "stratified parameter",i
                         )
-                i = i + 1
+                    i = i + 1
 
         # the size of the initial states + fill in defaults
         for state in self.state_names:
@@ -270,14 +289,6 @@ class BaseModel:
         # sort the initial states to match the state_names
         self.initial_states = {state: self.initial_states[state] for state in self.state_names}
 
-        agg_options = {'mun', 'arr', 'prov'}
-        if self.agg:
-            # verify wether the agg parameter value is OK
-            if self.agg not in agg_options:
-                raise ValueError(
-                    f"'agg={self.agg}' is not a valid choice. Choose from '{agg_options}'"
-                )
-        
         # Call integrate function with initial values to check if the function returns all states
         fun = self._create_fun(None)
         y0 = list(itertools.chain(*self.initial_states.values()))
@@ -365,7 +376,7 @@ class BaseModel:
         return func
 
 
-    def _sim_single(self, time, actual_start_date=None):
+    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3):
         """"""
         fun = self._create_fun(actual_start_date)
 
@@ -384,7 +395,7 @@ class BaseModel:
         if self.discrete == False:
             output = solve_ivp(fun, time,
                            y0,
-                           args=[self.parameters], t_eval=t_eval, method='RK23', rtol=5e-3)
+                           args=[self.parameters], t_eval=t_eval, method=method, rtol=rtol)
         else:
             output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
@@ -414,6 +425,14 @@ class BaseModel:
         }
         return output
 
+    def _mp_sim_single(self, drawn_parameters, time, actual_start_date, method, rtol):
+        """
+        A Multiprocessing-compatible wrapper for _sim_single, assigns the drawn dictionary and runs _sim_single
+        """
+        self.parameters.update(drawn_parameters)
+        out = self._sim_single(time, actual_start_date, method, rtol)
+        return out
+
     def date_to_diff(self, actual_start_date, end_date):
         """
         Convert date string to int (i.e. number of days since day 0 of simulation,
@@ -425,7 +444,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, verbose=False):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -434,31 +453,37 @@ class BaseModel:
 
         Parameters
         ----------
-        time : int, list of int [start, stop], string or timestamp
-            The start and stop time for the simulation run.
-            If an int is specified, it is interpreted as [0, time].
-            If a string or timestamp is specified, this is interpreted as the end time of the simulation
+        time : 1) int/float, 2) list of int/float of type '[start, stop]', 3) string or timestamp
+            The start and stop "time" for the simulation run.
+            1) Input is converted to [0, time]. Floats are automatically rounded.
+            2) Input is interpreted as [start, stop]. Floats are automatically rounded.
+            3) Date supplied is interpreted as the end date of the simulation
 
         warmup : int
-            Number of days for model warm-up
+            Number of days to simulate prior to start time or date
 
         start_date : str or timestamp
-            Model starts to run on start_date - warmup
+            Must be supplied when using a date as simulation start.
+            Model starts to run on (start_date - warmup)
 
         N : int
             Number of repeated simulations (useful for stochastic models). One by default.
 
         draw_fcn : function
-            A function which takes as its input the dictionary of model parameters 
+            A function which takes as its input the dictionary of model parameters and a samples dictionary
             and the dictionary of sampled parameter values and assings these samples to the model parameter dictionary ad random.
-            # TO DO: verify draw_fcn
 
         samples : dictionary
-            Sample dictionary used by draw_fcn.
-            # TO DO: should not be included if draw_fcn is not None. How can this be made more elegant?
+            Sample dictionary used by draw_fcn. Does not need to be supplied if samples_dict is not used in draw_fcn.
 
-        to_sample : list
-            list of parameters to sample by draw_fcn, default ['beta','l','tau','prevention']
+        processes: int
+            Number of cores to distribute the N draws over.
+
+        method: str
+            Method used by Scipy `solve_ivp` for integration of differential equations. Default: 'RK23'.
+        
+        rtol: float
+            Relative tolerance of Scipy `solve_ivp`. Default: 5e-3.
 
         Returns
         -------
@@ -466,46 +491,91 @@ class BaseModel:
 
         """
 
+        # Input checks on solver settings
+        if not isinstance(rtol, float):
+            raise TypeError(
+                "Relative solver tolerance 'rtol' must be of type float"
+            )
+        if not isinstance(method, str):
+            raise TypeError(
+                "Solver method 'method' must be of type string"
+            )
 
+        # Adjust startdate with warmup
         if start_date is not None:
             actual_start_date = pd.Timestamp(start_date) - pd.Timedelta(warmup, unit='D')
         else:
-            actual_start_date = None
+            actual_start_date=None
 
-        if isinstance(time, int):
+        # Input checks on supplied simulation time
+        if isinstance(time, float):
+            time = [0, round(time)]
+        elif isinstance(time, int):
             time = [0, time]
-
         elif isinstance(time, list):
-            time = time
-
+            if len(time) > 2:
+                raise ValueError(f"Maximumum length of list-like input of simulation start and stop is two. You have supplied: time={time}. 'Time' must be of format: time=[start, stop].")
+            else:
+                time = [round(item) for item in time]
         elif isinstance(time, (str, pd.Timestamp)):
             if not isinstance(start_date, (str, pd.Timestamp)):
                 raise TypeError(
-                    'start_date needs to be string or timestamp, not None'
+                    "When should the simulation start? Set the input argument 'start_date'.."
                 )
             time = [0, self.date_to_diff(actual_start_date, time)]
-
         else:
             raise TypeError(
-                    'time must be int, list of ints [start, stop], string or timestamp'
+                    "Input argument 'time' must be a single number (int or float), a list of format: time=[start, stop], a string representing of a timestamp, or a timestamp"
                 )
+        
+        # Input check on draw function
+        if draw_fcn:
+            sig = inspect.signature(draw_fcn)
+            keywords = list(sig.parameters.keys())
+            # Verify that names of draw function are param_dict, samples_dict
+            if keywords[0] != "param_dict":
+                raise ValueError(
+                    f"The first parameter of a draw function should be 'param_dict'. Current first parameter: {keywords[0]}"
+                )
+            elif keywords[1] != "samples_dict":
+                raise ValueError(
+                    f"The second parameter of a draw function should be 'samples_dict'. Current second parameter: {keywords[1]}"
+                )
+            elif len(keywords) > 2:
+                raise ValueError(
+                    f"A draw function can only have two input arguments: 'param_dict' and 'samples_dict'. Current arguments: {keywords}"
+                )
+
         # Copy parameter dictionary --> dict is global
         cp = copy.deepcopy(self.parameters)
-        # Perform first simulation as preallocation
-        if verbose==True:
-            print(f"Simulating draw 1/{N}", end='\x1b[1K\r') # end statement overwrites entire line
-        if draw_fcn:
-            self.parameters = draw_fcn(self.parameters,samples)
-        out = self._sim_single(time, actual_start_date)
-        # Repeat N - 1 times and concatenate
-        for n in range(N-1):
-            if verbose==True:
-                print(f"Simulating draw {n+2}/{N}", end='\x1b[1K\r')
 
+        # Old linear case used _sim_single_ directly
+        
+        # Parallel case: https://www.delftstack.com/howto/python/python-pool-map-multiple-arguments/#parallel-function-execution-with-multiple-arguments-using-the-pool.starmap-method
+
+        # Construct list of drawn dictionaries
+        drawn_dictionaries=[]
+        for n in range(N):
             if draw_fcn:
+                out={} # Need because of global dictionaries and voodoo magic
+                out.update(draw_fcn(self.parameters,samples))
+                drawn_dictionaries.append(out)
+            else:
+                drawn_dictionaries.append({})
 
-                self.parameters = draw_fcn(self.parameters,samples)
-            out = xarray.concat([out, self._sim_single(time, actual_start_date)], "draws")
+        # Run simulations
+        if processes: # Needed 
+            with mp.Pool(processes) as p:
+                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date, method=method, rtol=rtol), drawn_dictionaries)
+        else:
+            output=[]
+            for dictionary in drawn_dictionaries:
+                output.append(self._mp_sim_single(dictionary, time, actual_start_date, method=method, rtol=rtol))
+
+        # Append results
+        out = output[0]
+        for xarr in output[1:]:
+            out = xarray.concat([out, xarr], "draws")
 
         # Reset parameter dictionary
         self.parameters = cp
@@ -535,9 +605,7 @@ class BaseModel:
         if self.stratification:
             for i in range(len(self.stratification)):
                 if self.coordinates:
-                    if (self.coordinates[i] == 'place') and self.agg:
-                        coords.update({self.stratification[i] : read_coordinates_nis(spatial=self.agg)})
-                    elif self.coordinates[i] is not None:
+                    if self.coordinates[i] is not None:
                         coords.update({self.stratification[i]: self.coordinates[i]})
                 else:
                     coords.update({self.stratification[i]: np.arange(self.stratification_size[i])})
@@ -568,5 +636,4 @@ class BaseModel:
             xarr = xarray.DataArray(y_2d_reshaped,coords=coords,dims=[self.stratification[0],self.stratification[0],'time'])
             data[self.state_names[-1]] = xarr
 
-        attrs = {'parameters': dict(self.parameters)}
-        return xarray.Dataset(data, attrs=attrs)
+        return xarray.Dataset(data)

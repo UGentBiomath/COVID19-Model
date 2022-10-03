@@ -181,7 +181,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
         sys.stdout.flush()
     return ndim, nwalkers, pos
 
-from .objective_fcns import thetas_to_thetas_dict
+from .objective_fcns import log_posterior_probability 
 def assign_PSO(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
@@ -216,17 +216,22 @@ def assign_PSO(param_dict, parNames, thetas):
     warmup, model.parameters = assign_PSO(model.parameters, pars, theta)
     """
 
-    thetas_dict,n = thetas_to_thetas_dict(thetas, parNames, param_dict)
+    # Find out if 'warmup' needs to be estimated
+    warmup_position=None
+    if 'warmup' in parNames:
+        warmup_position=parNames.index('warmup')
+        warmup = thetas[warmup_position]
+        parNames = [x for x in parNames if x != "warmup"]
+        thetas = [x for (i,x) in enumerate(thetas) if i != warmup_position]
+
+    thetas_dict,n = log_posterior_probability.thetas_to_thetas_dict(thetas, parNames, param_dict)
     for i, (param,value) in enumerate(thetas_dict.items()):
-        if param == 'warmup':
-            warmup = int(round(value))
-        else:
             param_dict.update({param : value})
 
-    if 'warmup' not in thetas_dict.keys():
-        return param_dict
-    else:
+    if warmup_position:
         return warmup, param_dict
+    else:
+        return param_dict
 
 from covid19model.optimization.objective_fcns import log_prior_custom
 def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
@@ -245,68 +250,6 @@ def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_f
         density_my_par_norm = density_my_par/np.sum(density_my_par)
         log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
     return pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args
-
-
-def samples_dict_to_emcee_chain(samples_dict,keys,n_chains,discard=0,thin=1):
-    """
-    A function to convert a samples dictionary into a 2D and 3D np.array, similar to using the emcee method `sampler.get_chain()`
-
-    Parameters
-    ----------
-    samples_dict : dict
-        Dictionary containing MCMC samples
-
-    keys : lst
-        List containing the names of the sampled parameters
-
-    n_chains: int
-        Number of parallel Markov Chains run during the inference
-
-    discard: int
-        Number of samples to be discarded from the start of each Markov chain (=burn-in).
-
-    thin: int
-        Thinning factor of the Markov Chain. F.e. thin = 5 extracts every fifth sample from each chain.
-
-    Returns
-    -------
-    samples : np.array
-        A 3D np.array with dimensions:
-            x: number of samples per Markov chain
-            y: number of parallel Markov chains
-            z: number of parameters
-    flat_samples : np.array
-        A 2D np.array with dimensions:
-            x: total number of samples per Markov chain (= user defined number of samples per Markov Chain * number of parallel chains)
-            y: number of parameters
-
-    Example use
-    -----------
-    samples, flat_samples = samples_dict_to_emcee_chain(samples_dict, ['l', 'tau'], 4, discard=1000, thin=20)
-    """
-
-    # Convert to raw flat samples
-    flat_samples_raw = np.zeros([len(samples_dict[keys[0]]),len(keys)])
-    for idx,key in enumerate(keys):
-        flat_samples_raw[:,idx] = samples_dict[key]
-    # Convert to raw samples
-    samples_raw = np.zeros([int(flat_samples_raw.shape[0]/n_chains),n_chains,flat_samples_raw.shape[1]])
-    for i in range(samples_raw.shape[0]): # length of chain
-        for j in range(samples_raw.shape[1]): # chain number
-            samples_raw[i,:,:] = flat_samples_raw[i*n_chains:(i+1)*n_chains,:]
-    # Do discard
-    samples_discard = np.zeros([(samples_raw.shape[0]-discard),n_chains,flat_samples_raw.shape[1]])
-    for i in range(samples_raw.shape[1]):
-        for j in range(flat_samples_raw.shape[1]):
-            samples_discard[:,i,j] = samples_raw[discard:,i,j]
-    # Do thin
-    samples = samples_discard[::thin,:,:]
-    # Convert to flat samples
-    flat_samples = samples[:,0,:]
-    for i in range(1,samples.shape[1]):
-        flat_samples=np.append(flat_samples,samples[:,i,:],axis=0)
-
-    return samples,flat_samples
 
 def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """

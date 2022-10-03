@@ -14,6 +14,7 @@ import sys
 import ast
 import click
 import json
+import pickle
 import emcee
 import datetime
 import argparse
@@ -56,7 +57,7 @@ else:
     high_performance_computing = False
 # Identifier (name)
 if args.identifier:
-    identifier = 'BE_' + str(args.identifier)
+    identifier = 'national_' + str(args.identifier)
 else:
     raise Exception("The script must have a descriptive name for its output.")
 # Maximum number of PSO iterations
@@ -84,7 +85,7 @@ fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
 samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
 # Path where samples backend should be stored
-backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/backends/'
+backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/national/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -108,7 +109,20 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date=start_calibration.strftime("%Y-%m-%d"), update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+
+#from covid19model.data import model_parameters
+#age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
+#Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+
+#def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
+#    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
+#    return sum((R0_i*initN)/sum(initN))
+
+#print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
+
+model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
+warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
 
 if __name__ == '__main__':
 
@@ -118,6 +132,7 @@ if __name__ == '__main__':
 
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
+    dispersion = results.loc['negative binomial', 'theta']
     plt.show()
     plt.close()
 
@@ -131,15 +146,15 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 15
+    multiplier_mcmc = 20
     max_n = n_mcmc
-    print_n = 10
+    print_n = 20
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:16]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1e-3, 1e-3]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_poisson, ll_poisson]
-    log_likelihood_fnc_args = [results.loc['negative binomial', 'theta'], [], []]
+    weights = np.array([1, 1, 1]) # Scores of individual contributions: Dataset: 0, total ll: -4590, Dataset: 1, total ll: -4694, Dataset: 2, total ll: -4984
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [dispersion, dispersion, dispersion]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -154,30 +169,26 @@ if __name__ == '__main__':
     #############################
 
     # transmission
-    pars1 = ['beta',]
-    bounds1=((0.003,0.080),)
+    #pars1 = ['beta',]
+    #bounds1=((0.001,0.080),)
     # Effectivity parameters
-    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    bounds2=((0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99),(0.01,0.99))
+    pars2 = ['eff_work', 'eff_rest', 'mentality']
+    bounds2=((0,2),(0,2),(0,1))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.20,1.60),(1.30,2.4))
+    bounds3 = ((1.15,1.50),(1.45,2.4))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
-    # Waning antibody immunity
-    #pars5 = ['zeta',]
-    #bounds5 = ((1e-6,1e-2),)
+    bounds4 = ((0,0.50),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4 #+ pars5 
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 #+ bounds5
+    pars = pars2 + pars3 + pars4
+    bounds =  bounds2 + bounds3 + bounds4
     # run optimizat
     #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
     #                    start_date=start_calibration, warmup=warmup, processes=processes)
-    #theta = np.array([0.042, 0.08, 0.469, 0.24, 0.364, 0.203, 1.52, 1.72, 0.18, 0.0030]) # original estimate
-    #theta = [0.04331544, 0.02517453, 0.52324559, 0.25786408, 0.26111868, 0.22266798, 1.5355108, 1.74421842, 0.26951541, 0.002]
-    theta = [0.04, 0.25, 0.23, 0.4, 0.4, 0.2, 1.25, 1.25, 0.12]
+
+    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -200,9 +211,9 @@ if __name__ == '__main__':
         model.parameters = assign_PSO(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration)
+        out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
         plt.show()
         plt.close()
 
@@ -223,9 +234,9 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration)
+            out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
             # Visualize fit
-            ax = plot_PSO(out, data, states, start_calibration, end_visualization)
+            ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
             plt.show()
             plt.close()
             # Satisfied?
@@ -242,20 +253,19 @@ if __name__ == '__main__':
     log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
-    pert1 = [0.05,]
+    #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.30, 0.30, 0.30, 0.30, 0.30]
+    pert2 = [0.10, 0.10, 0.10]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.30, 0.30]
+    pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.10,] 
-    # pars5 = ['zeta',]
-    #pert5 = [0.20,]
     # Add them together and perturbate
-    pert = pert1 + pert2 + pert3 + pert4 #+ pert5
+    pert =  pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$', '$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$\Omega_{home}$', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
+    pars_postprocessing = ['eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Set up the sampler backend if needed
     if backend:
         filename = identifier+run_date
@@ -268,10 +278,16 @@ if __name__ == '__main__':
     ## Run MCMC sampler ##
     ######################
 
+    # Write settings to a .txt
+    settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
+    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'warmup': warmup}}, backend, identifier, processes)
 
     #####################
     ## Process results ##
@@ -293,12 +309,17 @@ if __name__ == '__main__':
         samples_dict.update({name: flat_samples[:,count].tolist()})
 
     samples_dict.update({'n_chains': nwalkers,
-                        'start_calibration': start_calibration,
-                        'end_calibration': end_calibration})
+                        'start_calibration': args.start_calibration,
+                        'end_calibration': args.end_calibration,
+                        'dispersion': dispersion,
+                        'warmup': warmup,
+                        'beta': model.parameters['beta'],
+                        'starting_estimate': theta
+                        })
 
-    with open(samples_path+str(identifier)+'_'+run_date+'.json', 'w') as fp:
+    with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_'+run_date+'.json'+'"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')

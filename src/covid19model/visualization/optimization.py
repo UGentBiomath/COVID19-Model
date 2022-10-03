@@ -218,7 +218,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     
     # Reduce all dimensions except time and space
     for dimension in output.dims:
-        if ((dimension != 'time') & (dimension != 'place')):
+        if ((dimension != 'time') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
 
     if agg == 'reg':
@@ -230,7 +230,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
             model_vals = 0
             data_vals= 0
             for NIS in NIS_list:
-                model_vals = model_vals + output['H_in'].sel(place=NIS).values
+                model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
                 data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
             ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
@@ -245,7 +245,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     elif agg == 'prov':
         fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
         for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
-            ax[idx].plot(output['time'], output['H_in'].sel(place=NIS),'--', color='blue')
+            ax[idx].plot(output['time'], output['H_in'].sel(NIS=NIS),'--', color='blue')
             ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             ax[idx].set_xlim([start_calibration, end_calibration])
             ax[idx].set_ylim([0, 150])

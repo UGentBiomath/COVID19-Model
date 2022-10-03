@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
+from covid19model.models.utils import load_samples_dict
 from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
 
@@ -309,16 +310,23 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ## Susceptibility, hospitalization propensity and asymptomatic fraction ##
     ##########################################################################
 
-    # Susceptibility (Davies et al.)
+    # Susceptibility
     pars_dict['s'] = np.ones(age_stratification_size, np.float64)
 
-    # Hospitalization propensity (manually fitted)
-    hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                          data=[0.015, 0.020, 0.03, 0.03, 0.03, 0.06, 0.15, 0.35, 0.80])
+    # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
+    # Hospitalization propensity (manually fitted to deaths in hospital per age category)
+    hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
+                          data=np.array([0.01, 0.01, 0.015, 0.025, 0.03, 0.06, 0.12, 0.40, 0.70, 0.99]))
+    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
+                         data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
 
-    # Relative symptoms dataframe (Wu et al., 2020)
-    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left'),
-                             data=[0.053, 0.072, 0.408, 1.000, 1.349, 1.993, 2.849, 3.046, 3.240])
+    # https://www.nature.com/articles/s41591-020-0962-9
+    #hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
+    #                      data=np.array([0.01, 0.01, 0.015, 0.02, 0.02, 0.05, 0.08, 0.22, 0.45, 0.99]))
+    #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
+    #                     data=np.array([0.28, 0.20, 0.23, 0.28, 0.35, 0.43, 0.55, 0.66, 0.70, 0.70]))
+    #print(sum(rel_symptoms*construct_initN(rel_symptoms.index, None))/sum(construct_initN(rel_symptoms.index, None)))
+    #print(sum(hosp_prop*construct_initN(hosp_prop.index, None))/sum(construct_initN(hosp_prop.index, None)))
 
     def rescale_relative_to_absolute(relative_data, desired_pop_avg_fraction):
         """ A function to rescale age-structured relative information into absolute population information.
@@ -335,7 +343,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     pars_dict['h'] = np.array(convert_age_stratified_property(
         hosp_prop, age_classes).values, np.float64)
-    rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
+
+    #rel_symptoms = rescale_relative_to_absolute(rel_symptoms, 0.43)
     pars_dict['a'] = np.array(
         1 - convert_age_stratified_property(rel_symptoms, age_classes).values, np.float64)
 
@@ -371,8 +380,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     pars_dict['l1'] = 7
     pars_dict['l2'] = 7
-    pars_dict['da'] = 7
-    pars_dict['dm'] = 7
+    pars_dict['da'] = 5
+    pars_dict['dm'] = 5
     pars_dict['sigma'] = 4.54
     pars_dict['omega'] = 0.66
     pars_dict['dhospital'] = 6.4
@@ -384,7 +393,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
 
     # Value of one equals no seasonality --> value is modified in time-dependant parameter function
     pars_dict['seasonality'] = 1
-    pars_dict['peak_shift'] = 0
+    pars_dict['peak_shift'] = 0 # High on Jan. 1st, Low on July 1st.
     pars_dict['amplitude'] = 0
 
     ###############
@@ -415,7 +424,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Normalize recurrent mobility matrix
         for i in range(NIS.shape[0]):
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
-        pars_dict['place'] = NIS
+        pars_dict['NIS'] = NIS
         # Read areas per region, ordered in ascending NIS values
         area_data = '../../../data/interim/demographic/area_' + agg + '.csv'
         area_df = pd.read_csv(os.path.join(
@@ -425,23 +434,13 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         area = area_df.values[:, 0]
         pars_dict['area'] = area * 1e-6  # in square kilometer
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
-        p = np.ones(pars_dict['place'].shape[0])
+        p = np.ones(pars_dict['NIS'].shape[0])
         pars_dict['p'] = p
         # Add Nc_work and Nc to parameters
         # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
         pars_dict['Nc'] = Nc_dict['total']
         # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
         pars_dict['Nc_work'] = Nc_dict['work']
-
-    #################################
-    ## Dummy rescaling vaccination ##
-    #################################
-
-    if agg:
-        # Value of one equals no vaccination --> value is modified in time-dependant parameter function
-        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones([G, age_stratification_size])
-    else:
-        pars_dict['E_susc'] = pars_dict['E_inf'] = pars_dict['E_hosp'] = np.ones(age_stratification_size)
 
     ############################
     ## BASE fitted parameters ##
@@ -450,37 +449,35 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-        base_dict_name = 'BE_BASE_hybrid_vacc_SAMPLES_2022-05-24.json'
-        base_samples_dict = json.load(
-            open(os.path.join(samples_path, base_dict_name)))
+        base_dict_name = 'national_REF_SAMPLES_2022-09-13.json'
+        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta': np.mean(base_samples_dict['beta']),
-            'eff_schools': np.mean(base_samples_dict['eff_schools']),
+            'beta': base_samples_dict['beta'],
+            'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
+            'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
-            'eff_home': np.mean(base_samples_dict['eff_home']),
             'mentality': np.mean(base_samples_dict['mentality']),
-            'amplitude': np.mean(base_samples_dict['amplitude']),
+            'amplitude': np.mean(base_samples_dict['amplitude']),            
         })
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        base_dict_name = 'prov_BASE_SAMPLES_2022-04-21.json'
-        base_samples_dict = json.load(
-            open(os.path.join(samples_path, base_dict_name)))
+        base_dict_name = 'prov_REF_SAMPLES_2022-09-15.json'
+        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
             'beta_M': np.mean(base_samples_dict['beta_M']),
-            'eff_schools': np.mean(base_samples_dict['eff_schools']),
+            'eff_home': 1,
+            'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
-            'eff_home': np.mean(base_samples_dict['eff_home']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
 
-    return initN, Nc_dict, pars_dict, base_samples_dict
+    return Nc_dict, pars_dict, base_samples_dict, initN
 
 
 def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pars_dict=None):
@@ -518,7 +515,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.62, 1.62, 1.62*0.30]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1, 1, 0.30]
     VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.50, 1.50, 3.00]
 
     ###############################################
@@ -580,15 +577,13 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # waning:
     vaccine_parameters.loc[(
-        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 200
+        slice(None), ['partial', 'full', 'boosted']), 'waning'] = 150
 
     # Cut everything not needed from the VOC dataframe
     VOC_parameters = VOC_parameters.loc[VOCs]
 
     # Save a copy in a pickle
-    VOC_parameters.to_pickle(os.path.join(save_path, 'VOC_parameters.pkl'), protocol=4)
     vaccine_parameters.to_pickle(os.path.join(save_path, 'vaccine_parameters.pkl'), protocol=4)
-
 
     #############################
     ## Set relevant VOC values ##
