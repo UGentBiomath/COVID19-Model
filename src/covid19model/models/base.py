@@ -408,7 +408,7 @@ class BaseModel:
             Add way to give 'l' to function
         """
 
-        l=1/2
+        l=1/12
 
         # Preparations
         y=np.asarray(y) # otherwise error in func : y.reshape does not work
@@ -428,12 +428,7 @@ class BaseModel:
         y_eval = np.zeros([y.shape[0], len(t_eval)])
         for row_idx in range(y.shape[0]):
             y_eval[row_idx,:] = np.interp(t_eval, t_lst, y[row_idx,:])
-        # Make a dictionary with output
-        output = {
-            'y':    y_eval,
-            't':    t_eval
-        }
-        return output
+        return {'y': y_eval, 't': t_eval}
 
     def _mp_sim_single(self, drawn_parameters, time, actual_start_date, method, rtol):
         """
