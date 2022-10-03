@@ -397,31 +397,41 @@ class BaseModel:
                            y0,
                            args=[self.parameters], t_eval=t_eval, method=method, rtol=rtol)
         else:
-            output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
+            output = self.solve_discrete(fun,t_eval,list(itertools.chain(*self.initial_states.values())),
                             args=self.parameters)
 
         # map to variable names
         return self._output_to_xarray_dataset(output, actual_start_date)
 
-    def solve_discrete(self,fun,time,y,args):
+    def solve_discrete(self,fun,t_eval,y,args):
+        """TO DO:
+            Add way to give 'l' to function
+        """
+
+        l=1/2
+
         # Preparations
         y=np.asarray(y) # otherwise error in func : y.reshape does not work
         y=np.reshape(y,[y.size,1])
         y_prev=y
-        # Iteration loop
-        t_lst=[time[0]]
-        t = time[0]
-        while t < time[1]:
+        # Simulation loop
+        t_lst=[t_eval[0]]
+        t = t_eval[0]
+        while t < t_eval[-1]:
             out = fun(t,y_prev,args)
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
-            t = t + 1
+            t = t + l
             t_lst.append(t)
+        # Interpolate output y to times t_eval
+        y_eval = np.zeros([y.shape[0], len(t_eval)])
+        for row_idx in range(y.shape[0]):
+            y_eval[row_idx,:] = np.interp(t_eval, t_lst, y[row_idx,:])
         # Make a dictionary with output
         output = {
-            'y':    y,
-            't':    t_lst
+            'y':    y_eval,
+            't':    t_eval
         }
         return output
 
