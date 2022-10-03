@@ -228,13 +228,17 @@ class simple_stochastic_SIR(BaseModel):
         # Needed in order not to generate the same samples in multiprocessing
         np.random.seed()
 
-        # Define the rates of the transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Compute total population
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
 
         T = S + I + R
+
+        # Define the rates of the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
         rates = [beta*np.matmul(Nc,(S*I)/T),
                  gamma*np.ones(S.size)*I]
-        limits = [[S,I],[I,]]
+        limits = [[S,],[I,]]
 
         # Solve for number of transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -245,6 +249,8 @@ class simple_stochastic_SIR(BaseModel):
             draw = poisson.ppf(u, l*rate)
             if len(limits[idx]) > 1:
                 limit = np.minimum(*(limits[idx]))
+            else:
+                limit = limits[idx]
             N.append(np.minimum(draw, limit))
 
         # Update the system
