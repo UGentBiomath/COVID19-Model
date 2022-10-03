@@ -182,7 +182,7 @@ def matmul_q_2D(A,B):
                     out[i, j, q] += A[i, k] * b[k, j]
     return out
 
-
+from scipy.stats import poisson
 class simple_stochastic_SIR(BaseModel):
     """
     A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
@@ -228,45 +228,33 @@ class simple_stochastic_SIR(BaseModel):
         # Define solver parameters
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        l = 1 # length of discrete timestep (by default one day)
-        n = 1 # number of draws to average in one timestep
-        N = S.size
+        leap = 1/12 # Length of leap (days)
 
-        # calculate total population
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Define the rates of the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         T = S + I + R
+        rates = [beta*np.matmul(Nc,(S*I)/T),
+                 gamma*np.ones(S.size)*I]
+        limits = [[S,I],[I,]]
 
-        # Make a dictionary containing the transitions and their propensities
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        # Solve for number of transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        keys = ['StoI','ItoR']
-        probabilities = [1 - np.exp( - l*beta*np.matmul(Nc,I/T) ),
-                        (1 - np.exp(- l * gamma ))*np.ones(N),
-                        ]
-        states = [S,I]
-        propensity={}
-        for i in range(len(keys)):
-            prop=[]
-            for j in range(N):
-                if states[i][j]<=0:
-                    prop.append(0)
-                else:
-                    draw = np.mean(np.random.binomial(states[i][j],probabilities[i][j], size=n))
-                    prop.append(draw)
-            propensity.update({keys[i]: np.asarray(prop)})
+        N=[]
+        for idx,rate in enumerate(rates):
+            u = np.random.rand(*(rate.shape))
+            draw = poisson.ppf(u, leap*rate)
+            if len(limits[idx]) > 1:
+                limit = np.minimum(*(limits[idx]))
+            N.append(np.minimum(draw, limit))
 
-        # calculate the states at timestep k+1
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        S_new  = np.rint(S - propensity['StoI'])
-        I_new =  np.rint(I + propensity['StoI'] - propensity['ItoR'])
-        R_new  =  np.rint(R + propensity['ItoR'])
+        # Update the system
+        # ~~~~~~~~~~~~~~~~~
 
-        # Add protection against states < 0
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        output = (S_new, I_new, R_new)
-        for i in range(len(output)):
-            output[i][output[i]<0] = 0
+        S_new  = S - N[0]
+        I_new =  I + N[0] - N[1]
+        R_new  = R + N[1]
 
         return S_new, I_new, R_new
 
