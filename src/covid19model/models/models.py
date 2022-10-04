@@ -590,6 +590,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         dS = np.zeros(S.shape, np.float64)
         dR = np.zeros(R.shape, np.float64)
 
+        # Round the vaccination data
         N_vacc = np.rint(l*N_vacc)
 
         # 0 --> 1 and  0 --> 2
@@ -649,6 +650,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         S_post_vacc = S + dS
         R_post_vacc = R + dR
 
+
         ################################
         ## calculate total population ##
         ################################
@@ -688,37 +690,51 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
             zeta*R_post_vacc                # 14
         ]
 
+        # The sum of elements limits[0] shall not exceed limits[1]
         limits = [
-            [S_post_vacc,],
-            [E,],
-            [I,],
-            [A,],
-            [I,],
-            [I,],
-            [M_R,],
-            [M_H,],
-            [M_H,],
-            [C,],
-            [C,],
-            [ICU,],
-            [ICU,],
-            [C_icurec,],
-            [R_post_vacc,]
-        ]
-
+            [[0,], S_post_vacc],
+            [[1,],E],
+            [[2,4,5], I],
+            [[3,], A],
+            [[6,], M_R],
+            [[7,8], M_H],
+            [[9,10], C],
+            [[11,12], ICU],
+            [[13,], C_icurec],
+            [[14,], R]
+         ]
 
         # Solve for number of transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        N=[]
+        size = list(S.shape) + [len(rates),]
+        N=np.zeros(size)
         for idx,rate in enumerate(rates):
             u = np.random.rand(*(rate.shape))
-            draw = poisson.ppf(u, l*rate)
-            if len(limits[idx]) > 1:
-               limit = np.minimum(*(limits[idx]))
-            else:
-               limit = limits[idx]
-            N.append(np.minimum(draw, limit))
+            N[:,:,idx] = poisson.ppf(u, l*rate)
+
+        # Correct limit violations
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        for limit in limits:
+            while (limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0).any():
+                # Get number of negative values and their indices
+                negative_n = np.count_nonzero(limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0)
+                negative_indices = np.transpose(np.nonzero(limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0))
+                # Subtract one transitioning from randomly picked rate
+                for i in range(negative_n):
+                    # Check which states are not equal to zero 
+                    options = []
+                    for index in limit[0]:
+                        if N[:,:,index][negative_indices[i][0], negative_indices[i][1]] != 0:
+                            options.append(index)
+                    # Pick a random number of the nonzero states
+                    r = np.random.choice(options)
+                    # Subtract one
+                    N[:,:,r][negative_indices[i][0], negative_indices[i][1]] -= 1    
+
+        # Convert to list for readabilitiy
+        N = [N[:,:,i] for i in range(len(rates))]
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
@@ -742,19 +758,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
 
         Inf_in_new = N[0]/l
         Inf_out_new = (N[3] + N[6] + N[9] + N[13] + N[10] + N[12])/l
-
-        # In these states, coincidentally, -1 individuals might end up
-        S_new = np.where(S_new < 0, 0, S_new)
-        E_new = np.where(E_new < 0, 0, E_new)
-        I_new = np.where(I_new < 0, 0, I_new)
-        A_new = np.where(A_new < 0, 0, A_new)
-        M_R_new = np.where(M_R_new < 0, 0, M_R_new)
-        M_H_new = np.where(M_H_new < 0, 0, M_H_new)
-        C_new = np.where(C_new < 0, 0, C_new)
-        ICU_new = np.where(ICU_new < 0, 0, ICU_new)
-        C_icurec_new = np.where(C_icurec_new < 0, 0, C_icurec_new)
-        R_new = np.where(R_new < 0, 0, R_new)
-        D_new = np.where(D_new < 0, 0, D_new)
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new, Inf_in_new, Inf_out_new)
 
