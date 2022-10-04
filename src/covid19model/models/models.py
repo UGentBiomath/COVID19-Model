@@ -389,6 +389,7 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         e_i = jit_matmul_klm_m(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = jit_matmul_klm_m(e_s,f_VOC)
         e_h = jit_matmul_klm_m(e_h,f_VOC)
+        h_acc = e_h*h
         # Seasonality
         beta *= seasonality
 
@@ -485,8 +486,6 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
 
         # Compute the  rates of change in every population compartment
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        h_acc = e_h*h
 
         dS  = dS - IP*S_post_vacc*e_s
         dE  = IP*S_post_vacc*e_s - E/sigma 
@@ -798,9 +797,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         #################################################
 
         # Hospitalization propensity
-        #y=sum(f_VOC*K_hosp)
-        #x=(y-1)*sum(h)/sum(1-h)
-        #h=h+(1-h)*x
         h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
         h[h > 1] = 1
         # Latent period
@@ -809,6 +805,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
+        h_acc = e_h*h
         # Seasonality
         beta_R *= seasonality
         beta_U *= seasonality
@@ -935,8 +932,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         ############################
         ## Compute system of ODEs ##
         ############################
-
-        h_acc = e_h*h
 
         dS  = dS - dS_inf
         dE  = dS_inf - E/sigma 
