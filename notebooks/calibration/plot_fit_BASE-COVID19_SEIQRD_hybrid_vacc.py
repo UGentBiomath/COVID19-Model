@@ -117,7 +117,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date='2020-03-15')
+warmup =0
 model.parameters['beta'] = samples_dict['beta']
 
 #######################
@@ -133,9 +134,26 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
-df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, l=1/6, processes=int(args.processes))
+#df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
+
+
+fig,ax = plt.subplots(figsize=(12,4))
+ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+for i in range(args.n_samples):
+    ax.plot(simtime, out['H_in'].sum(dim=['Nc', 'doses']).isel(draws=i), alpha = 0.05, color='black')
+ax.grid(False)
+plt.show()
+plt.close()
+
+fig,ax = plt.subplots(figsize=(12,4))
+ax.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_tot'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+for i in range(args.n_samples):
+    ax.plot(simtime, out['H_tot'].sum(dim=['Nc', 'doses']).isel(draws=i), alpha = 0.05, color='black')
+ax.grid(False)
+plt.show()
+plt.close()
 
 ####################################
 ## Compute and visualize the RMSE ##

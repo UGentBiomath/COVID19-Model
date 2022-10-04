@@ -109,7 +109,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
         for data_var in out.keys():
-            initial_states.update({data_var: out.sel(time=start_date)[data_var].values})
+            initial_states.update({data_var: out.sel(time=start_date)[data_var].values})     
 
     ##########################################################################
     ## Vaccination module requires some additional parameters to be defined ##
@@ -144,7 +144,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                'e_h' : efficacy_function.e_h})                      
     
     # Initialize model
-    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    model = models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
