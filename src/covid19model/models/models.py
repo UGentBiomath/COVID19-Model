@@ -960,6 +960,286 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM_R, dM_H, dC, dC_icurec, dICUstar, dR, dD, dM_in, dH_in, dH_out, dH_tot)
 
+class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
+
+    # ...state variables and parameters
+    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C', 'C_icurec','ICU', 'R', 'D', 'M_in', 'H_in','H_out','H_tot']
+    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
+    parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    stratification = ['NIS','Nc','doses']
+
+    @staticmethod
+    def integrate(t, l, S, E, I, A, M_R, M_H, C, C_icurec, ICU, R, D, M_in, H_in, H_out, H_tot, # time + SEIRD classes
+                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc_work, # SEIRD parameters
+                  area, p, # spatially stratified parameters. 
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, # age-stratified parameters
+                  NIS, Nc, doses): # stratified parameters that determine stratification dimensions
+        
+        ###################
+        ## Format inputs ##
+        ###################
+
+        np.random.seed()
+        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
+        f_VOC[1,:][f_VOC[1,:] < 0] = 0
+        # Split derivatives and fraction
+        d_VOC = f_VOC[1,:]
+        f_VOC = f_VOC[0,:]        
+        # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
+        K_inf = np.array( ([1,] + list(K_inf)), np.float64)
+        K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
+
+        #################################################
+        ## Compute variant weighted-average properties ##
+        #################################################
+
+        # Hospitalization propensity
+        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
+        h[h > 1] = 1
+        # Latent period
+        sigma = np.sum(f_VOC*sigma)
+        # Vaccination
+        e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
+        e_s = jit_matmul_klmn_n(e_s,f_VOC)
+        e_h = jit_matmul_klmn_n(e_h,f_VOC)
+        # Seasonality
+        beta_R *= seasonality
+        beta_U *= seasonality
+        beta_M *= seasonality
+
+        ####################################################
+        ## Expand dims on first stratification axis (age) ##
+        ####################################################
+
+        a = np.expand_dims(a, axis=1)
+        h = np.expand_dims(h, axis=1)
+        c = np.expand_dims(c, axis=1)
+        m_C = np.expand_dims(m_C, axis=1)
+        m_ICU = np.expand_dims(m_ICU, axis=1)
+        dc_R = np.expand_dims(dc_R, axis=1)
+        dc_D = np.expand_dims(dc_D, axis=1)
+        dICU_R = np.expand_dims(dICU_R, axis=1)
+        dICU_D = np.expand_dims(dICU_D, axis=1)
+        dICUrec = np.expand_dims(dICUrec, axis=1)
+        h_acc = e_h*h
+
+        ############################################
+        ## Compute the vaccination transitionings ##
+        ############################################
+
+        dS = np.zeros(S.shape, np.float64)
+        dR = np.zeros(R.shape, np.float64)
+
+        # Round the vaccination data
+        N_vacc = l*N_vacc
+
+        # 0 --> 1 and  0 --> 2
+        # ~~~~~~~~~~~~~~~~~~~~
+        # Compute vaccine eligible population
+        VE = S[:,:,0] + R[:,:,0]
+        VE = np.where(VE == 0, 1, VE)
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,0]/VE
+        f_R = R[:,:,0]/VE
+        # Compute transisitoning in zero syringes
+        dS[:,:,0] = - (N_vacc[:,:,0] + N_vacc[:,:,2])*f_S
+        dR[:,:,0] = - (N_vacc[:,:,0]+ N_vacc[:,:,2])*f_R
+        # Compute transitioning in one short circuit
+        dS[:,:,1] =  N_vacc[:,:,0]*f_S # 0 --> 1 dose
+        dR[:,:,1] =  N_vacc[:,:,0]*f_R 
+        # Compute transitioning in two shot circuit
+        dS[:,:,2] =  N_vacc[:,:,2]*f_S # 0 --> 2 doses
+        dR[:,:,2] =  N_vacc[:,:,2]*f_R
+
+        # 1 --> 2 
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,:,1] + R[:,:,1]
+        VE = np.where(VE == 0, 1, VE)
+        # Compute fraction of VE to distribute vaccins
+        f_S = S[:,:,1]/VE
+        f_R = R[:,:,1]/VE
+        # Compute transitioning in one short circuit
+        dS[:,:,1] = dS[:,:,1] - N_vacc[:,:,1]*f_S
+        dR[:,:,1] = dR[:,:,1] - N_vacc[:,:,1]*f_R
+        # Compute transitioning in two shot circuit
+        dS[:,:,2] = dS[:,:,2] + N_vacc[:,:,1]*f_S
+        dR[:,:,2] = dR[:,:,2] + N_vacc[:,:,1]*f_R
+
+
+        # 2 --> B
+        # ~~~~~~~
+
+        # Compute vaccine eligible population
+        VE = S[:,:,2] + R[:,:,2]
+        VE = np.where(VE == 0, 1, VE)
+        # Compute fraction of VE in states S and R
+        f_S = S[:,:,2]/VE
+        f_R = R[:,:,2]/VE
+        # Compute transitioning in fully vaccinated circuit
+        dS[:,:,2] = dS[:,:,2] - N_vacc[:,:,3]*f_S
+        dR[:,:,2] = dR[:,:,2] - N_vacc[:,:,3]*f_R
+        # Compute transitioning in boosted circuit
+        dS[:,:,3] = dS[:,:,3] + N_vacc[:,:,3]*f_S
+        dR[:,:,3] = dR[:,:,3] + N_vacc[:,:,3]*f_R
+
+        # Update the S and R state
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        S_post_vacc = np.rint(S + dS)
+        R_post_vacc = np.rint(R + dR)
+
+        # Make absolutely sure the vaccinations don't let theses state go below zero
+        S_post_vacc = np.where(S_post_vacc < 0, 0, S_post_vacc)
+        R_post_vacc = np.where(R_post_vacc < 0, 0, R_post_vacc)
+
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C + C_icurec + ICU + R_post_vacc, axis=2) # Sum over doses
+
+        ################################
+        ## Compute infection pressure ##
+        ################################
+
+        # For total population and for the relevant compartments I and A
+        G = S.shape[0] # spatial stratification
+        N = S.shape[1] # age stratification
+
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
+        
+        # Expand beta to size G
+        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
+        S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
+        I_work = matmul_q_2D(np.transpose(place_eff), I)
+        A_work = matmul_q_2D(np.transpose(place_eff), A)
+        # The following line of code is the numpy equivalent of the above loop (verified)
+        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
+
+        # Compute infectious work population (11,10)
+        infpop_work = np.sum( (I_work + A_work)/T_work*e_i, axis=2)
+        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
+
+        # Multiply with number of contacts
+        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
+        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
+
+        # Multiply result with beta
+        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+
+        # Compute rates of change
+        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*e_s
+
+        ################################
+        ## Compute the transitionings ##
+        ################################
+
+        # Define the rates of the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        rates = [
+            dS_inf,                         # 0
+            (1/sigma)*E,                    # 1
+            (a/omega)*I,                    # 2
+            (1/da)*A,                       # 3
+            (1-h_acc)*((1-a)/omega)*I,      # 4
+            h_acc*((1-a)/omega)*I,          # 5
+            (1/dm)*M_R,                     # 6
+            (1/dhospital)*c*M_H,            # 7
+            (1/dhospital)*(1-c)*M_H,        # 8
+            (1-m_C)*(1/dc_R)*C,             # 9
+            m_C*(1/dc_D)*C,                 # 10
+            (1-m_ICU)/(dICU_R)*ICU,         # 11
+            m_ICU/(dICU_D)*ICU,             # 12
+            (1/dICUrec)*C_icurec,           # 13
+            zeta*R_post_vacc                # 14
+        ]    
+
+        # Define the system bounds 
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # The sum of elements limits[0] shall not exceed limits[1]
+        limits = [
+            [[0,], S_post_vacc],
+            [[1,], E],
+            [[2,4,5], I],
+            [[3,], A],
+            [[6,], M_R],
+            [[7,8], M_H],
+            [[9,10], C],
+            [[11,12], ICU],
+            [[13,], C_icurec],
+            [[14,], R_post_vacc]
+         ]
+
+        # Solve for number of transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # TODO: Generalize for n dimensions and make into a helper function
+        size = list(S.shape) + [len(rates),]
+        N=np.zeros(size)
+        for idx,rate in enumerate(rates):
+            u = np.random.rand(*(rate.shape))
+            N[:,:,:,idx] = poisson.ppf(u, l*rate)
+
+        # Correct limit violations if any
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # TODO: Generalize for n dimensions and make into a helper function
+        for count,limit in enumerate(limits):
+            while (limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0).any():
+                # Get number of negative values and their indices
+                negative_n = np.count_nonzero(limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0)
+                negative_indices = np.transpose(np.nonzero(limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0))
+                # Subtract one transitioning from randomly picked rate
+                for i in range(negative_n):
+                    # Check which states are not equal to zero 
+                    options = []
+                    for index in limit[0]:
+                        if N[:,:,:,index][negative_indices[i][0], negative_indices[i][1], negative_indices[i][2]] != 0:
+                            options.append(index)
+                    # Pick a random number of the nonzero states
+                    r = np.random.choice(options)
+                    # Subtract one
+                    N[:,:,:,r][negative_indices[i][0], negative_indices[i][1], negative_indices[i][2]] -= 1    
+
+        # Convert back to list for readabilitiy
+        N = [N[:,:,:,i] for i in range(len(rates))]
+
+        # Update the system
+        # ~~~~~~~~~~~~~~~~~
+
+        # Flowchart states
+        S_new = S_post_vacc - N[0] + N[14]
+        E_new = E + N[0] - N[1]
+        I_new = I + N[1] - (N[2] + N[4] + N[5])
+        A_new = A + N[2] - N[3]
+        M_R_new = M_R + N[4] - N[6]
+        M_H_new = M_H + N[5] - (N[7] + N[8])
+        C_new = C + N[7] - N[9] - N[10]
+        ICU_new = ICU + N[8] - N[11] - N[12]
+        C_icurec_new = C_icurec + N[11] - N[13]
+        R_new = R_post_vacc + N[3] + N[6] + N[9] + N[13] - N[14]
+        D_new = D + N[10] + N[12]
+
+        # Derivative states
+        M_in_new = (N[4] + N[5])/l
+        H_in_new = (N[7] + N[8])/l
+        H_out_new = (N[9] + N[10] + N[12] + N[13])/l
+        H_tot_new = H_tot + (H_in_new - H_out_new)*l
+
+        print(t)
+
+        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new)
+
+
 class Economic_Model(BaseModel):
 
     # ...state variables and parameters
