@@ -389,7 +389,6 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         e_i = jit_matmul_klm_m(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = jit_matmul_klm_m(e_s,f_VOC)
         e_h = jit_matmul_klm_m(e_h,f_VOC)
-        h_acc = e_h*h
         # Seasonality
         beta *= seasonality
 
@@ -407,6 +406,7 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         dICU_R = np.expand_dims(dICU_R, axis=1)
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
+        h_acc = e_h*h
 
         ############################################
         ## Compute the vaccination transitionings ##
@@ -565,7 +565,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         e_i = np.matmul(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = np.matmul(e_s,f_VOC)
         e_h = np.matmul(e_h,f_VOC)
-        h_acc = e_h*h
         # Seasonality
         beta *= seasonality
 
@@ -583,6 +582,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         dICU_R = np.expand_dims(dICU_R, axis=1)
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
+        h_acc = e_h*h
 
         ############################################
         ## Compute the vaccination transitionings ##
@@ -805,7 +805,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
-        h_acc = e_h*h
         # Seasonality
         beta_R *= seasonality
         beta_U *= seasonality
@@ -825,6 +824,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         dICU_R = np.expand_dims(dICU_R, axis=1)
         dICU_D = np.expand_dims(dICU_D, axis=1)
         dICUrec = np.expand_dims(dICUrec, axis=1)
+        h_acc = e_h*h
 
         ############################################
         ## Compute the vaccination transitionings ##
