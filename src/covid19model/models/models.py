@@ -974,7 +974,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, # age-stratified parameters
                   NIS, Nc, doses): # stratified parameters that determine stratification dimensions
-        
+
         ###################
         ## Format inputs ##
         ###################
