@@ -999,7 +999,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
-        e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
+        e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_NIS, n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
         # Seasonality
@@ -1234,8 +1234,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         H_in_new = (N[7] + N[8])/l
         H_out_new = (N[9] + N[10] + N[12] + N[13])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
-
-        print(t)
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new)
 
