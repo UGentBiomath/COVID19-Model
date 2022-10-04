@@ -210,7 +210,7 @@ if __name__ == '__main__':
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
     theta = [0.023, 0.0232, 0.0273, 0.375, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
-    theta = [0.023, 0.0232, 0.0273, 0.5, 0.4, 0.72, 0.522, 1.34, 1.45, 0.24]
+    theta = [0.023, 0.0232, 0.0285, 0.6, 0.4, 0.7, 0.522, 1.3, 1.45, 0.24]
 
     ####################################
     ## Local Nelder-mead optimization ##
