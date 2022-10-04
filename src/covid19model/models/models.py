@@ -543,6 +543,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         ## Format inputs ##
         ###################
 
+        np.random.seed()
         # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
         f_VOC[1,:][f_VOC[1,:] < 0] = 0
         # Split derivatives and fraction
@@ -551,7 +552,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
-
+        
         #################################################
         ## Compute variant weighted-average properties ##
         #################################################
@@ -565,6 +566,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         e_i = np.matmul(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
         e_s = np.matmul(e_s,f_VOC)
         e_h = np.matmul(e_h,f_VOC)
+        h_acc = e_h*h
         # Seasonality
         beta *= seasonality
 
@@ -661,9 +663,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         ## Compute the transitionings ##
         ################################
 
-        np.random.seed()
-        h_acc = e_h*h
-
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -690,6 +689,9 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
             zeta*R_post_vacc                # 14
         ]
 
+        # Define the system bounds 
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
+
         # The sum of elements limits[0] shall not exceed limits[1]
         limits = [
             [[0,], S_post_vacc],
@@ -713,8 +715,8 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
             u = np.random.rand(*(rate.shape))
             N[:,:,idx] = poisson.ppf(u, l*rate)
 
-        # Correct limit violations
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
+        # Correct limit violations if any
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         for limit in limits:
             while (limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0).any():
