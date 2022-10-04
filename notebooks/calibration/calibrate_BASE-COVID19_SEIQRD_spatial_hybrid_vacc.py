@@ -137,7 +137,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
+                                                                                    start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
 
 if __name__ == '__main__':
 
@@ -164,7 +165,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 10
     # Define dataset
@@ -191,11 +192,11 @@ if __name__ == '__main__':
     bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,2),(0,2),(0,2))
+    pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality']
+    bounds2=((0,2),(0,2),(0,2),(0,2))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.45),(1.40,2.20))
+    bounds3 = ((1.20, 1.45),(1.45,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
@@ -208,10 +209,9 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.027, 0.027, 0.032, 0.3, 0.6, 0.53, 1.35, 1.60, 0.25]
+    theta = [0.023, 0.0232, 0.0273, 0.375, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
+    theta = [0.023, 0.0232, 0.0273, 0.5, 0.4, 0.72, 0.522, 1.34, 1.45, 0.24]
 
-    theta = [0.023, 0.0232, 0.0273, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
-    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
-        out = model.sim(end_visualization,start_date=start_calibration)
+        out = model.sim(end_visualization,start_date=start_calibration, l=1/2)
         # National fit
         data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
@@ -264,7 +264,7 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration)
+            out = model.sim(end_visualization,start_date=start_calibration, l=1/2)
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
@@ -304,7 +304,7 @@ if __name__ == '__main__':
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.10, 0.10, 0.10]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2=[0.50, 0.50, 0.50]
+    pert2=[0.50, 0.50, 0.50, 0.50]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
@@ -313,10 +313,10 @@ if __name__ == '__main__':
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', \
-                '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', \
+                '$\\Omega_{schools}$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', \
                 '$K_{inf, abc}$', '$K_{inf, delta}$', \
                 '$A$']
-    pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
+    pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_schools', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Set up the sampler backend if needed
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'l': 1/2}}, backend, identifier, processes, agg=agg)
 
     #####################
     ## Process results ##
