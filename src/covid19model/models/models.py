@@ -732,13 +732,13 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
                     r = np.random.choice(options)
                     # Subtract one
                     N[:,:,r][negative_indices[i][0], negative_indices[i][1]] -= 1    
-
-        # Convert to list for readabilitiy
+        # Convert back to list for readabilitiy
         N = [N[:,:,i] for i in range(len(rates))]
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 
+        # Flowchart states
         S_new = S_post_vacc - N[0] + N[14]
         E_new = E + N[0] - N[1]
         I_new = I + N[1] - (N[2] + N[4] + N[5])
@@ -751,11 +751,11 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         R_new = R_post_vacc + N[3] + N[6] + N[9] + N[13] - N[14]
         D_new = D + N[10] + N[12]
 
+        # Derivative states
         M_in_new = (N[4] + N[5])/l
         H_in_new = (N[7] + N[8])/l
         H_out_new = (N[9] + N[10] + N[12] + N[13])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
-
         Inf_in_new = N[0]/l
         Inf_out_new = (N[3] + N[6] + N[9] + N[13] + N[10] + N[12])/l
 
