@@ -11,7 +11,7 @@ import xarray as xr
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -144,7 +144,10 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                'e_h' : efficacy_function.e_h})                      
     
     # Initialize model
-    model = models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    if stochastic == True:
+        model = models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    else:
+        model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 

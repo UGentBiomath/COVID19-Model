@@ -247,6 +247,7 @@ class simple_stochastic_SIR(BaseModel):
         for idx,rate in enumerate(rates):
             u = np.random.rand(*(rate.shape))
             draw = poisson.ppf(u, l*rate)
+            # Apply limits to prevent negative states
             if len(limits[idx]) > 1:
                 limit = np.minimum(*(limits[idx]))
             else:
