@@ -562,9 +562,9 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
-        e_i = np.matmul(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
-        e_s = np.matmul(e_s,f_VOC)
-        e_h = np.matmul(e_h,f_VOC)
+        e_i = jit_matmul_klm_m(e_i,f_VOC) # Reduces from (n_age, n_doses, n_VOCS) --> (n_age, n_doses)
+        e_s = jit_matmul_klm_m(e_s,f_VOC)
+        e_h = jit_matmul_klm_m(e_h,f_VOC)
         # Seasonality
         beta *= seasonality
 
@@ -668,7 +668,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Compute infection pressure (IP) of all variants
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        IP = np.expand_dims( np.sum( np.outer(beta*s*np.matmul(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
 
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -677,33 +677,19 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         D = S.shape[1]
 
         states=[S_post_vacc, E, I, A, M_R, M_H, C, ICU, C_icurec, R_post_vacc]
+        size_dummy=np.ones((N,D),np.float64)
         rates=[
             [IP*e_s,], # S
-            [np.ones([N,D])*1/sigma,], # E
-            [np.ones([N,D])*(a/omega), np.ones([N,D])*((1-h_acc)*((1-a)/omega)), np.ones([N,D])*(h_acc*((1-a)/omega))], # I
-            [np.ones([N,D])*(1/da)], # A
-            [np.ones([N,D])*(1/dm)], # M_R
-            [np.ones([N,D])*((1/dhospital)*c), np.ones([N,D])*((1/dhospital)*(1-c))], # M_H
-            [np.ones([N,D])*((1-m_C)*(1/dc_R)), np.ones([N,D])*(m_C*(1/dc_D))], # C
-            [np.ones([N,D])*((1-m_ICU)/(dICU_R)), np.ones([N,D])*(m_ICU/(dICU_D))], # ICU
-            [np.ones([N,D])*(1/dICUrec),], # C_icurec
-            [np.ones([N,D])*zeta,] # R
+            [1/sigma,], # E
+            [a/omega, (1-h_acc)*((1-a)/omega), h_acc*((1-a)/omega)], # I
+            [1/da], # A
+            [1/dm], # M_R
+            [(1/dhospital)*c, (1/dhospital)*(1-c)], # M_H
+            [(1-m_C)/dc_R, m_C/dc_D], # C
+            [(1-m_ICU)/dICU_R, m_ICU/dICU_D], # ICU
+            [1/dICUrec,], # C_icurec
+            [zeta,] # R
         ]
-        
-
-        T=[]
-        for i, rate in enumerate(rates):
-            trans_vals=np.zeros([N,D])
-            for n in range(N):
-                for d in range(D):
-                    # Construct vector of probabilities
-                    p=np.zeros(len(rate))
-                    for k in range(len(rate)):
-                       p[k] = 1 - np.exp(-l*rate[k][n,d])
-                    p = np.append(np.array(p), 1-sum(p))
-                    # Draw from multinomial distribution and omit the chance of not transitioning
-                    trans_vals[n,d] = np.random.multinomial(states[i][n,d], p)[:-1]
-            T.append(trans_vals)
 
         # 0: S --> E
         # 1: E --> I
@@ -721,6 +707,22 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # 13: C_icurec --> R
         # 14: R --> S
 
+        T=[]
+        for i, rate in enumerate(rates):
+            trans_vals=np.zeros((N,D,len(rate)),np.float64)
+            for n in range(N):
+                for d in range(D):
+                    # Construct vector of probabilities
+                    p=np.zeros(len(rate),np.float64)
+                    for k in range(len(rate)):
+                        r = size_dummy*rate[k]
+                        p[k] = 1 - np.exp(-l*r[n,d])
+                    p = np.append(p, 1-np.sum(p))
+                    # Draw from multinomial distribution and omit the chance of not transitioning
+                    trans_vals[n,d,:] = np.random.multinomial(int(states[i][n,d]), p)[:-1]
+            # Assign result to correct transitioning
+            for k in range(len(rate)):
+                T.append(trans_vals[:,:,k])
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
@@ -728,23 +730,23 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Flowchart states
         S_new = S_post_vacc - T[0] + T[14]
         E_new = E + T[0] - T[1]
-        I_new = I + T[1] - (N[2] + N[3] + N[4])
-        A_new = A + N[2] - N[5]
-        M_R_new = M_R + N[3] - N[6]
-        M_H_new = M_H + N[4] - (N[7] + N[8])
-        C_new = C + N[7] - N[9] - N[10]
-        ICU_new = ICU + N[8] - N[11] - N[12]
-        C_icurec_new = C_icurec + N[11] - N[13]
-        R_new = R_post_vacc + N[5] + N[6] + N[9] + N[13] - N[14]
-        D_new = D + N[10] + N[12]
+        I_new = I + T[1] - (T[2] + T[3] + T[4])
+        A_new = A + T[2] - T[5]
+        M_R_new = M_R + T[3] - T[6]
+        M_H_new = M_H + T[4] - (T[7] + T[8])
+        C_new = C + T[7] - (T[9] + T[10])
+        ICU_new = ICU + T[8] - (T[11] + T[12])
+        C_icurec_new = C_icurec + T[11] - T[13]
+        R_new = R_post_vacc + T[5] + T[6] + T[9] + T[13] - T[14]
+        D_new = D + T[10] + T[12]
 
         # Derivative states
-        M_in_new = (N[3] + N[4])/l
-        H_in_new = (N[7] + N[8])/l
-        H_out_new = (N[9] + N[10] + N[12] + N[13])/l
+        M_in_new = (T[3] + T[4])/l
+        H_in_new = (T[7] + T[8])/l
+        H_out_new = (T[9] + T[10] + T[12] + T[13])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
-        Inf_in_new = N[0]/l
-        Inf_out_new = (N[5] + N[6] + N[9] + N[13] + N[10] + N[12])/l
+        Inf_in_new = T[0]/l
+        Inf_out_new = (T[5] + T[6] + T[9] + T[13] + T[10] + T[12])/l
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new, Inf_in_new, Inf_out_new)
 
