@@ -516,6 +516,26 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
         return (dS, dE, dI, dA, dM_R, dM_H, dC, dC_icurec, dICUstar, dR, dD, dM_in, dH_in, dH_out, dH_tot, dInf_in, dInf_out)
 
 
+@jit(nopython=True)
+def compute_transitionings_national_jit(N, D, l, state, rate):
+    T =[]
+    size_dummy=np.ones((N,D),np.float64)
+    trans_vals=np.zeros((N,D,len(rate)),np.float64)
+    for n in range(N):
+        for d in range(D):
+            # Construct vector of probabilities
+            p=np.zeros(len(rate),np.float64)
+            for k in range(len(rate)):
+                r = size_dummy*rate[k]
+                p[k] = 1 - np.exp(-l*r[n,d])
+            p = np.append(p, 1-np.sum(p))
+            # Draw from multinomial distribution and omit the chance of not transitioning
+            trans_vals[n,d,:] = np.random.multinomial(int(state[n,d]), p)[:-1]
+    # Assign result to correct transitioning
+    for k in range(len(rate)):
+        T.append(trans_vals[:,:,k])
+    return T
+
 class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
     """
     The docstring will go here
@@ -677,7 +697,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         D = S.shape[1]
 
         states=[S_post_vacc, E, I, A, M_R, M_H, C, ICU, C_icurec, R_post_vacc]
-        size_dummy=np.ones((N,D),np.float64)
         rates=[
             [IP*e_s,], # S
             [1/sigma,], # E
@@ -707,22 +726,28 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # 13: C_icurec --> R
         # 14: R --> S
 
+        
         T=[]
         for i, rate in enumerate(rates):
-            trans_vals=np.zeros((N,D,len(rate)),np.float64)
-            for n in range(N):
-                for d in range(D):
-                    # Construct vector of probabilities
-                    p=np.zeros(len(rate),np.float64)
-                    for k in range(len(rate)):
-                        r = size_dummy*rate[k]
-                        p[k] = 1 - np.exp(-l*r[n,d])
-                    p = np.append(p, 1-np.sum(p))
-                    # Draw from multinomial distribution and omit the chance of not transitioning
-                    trans_vals[n,d,:] = np.random.multinomial(int(states[i][n,d]), p)[:-1]
-            # Assign result to correct transitioning
-            for k in range(len(rate)):
-                T.append(trans_vals[:,:,k])
+            state = states[i]
+            T.extend(compute_transitionings_national_jit(N, D, l, state, rate))
+
+        # T=[]
+        # for i, rate in enumerate(rates):
+        #     trans_vals=np.zeros((N,D,len(rate)),np.float64)
+        #     for n in range(N):
+        #         for d in range(D):
+        #             # Construct vector of probabilities
+        #             p=np.zeros(len(rate),np.float64)
+        #             for k in range(len(rate)):
+        #                 r = size_dummy*rate[k]
+        #                 p[k] = 1 - np.exp(-l*r[n,d])
+        #             p = np.append(p, 1-np.sum(p))
+        #             # Draw from multinomial distribution and omit the chance of not transitioning
+        #             trans_vals[n,d,:] = np.random.multinomial(int(states[i][n,d]), p)[:-1]
+        #     # Assign result to correct transitioning
+        #     for k in range(len(rate)):
+        #         T.append(trans_vals[:,:,k])
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
@@ -948,6 +973,31 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
 
         return (dS, dE, dI, dA, dM_R, dM_H, dC, dC_icurec, dICUstar, dR, dD, dM_in, dH_in, dH_out, dH_tot)
 
+@jit(nopython=True)
+def compute_transitionings_spatial_jit(t,G, N, D, l, state, rate):
+    T =[]
+    trans_vals=np.zeros((G,N,D,len(rate)),np.float64)
+    for g in range(G):
+        for n in range(N):
+            for d in range(D):
+                # Construct vector of probabilities
+                p=np.zeros(len(rate),np.float64)
+                for k in range(len(rate)):
+                    p_tmp = 1 - np.exp(-l*rate[k][g,n,d])
+                    # Sometimes these rates become smaller than zero
+                    # This likely has to do with a glitch in the mobility matrix
+                    if p_tmp < 0:
+                        p[k]=0
+                    else:
+                        p[k]=p_tmp
+                p = np.append(p, 1-np.sum(p))
+                # Draw from multinomial distribution and omit the chance of not transitioning
+                trans_vals[g,n,d,:] = np.random.multinomial(int(state[g,n,d]), p)[:-1]
+    # Assign result to correct transitioning
+    for k in range(len(rate)):
+        T.append(trans_vals[:,:,:,k])
+    return T
+
 class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
 
     # ...state variables and parameters
@@ -1132,95 +1182,59 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        rates = [
-            dS_inf,                         # 0
-            (1/sigma)*E,                    # 1
-            (a/omega)*I,                    # 2
-            (1/da)*A,                       # 3
-            (1-h_acc)*((1-a)/omega)*I,      # 4
-            h_acc*((1-a)/omega)*I,          # 5
-            (1/dm)*M_R,                     # 6
-            (1/dhospital)*c*M_H,            # 7
-            (1/dhospital)*(1-c)*M_H,        # 8
-            (1-m_C)*(1/dc_R)*C,             # 9
-            m_C*(1/dc_D)*C,                 # 10
-            (1-m_ICU)/(dICU_R)*ICU,         # 11
-            m_ICU/(dICU_D)*ICU,             # 12
-            (1/dICUrec)*C_icurec,           # 13
-            zeta*R_post_vacc                # 14
-        ]    
+        G = S.shape[0]
+        N = S.shape[1]
+        D = S.shape[2]
+        
+        states=[S_post_vacc, E, I, A, M_R, M_H, C, ICU, C_icurec, R_post_vacc, S_work]
+        # Convert all rate sizes to size (11,10,4) for numba
+        # --> TO DO: prettify this
+        size_dummy = np.ones([G,N,D], np.float64)
+        rates=[
+            [multip_rest*e_s,], # S_post_vacc
+            [size_dummy*(1/sigma),], # E
+            [np.squeeze(a/omega)[np.newaxis, :, np.newaxis]*size_dummy, (1-h_acc)*((1-a)/omega), h_acc*((1-a)/omega)], # I
+            [size_dummy*(1/da)], # A
+            [size_dummy*(1/dm)], # M_R
+            [np.squeeze((1/dhospital)*c)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze((1/dhospital)*(1-c))[np.newaxis, :, np.newaxis]*size_dummy], # M_H
+            [np.squeeze((1-m_C)/dc_R)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze(m_C/dc_D)[np.newaxis, :, np.newaxis]*size_dummy], # C
+            [np.squeeze((1-m_ICU)/dICU_R)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze(m_ICU/dICU_D)[np.newaxis, :, np.newaxis]*size_dummy], # ICU
+            [np.squeeze(1/dICUrec)[np.newaxis, :, np.newaxis]*size_dummy,], # C_icurec
+            [size_dummy*zeta,], # R
+            [multip_work*e_s,] # S_work
+        ]
 
-        # Define the system bounds 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
+        print(t)
 
-        # The sum of elements limits[0] shall not exceed limits[1]
-        limits = [
-            [[0,], S_post_vacc],
-            [[1,], E],
-            [[2,4,5], I],
-            [[3,], A],
-            [[6,], M_R],
-            [[7,8], M_H],
-            [[9,10], C],
-            [[11,12], ICU],
-            [[13,], C_icurec],
-            [[14,], R_post_vacc]
-         ]
+        
+        # Compute the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        # Solve for number of transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # TODO: Generalize for n dimensions and make into a helper function
-        size = list(S.shape) + [len(rates),]
-        N=np.zeros(size)
-        for idx,rate in enumerate(rates):
-            u = np.random.rand(*(rate.shape))
-            N[:,:,:,idx] = poisson.ppf(u, l*rate)
-
-        # Correct limit violations if any
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # TODO: Generalize for n dimensions and make into a helper function
-        for count,limit in enumerate(limits):
-            while (limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0).any():
-                # Get number of negative values and their indices
-                negative_n = np.count_nonzero(limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0)
-                negative_indices = np.transpose(np.nonzero(limit[1] - np.sum(N[:,:,:,limit[0]], axis=3) < 0))
-                # Subtract one transitioning from randomly picked rate
-                for i in range(negative_n):
-                    # Check which states are not equal to zero 
-                    options = []
-                    for index in limit[0]:
-                        if N[:,:,:,index][negative_indices[i][0], negative_indices[i][1], negative_indices[i][2]] != 0:
-                            options.append(index)
-                    # Pick a random number of the nonzero states
-                    r = np.random.choice(options)
-                    # Subtract one
-                    N[:,:,:,r][negative_indices[i][0], negative_indices[i][1], negative_indices[i][2]] -= 1    
-
-        # Convert back to list for readabilitiy
-        N = [N[:,:,:,i] for i in range(len(rates))]
+        T=[]
+        for i, rate in enumerate(rates):
+            state = states[i]
+            T.extend(compute_transitionings_spatial_jit(t, G, N, D, l, state, nb.typed.List(rate)))
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S_post_vacc - N[0] + N[14]
-        E_new = E + N[0] - N[1]
-        I_new = I + N[1] - (N[2] + N[4] + N[5])
-        A_new = A + N[2] - N[3]
-        M_R_new = M_R + N[4] - N[6]
-        M_H_new = M_H + N[5] - (N[7] + N[8])
-        C_new = C + N[7] - N[9] - N[10]
-        ICU_new = ICU + N[8] - N[11] - N[12]
-        C_icurec_new = C_icurec + N[11] - N[13]
-        R_new = R_post_vacc + N[3] + N[6] + N[9] + N[13] - N[14]
-        D_new = D + N[10] + N[12]
+        S_new = S_post_vacc - T[0] - T[15] + T[14]
+        E_new = E + T[0] + T[15] - T[1]
+        I_new = I + T[1] - (T[2] + T[3] + T[4])
+        A_new = A + T[2] - T[5]
+        M_R_new = M_R + T[3] - T[6]
+        M_H_new = M_H + T[4] - (T[7] + T[8])
+        C_new = C + T[7] - (T[9] + T[10])
+        ICU_new = ICU + T[8] - (T[11] + T[12])
+        C_icurec_new = C_icurec + T[11] - T[13]
+        R_new = R_post_vacc + T[5] + T[6] + T[9] + T[13] - T[14]
+        D_new = D + T[10] + T[12]
 
         # Derivative states
-        M_in_new = (N[4] + N[5])/l
-        H_in_new = (N[7] + N[8])/l
-        H_out_new = (N[9] + N[10] + N[12] + N[13])/l
+        M_in_new = (T[3] + T[4])/l
+        H_in_new = (T[7] + T[8])/l
+        H_out_new = (T[9] + T[10] + T[12] + T[13])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new)
