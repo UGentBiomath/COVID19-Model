@@ -210,7 +210,8 @@ if __name__ == '__main__':
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
     theta = [0.023, 0.0232, 0.0273, 0.375, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
-    theta =  [0.023, 0.0232, 0.026, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> mentality: option 2, eff_schools and eff_work together
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> mentality: option 2, eff_schools and eff_work together
+    l=1/2
 
     ####################################
     ## Local Nelder-mead optimization ##
@@ -233,7 +234,7 @@ if __name__ == '__main__':
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
-        out = model.sim(end_visualization,start_date=start_calibration, l=1/2)
+        out = model.sim(end_visualization,start_date=start_calibration, l=l)
         # National fit
         data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
@@ -264,7 +265,7 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration, l=1/2)
+            out = model.sim(end_visualization,start_date=start_calibration, l=l)
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
@@ -334,14 +335,14 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
+    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta, 'l': l}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'l': 1/2}}, backend, identifier, processes, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'l': l}}, backend, identifier, processes, agg=agg)
 
     #####################
     ## Process results ##
