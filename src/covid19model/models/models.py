@@ -673,95 +673,78 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        rates = [
-            IP*S_post_vacc*e_s,             # 0
-            (1/sigma)*E,                    # 1
-            (a/omega)*I,                    # 2
-            (1/da)*A,                       # 3
-            (1-h_acc)*((1-a)/omega)*I,      # 4
-            h_acc*((1-a)/omega)*I,          # 5
-            (1/dm)*M_R,                     # 6
-            (1/dhospital)*c*M_H,            # 7
-            (1/dhospital)*(1-c)*M_H,        # 8
-            (1-m_C)*(1/dc_R)*C,             # 9
-            m_C*(1/dc_D)*C,                 # 10
-            (1-m_ICU)/(dICU_R)*ICU,         # 11
-            m_ICU/(dICU_D)*ICU,             # 12
-            (1/dICUrec)*C_icurec,           # 13
-            zeta*R_post_vacc                # 14
+        N = S.shape[0]
+        D = S.shape[1]
+
+        states=[S_post_vacc, E, I, A, M_R, M_H, C, ICU, C_icurec, R_post_vacc]
+        rates=[
+            [IP*e_s,], # S
+            [np.ones([N,D])*1/sigma,], # E
+            [np.ones([N,D])*(a/omega), np.ones([N,D])*((1-h_acc)*((1-a)/omega)), np.ones([N,D])*(h_acc*((1-a)/omega))], # I
+            [np.ones([N,D])*(1/da)], # A
+            [np.ones([N,D])*(1/dm)], # M_R
+            [np.ones([N,D])*((1/dhospital)*c), np.ones([N,D])*((1/dhospital)*(1-c))], # M_H
+            [np.ones([N,D])*((1-m_C)*(1/dc_R)), np.ones([N,D])*(m_C*(1/dc_D))], # C
+            [np.ones([N,D])*((1-m_ICU)/(dICU_R)), np.ones([N,D])*(m_ICU/(dICU_D))], # ICU
+            [np.ones([N,D])*(1/dICUrec),], # C_icurec
+            [np.ones([N,D])*zeta,] # R
         ]
+        
 
-        # Define the system bounds 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
+        T=[]
+        for i, rate in enumerate(rates):
+            trans_vals=np.zeros([N,D])
+            for n in range(N):
+                for d in range(D):
+                    # Construct vector of probabilities
+                    p=np.zeros(len(rate))
+                    for k in range(len(rate)):
+                       p[k] = 1 - np.exp(-l*rate[k][n,d])
+                    p = np.append(np.array(p), 1-sum(p))
+                    # Draw from multinomial distribution and omit the chance of not transitioning
+                    trans_vals[n,d] = np.random.multinomial(states[i][n,d], p)[:-1]
+            T.append(trans_vals)
 
-        # The sum of elements limits[0] shall not exceed limits[1]
-        limits = [
-            [[0,], S_post_vacc],
-            [[1,],E],
-            [[2,4,5], I],
-            [[3,], A],
-            [[6,], M_R],
-            [[7,8], M_H],
-            [[9,10], C],
-            [[11,12], ICU],
-            [[13,], C_icurec],
-            [[14,], R]
-         ]
+        # 0: S --> E
+        # 1: E --> I
+        # 2: I --> A
+        # 3: I --> M_R
+        # 4: I --> M_H
+        # 5: A --> R
+        # 6: M_R --> R
+        # 7: M_H --> C
+        # 8: M_H --> ICU
+        # 9: C --> R
+        # 10: C --> D
+        # 11: ICU --> C_icurec
+        # 12: ICU --> D
+        # 13: C_icurec --> R
+        # 14: R --> S
 
-        # Solve for number of transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        size = list(S.shape) + [len(rates),]
-        N=np.zeros(size)
-        for idx,rate in enumerate(rates):
-            u = np.random.rand(*(rate.shape))
-            N[:,:,idx] = poisson.ppf(u, l*rate)
-
-        # Correct limit violations if any
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        for limit in limits:
-            while (limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0).any():
-                # Get number of negative values and their indices
-                negative_n = np.count_nonzero(limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0)
-                negative_indices = np.transpose(np.nonzero(limit[1] - np.sum(N[:,:,limit[0]], axis=2) < 0))
-                # Subtract one transitioning from randomly picked rate
-                for i in range(negative_n):
-                    # Check which states are not equal to zero 
-                    options = []
-                    for index in limit[0]:
-                        if N[:,:,index][negative_indices[i][0], negative_indices[i][1]] != 0:
-                            options.append(index)
-                    # Pick a random number of the nonzero states
-                    r = np.random.choice(options)
-                    # Subtract one
-                    N[:,:,r][negative_indices[i][0], negative_indices[i][1]] -= 1    
-        # Convert back to list for readabilitiy
-        N = [N[:,:,i] for i in range(len(rates))]
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S_post_vacc - N[0] + N[14]
-        E_new = E + N[0] - N[1]
-        I_new = I + N[1] - (N[2] + N[4] + N[5])
-        A_new = A + N[2] - N[3]
-        M_R_new = M_R + N[4] - N[6]
-        M_H_new = M_H + N[5] - (N[7] + N[8])
+        S_new = S_post_vacc - T[0] + T[14]
+        E_new = E + T[0] - T[1]
+        I_new = I + T[1] - (N[2] + N[3] + N[4])
+        A_new = A + N[2] - N[5]
+        M_R_new = M_R + N[3] - N[6]
+        M_H_new = M_H + N[4] - (N[7] + N[8])
         C_new = C + N[7] - N[9] - N[10]
         ICU_new = ICU + N[8] - N[11] - N[12]
         C_icurec_new = C_icurec + N[11] - N[13]
-        R_new = R_post_vacc + N[3] + N[6] + N[9] + N[13] - N[14]
+        R_new = R_post_vacc + N[5] + N[6] + N[9] + N[13] - N[14]
         D_new = D + N[10] + N[12]
 
         # Derivative states
-        M_in_new = (N[4] + N[5])/l
+        M_in_new = (N[3] + N[4])/l
         H_in_new = (N[7] + N[8])/l
         H_out_new = (N[9] + N[10] + N[12] + N[13])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
         Inf_in_new = N[0]/l
-        Inf_out_new = (N[3] + N[6] + N[9] + N[13] + N[10] + N[12])/l
+        Inf_out_new = (N[5] + N[6] + N[9] + N[13] + N[10] + N[12])/l
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new, Inf_in_new, Inf_out_new)
 
