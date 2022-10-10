@@ -592,7 +592,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         dR = np.zeros(R.shape, np.float64)
 
         # Round the vaccination data
-        N_vacc = np.rint(l*N_vacc)
+        N_vacc = l*N_vacc
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~
@@ -648,9 +648,12 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         # Update the S and R state
         # ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        S_post_vacc = S + dS
-        R_post_vacc = R + dR
+        S_post_vacc = np.rint(S + dS)
+        R_post_vacc = np.rint(R + dR)
 
+        # Make absolutely sure the vaccinations don't let theses state go below zero
+        S_post_vacc = np.where(S_post_vacc < 0, 0, S_post_vacc)
+        R_post_vacc = np.where(R_post_vacc < 0, 0, R_post_vacc)
 
         ################################
         ## calculate total population ##
