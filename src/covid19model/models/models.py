@@ -17,6 +17,12 @@ from ..data.economic_parameters import read_economic_labels
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
+# Ignore numba warnings
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
+
 ###############
 ## jit utils ##
 ###############
@@ -974,28 +980,32 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         return (dS, dE, dI, dA, dM_R, dM_H, dC, dC_icurec, dICUstar, dR, dD, dM_in, dH_in, dH_out, dH_tot)
 
 @jit(nopython=True)
-def compute_transitionings_spatial_jit(t,G, N, D, l, state, rate):
-    T =[]
-    trans_vals=np.zeros((G,N,D,len(rate)),np.float64)
-    for g in range(G):
-        for n in range(N):
-            for d in range(D):
-                # Construct vector of probabilities
-                p=np.zeros(len(rate),np.float64)
-                for k in range(len(rate)):
-                    p_tmp = 1 - np.exp(-l*rate[k][g,n,d])
-                    # Sometimes these rates become smaller than zero
-                    # This likely has to do with a glitch in the mobility matrix
-                    if p_tmp < 0:
-                        p[k]=0
-                    else:
-                        p[k]=p_tmp
-                p = np.append(p, 1-np.sum(p))
-                # Draw from multinomial distribution and omit the chance of not transitioning
-                trans_vals[g,n,d,:] = np.random.multinomial(int(state[g,n,d]), p)[:-1]
-    # Assign result to correct transitioning
-    for k in range(len(rate)):
-        T.append(trans_vals[:,:,:,k])
+def compute_transitionings_spatial_jit(G, N, D, l, states, rates):
+
+    T=np.zeros((G,N,D,1), np.float64)
+    for i in range(len(rates)):
+        rate = rates[i]
+        state = states[i]
+        trans_vals=np.zeros((G,N,D,len(rate)),np.float64)
+        for g in range(G):
+            for n in range(N):
+                for d in range(D):
+                    # Construct vector of probabilities
+                    p=np.zeros(len(rate),np.float64)
+                    for k in range(len(rate)):
+                        p_tmp = 1 - np.exp(-l*rate[k][g,n,d])
+                        # Sometimes these rates become smaller than zero
+                        # This likely has to do with Nc-Nc_work becoming negative
+                        if p_tmp < 0:
+                            p[k]=0
+                        else:
+                            p[k]=p_tmp
+                    p = np.append(p, 1-np.sum(p))
+                    # Draw from multinomial distribution and omit the chance of not transitioning
+                    trans_vals[g,n,d,:] = np.random.multinomial(int(state[g,n,d]), p)[:-1]
+        # Assign result to correct transitioning
+        T = np.append(T, trans_vals, axis=3)
+    T = T[:,:,:,1:]
     return T
 
 class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
@@ -1204,16 +1214,18 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
             [multip_work*e_s,] # S_work
         ]
 
-        print(t)
-
-        
         # Compute the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        T=[]
-        for i, rate in enumerate(rates):
-            state = states[i]
-            T.extend(compute_transitionings_spatial_jit(t, G, N, D, l, state, nb.typed.List(rate)))
+        # Convert states and rates to typed lists
+        typed_states = nb.typed.List()
+        [typed_states.append(state) for state in states]
+        # Convert states and rates to typed lists
+        typed_rates = nb.typed.List()
+        [typed_rates.append(rate) for rate in rates]
+        T = compute_transitionings_spatial_jit(G, N, D, l, typed_states, typed_rates)
+        # Convert T back to list
+        T = [T[:,:,:,i] for i in range(T.shape[-1])]
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
