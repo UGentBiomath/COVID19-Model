@@ -1481,17 +1481,10 @@ class make_contact_matrix_function():
         idx_F = [0, 1, 4, 5, 8]
         idx_Bxl = [3,]
         idx_W = [2, 6, 7, 9, 10]
-        # Option 1: all relative to mentality
-        mentality_summer_2020_lockdown = mentality*np.array([1.50, 0.75, # F
-                                                            1, # W
-                                                            1.25, # Bxl
-                                                            0.6, 1.25, # F
-                                                            2, 2, # W
-                                                            1, # F
-                                                            0.6, 0.75]) # W
+        
         # Option 2: either mentality or one
         mentality_summer_2020_lockdown = np.array([1*mentality, 1*mentality, # F
-                                                    1, # W
+                                                   1, # W
                                                     1, # Bxl
                                                     0.75*mentality, 1*mentality, # F
                                                     1, 1, # W
@@ -1681,6 +1674,14 @@ class make_contact_matrix_function():
             l1_days = pd.Timedelta(l1, unit='D')
             l2_days = pd.Timedelta(l2, unit='D')
 
+            mentality_summer_2020_lockdown = np.array([1*mentality, 1*mentality, # F
+                                                    1, # W
+                                                    1, # Bxl
+                                                    0.75*mentality, 1*mentality, # F
+                                                    1, 1, # W
+                                                    1*mentality, # F
+                                                    1*mentality, 1*mentality]) # W
+
             ################
             ## First wave ##
             ################
@@ -1688,13 +1689,16 @@ class make_contact_matrix_function():
             # Define key dates 
             t1 = pd.Timestamp('2020-03-16') # start of lockdown
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
-            t3 = pd.Timestamp('2020-08-10') # end of mentality easing
-            t4 = pd.Timestamp('2020-10-19') # start of lockdown
-            t5 = pd.Timestamp('2021-06-01') # start of relaxations
-            t6 = pd.Timestamp('2021-08-01') # end of easing on mentality
-            t7 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-            t8 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-            t9 = pd.Timestamp('2022-02-01') # start easing on mentality
+            t3 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+            t4 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+            t5 = pd.Timestamp('2020-10-19') # start of lockdown
+            t6 = pd.Timestamp('2020-11-16') # schools re-open
+
+            t7 = pd.Timestamp('2021-05-15') # start of relaxations
+            t8 = pd.Timestamp('2021-08-01') # end of easing on mentality
+            t9 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+            t10 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+            t11 = pd.Timestamp('2022-02-01') # start easing on mentality
 
             # Define number of contacts
             if t <= t1:
@@ -1711,36 +1715,40 @@ class make_contact_matrix_function():
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t2, l)
             elif t3 < t <= t4:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=tuple(mentality_summer_2020_lockdown), school=0)
+            elif t4 < t <= t5:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
 
             ######################
             ## Winter 2020-2021 ##
             ######################
 
-            elif t4  < t <= t4 + l2_days:
+            elif t5  < t <= t5 + l2_days:
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
-                return self.ramp_fun(policy_old, policy_new, t, t4, l2)
-            elif t4 + l2_days < t <= t5:
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t5, l2)
+            elif t5 + l2_days < t <= t6:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0) 
+            elif t6 < t <= t7:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-            elif t5 < t <= t6:
-                l = (t6 - t5)/pd.Timedelta(days=1)
+            elif t7 < t <= t8:
+                l = (t8 - t7)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t5, l)
-            elif t6 < t <= t7:
+                return self.ramp_fun(policy_old, policy_new, t, t7, l)
+            elif t8 < t <= t9:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
 
             ######################      
             ## Winter 2021-2022 ##
             ######################      
 
-            elif t7 < t <= t8:
+            elif t9 < t <= t10:
                 l = (t8 - t7)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t7, l)
-            elif t8 < t <= t9:
+            elif t10 < t <= t11:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
             else:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
