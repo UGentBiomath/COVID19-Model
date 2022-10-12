@@ -454,7 +454,7 @@ class BaseModel:
 
             return func
 
-    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3, l=1/12):
+    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3, l=1/2):
         """"""
         fun = self._create_fun(actual_start_date)
 
@@ -518,7 +518,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, l=1/12, processes=None):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, l=1/2, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
