@@ -738,23 +738,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
             state = states[i]
             T.extend(compute_transitionings_national_jit(N, D, l, state, rate))
 
-        # T=[]
-        # for i, rate in enumerate(rates):
-        #     trans_vals=np.zeros((N,D,len(rate)),np.float64)
-        #     for n in range(N):
-        #         for d in range(D):
-        #             # Construct vector of probabilities
-        #             p=np.zeros(len(rate),np.float64)
-        #             for k in range(len(rate)):
-        #                 r = size_dummy*rate[k]
-        #                 p[k] = 1 - np.exp(-l*r[n,d])
-        #             p = np.append(p, 1-np.sum(p))
-        #             # Draw from multinomial distribution and omit the chance of not transitioning
-        #             trans_vals[n,d,:] = np.random.multinomial(int(states[i][n,d]), p)[:-1]
-        #     # Assign result to correct transitioning
-        #     for k in range(len(rate)):
-        #         T.append(trans_vals[:,:,k])
-
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 

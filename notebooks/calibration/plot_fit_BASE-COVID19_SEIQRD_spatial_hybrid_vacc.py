@@ -113,7 +113,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False, start_date=start_calibration, stochastic=True)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False,
+                                                                                start_date=start_calibration, stochastic=False)
 
 #######################
 ## Sampling function ##
@@ -127,7 +128,7 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vac
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim, warmup=warmup, N=args.n_samples, draw_fcn=draw_fnc, samples=samples_dict, l=1/2, processes=int(args.processes))
+out = model.sim(end_sim,start_date=start_sim, warmup=warmup, N=args.n_samples, draw_fcn=draw_fnc, samples=samples_dict,  processes=int(args.processes))
 simtime = out['time'].values
 
 #######################
