@@ -1093,7 +1093,7 @@ class make_contact_matrix_function():
 
         if self.provincial:
             if t < self.df_google_start:
-                return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
+                row = -self.df_google.loc[slice(self.df_google.index.get_level_values('date')[0],self.df_google.index.get_level_values('date')[7]), slice(None)].groupby(by='NIS').mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[(t, slice(None)),:]/100
