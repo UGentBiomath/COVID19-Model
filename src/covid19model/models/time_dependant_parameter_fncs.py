@@ -1401,6 +1401,16 @@ class make_contact_matrix_function():
     ## Spatial model ##
     ###################
 
+    def policies_no_lockdown(self, t, states, param, nc):
+        t = pd.Timestamp('2020-01-01')
+        mat = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, school=1)
+        return nc[:,np.newaxis,np.newaxis]*mat
+    
+    def policies_no_lockdown_work(self, t, states, param, nc):
+        t = pd.Timestamp('2020-01-01')
+        mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, school=0) 
+        return nc[:,np.newaxis,np.newaxis]*mat
+
     def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
