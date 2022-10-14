@@ -271,7 +271,7 @@ def get_proximus_mobility_data(agg):
         # Load the CSV as a np.array
         if agg == 'prov':
             place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').values
-        elif agg =='arr'
+        elif agg =='arr':
             place = pd.read_csv(f'{directory}/{csv}', index_col='mllp_postalcode').drop(index='Foreigner', columns='ABROAD').values
         # Create list of places
         all_available_places.append(place)
