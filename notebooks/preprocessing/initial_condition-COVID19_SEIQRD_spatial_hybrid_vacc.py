@@ -1,15 +1,13 @@
 """
-This script contains code to estimate an appropriate initial condition of the spatial COVID-19 SEIQRD model on March 15th-17th, 2020.
-Two initial conditions are saved: 1) for the "virgin" model (COVID19_SEIQRD_spatial) and 2) for the stratified vaccination model (COVID19_SEIQRD_spatial_stratified_vacc)
+This script contains code to estimate an appropriate initial condition of the spatial COVID-19 SEIQRD model in March 2020.
 
-The model is initialized 31 days prior to March 15th, 2020 with one exposed individual in every of the 10 (!) age groups.
-The infectivity that results in the best fit to the hospitalization data is determined using PSO.
-Next, the fit is visualized to allow for further manual tweaking of the PSO result.
-Finally, the model states on March 15,16 and 17 are pickled.
+The model is initialized on February 5th, 2020, the day the first case was detected in Belgium.
+All betas are set to 0.027, all effectivities are set to one, no seasonality is assumed. This results in an R0 = 3.3.
+The number of initially infected individuals in every spatial patch is calibrated manually.
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -17,10 +15,7 @@ __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University
 
 import os
 import sys
-import click
-import pickle
 import argparse
-import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -45,8 +40,6 @@ n_pso = int(args.n_pso)
 age_stratification_size=10
 # Use public data by default
 public=False
-# Update data
-update_data = False
 
 #############################
 ## Define results location ##
@@ -62,15 +55,34 @@ if not os.path.exists(results_path):
 ## Load hospital data ##
 ########################
 
-df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
-df_hosp = df_hosp.loc[(slice(None), slice(None)), 'H_in']
+if public==True:
+    df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
+    df_hosp = df_hosp.loc[(slice(None), slice(None)), 'H_in']
+else:
+    df_hosp = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
 
 ##########################
 ## Initialize the model ##
 ##########################
 
 from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
-model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=args.agg)
+model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=args.agg, stochastic=False)
+
+##################################
+## Set R0=3.3, disable mobility ##
+##################################
+
+# Assume effectivities are equal to one, no seasonality
+model.parameters['eff_work'] = 1
+model.parameters['eff_rest'] = 1
+model.parameters['eff_home'] = 1
+model.parameters['amplitude'] = 0
+# Set warmup to date of first infected in Belgium
+warmup = pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05')
+# Set betas to assume R0=3.3
+model.parameters['beta_R'] = model.parameters['beta_U'] = model.parameters['beta_M'] = 0.027
+# Disable mobility
+model.parameters['p'] = 0*model.parameters['p']
 
 ##############################
 ## Change initial condition ##
@@ -81,29 +93,14 @@ G = model.initial_states['S'].shape[0]
 N = model.initial_states['S'].shape[1]
 D = model.initial_states['S'].shape[2]
 # Reset S
-S = np.concatenate( (np.expand_dims(initN,axis=2), 0.01*np.ones([G,N,3])), axis=2)
-# 1 exposed individual per NIS in ages 0:3
+S = np.concatenate( (np.expand_dims(initN,axis=2), 0.01*np.ones([G,N,D-1])), axis=2)
+# 0.01 exposed individual per NIS in every age group
 E0 = np.zeros([G, N, D])
-E0[:,:,0] = 1
+E0[:,:,0] = 0.01
 model.initial_states.update({"S": S, "E": E0, "I": E0})
 for state,value in model.initial_states.items():
     if ((state != 'S') & (state != 'E') & (state != 'I')):
         model.initial_states.update({state: np.zeros([G,N,D])})
-
-# Assume effectivities are equal to one, no seasonality
-model.parameters['eff_work'] = 1
-model.parameters['eff_rest'] = 1
-model.parameters['eff_home'] = 1
-model.parameters['amplitude'] = 0
-
-# Set warmup to date of first infected in Belgium
-warmup = pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05')
-
-# Set betas to assume R0=3.3
-model.parameters['beta_R'] = model.parameters['beta_U'] = model.parameters['beta_M'] = 0.027
-
-# Disable mobility
-#model.parameters['p'] = 0*model.parameters['p']
 
 ###########################################
 ## Visualize the result per spatial unit ##
@@ -123,7 +120,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #     # Visualize
 #     fig,ax = plt.subplots(figsize=(12,4))
-#     ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#     ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #     ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
@@ -149,7 +146,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 #         # Visualize new fit
 #         fig,ax = plt.subplots(figsize=(12,4))
-#         ax.plot(out['time'],out['H_in'].sel(place=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#         ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
 #         ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #         ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #         ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
@@ -168,7 +165,17 @@ data=[df_hosp[start_calibration:end_calibration],]
 ## Hard-code result ##
 ######################
 
-initial_infected = [0.40, 0.15, 0.04, 0.50, 0.18, 0.25, 0.30, 0.30, 0.25, 0.08, 0.08] # Mobility disabled
+# prov
+if args.agg == 'prov':
+    initial_infected = [0.40, 0.15, 0.04, 0.50, 0.18, 0.25, 0.30, 0.30, 0.25, 0.08, 0.08]
+# agg
+elif args.agg == 'arr':
+    initial_infected = [0.012, 0.004, 0.006, 0.025, 0.007, 0.007, 0.004, 0.002, 0.0004, 0.0002,
+                        0.0035, 0.0012, 0.00075, 0.0015, 0.00075, 0.004, 0.001, 0.0005, 0.005, 0.001,
+                        0.003, 0.002, 0.005, 0.012, 0.0015, 0.0006, 0.0025, 0.0018, 0.0018, 0.01,
+                        0.004, 0.001, 0.008, 0.004, 0.0035, 0.0008, 0.0005, 0.0007, 0.002, 0.0006,
+                        0.001, 0.004, 0.0006]
+
 E = np.zeros([G,N,D])
 I = np.zeros([G,N,D])
 for idx, val in enumerate(initial_infected):
@@ -185,6 +192,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
     fig,ax = plt.subplots(figsize=(12,4))
     ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
     ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
     # Add a box with the NIS code
@@ -202,7 +210,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
-out.to_netcdf(file_path+str(args.agg)+'_INITIAL-CONDITION_'+ str(datetime.date.today()) +'.nc')
+out.to_netcdf(file_path+str(args.agg)+'_INITIAL-CONDITION.nc')
 
 # Work is done
 sys.stdout.flush()
