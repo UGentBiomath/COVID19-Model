@@ -212,8 +212,11 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.023, 0.0232, 0.0273, 0.375, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> mentality: option 2, eff_schools and eff_work together
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic
+    theta = [0.0229, 0.0229, 0.0255, 0.49, 0.589, 0.593, 1.3, 1.63, 0.22] # first try --> prov stochstic
+
+    theta = [0.0225, 0.0225, 0.0245, 0.57, 0.7, 0.48, 1.25, 1.4, 0.26] # arrondissement-level
+    model.parameters['l1'] = 7
     l=1/2
 
     ####################################
@@ -308,11 +311,11 @@ if __name__ == '__main__':
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.02, 0.02, 0.02]
     # pars2 = ['eff_work', 'eff_rest', 'mentality']
-    pert2=[0.05, 0.05, 0.05]
+    pert2=[0.02, 0.02, 0.02]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.05, 0.05]
+    pert3 = [0.02, 0.02]
     # pars4 = ['amplitude']
-    pert4 = [0.05,] 
+    pert4 = [0.02,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
