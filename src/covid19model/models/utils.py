@@ -260,7 +260,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                         }
     else:
         reference_sim_path = os.path.join(abs_dir, data_path + f'/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{agg}/')
-        reference_sim_name = 'prov_INITIAL-CONDITION_2022-09-16.nc'
+        reference_sim_name = f'{agg}_INITIAL-CONDITION.nc'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
         for data_var in out.keys():
