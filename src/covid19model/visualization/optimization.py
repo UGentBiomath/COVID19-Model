@@ -222,22 +222,42 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         if ((dimension != 'time') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
     
-    # Conversion matrices
-    agg_prov_reg = [[10000, 20001, 30000, 40000, 70000, 40000],[21000],[20002, 50000, 60000, 80000, 90000]]
-    agg_arr_prov = [[11000, 12000, 13000],
+
+    agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
+                    [21000],
+                    [20002, 50000, 60000, 80000, 90000]]
+
+    agg_arr_prov_simple = [
+                        [11000, 12000, 13000],
+                        [23000, 24000],
+                        [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+                        [41000, 42000, 43000, 44000, 45000, 46000],
+                        [71000, 72000, 73000],
+                        [21000,],
+                        [25000,],
+                        [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+                        [61000, 62000, 63000, 64000],
+                        [81000, 82000, 83000, 84000, 85000],
+                        [91000, 92000, 93000]
+    ]
+
+    agg_arr_prov = [
+                    [[11000, 12000, 13000],
                     [23000, 24000],
-                    [25000,],
-                    [21000,],
                     [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
                     [41000, 42000, 43000, 44000, 45000, 46000],
+                    [71000, 72000, 73000]],
+
+                    [[21000,],],
+
+                    [[25000,],
                     [51000, 52000, 53000, 55000, 56000, 57000, 58000],
                     [61000, 62000, 63000, 64000],
-                    [71000, 72000, 73000],
                     [81000, 82000, 83000, 84000, 85000],
-                    [91000, 92000, 93000]
+                    [91000, 92000, 93000]]
     ]
     title_list_reg = ['Flanders', 'Brussels', 'Wallonia']
-    title_list_prov = ['Antwerpen', 'Vlaams Brabant', 'Brabant Wallon', 'Brussels', 'West-Vlaanderen','Oost-Vlaanderen', 'Hainaut', 'Liege', 'Limburg', 'Luxembourg', 'Namur']
+    title_list_prov = ['Antwerpen','Vlaams Brabant','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels','Brabant Wallon','Hainaut','Liege','Luxembourg','Namur']
     color_list = ['blue', 'blue', 'blue']
 
     if agg == 'prov':
@@ -274,7 +294,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     elif agg == 'arr':
         if desired_agg == 'prov':
             fig,ax=plt.subplots(nrows=len(title_list_prov),ncols=1, figsize=(12,12), sharex=True)
-            for idx,NIS_list in enumerate(agg_arr_prov):
+            for idx,NIS_list in enumerate(agg_arr_prov_simple):
                 model_vals = 0
                 data_vals= 0
                 for NIS in NIS_list:
@@ -298,7 +318,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                 for jdx,NIS_prov in enumerate(NIS_list_reg):
                     model_vals = 0
                     data_vals= 0
-                    for NIS in agg_arr_prov[jdx]:
+                    for NIS in agg_arr_prov[idx][jdx]:
                         model_vals += output['H_in'].sel(NIS=NIS).values
                         data_vals += df_sciensano.loc[slice(None), NIS].values
                     model_vals_list.append(model_vals)
