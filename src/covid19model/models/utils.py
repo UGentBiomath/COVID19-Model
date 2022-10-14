@@ -203,7 +203,10 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Proximus mobility data
     proximus_mobility_data = mobility.get_proximus_mobility_data(agg)
     # Google Mobility data
-    df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+    if agg == 'prov':
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+    elif agg == 'arr':
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
 
     #####################################################################
     ## Construct time-dependent parameter functions except vaccination ##
@@ -212,8 +215,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent social contact matrix over all policies, updating Nc
-    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
-    policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
+    policy_function = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_spatial
+    policy_function_work = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_work_only
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
     # Time-dependent seasonality function, updating season_factor
@@ -223,20 +226,29 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Construct vaccination time-dependent parameter functions ##
     ##############################################################
 
-    # Time-dependent (first) vaccination function, updating N_vacc.
-    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
-    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
-    # Extract the smoothed dataframe
-    df_incidences = N_vacc_function.df
-    # Check if the vaccination efficacies must be updated
-    rescaling_update=False
-    if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
-        rescaling_update = True
-    elif update_data == True:
-        rescaling_update = True
-    # Construct the efficacy function subject to waning
-    efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
-                                              VOCs=VOCs, age_classes=age_classes)
+    try:
+        # Check if dataframe with incidences is available
+        df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
+        # Time-dependent (first) vaccination function, updating N_vacc.
+        N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
+        # Extract the smoothed dataframe
+        df_incidences = N_vacc_function.df
+        # Check if the vaccination efficacies must be updated
+        rescaling_update=False
+        if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
+            rescaling_update = True
+        elif update_data == True:
+            rescaling_update = True
+        # Construct the efficacy function subject to waning
+        efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                                VOCs=VOCs, age_classes=age_classes)
+    except:
+        N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
+        # Extract the smoothed dataframe
+        df_incidences = N_vacc_function.df
+        # Construct the efficacy function subject to waning
+        efficacy_function = make_vaccination_efficacy_function(update=True, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                                VOCs=VOCs, age_classes=age_classes)
 
     ####################
     ## Initial states ##
