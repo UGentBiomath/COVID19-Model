@@ -126,7 +126,10 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
+if agg == 'prov':
+    df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
+elif agg == 'arr':
+    df_hosp = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
 # Set end of calibration to last datapoint if no enddate is provided by user
 if not args.end_calibration:
     end_calibration = df_hosp.index.get_level_values('date').max()
@@ -147,7 +150,7 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
+    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     #print(results)
     print('\n')
@@ -169,7 +172,7 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
     log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
@@ -241,13 +244,13 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
         # Regional fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
-        plt.show()
-        plt.close()
+        #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
+        #plt.show()
+        #plt.close()
         # Provincial fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
-        plt.show() 
-        plt.close()
+        #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
+        #plt.show() 
+        #plt.close()
 
         ####################################
         ## Ask the user for manual tweaks ##
@@ -271,13 +274,13 @@ if __name__ == '__main__':
             plt.show()
             plt.close()
             # Visualize regional fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
-            plt.show()
-            plt.close()
+            #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
+            #plt.show()
+            #plt.close()
             # Visualize provincial fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
-            plt.show()
-            plt.close()
+            #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
+            #plt.show()
+            #plt.close()
             # Satisfied?
             satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
