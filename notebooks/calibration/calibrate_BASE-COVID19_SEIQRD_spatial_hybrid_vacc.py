@@ -244,13 +244,13 @@ if __name__ == '__main__':
         plt.show()
         plt.close()
         # Regional fit
-        #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
-        #plt.show()
-        #plt.close()
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+        plt.show()
+        plt.close()
         # Provincial fit
-        #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
-        #plt.show() 
-        #plt.close()
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+        plt.show() 
+        plt.close()
 
         ####################################
         ## Ask the user for manual tweaks ##
@@ -274,13 +274,13 @@ if __name__ == '__main__':
             plt.show()
             plt.close()
             # Visualize regional fit
-            #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
-            #plt.show()
-            #plt.close()
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+            plt.show()
+            plt.close()
             # Visualize provincial fit
-            #ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
-            #plt.show()
-            #plt.close()
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+            plt.show()
+            plt.close()
             # Satisfied?
             satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
