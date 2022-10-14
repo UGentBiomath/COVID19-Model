@@ -1054,9 +1054,10 @@ class make_contact_matrix_function():
         Default output function, based on contact_matrix_4eff
 
     """
-    def __init__(self, df_google, Nc_all):
+    def __init__(self, df_google, Nc_all, G=None):
         self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
+        self.G = G
         # Compute start and endtimes of dataframe
         self.df_google_start = df_google.index.get_level_values('date')[0]
         self.df_google_end = df_google.index.get_level_values('date')[-1]
@@ -1064,7 +1065,8 @@ class make_contact_matrix_function():
         self.provincial = None
         if 'NIS' in self.df_google.index.names:
             self.provincial = True
-            self.space_agg = len(self.df_google.index.get_level_values('NIS').unique().values)
+            if self.G != len(self.df_google.index.get_level_values('NIS').unique().values):
+                raise ValueError("Using provincial-level Google Community Mobility data only works with spatial aggregation set to 'prov'")
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, eff_home=1, eff_schools=1, eff_work=1, eff_rest = 1, mentality=1,
@@ -1112,14 +1114,14 @@ class make_contact_matrix_function():
                     try:
                         test=len(place)
                     except:
-                        place = place*np.ones(self.space_agg)     
+                        place = place*np.ones(self.G)     
                 values_dict.update({places_names[idx]: place})
 
             # Schools:
             try:
                 test=len(school)
             except:
-                school = school*np.ones(self.space_agg)
+                school = school*np.ones(self.G)
 
             # Expand dims on mentality
             if isinstance(mentality,tuple):
@@ -1127,7 +1129,7 @@ class make_contact_matrix_function():
                 mentality = mentality[:, np.newaxis, np.newaxis]
 
             # Construct contact matrix
-            CM = (mentality*(eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+            CM = (mentality*(eff_home*np.ones(self.G)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
                     (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                     (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                     (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
@@ -1152,12 +1154,22 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (mentality*(eff_home*self.Nc_all['home'] + 
+            CM = (eff_home*self.Nc_all['home'] + 
                     eff_schools*school*self.Nc_all['schools'] +
                     eff_work*values_dict['work']*self.Nc_all['work'] +
                     eff_rest*values_dict['transport']*self.Nc_all['transport'] +
                     eff_rest*values_dict['leisure']*self.Nc_all['leisure'] +
-                    eff_rest*values_dict['others']*self.Nc_all['others']) )
+                    eff_rest*values_dict['others']*self.Nc_all['others'] )
+
+            # Expand to the correct spatial size
+            if self.G:
+                # Expand contact matrix and mentality to size of spatial stratification
+                CM = np.ones(self.G)[:,np.newaxis,np.newaxis]*CM
+                mentality = mentality*np.ones(self.G)
+                # Multiply CM with mentality
+                CM = mentality[:,np.newaxis,np.newaxis]*CM
+            else:
+                CM = mentality*CM
 
         return CM
 
