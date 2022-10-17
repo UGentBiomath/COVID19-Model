@@ -138,20 +138,20 @@ simtime = out['time'].values
 
 print('2) Visualizing regional fit')
 
-fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
-
 ##############
 ## National ##
 ##############
 
+fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
+
 # Visualize structural uncertainty
-mean = out['H_in'].sum(dim='Nc').sum(dim=['NIS', 'doses']).mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
-lower = out['H_in'].sum(dim='Nc').sum(dim=['NIS', 'doses']).quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
-upper = out['H_in'].sum(dim='Nc').sum(dim=['NIS', 'doses']).quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
+mean = out['H_in'].sum(dim=['Nc', 'NIS', 'doses']).mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
+lower = out['H_in'].sum(dim=['Nc', 'NIS', 'doses']).quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
+upper = out['H_in'].sum(dim=['Nc','NIS', 'doses']).quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
 ax[0].plot(simtime, mean, '--', color='blue', linewidth=1)
 ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
 # Visualize negative binomial uncertainty
-mean = out['H_in'].sum(dim='Nc').sum(dim='NIS').sum(dim='doses').mean(dim='draws').values
+mean = out['H_in'].sum(dim=['Nc', 'NIS', 'doses']).mean(dim='draws').values
 # Initialize a column vector to append to
 vector = np.zeros((len(simtime),1))
 # Loop over number of negative binomial draws
@@ -180,6 +180,7 @@ ax[0] = _apply_tick_locator(ax[0])
 ##############
 ## Regional ##
 ##############
+
 
 agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
                 [21000],
