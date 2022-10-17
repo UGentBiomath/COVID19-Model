@@ -23,6 +23,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
     elif age_stratification_size == 10:
         age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    elif age_stratification_size == 18:
+        age_classes = pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),
+                                                        (50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -167,6 +170,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
     elif age_stratification_size == 10:
         age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    elif age_stratification_size == 18:
+        age_classes = pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),
+                                                        (50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -240,6 +246,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         elif update_data == True:
             rescaling_update = True
         # Construct the efficacy function subject to waning
+        rescaling_update=False
         efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
                                                 VOCs=VOCs, age_classes=age_classes)
     except:
@@ -359,6 +366,8 @@ def load_samples_dict(filepath, age_stratification_size=10):
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
         age_path = '0_12_18_25_35_45_55_65_75_85/'
+    elif age_stratification_size == 18:
+        age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85/'
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -733,7 +742,7 @@ def construct_coordinates_Nc(age_stratification_size=10):
     Parameter
     ---------
     N: int
-        Number of age groups (3, 9 or 10)
+        Number of age groups (3, 9, 10 or 18)
     
     Returns
     -------
@@ -742,8 +751,8 @@ def construct_coordinates_Nc(age_stratification_size=10):
     
 
     """
-    if age_stratification_size not in [3, 9, 10]:
-        raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9 (default), or 10.")
+    if age_stratification_size not in [3, 9, 10, 18]:
+        raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9, 10 (default) or 18.")
 
     if age_stratification_size == 3:
         return pd.IntervalIndex.from_tuples([(0, 20), (20, 60), (60, 120)], closed='left')
@@ -751,6 +760,8 @@ def construct_coordinates_Nc(age_stratification_size=10):
         return pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left')
     elif age_stratification_size == 10:
         return pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left')
+    elif age_stratification_size == 18:
+        return pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),(50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
 
 def read_areas(agg='arr'):
     """
