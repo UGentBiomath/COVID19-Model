@@ -168,9 +168,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 10
+    print_n = 5
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
     theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic
-    theta = [0.0229, 0.0229, 0.0255, 0.49, 0.589, 0.593, 1.3, 1.63, 0.22] # first try --> prov stochstic
+    #theta = [0.0229, 0.0229, 0.0255, 0.49, 0.589, 0.593, 1.3, 1.63, 0.22] # first try --> prov stochstic
     l=1/2
 
     ####################################
@@ -308,11 +308,11 @@ if __name__ == '__main__':
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.02, 0.02, 0.02]
     # pars2 = ['eff_work', 'eff_rest', 'mentality']
-    pert2=[0.02, 0.02, 0.02]
+    pert2=[0.20, 0.20, 0.20]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.02, 0.02]
+    pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.02,] 
+    pert4 = [0.20,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
