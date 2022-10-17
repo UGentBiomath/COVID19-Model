@@ -1503,7 +1503,7 @@ class make_contact_matrix_function():
 
         if self.G == 11:
             idx_Vlaams_Brabant = [1,]
-            idx_Waals_Brabant = [6,]
+            idx_Waals_Brabant = [2,]
             idx_F = [0, 1, 4, 5, 8]
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
@@ -1590,18 +1590,18 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.10
-            mat[idx_W,:,:] *= 1.15
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.25
+            mat[idx_W,:,:] *= 1.10
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.10
+            mat[idx_Waals_Brabant,:,:] *= 1/1.10
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.10
-            mat[idx_W,:,:] *= 1.15
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.25
+            mat[idx_W,:,:] *= 1.10
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.10
+            mat[idx_Waals_Brabant,:,:] *= 1/1.10
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
@@ -1695,9 +1695,12 @@ class make_contact_matrix_function():
             l1_days = pd.Timedelta(l1, unit='D')
             l2_days = pd.Timedelta(l2, unit='D')
 
-            
-
             if self.G == 11:
+                idx_Vlaams_Brabant = [1,]
+                idx_Waals_Brabant = [2,]
+                idx_F = [0, 1, 4, 5, 8]
+                idx_Bxl = [3,]
+                idx_W = [2, 6, 7, 9, 10]
                 mentality_summer_2020_lockdown = np.array([1*mentality, 1*mentality, # F
                                                         1, # W
                                                         1, # Bxl
@@ -1712,6 +1715,8 @@ class make_contact_matrix_function():
                 mentality_summer_2020_lockdown[28:32] = 1
                 mentality_summer_2020_lockdown[35:40] = 1
 
+
+
             ################
             ## First wave ##
             ################
@@ -1723,12 +1728,13 @@ class make_contact_matrix_function():
             t4 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
             t5 = pd.Timestamp('2020-10-19') # start of lockdown
             t6 = pd.Timestamp('2020-11-16') # schools re-open
-
-            t7 = pd.Timestamp('2021-05-15') # start of relaxations
-            t8 = pd.Timestamp('2021-08-01') # end of easing on mentality
-            t9 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-            t10 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-            t11 = pd.Timestamp('2022-02-01') # start easing on mentality
+            t7 = pd.Timestamp('2021-02-21') # Start contact increase children
+            t8 = pd.Timestamp('2021-03-26') # End contact increase children
+            t9 = pd.Timestamp('2021-05-15') # start of relaxations
+            t10 = pd.Timestamp('2021-08-01') # end of easing on mentality
+            t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+            t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+            t13 = pd.Timestamp('2022-02-01') # start easing on mentality
 
             # Define number of contacts
             if t <= t1:
@@ -1762,23 +1768,33 @@ class make_contact_matrix_function():
             elif t6 < t <= t7:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
             elif t7 < t <= t8:
-                l = (t8 - t7)/pd.Timedelta(days=1)
+                mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                mat[idx_F,:,:] *= 1.0
+                mat[idx_Bxl,:,:] *= 1.25
+                mat[idx_W,:,:] *= 1.10
+                mat[idx_Vlaams_Brabant,:,:] *= 1/1.10
+                mat[idx_Waals_Brabant,:,:] *= 1/1.10
+                return mat
+            elif t8 < t <= t9:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            elif t9 < t <= t10:
+                l = (t10 - t9)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t7, l)
-            elif t8 < t <= t9:
+                return self.ramp_fun(policy_old, policy_new, t, t9, l)
+            elif t10 < t <= t11:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
 
             ######################      
             ## Winter 2021-2022 ##
             ######################      
 
-            elif t9 < t <= t10:
-                l = (t8 - t7)/pd.Timedelta(days=1)
+            elif t11 < t <= t12:
+                l = (t12 - t11)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t7, l)
-            elif t10 < t <= t11:
+                return self.ramp_fun(policy_old, policy_new, t, t11, l)
+            elif t12 < t <= t13:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
             else:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)

@@ -191,7 +191,7 @@ for idx,NIS_list in enumerate(NIS_lists):
     pop = 0
     for NIS in NIS_list:
         mean = mean + out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses').values
-        data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
+        data = data + df_hosp.loc[(slice(None), NIS)].values
         pop = pop + sum(initN.loc[NIS].values)
 
     mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
@@ -221,7 +221,7 @@ if agg=='prov':
         mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
         ax[idx].plot(simtime, mean,'--', color='blue')
         ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax[idx].legend(['NIS: '+ str(NIS)])
         ax[idx] = _apply_tick_locator(ax[idx])
         ax[idx].grid(False)
@@ -238,7 +238,7 @@ if agg=='prov':
         mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim=['Nc', 'doses']).values, dispersion, args.n_draws_per_sample)/pop*100000
         ax[idx].plot(simtime, mean,'--', color='blue')
         ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS),'H_in']/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
         ax[idx].legend(['NIS: '+ str(NIS)])
         ax[idx] = _apply_tick_locator(ax[idx])
         ax[idx].grid(False)
