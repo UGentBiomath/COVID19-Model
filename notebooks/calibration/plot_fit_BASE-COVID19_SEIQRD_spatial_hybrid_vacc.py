@@ -181,94 +181,35 @@ ax[0] = _apply_tick_locator(ax[0])
 ## Regional ##
 ##############
 
-
-agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
-                [21000],
-                [20002, 50000, 60000, 80000, 90000]]
-
-agg_arr_prov = [
-                [[11000, 12000, 13000],
-                [23000, 24000],
-                [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
-                [41000, 42000, 43000, 44000, 45000, 46000],
-                [71000, 72000, 73000]],
-
-                [[21000,],],
-
-                [[25000,],
-                [51000, 52000, 53000, 55000, 56000, 57000, 58000],
-                [61000, 62000, 63000, 64000],
-                [81000, 82000, 83000, 84000, 85000],
-                [91000, 92000, 93000]]
-]
-title_list_reg = ['Flanders', 'Brussels', 'Wallonia']
-title_list_prov = ['Antwerpen','Vlaams Brabant','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels','Brabant Wallon','Hainaut','Liege','Luxembourg','Namur']
+NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
+title_list = ['Brussels', 'Flanders', 'Wallonia']
 color_list = ['blue', 'blue', 'blue']
 
-# Aggregate provincial public data to regional level
-data_list=[]
-for idx,NIS_list in enumerate(agg_prov_reg):
-    data=0
+for idx,NIS_list in enumerate(NIS_lists):
+    mean=0
+    data = 0
+    pop = 0
     for NIS in NIS_list:
-        data += df_hosp.loc[(slice(None), NIS)].values
-    data_list.append(data)
+        mean = mean + out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses').values
+        data = data + df_hosp.loc[(slice(None), NIS),'H_in'].values
+        pop = pop + sum(initN.loc[NIS].values)
 
-if agg=='prov':
-    for idx,NIS_list in enumerate(agg_prov_reg):
-        # Aggregate provincial level to regional level
-        mean=0
-        pop = 0
-        for NIS in NIS_list:
-            mean = mean + out['H_in'].sel(NIS=NIS).sum(dim=['Nc', 'doses']).values
-            pop = pop + sum(initN.loc[NIS].values)
-        mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
-        # Visualize negative binomial uncertainty
-        ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
-        ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
-        # Add data
-        ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data_list[idx]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-        # Set attributes
-        ax[idx+1].set_title(title_list_reg[idx])
-        ax[idx+1].set_ylim([0,7.5])
-        ax[idx+1].grid(False)
-        ax[idx+1].set_ylabel('$H_{in}$ (-)')
-        ax[idx+1] = _apply_tick_locator(ax[idx+1])
-
-elif agg=='arr':
-    for idx,NIS_list_reg in enumerate(agg_prov_reg):
-        mean_list=[]
-        pop_list=[]
-        for jdx,NIS_prov in enumerate(NIS_list_reg):
-            mean = 0
-            pop = 0
-            for NIS in agg_arr_prov[idx][jdx]:
-                mean += out['H_in'].sel(NIS=NIS).sum(dim=['Nc', 'doses']).values
-                pop += sum(initN.loc[NIS].values)
-            mean_list.append(mean)
-            pop_list.append(pop)
-        # Sum
-        mean=0
-        pop=0
-        for i, mat in enumerate(mean_list):
-            mean += mat
-            pop += pop_list[i]
-        mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
-        # Visualize negative binomial uncertainty
-        ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
-        ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
-        # Add data
-        ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data_list[idx]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-        # Set attributes
-        ax[idx+1].set_title(title_list_reg[idx])
-        ax[idx+1].set_ylim([0,7.5])
-        ax[idx+1].grid(False)
-        ax[idx+1].set_ylabel('$H_{in}$ (-)')
-        ax[idx+1] = _apply_tick_locator(ax[idx+1])
-
-    plt.suptitle('Regional incidence per 100K inhabitants')
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+    mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
+    # Visualize negative binomial uncertainty
+    ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
+    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
+    # Add data
+    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    # Set attributes
+    ax[idx+1].set_title(title_list[idx])
+    ax[idx+1].set_ylim([0,12])
+    ax[idx+1].grid(False)
+    ax[idx+1].set_ylabel('$H_{in}$ (-)')
+    ax[idx+1] = _apply_tick_locator(ax[idx+1])
+plt.suptitle('Regional incidence per 100K inhabitants')
+plt.tight_layout()
+plt.show()
+plt.close()
 
 print('3) Visualizing provincial fit')
 
