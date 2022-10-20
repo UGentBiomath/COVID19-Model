@@ -459,7 +459,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         base_dict_name = 'national_REF_SAMPLES_2022-09-13.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta': base_samples_dict['beta'],
+            'beta': 0.027,
             'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_schools': np.mean(base_samples_dict['eff_work']),
