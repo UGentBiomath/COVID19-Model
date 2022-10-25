@@ -590,7 +590,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
     return df
 
 
-def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', public=False, moving_avg=True):
+def get_sciensano_COVID19_data_spatial(agg='arr', moving_avg=True):
     """
     This function returns the spatially explicit private Sciensano data
     on COVID-19 related confirmed cases, hospitalisations, or hospital deaths.
@@ -599,22 +599,14 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
     NOTE that this raw data is NOT automatically uploaded to the Git repository, considering it is nonpublic data.
     Instead, download the processed data from the S-drive (data/interim/sciensano) and copy it to data/interim/nonpublic_timeseries.
     The nonpublic_timeseries directory is added to the .gitignore, so it is not uploaded to the repository.
-    
-    TO DO: function currently does *not* support loading data at level of postal codes (from all_nonpublic_timeseries_Postcode.csv).
-    
-    TO DO: currently gives a pandas copy warning if values='all' and moving_avg=True.
-    
+
     Parameters
     ----------
     agg : str
         Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively. Note that not all data is available on every aggregation level.
-    values : str
-        Choose which time series is to be loaded. Options are 'confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN' (default), 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', 'ICU_per_100k'. Choose 'all' to return full data.
     moving_avg : boolean
         If True (default), the 7-day moving average of the data is taken to smooth out the weekend effect.
-    public : Boolean
-        If agg=='prov', public data is also available. This data is more complete in the most recent two weeks.
-    
+
     Returns
     -------
     df : pandas.DataFrame
@@ -624,63 +616,22 @@ def get_sciensano_COVID19_data_spatial(agg='arr', values='hospitalised_IN', publ
     # Exceptions
     if agg not in ['prov', 'arr', 'mun']:
         raise Exception(f"Aggregation level {agg} not recognised. Choose between agg = 'prov', 'arr' or 'mun'.")
-    if (agg!='prov') and public:
-        raise Exception(f"Public data is only available on provincial and national level, not for agg={agg}.")
-    
-    if not public:
-        accepted_values=['confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', 'ICU_per_100k']
-        if values not in (accepted_values + ['all']):
-            raise Exception(f"Value type {values} not recognised. Choose between 'confirmed_cases', 'tested_cases', 'confirmed_per_tested_5days_window', 'hospitalised_IN', 'recovered', 'deceased_hosp', 'ICU', 'confirmed_cases_per_100k', 'hospitalised_IN_per_100k', 'recovered_per_100k', 'deceased_hosp_per_100k', or 'ICU_per_100k'. Choose 'all' to return full data.")
 
-        # Data location
-        abs_dir = os.path.dirname(__file__)
-        nonpublic_dir_rel = f"../../../data/interim/nonpublic_timeseries/all_nonpublic_timeseries_{agg}.csv"
-        nonpublic_dir_abs = os.path.join(abs_dir, nonpublic_dir_rel)
+    # Data location
+    abs_dir = os.path.dirname(__file__)
+    nonpublic_dir_rel = f"../../../data/interim/nonpublic_timeseries/all_nonpublic_timeseries_{agg}.csv"
+    nonpublic_dir_abs = os.path.join(abs_dir, nonpublic_dir_rel)
 
-        # Load data with or without moving average
-        if values=='all':
-            df = pd.read_csv(nonpublic_dir_abs, parse_dates=['DATE']).pivot_table(index='DATE', columns=f'NIS_{agg}').fillna(0)
-            if moving_avg:
-                from covid19model.visualization.utils import moving_avg
-                for value in accepted_values:
-                    for NIS in df[value].columns:
-                        df[value][[NIS]] = moving_avg(df[value][[NIS]])
-                df.dropna(inplace=True) # remove first and last 3 days (NA due to averaging)
-        else:
-            df = pd.read_csv(nonpublic_dir_abs, parse_dates=['DATE']).pivot_table(index='DATE', columns=f'NIS_{agg}', values=values).fillna(0)
-            if moving_avg:
-                from covid19model.visualization.utils import moving_avg
-                for NIS in df.columns:
-                    df[[NIS]] = moving_avg(df[[NIS]])
-                df.dropna(inplace=True) # remove first and last 3 days (NA due to averaging)
-    
-    else:
-        accepted_values=['hospitalised_IN', 'ICU']
-        if values not in accepted_values:
-            raise Exception(f"Value type {values} not recognised for public data. Choose between 'hospitalised_IN' or 'ICU'.")
-        
-        # use other conventions for this data
-        if values=='hospitalised_IN':
-            values = 'H_in'
-        elif values=='ICU':
-            values = 'ICU_tot'
+    # Load data with or without moving average
+    df = pd.read_csv(nonpublic_dir_abs, parse_dates=['DATE']).pivot_table(index=['DATE',f'NIS_{agg}']).fillna(0)
+    df.index.names = ['date', 'NIS']
+    if moving_avg:
+        from covid19model.visualization.utils import moving_avg
+        for value in accepted_values:
+            for NIS in df[value].columns:
+                df[value][[NIS]] = moving_avg(df[value][[NIS]])
+        df.dropna(inplace=True) # remove first and last 3 days (NA due to averaging)
 
-        # get data from existing framework
-        df = get_sciensano_COVID19_data(update=False)[0][[values]]
-        
-        # rename columns to fit the rest of the conventions
-        df = df.reset_index().rename(columns={'date':'DATE'})
-        
-        # Put it in the same shape as the rest of the conventions
-        df = df.pivot_table(index='DATE', columns='NIS')[values]
-        
-        # moving average
-        if moving_avg:
-            from covid19model.visualization.utils import moving_avg
-            for NIS in df.columns:
-                df[[NIS]] = moving_avg(df[[NIS]])
-            df=df.dropna() # remove first and last 3 days (NA due to averaging)
-                
     return df
 
 def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, initN=None, VOC_params=None, VOC_logistic_growth_parameters=None):

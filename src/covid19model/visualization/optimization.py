@@ -115,6 +115,7 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
 def plot_PSO(output, data, states, start_calibration, end_calibration):
     """
     A generic function to visualize a PSO estimate on multiple dataseries
+    Automatically ums over all available dimensions in the xarray model output.
 
     Parameters
     ----------
@@ -187,10 +188,10 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
     ax = _apply_tick_locator(ax)
     return ax
 
-def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg):
+def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg, desired_agg):
 
     """
-    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, works on the regional and provincial level.
+    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, can aggregate arrondissment/provincial simulations to provincial and regional level and visualize them.
 
     Parameters
     ----------
@@ -199,7 +200,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         Model simulation
 
     df_sciensano : pd.DataFrame
-        Daily hospitalisation data, obtained using the function `get_sciensano_COVID19_data_spatial
+        Daily hospitalisation data
 
     start_calibration : string
         Startdate of calibration, 'YYYY-MM-DD'
@@ -220,37 +221,121 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     for dimension in output.dims:
         if ((dimension != 'time') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
-
-    if agg == 'reg':
-        fig,ax=plt.subplots(nrows=3,ncols=1, figsize=(12,12), sharex=True)
-        NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-        title_list = ['Brussels', 'Flanders', 'Wallonia']
-        color_list = ['blue', 'blue', 'blue']
-        for idx,NIS_list in enumerate(NIS_lists):
-            model_vals = 0
-            data_vals= 0
-            for NIS in NIS_list:
-                model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
-                data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
-            ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
-            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax[idx].set_title(title_list[idx])
-            ax[idx].set_xlim([start_calibration, end_calibration])
-            ax[idx].set_ylim([0, 350])
-            ax[idx].grid(False)
-            ax[idx].set_ylabel('$H_{in}$ (-)')
-            ax[idx] = _apply_tick_locator(ax[idx])
     
-    elif agg == 'prov':
-        fig,ax = plt.subplots(nrows=len(df_sciensano.index.get_level_values('NIS').unique()),ncols=1,figsize=(12,16), sharex=True)
-        for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
-            ax[idx].plot(output['time'], output['H_in'].sel(NIS=NIS),'--', color='blue')
-            ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
-            ax[idx].set_xlim([start_calibration, end_calibration])
-            ax[idx].set_ylim([0, 150])
-            ax[idx].grid(False)
-            ax[idx].set_ylabel('$H_{in}$ (-)')
-            ax[idx] = _apply_tick_locator(ax[idx])
 
+    agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
+                    [21000],
+                    [20002, 50000, 60000, 80000, 90000]]
+
+    agg_arr_prov_simple = [
+                        [11000, 12000, 13000],
+                        [23000, 24000],
+                        [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+                        [41000, 42000, 43000, 44000, 45000, 46000],
+                        [71000, 72000, 73000],
+                        [21000,],
+                        [25000,],
+                        [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+                        [61000, 62000, 63000, 64000],
+                        [81000, 82000, 83000, 84000, 85000],
+                        [91000, 92000, 93000]
+    ]
+
+    agg_arr_prov = [
+                    [[11000, 12000, 13000],
+                    [23000, 24000],
+                    [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+                    [41000, 42000, 43000, 44000, 45000, 46000],
+                    [71000, 72000, 73000]],
+
+                    [[21000,],],
+
+                    [[25000,],
+                    [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+                    [61000, 62000, 63000, 64000],
+                    [81000, 82000, 83000, 84000, 85000],
+                    [91000, 92000, 93000]]
+    ]
+    title_list_reg = ['Flanders', 'Brussels', 'Wallonia']
+    title_list_prov = ['Antwerpen','Vlaams Brabant','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels','Brabant Wallon','Hainaut','Liege','Luxembourg','Namur']
+    color_list = ['blue', 'blue', 'blue']
+
+    if agg == 'prov':
+        if desired_agg == 'reg':
+            fig,ax=plt.subplots(nrows=len(title_list_reg),ncols=1, figsize=(12,12), sharex=True)
+            for idx,NIS_list in enumerate(agg_prov_reg):
+                model_vals = 0
+                data_vals= 0
+                for NIS in NIS_list:
+                    model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
+                    data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax[idx].set_title(title_list_reg[idx])
+                ax[idx].set_xlim([start_calibration, end_calibration])
+                ax[idx].set_ylim([0, 380])
+                ax[idx].grid(False)
+                ax[idx].set_ylabel('$H_{in}$ (-)')
+                ax[idx] = _apply_tick_locator(ax[idx])
+        
+        elif desired_agg == 'prov':
+            fig,ax = plt.subplots(nrows=len(title_list_prov),ncols=1,figsize=(12,16), sharex=True)
+            for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
+                ax[idx].plot(output['time'], output['H_in'].sel(NIS=NIS),'--', color='blue')
+                ax[idx].set_title(title_list_prov[idx])
+                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax[idx].set_xlim([start_calibration, end_calibration])
+                ax[idx].set_ylim([0, 150])
+                ax[idx].grid(False)
+                ax[idx].set_ylabel('$H_{in}$ (-)')
+                ax[idx] = _apply_tick_locator(ax[idx])
+
+    elif agg == 'arr':
+        if desired_agg == 'prov':
+            fig,ax=plt.subplots(nrows=len(title_list_prov),ncols=1, figsize=(12,12), sharex=True)
+            for idx,NIS_list in enumerate(agg_arr_prov_simple):
+                model_vals = 0
+                data_vals= 0
+                for NIS in NIS_list:
+                    model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
+                    data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
+
+                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax[idx].set_title(title_list_prov[idx])
+                ax[idx].set_xlim([start_calibration, end_calibration])
+                ax[idx].set_ylim([0, 150])
+                ax[idx].grid(False)
+                ax[idx].set_ylabel('$H_{in}$ (-)')
+                ax[idx] = _apply_tick_locator(ax[idx])
+        
+        elif desired_agg == 'reg':
+            fig,ax=plt.subplots(nrows=len(title_list_reg),ncols=1, figsize=(12,12), sharex=True)
+            for idx,NIS_list_reg in enumerate(agg_prov_reg):
+                model_vals_list=[]
+                data_vals_list=[]
+                for jdx,NIS_prov in enumerate(NIS_list_reg):
+                    model_vals = 0
+                    data_vals= 0
+                    for NIS in agg_arr_prov[idx][jdx]:
+                        model_vals += output['H_in'].sel(NIS=NIS).values
+                        data_vals += df_sciensano.loc[slice(None), NIS].values
+                    model_vals_list.append(model_vals)
+                    data_vals_list.append(data_vals)
+                # Sum
+                model_vals=0
+                data_vals=0
+                for i, mat in enumerate(model_vals_list):
+                    model_vals += mat
+                    data_vals += data_vals_list[i]
+                # Plot
+                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax[idx].set_title(title_list_reg[idx])
+                ax[idx].set_xlim([start_calibration, end_calibration])
+                ax[idx].set_ylim([0, 380])
+                ax[idx].grid(False)
+                ax[idx].set_ylabel('$H_{in}$ (-)')
+                ax[idx] = _apply_tick_locator(ax[idx])
     return ax

@@ -1054,9 +1054,10 @@ class make_contact_matrix_function():
         Default output function, based on contact_matrix_4eff
 
     """
-    def __init__(self, df_google, Nc_all):
+    def __init__(self, df_google, Nc_all, G=None):
         self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
+        self.G = G
         # Compute start and endtimes of dataframe
         self.df_google_start = df_google.index.get_level_values('date')[0]
         self.df_google_end = df_google.index.get_level_values('date')[-1]
@@ -1064,7 +1065,8 @@ class make_contact_matrix_function():
         self.provincial = None
         if 'NIS' in self.df_google.index.names:
             self.provincial = True
-            self.space_agg = len(self.df_google.index.get_level_values('NIS').unique().values)
+            if self.G != len(self.df_google.index.get_level_values('NIS').unique().values):
+                raise ValueError("Using provincial-level Google Community Mobility data only works with spatial aggregation set to 'prov'")
 
     @lru_cache() # once the function is run for a set of parameters, it doesn't need to compile again
     def __call__(self, t, eff_home=1, eff_schools=1, eff_work=1, eff_rest = 1, mentality=1,
@@ -1093,7 +1095,7 @@ class make_contact_matrix_function():
 
         if self.provincial:
             if t < self.df_google_start:
-                return np.ones(self.space_agg)[:,np.newaxis,np.newaxis]*self.Nc_all['total']
+                row = -self.df_google.loc[slice(self.df_google.index.get_level_values('date')[0],self.df_google.index.get_level_values('date')[7]), slice(None)].groupby(by='NIS').mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
                 row = -self.df_google.loc[(t, slice(None)),:]/100
@@ -1112,14 +1114,14 @@ class make_contact_matrix_function():
                     try:
                         test=len(place)
                     except:
-                        place = place*np.ones(self.space_agg)     
+                        place = place*np.ones(self.G)     
                 values_dict.update({places_names[idx]: place})
 
             # Schools:
             try:
                 test=len(school)
             except:
-                school = school*np.ones(self.space_agg)
+                school = school*np.ones(self.G)
 
             # Expand dims on mentality
             if isinstance(mentality,tuple):
@@ -1127,7 +1129,7 @@ class make_contact_matrix_function():
                 mentality = mentality[:, np.newaxis, np.newaxis]
 
             # Construct contact matrix
-            CM = (mentality*(eff_home*np.ones(self.space_agg)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
+            CM = (mentality*(eff_home*np.ones(self.G)[:, np.newaxis,np.newaxis]*self.Nc_all['home'] +
                     (eff_schools*school)[:, np.newaxis,np.newaxis]*self.Nc_all['schools'] +
                     (eff_work*values_dict['work'])[:,np.newaxis,np.newaxis]*self.Nc_all['work'] + 
                     (eff_rest*values_dict['transport'])[:,np.newaxis,np.newaxis]*self.Nc_all['transport'] + 
@@ -1152,12 +1154,22 @@ class make_contact_matrix_function():
                 values_dict.update({places_names[idx]: place})  
 
             # Construct contact matrix
-            CM = (mentality*(eff_home*self.Nc_all['home'] + 
+            CM = (eff_home*self.Nc_all['home'] + 
                     eff_schools*school*self.Nc_all['schools'] +
                     eff_work*values_dict['work']*self.Nc_all['work'] +
                     eff_rest*values_dict['transport']*self.Nc_all['transport'] +
                     eff_rest*values_dict['leisure']*self.Nc_all['leisure'] +
-                    eff_rest*values_dict['others']*self.Nc_all['others']) )
+                    eff_rest*values_dict['others']*self.Nc_all['others'] )
+
+            # Expand to the correct spatial size
+            if self.G:
+                # Expand contact matrix and mentality to size of spatial stratification
+                CM = np.ones(self.G)[:,np.newaxis,np.newaxis]*CM
+                mentality = mentality*np.ones(self.G)
+                # Multiply CM with mentality
+                CM = mentality[:,np.newaxis,np.newaxis]*CM
+            else:
+                CM = mentality*CM
 
         return CM
 
@@ -1401,6 +1413,16 @@ class make_contact_matrix_function():
     ## Spatial model ##
     ###################
 
+    def policies_no_lockdown(self, t, states, param, nc):
+        t = pd.Timestamp('2020-01-01')
+        mat = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, school=1)
+        return nc[:, np.newaxis, np.newaxis]*mat
+    
+    def policies_no_lockdown_work(self, t, states, param, nc):
+        t = pd.Timestamp('2020-01-01')
+        mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, school=0) 
+        return nc[:, np.newaxis, np.newaxis]*mat
+
     def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
@@ -1478,38 +1500,39 @@ class make_contact_matrix_function():
 
         # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
-        idx_F = [0, 1, 4, 5, 8]
-        idx_Bxl = [3,]
-        idx_W = [2, 6, 7, 9, 10]
-        mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
-                                                1.25*mentality, # W
-                                                1.50*mentality, # Bxl
-                                                0.70*mentality, 1.20*mentality, # F
-                                                2*mentality, 2*mentality, # W
-                                                1*mentality, # F
-                                                0.75*mentality, 1*mentality]) # W
 
-        co_F = 1
-        co_W = 1
-        co_Bxl = 1
-        mentality_before_relaxation_flanders_2021 = np.array([co_F, co_F, # F
-                                                co_W, # W
-                                                co_Bxl, # Bxl
-                                                co_F, co_F, # F
-                                                co_W, co_W, # W
-                                                co_F, # F
-                                                co_W, co_W]) # W
-
-        co_F = 1
-        co_W = 1
-        co_Bxl = 1
-        mentality_relaxation_flanders_2021 = np.array([co_F, co_F, # F
-                                                co_W, # W
-                                                co_Bxl, # Bxl
-                                                co_F, co_F, # F
-                                                co_W, co_W, # W
-                                                co_F, # F
-                                                co_W, co_W]) # W
+        if self.G == 11:
+            idx_Vlaams_Brabant = [1,]
+            idx_Waals_Brabant = [2,]
+            idx_F = [0, 1, 4, 5, 8]
+            idx_Bxl = [3,]
+            idx_W = [2, 6, 7, 9, 10]
+            mentality_summer_2020_lockdown = np.array([1*mentality, 0.75*mentality, # F
+                                                        1, # W
+                                                        1, # Bxl
+                                                        0.75*mentality, 1*mentality, # F
+                                                        1, 1, # W
+                                                        1*mentality, # F
+                                                        1*mentality, 1*mentality]) # W
+        elif self.G == 43:
+            idx_Vlaams_Brabant = [4,5]
+            idx_Waals_Brabant = [6,]
+            idx_F = [0, 1, 2,                           # Antwerpen
+                    4, 5,                              # Vlaams-Brabant
+                    7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
+                    15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
+                    32, 33, 34]                        # Limburg      
+            idx_Bxl = [3,]                              # Brussel                    
+            idx_W = [6,                                 # Waals-Brabant
+                    21, 22, 23, 24, 25, 26, 27,        # Henegouwen
+                    28, 29, 30, 31,                    # Luik
+                    35, 36, 37, 38, 39,                # Luxemburg
+                    40, 41, 42]                        # Namen
+            mentality_summer_2020_lockdown = mentality*np.ones(43)
+            mentality_summer_2020_lockdown[7:15] = 0.75*mentality
+            mentality_summer_2020_lockdown[21:28] = 1
+            mentality_summer_2020_lockdown[28:32] = 1
+            mentality_summer_2020_lockdown[35:40] = 1
 
         ################
         ## First wave ##
@@ -1563,25 +1586,22 @@ class make_contact_matrix_function():
         elif t12 < t <= t13:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
         elif t13 < t <= t14:
-            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.09
-            mat[2,:,:] *= 1.00/1.09
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.09
-            mat[2,:,:] *= 1.00/1.09
+            mat[idx_Bxl,:,:] *= 1.30
+            mat[idx_W,:,:] *= 1.10
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
+            mat[idx_Waals_Brabant,:,:] *= 1/1.20
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.14
-            mat[idx_W,:,:] *= 1.09
-            mat[2,:,:] *= 1.00/1.09
+            mat[idx_Bxl,:,:] *= 1.30
+            mat[idx_W,:,:] *= 1.10
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
+            mat[idx_Waals_Brabant,:,:] *= 1/1.20
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
@@ -1605,21 +1625,21 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_before_relaxation_flanders_2021), school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
         elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
         elif t24 < t <= t25:    
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)  
         elif t25 < t <= t26:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
         elif t26 < t <= t27:
             # Gradual re-introduction of mentality change during overlegcommites
             l = (t27 - t26)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_relaxation_flanders_2021), school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t26, l)
         elif t27 < t <= t28:
@@ -1675,6 +1695,28 @@ class make_contact_matrix_function():
             l1_days = pd.Timedelta(l1, unit='D')
             l2_days = pd.Timedelta(l2, unit='D')
 
+            if self.G == 11:
+                idx_Vlaams_Brabant = [1,]
+                idx_Waals_Brabant = [2,]
+                idx_F = [0, 1, 4, 5, 8]
+                idx_Bxl = [3,]
+                idx_W = [2, 6, 7, 9, 10]
+                mentality_summer_2020_lockdown = np.array([1*mentality, 0.75*mentality, # F
+                                                        1, # W
+                                                        1, # Bxl
+                                                        0.75*mentality, 1*mentality, # F
+                                                        1, 1, # W
+                                                        1*mentality, # F
+                                                        1*mentality, 1*mentality]) # W
+            elif self.G == 43:
+                mentality_summer_2020_lockdown = mentality*np.ones(43)
+                mentality_summer_2020_lockdown[7:15] = 0.75*mentality
+                mentality_summer_2020_lockdown[21:28] = 1
+                mentality_summer_2020_lockdown[28:32] = 1
+                mentality_summer_2020_lockdown[35:40] = 1
+
+
+
             ################
             ## First wave ##
             ################
@@ -1682,13 +1724,17 @@ class make_contact_matrix_function():
             # Define key dates 
             t1 = pd.Timestamp('2020-03-16') # start of lockdown
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
-            t3 = pd.Timestamp('2020-08-10') # end of mentality easing
-            t4 = pd.Timestamp('2020-10-19') # start of lockdown
-            t5 = pd.Timestamp('2021-06-01') # start of relaxations
-            t6 = pd.Timestamp('2021-08-01') # end of easing on mentality
-            t7 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-            t8 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-            t9 = pd.Timestamp('2022-02-01') # start easing on mentality
+            t3 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+            t4 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+            t5 = pd.Timestamp('2020-10-19') # start of lockdown
+            t6 = pd.Timestamp('2020-11-16') # schools re-open
+            t7 = pd.Timestamp('2021-02-21') # Start contact increase children
+            t8 = pd.Timestamp('2021-03-26') # End contact increase children
+            t9 = pd.Timestamp('2021-05-15') # start of relaxations
+            t10 = pd.Timestamp('2021-08-01') # end of easing on mentality
+            t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+            t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+            t13 = pd.Timestamp('2022-02-01') # start easing on mentality
 
             # Define number of contacts
             if t <= t1:
@@ -1705,36 +1751,50 @@ class make_contact_matrix_function():
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t2, l)
             elif t3 < t <= t4:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=tuple(mentality_summer_2020_lockdown), school=0)
+            elif t4 < t <= t5:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
 
             ######################
             ## Winter 2020-2021 ##
             ######################
 
-            elif t4  < t <= t4 + l2_days:
+            elif t5  < t <= t5 + l2_days:
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
-                return self.ramp_fun(policy_old, policy_new, t, t4, l2)
-            elif t4 + l2_days < t <= t5:
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t5, l2)
+            elif t5 + l2_days < t <= t6:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0) 
+            elif t6 < t <= t7:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-            elif t5 < t <= t6:
-                l = (t6 - t5)/pd.Timedelta(days=1)
+            elif t7 < t <= t8:
+                mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                mat[idx_F,:,:] *= 1.0
+                mat[idx_Bxl,:,:] *= 1.30
+                mat[idx_W,:,:] *= 1.10
+                mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
+                mat[idx_Waals_Brabant,:,:] *= 1/1.20
+                return mat
+            elif t8 < t <= t9:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+            elif t9 < t <= t10:
+                l = (t10 - t9)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t5, l)
-            elif t6 < t <= t7:
+                return self.ramp_fun(policy_old, policy_new, t, t9, l)
+            elif t10 < t <= t11:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
 
             ######################      
             ## Winter 2021-2022 ##
             ######################      
 
-            elif t7 < t <= t8:
-                l = (t8 - t7)/pd.Timedelta(days=1)
+            elif t11 < t <= t12:
+                l = (t12 - t11)/pd.Timedelta(days=1)
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
                 policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t7, l)
-            elif t8 < t <= t9:
+                return self.ramp_fun(policy_old, policy_new, t, t11, l)
+            elif t12 < t <= t13:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
             else:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
