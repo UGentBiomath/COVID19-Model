@@ -27,13 +27,13 @@ def ll_gaussian(ymodel, ydata, sigma):
         Loglikelihood belonging to the comparison of the data points and the model prediction for its particular parameter values, minus the constant terms if complete=True.
     """
     
-    if len(ymodel) != len(ydata):
-        raise Exception("Lists 'ymodel' and 'ydata' must be of the same size")
-    if (type(sigma) == int) or (type(sigma) == float):
-        sigma_list = np.ones(len(ymodel))*sigma
+    # Check if shapes are consistent
+    if ymodel.shape != ydata.shape:
+        raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
+    # Expand first dimensions on 'alpha' to match the axes
+    sigma = sigma[np.newaxis, ...]
 
-    ll = - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
-    return ll
+    return - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
 
 def ll_poisson(ymodel, ydata):
     """Loglikelihood of Poisson distribution
@@ -50,22 +50,19 @@ def ll_poisson(ymodel, ydata):
     ll: float
         Loglikelihood belonging to the comparison of the data points and the model prediction.
     """
-    
-    # Check consistency of sizes ymodel and ydata
-    if len(ymodel) != len(ydata):
-        raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
-    
+
+    # Check if shapes are consistent
+    if ymodel.shape != ydata.shape:
+        raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
+
     # Raise ymodel if there are negative values present
-    if min(ymodel) <= 0:
-        offset_value = - min(ymodel) + 1e-3 
+    if np.min(ymodel) <= 0:
+        offset_value = - np.min(ymodel) + 1e-3 
         #warnings.warn("I automatically set the ofset to {0} to prevent the probability function from returning NaN".format(offset_value))
     else:
         offset_value = 0
-    
-    # Compute log likelihood
-    ll = - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value)) - np.sum(gammaln(ydata+offset_value))
 
-    return ll
+    return - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value)) - np.sum(gammaln(ydata+offset_value))
 
 def ll_negative_binomial(ymodel, ydata, alpha):
     """Loglikelihood of negative binomial distribution
@@ -90,21 +87,18 @@ def ll_negative_binomial(ymodel, ydata, alpha):
         Loglikelihood belonging to the comparison of the data points and the model prediction.
     """
 
-    # Input check: do length of model prediction and data series match?
-    if len(ymodel) != len(ydata):
-        raise Exception(f"Lenghts {len(ymodel)} and {len(ydata)} do not correspond; lists 'ymodel' and 'ydata' must be of the same size")
+    # Check if shapes are consistent
+    if ymodel.shape != ydata.shape:
+        raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
+    # Expand first dimensions on 'alpha' to match the axes
+    alpha = alpha[np.newaxis, ...]
     # Set offset
-    if min(ymodel) <= 0:
-        offset_value = - min(ymodel) + 1e-3
+    if np.min(ymodel) <= 0:
+        offset_value = - np.min(ymodel) + 1e-3
         #warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
         ymodel += offset_value
-    # Compute log-likelihood
-    if alpha > 0:
-        ll = np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - len(ydata)*gammaln(1/alpha)
-    else:
-        ll = -np.inf
 
-    return ll
+    return np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - np.sum(ydata.shape[0]*gammaln(1/alpha))
 
 #####################################
 ## Log prior probability functions ##
@@ -255,14 +249,18 @@ class log_posterior_probability():
         # Some inputs must have the same length
         if any(len(lst) != len(log_prior_prob_fnc) for lst in [log_prior_prob_fnc_args]):
             raise ValueError(
-                "The number of prior functions ({0}) and the number of sets of prior function arguments ({1}) must be of equal length".format(len(log_prior_prob_fnc),len(log_prior_prob_fnc_args))
+                f"The number of prior functions ({len(log_prior_prob_fnc)}) and the number of sets of prior function arguments ({len(log_prior_prob_fnc_args)}) must be of equal length"
                 )
         if any(len(lst) != len(data) for lst in [states, log_likelihood_fnc, weights, log_likelihood_fnc_args]):
             raise ValueError(
                 "The number of datasets ({0}), model states ({1}), log likelihood functions ({2}), the extra arguments of the log likelihood function ({3}), and weights ({4}) must be of equal".format(len(data),len(states), len(log_likelihood_fnc), len(log_likelihood_fnc_args), len(weights))
                 )
 
-        # Checks on data 
+        ####################
+        ## Checks on data ##
+        ####################
+
+        self.data_indices_diff=[] 
         for idx, df in enumerate(data):
             # Does data contain NaN values anywhere?
             if np.isnan(df).any():
@@ -273,7 +271,9 @@ class log_posterior_probability():
             if 'date' not in df.index.names:
                 raise Exception(
                     "Index of dataset {0} does not have 'date' as index level (index levels: {1}).".format(idx, df.index.names)
-                    )        
+                    )   
+            # Does data contain any axes other than the mandatory 'date'?
+            self.data_indices_diff.append([name for name in df.index.names if name != 'date'])
 
         # Extract start- and enddate of simulations
         index_min=[]
@@ -283,6 +283,47 @@ class log_posterior_probability():
             index_max.append(df.index.get_level_values('date').unique().max())
         self.start_sim = min(index_min)
         self.end_sim = max(index_max)
+
+        ############################################
+        ## Compare data and model stratifications ##
+        ############################################
+
+        self.data_model_coordinates_to_match=[]
+        for i, data_index_diff in enumerate(self.data_indices_diff):
+            tmp1=[]
+            for data_dim in data_index_diff:
+                tmp2=[]
+                # Verify the axes in data_indices_diff are valid model dimensions
+                if data_dim not in model.stratification:
+                    raise Exception(
+                        f"{i}th dataset coordinate '{data_dim}' is not a valid model stratification"
+                    )
+                else:
+                    # Verify all coordinates in the dataset can be found in the model
+                    coords_model = dict(zip(model.stratification, model.coordinates))[data_dim]
+                    coords_data = list(data[i].index.get_level_values(data_dim).unique().values)
+                    for coord in coords_data:
+                        if coord not in coords_model:
+                            raise Exception(
+                                f"{i}th dataset coordinates for stratification {data_dim} were not found in the model coordinates for stratification {data_dim}"
+                             )
+                        else:
+                            tmp2.append(coord)
+                tmp1.append(tmp2)
+            self.data_model_coordinates_to_match.append(tmp1)
+
+        # Construct a list containing (per dataset) the axes we need to aggregate the model output over
+        self.aggregate_over=[]
+        for i, data_index_diff in enumerate(self.data_indices_diff):
+            tmp=[]
+            for model_strat in model.stratification:
+                if model_strat not in data_index_diff:
+                    tmp.append(model_strat)
+            self.aggregate_over.append(tmp)
+
+        ########################################
+        ## Input checks on log_likelihood_fnc ##
+        ########################################
 
         # Check that log_likelihood_fnc always has ymodel as the first argument and ydata as the second argument
         # Find out how many additional arguments are needed for the log_likelihood_fnc (f.i. sigma for gaussian model, alpha for negative binomial)
@@ -312,52 +353,36 @@ class log_posterior_probability():
         # Input checks on the additional arguments of the log likelihood functions
         for idx, df in enumerate(data):
             if n_log_likelihood_extra_args[idx] == 0:
-                if isinstance(log_likelihood_fnc_args[idx], float):
+                if ((isinstance(log_likelihood_fnc_args[idx], int)) | (isinstance(log_likelihood_fnc_args[idx], float)) | (isinstance(log_likelihood_fnc_args[idx], np.ndarray))):
                     raise ValueError(
-                        "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided a float.".format(log_likelihood_fnc[idx], idx)
+                        "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided an int/float/np.array.".format(log_likelihood_fnc[idx], idx)
                         )
                 elif log_likelihood_fnc_args[idx]:
                     raise ValueError(
                         "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided a non-empty list.".format(log_likelihood_fnc[idx], idx)
                         )
             else:
-                if 'NIS' in df.index.names:
-                    # Spatial data
-                    G = len(df.index.get_level_values('NIS').unique())
-                    if isinstance(log_likelihood_fnc_args[idx], float):
-                        pass
-                    elif ((len(log_likelihood_fnc_args[idx]) != G) & (len(log_likelihood_fnc_args[idx]) != 1)):
-                        raise ValueError(
-                        "For a NIS-stratified dataset, you must either provide a float, a list containing a float, or a list of length G = len(NIS) as the extra argument of the log likelihood function."
-                        )  
+                if not self.data_indices_diff[idx]:
+                    if not (isinstance(log_likelihood_fnc_args[idx], int) | isinstance(log_likelihood_fnc_args[idx], float)):
+                        raise Exception(
+                            "Must be int or float"
+                        )
+                elif len(self.data_indices_diff[idx]) == 1:
+                    if (isinstance(log_likelihood_fnc_args[idx], float)) | (isinstance(log_likelihood_fnc_args[idx], int)):
+                        raise Exception(
+                             f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.data_indices_diff[idx][0]}' in the {idx}th dataset. You provided: int or float."
+                        )
+                    if not len(df.index.get_level_values(self.data_indices_diff[idx][0]).unique()) == len(log_likelihood_fnc_args[idx]):
+                        raise Exception(
+                            f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.data_indices_diff[idx][0]}' in the {idx}th dataset."
+                        )
                 else:
-                    # National data
-                    if isinstance(log_likelihood_fnc_args[idx], float):
-                        log_likelihood_fnc_args[idx] = [log_likelihood_fnc_args[idx]]
-                    elif not log_likelihood_fnc_args[idx]:
-                        raise ValueError(
-                        "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided an empty list.".format(idx,log_likelihood_fnc[idx])
-                        )
-                    elif len(log_likelihood_fnc_args[idx]) != 1:
-                        raise ValueError(
-                        "For a national dataset (position {0}), and a log likelihood function with one extra argument ({1}), valid inputs are a float or a list containing a float. You have provided a non-empty list of length greater than one.".format(idx,log_likelihood_fnc[idx])
-                        )
-
-        # Extract model stratification names and coordinates
-        model_stratifications = model.stratification
-        model_coordinates = model.coordinates
-        # Check to see if the coordinates in every dataset are in the model and if the labels match
-        diff_stratifications=[]
-        for idx, df in enumerate(data):
-            data_stratifications = list(df.index.names)
-            for data_stratification in data_stratifications:
-                if data_stratification != 'date':
-                    if not data_stratification in model_stratifications:
-                        raise ValueError(f"Data stratification {data_stratification} is not a valid model stratification")
-                    elif not (df.index.get_level_values(data_stratification).unique().values == model_coordinates[model_stratifications == data_stratification]).all():
-                        raise ValueError(f"Data coordinates for stratification {data_stratification} do not match model coordinates")
-            data_stratifications.remove('date')
-            diff_stratifications.append(data_stratifications)
+                    # never tested
+                    for i,l in enumerate(log_likelihood_fnc_args[idx].shape()):
+                        if not l == len(df.index.get_level_values(self.data_indices_diff[idx][i]).unique()):
+                            raise Exception(
+                                "Hakuna matata, I haven't tested this yet."
+                            )
 
         # Find out if 'warmup' needs to be estimated
         self.warmup_position=None
@@ -374,7 +399,7 @@ class log_posterior_probability():
         self.log_likelihood_fnc = log_likelihood_fnc
         self.log_likelihood_fnc_args = log_likelihood_fnc_args
         self.weights = weights
-        self.diff_stratifications = diff_stratifications
+
 
     @staticmethod
     def compute_log_prior_probability(thetas, log_prior_prob_fnc, log_prior_prob_fnc_args):
@@ -410,42 +435,42 @@ class log_posterior_probability():
         return dict, total_n_values
 
     @staticmethod
-    def compute_log_likelihood(out, states, data, weights, log_likelihood_fnc, log_likelihood_fnc_args, n_log_likelihood_extra_args):
+    def compute_log_likelihood(out, states, data, aggregate_over, data_indices_diff, data_model_coordinates_to_match, weights, log_likelihood_fnc, log_likelihood_fnc_args, n_log_likelihood_extra_args):
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
 
+        def series_to_ndarray(df):
+            shape = [len(df.index.get_level_values(i).unique().values) for i in range(df.index.nlevels)]
+            return df.to_numpy().reshape(shape)
+
         total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
-            # TODO: sum pd.Dataframe over all dimensions except date and NIS
-            # Check the indices
-            if 'date' in list(df.index.names):
-                if 'NIS' in list(df.index.names):
-                    # Spatial data (must have 'date' first and then 'NIS')
-                    for jdx,NIS in enumerate(df.index.get_level_values('NIS').unique()):
-                        new_xarray = out[states[idx]].sel(NIS=NIS)
-                        for dimension in out.dims:
-                            if ((dimension != 'time') & (dimension != 'NIS')):
-                                new_xarray = new_xarray.sum(dim=dimension)
-                        ymodel = new_xarray.sel(time=df.index.get_level_values('date').unique(), method='nearest').values
-                        # Temporarily use overdisperion found from H_in for every NIS
-                        log_likelihood_fnc_args_star = []
-                        for i in range(n_log_likelihood_extra_args[idx]):
-                            try:
-                                log_likelihood_fnc_args_star.append(log_likelihood_fnc_args[idx][jdx])
-                            except:
-                                log_likelihood_fnc_args_star.append(log_likelihood_fnc_args[idx])
-                        # Extra argument stratified per NIS
-                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.loc[slice(None), NIS].values, *log_likelihood_fnc_args_star)
+            # Reduce dimensions
+            out_copy = out[states[idx]]
+            for dimension in out.dims:
+                if dimension in aggregate_over[idx]:
+                    out_copy = out_copy.sum(dim=dimension)
+            # Interpolate to right time
+            interp = out_copy.interp(time=df.index.get_level_values('date').unique(), method="linear")
+            # Select right axes
+            if not data_indices_diff[idx]:
+                # Only dates must be matched
+                ymodel = interp.sel(time=df.index.get_level_values('date').unique()).values
+                if log_likelihood_fnc_args[idx]:
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, log_likelihood_fnc_args[idx])
                 else:
-                    # National data
-                    new_xarray = out[states[idx]]
-                    for dimension in out.dims:
-                        if dimension != 'time':
-                            new_xarray = new_xarray.sum(dim=dimension)
-                    ymodel = new_xarray.sel(time=df.index.values, method='nearest').values
-                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values, *log_likelihood_fnc_args[idx]) 
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values)
+            else:
+                # Additional axes must be matched (n-dimensional)
+                for jdx,ax in enumerate(data_indices_diff[idx]):
+                    # TODO: fix this tranpose: does this work in higher dimensions?
+                    ymodel = np.transpose(interp.sel({ax: data_model_coordinates_to_match[idx][jdx]}).sel(time=df.index.get_level_values('date').unique()).values)
+                    if log_likelihood_fnc_args[idx]:
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df), log_likelihood_fnc_args[idx])
+                    else:
+                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df))
 
         return total_ll
 
@@ -474,6 +499,6 @@ class log_posterior_probability():
         lp = self.compute_log_prior_probability(thetas, self.log_prior_prob_fnc, self.log_prior_prob_fnc_args)
 
         # Compute log likelihood
-        lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, self.log_likelihood_fnc_args, self.n_log_likelihood_extra_args)
+        lp += self.compute_log_likelihood(out, self.states, self.data, self.aggregate_over, self.data_indices_diff, self.data_model_coordinates_to_match, self.weights, self.log_likelihood_fnc, self.log_likelihood_fnc_args, self.n_log_likelihood_extra_args)
 
         return lp
