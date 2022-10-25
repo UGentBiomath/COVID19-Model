@@ -239,10 +239,7 @@ class log_posterior_probability():
 
     A generic implementation to compute the log posterior probability of a model given some data, computed as the sum of the log prior probabilities and the log likelihoods.
     The class allows the user to compare model states to multiple datasets, using a different stochastic model (gaussian, poisson, neg. binomial) for each dataset.
-    The user must make sure that the log_likelihood functions provided have: 1) ymodel as their first argument, 2) ydata as their second argument. 
-    This code is tailored to work with timeseries data, with optional spatial stratification.
-    This code is only tested if the log likelihood functions have one additional argument.
-    # TODO: index names in dataframe should be matched with dimensions of model output to generalize this module further
+    # TODO: update docstring
     """
     def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, log_likelihood_fnc_args, weights):
 
@@ -365,7 +362,7 @@ class log_posterior_probability():
                 if not self.data_indices_diff[idx]:
                     if not (isinstance(log_likelihood_fnc_args[idx], int) | isinstance(log_likelihood_fnc_args[idx], float)):
                         raise Exception(
-                            "Must be int or float"
+                            f"The provided arguments of the log likelihood function for the {idx}th dataset must be of type int or float"
                         )
                 elif len(self.data_indices_diff[idx]) == 1:
                     if (isinstance(log_likelihood_fnc_args[idx], float)) | (isinstance(log_likelihood_fnc_args[idx], int)):
