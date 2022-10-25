@@ -413,7 +413,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ########################
 
     if agg:
-
         # Use ten days for l1, yields better fit to first wave
         pars_dict['l1'] = 10
         pars_dict['l2'] = 7
@@ -470,7 +469,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-10.json'
+        base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-17.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
