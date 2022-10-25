@@ -8,7 +8,7 @@ To load the resulting .xlsx into a pandas dataframe use:
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2020 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 # ----------------------
 # Load required packages
@@ -46,6 +46,10 @@ elif args.age_stratification_size == 9:
 elif args.age_stratification_size == 10:
     age_classes =pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
     age_path = '0_12_18_25_35_45_55_65_75_85/'
+elif args.age_stratification_size == 18:
+    age_classes = pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),
+                                                        (50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
+    age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85/'   
 else:
     raise ValueError(
         "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(args.age_stratification_size)
@@ -96,7 +100,7 @@ def fit_weibull(v):
     loc_lst=[]
     scale_lst=[]
     for age_group in v.index.get_level_values(0).unique().values:
-        if isinstance(v[age_group],list):
+        if isinstance(v[age_group], list):
             values = [x for x in v[age_group] if (math.isnan(x) == False)]
             shape, loc, scale = weibull_min.fit(values,floc=0)
             sample_size_lst.append(len(v[age_group]))
@@ -542,6 +546,8 @@ elif args.age_stratification_size == 9:
     append_idx = 2
 elif args.age_stratification_size == 10:
     append_idx = 2
+elif args.age_stratification_size == 18:
+    append_idx = 4
 
 for i in range(append_idx):
     sample_size.insert(0,0)
@@ -587,7 +593,7 @@ for quantile in quantiles:
     residence_times['dICU_D','Q'+str(quantile)]=df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]).quantile(q=quantile/100)).fillna(1)
 # Gamma fit
 v = df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))] - pd.to_datetime(x['dt_admission'][((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))/datetime.timedelta(days=1)) - x.d_transfer[((x.ICU_transfer=='Oui')&(x.status_discharge=='D'))]))
-sample_size, shape, loc, scale = fit_weibull(v)
+sample_size, shape, loc, scale = fit_weibull(v.fillna(1.0))
 
 if args.age_stratification_size == 3:
     append_idx = 0
@@ -595,6 +601,8 @@ elif args.age_stratification_size == 9:
     append_idx = 1
 elif args.age_stratification_size == 10:
     append_idx = 1
+elif args.age_stratification_size == 18:
+    append_idx = 2
 
 for i in range(append_idx):
     sample_size.insert(0,0)
@@ -627,6 +635,10 @@ for idx,age_group in enumerate(samples['dICU'].index.get_level_values(0).unique(
         residence_times['dICU','Q'+str(quantile)].loc[age_group] = np.nanquantile(samples['dICU'][age_group],q=quantile/100)
 # Gamma fit
 v = samples['dICU']#df.groupby(by='age_class').apply(lambda x: (((x['dt_discharge'][x.ICU_transfer=='Oui'] - pd.to_datetime(x['dt_admission'][x.ICU_transfer=='Oui']))/datetime.timedelta(days=1)) - x.d_transfer[x.ICU_transfer=='Oui']))
+
+if args.age_stratification_size == 18:
+    v[age_classes[1]] = [1, ]
+
 residence_times['dICU','sample_size'], residence_times['dICU','shape'],residence_times['dICU','loc'],residence_times['dICU','scale'] = fit_weibull(v)
 if plot_fit:
     plot_weibull_fit(v,'dICU',90)

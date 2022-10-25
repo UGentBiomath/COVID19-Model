@@ -162,9 +162,10 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
         3.  [0,20(, [20,60(, [60,120(
         9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
         10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
+        18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(
 
-        Returns
-        -------
+    Returns
+    -------
     Nc_dict: dict
         Dictionary containing the integrated interaction matrices per place.
         Dictionary keys: ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total']
@@ -212,6 +213,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         3.  [0,20(, [20,60(, [60,120(
         9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
         10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
+        18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(
 
     agg : string
         Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
@@ -224,7 +226,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     initN : np.array (size: n_spatial_patches * n_age_groups)
         Number of individuals per age group and per geographic location. Used to initialize the number of susceptibles in the model.
 
-    pars_dict : dictionary
+    pars_dict : dictionary [UPDATE]
 
         Non-stratified parameters
         -------------------------
@@ -291,9 +293,11 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
         age_path = '0_12_18_25_35_45_55_65_75_85/'
+    elif age_stratification_size == 18:
+        age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85/' 
     else:
         raise ValueError(
-            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9, 10 or 18".format(
                 age_stratification_size)
         )
     par_interim_path = os.path.join(par_interim_path, 'hospitals/'+age_path)
@@ -409,7 +413,9 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ########################
 
     if agg:
-
+        # Use ten days for l1, yields better fit to first wave
+        pars_dict['l1'] = 10
+        pars_dict['l2'] = 7
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
@@ -452,7 +458,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         base_dict_name = 'national_REF_SAMPLES_2022-09-13.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta': base_samples_dict['beta'],
+            'beta': 0.027,
             'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_schools': np.mean(base_samples_dict['eff_work']),
@@ -463,7 +469,7 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
-        base_dict_name = 'prov_REF_SAMPLES_2022-09-15.json'
+        base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-17.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),

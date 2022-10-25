@@ -40,13 +40,11 @@ class BaseModel:
     apply_compliance_to = None
     state_2d = None
 
-    def __init__(self, states, parameters, coordinates=None, time_dependent_parameters=None,
-                 discrete=False):
+    def __init__(self, states, parameters, coordinates=None, time_dependent_parameters=None):
         self.parameters = parameters
         self.initial_states = states
         self.coordinates = coordinates
         self.time_dependent_parameters = time_dependent_parameters
-        self.discrete = discrete
         if self.stratification:
             self.stratification_size = []
             for axis in self.stratification:
@@ -131,24 +129,33 @@ class BaseModel:
         order, but this requirement could in principle be relaxed, if we ensure
         to pass the states and parameters as keyword arguments and not as
         positional arguments to the `integrate` function.
-
         """
+
         # Validate Model class definition (the integrate function)
         sig = inspect.signature(self.integrate)
         keywords = list(sig.parameters.keys())
         if keywords[0] != "t":
             raise ValueError(
-                "The first parameter of the 'integrate' function should be 't'"
+                "The first argument of the integrate function should always be 't'"
             )
+        elif keywords[1] == "l":
+            # Tau-leaping Gillespie
+            self.discrete = True
+            start_index = 2
+        else:
+            # ODE model
+            self.discrete = False
+            start_index = 1
+
+        # Get names of states and parameters that follow after 't' or 't' and 'l'
         N_states = len(self.state_names)
-        integrate_states = keywords[1 : 1 + N_states]
+        integrate_states = keywords[start_index : start_index + N_states]
         if integrate_states != self.state_names:
             raise ValueError(
                 "The states in the 'integrate' function definition do not match "
                 "the state_names: {0} vs {1}".format(integrate_states, self.state_names)
             )
-
-        integrate_params = keywords[1 + N_states :]
+        integrate_params = keywords[start_index + N_states :]
         specified_params = self.parameter_names.copy()
 
         if self.parameters_stratified_names:
@@ -202,6 +209,17 @@ class BaseModel:
             )
 
         self.parameters = {param: self.parameters[param] for param in specified_params}
+
+        # After building the list of all model parameters, verify no parameters 'l' or 't' were used
+        if 't' in self.parameters:
+            raise ValueError(
+            "Parameter name 't' is reserved for the timestep of scipy.solve_ivp.\nPlease verify no model parameters named 't' are present in the model parameters dictionary or in the time-dependent parameter functions."
+                )
+        if self.discrete == True:
+            if 'l' in self.parameters:
+                raise ValueError(
+                    "Parameter name 'l' is reserved for the leap size of the tau-leaping Gillespie algorithm.\nPlease verify no model parameters named 'l' are present in the model parameters dictionary or in the time-dependent parameter functions."
+                )
 
         # Validate the initial_states / stratified params having the correct length
 
@@ -307,7 +325,6 @@ class BaseModel:
                 raise ValueError(
                     "The return value of the integrate function does not have the correct length."
                 )
-                
 
     @staticmethod
     def integrate():
@@ -317,66 +334,127 @@ class BaseModel:
     def _create_fun(self, actual_start_date):
         """Convert integrate statement to scipy-compatible function"""
 
-        def func(t, y, pars={}):
-            """As used by scipy -> flattend in, flattend out"""
+        if self.discrete == False:
+                
+            def func(t, y, pars={}):
+                """As used by scipy -> flattend in, flattend out"""
 
-            # -------------------------------------------------------------
-            # Flatten y and construct dictionary of states and their values
-            # -------------------------------------------------------------
+                # -------------------------------------------------------------
+                # Flatten y and construct dictionary of states and their values
+                # -------------------------------------------------------------
 
-            if not self.state_2d:
-                # for the moment assume sequence of parameters, vars,... is correct
-                size_lst=[len(self.state_names)]
-                for size in self.stratification_size:
-                    size_lst.append(size)
-                y_reshaped = y.reshape(tuple(size_lst))
-                state_params = dict(zip(self.state_names, y_reshaped))
-            else:
-                # incoming y -> different reshape for 1D vs 2D variables  (2)
-                y_1d, y_2d = np.split(y, [self.split_point])
-                y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
-                y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
-                state_params = state_params = dict(zip(self.state_names, [y_1d,y_2d]))
-
-            # --------------------------------------
-            # update time-dependent parameter values
-            # --------------------------------------
-
-            params = pars.copy()
-
-            if self.time_dependent_parameters:
-                if actual_start_date is not None:
-                    date = self.int_to_date(actual_start_date, t)
+                if not self.state_2d:
+                    # for the moment assume sequence of parameters, vars,... is correct
+                    size_lst=[len(self.state_names)]
+                    for size in self.stratification_size:
+                        size_lst.append(size)
+                    y_reshaped = y.reshape(tuple(size_lst))
+                    state_params = dict(zip(self.state_names, y_reshaped))
                 else:
-                    date = t
-                for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
-                    func_params = {key: params[key] for key in self._function_parameters[i]}
-                    params[param] = param_func(date, state_params, pars[param], **func_params)
+                    # incoming y -> different reshape for 1D vs 2D variables  (2)
+                    y_1d, y_2d = np.split(y, [self.split_point])
+                    y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
+                    y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
+                    state_params = state_params = dict(zip(self.state_names, [y_1d,y_2d]))
 
-            # ----------------------------------
-            # construct list of model parameters
-            # ----------------------------------
+                # --------------------------------------
+                # update time-dependent parameter values
+                # --------------------------------------
 
-            if self._n_function_params > 0:
-	            model_pars = list(params.values())[:-self._n_function_params]
-            else:
-	            model_pars = list(params.values())
+                params = pars.copy()
 
-            # -------------------
-            # perform integration
-            # -------------------
+                if self.time_dependent_parameters:
+                    if actual_start_date is not None:
+                        date = self.int_to_date(actual_start_date, t)
+                    else:
+                        date = t
+                    for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
+                        func_params = {key: params[key] for key in self._function_parameters[i]}
+                        params[param] = param_func(date, state_params, pars[param], **func_params)
 
-            if not self.state_2d:
-                dstates = self.integrate(t, *y_reshaped, *model_pars)
-                return np.array(dstates).flatten()
-            else:
-                dstates = self.integrate(t, *y_1d, y_2d, *model_pars)
-                return np.concatenate([np.array(state).flatten() for state in dstates])
+                # ----------------------------------
+                # construct list of model parameters
+                # ----------------------------------
 
-        return func
+                if self._n_function_params > 0:
+                    model_pars = list(params.values())[:-self._n_function_params]
+                else:
+                    model_pars = list(params.values())
 
+                # -------------------
+                # perform integration
+                # -------------------
 
-    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3):
+                if not self.state_2d:
+                    dstates = self.integrate(t, *y_reshaped, *model_pars)
+                    return np.array(dstates).flatten()
+                else:
+                    dstates = self.integrate(t, *y_1d, y_2d, *model_pars)
+                    return np.concatenate([np.array(state).flatten() for state in dstates])
+
+            return func
+
+        else:
+
+            def func(t, l, y, pars={}):
+                """As used by scipy -> flattend in, flattend out"""
+
+                # -------------------------------------------------------------
+                # Flatten y and construct dictionary of states and their values
+                # -------------------------------------------------------------
+
+                if not self.state_2d:
+                    # for the moment assume sequence of parameters, vars,... is correct
+                    size_lst=[len(self.state_names)]
+                    for size in self.stratification_size:
+                        size_lst.append(size)
+                    y_reshaped = y.reshape(tuple(size_lst))
+                    state_params = dict(zip(self.state_names, y_reshaped))
+                else:
+                    # incoming y -> different reshape for 1D vs 2D variables  (2)
+                    y_1d, y_2d = np.split(y, [self.split_point])
+                    y_1d = y_1d.reshape(((len(self.state_names) - 1), self.stratification_size[0]))
+                    y_2d = y_2d.reshape((self.stratification_size[0], self.stratification_size[0]))
+                    state_params = state_params = dict(zip(self.state_names, [y_1d,y_2d]))
+
+                # --------------------------------------
+                # update time-dependent parameter values
+                # --------------------------------------
+
+                params = pars.copy()
+
+                if self.time_dependent_parameters:
+                    if actual_start_date is not None:
+                        date = self.int_to_date(actual_start_date, t)
+                    else:
+                        date = t
+                    for i, (param, param_func) in enumerate(self.time_dependent_parameters.items()):
+                        func_params = {key: params[key] for key in self._function_parameters[i]}
+                        params[param] = param_func(date, state_params, pars[param], **func_params)
+
+                # ----------------------------------
+                # construct list of model parameters
+                # ----------------------------------
+
+                if self._n_function_params > 0:
+                    model_pars = list(params.values())[:-self._n_function_params]
+                else:
+                    model_pars = list(params.values())
+
+                # -------------------
+                # perform integration
+                # -------------------
+
+                if not self.state_2d:
+                    dstates = self.integrate(t, l, *y_reshaped, *model_pars)
+                    return np.array(dstates).flatten()
+                else:
+                    dstates = self.integrate(t, l, *y_1d, y_2d, *model_pars)
+                    return np.concatenate([np.array(state).flatten() for state in dstates])
+
+            return func
+
+    def _sim_single(self, time, actual_start_date=None, method='RK23', rtol=5e-3, l=1/2):
         """"""
         fun = self._create_fun(actual_start_date)
 
@@ -393,44 +471,40 @@ class BaseModel:
             y0 = list(itertools.chain(*y0))
 
         if self.discrete == False:
-            output = solve_ivp(fun, time,
-                           y0,
-                           args=[self.parameters], t_eval=t_eval, method=method, rtol=rtol)
+            output = solve_ivp(fun, time, y0, args=[self.parameters], t_eval=t_eval, method=method, rtol=rtol)
         else:
-            output = self.solve_discrete(fun,time,list(itertools.chain(*self.initial_states.values())),
-                            args=self.parameters)
+            output = self.solve_discrete(fun, l, t_eval, list(itertools.chain(*self.initial_states.values())), args=self.parameters)
 
         # map to variable names
         return self._output_to_xarray_dataset(output, actual_start_date)
 
-    def solve_discrete(self,fun,time,y,args):
+    def solve_discrete(self,fun, l, t_eval, y, args):
         # Preparations
         y=np.asarray(y) # otherwise error in func : y.reshape does not work
         y=np.reshape(y,[y.size,1])
         y_prev=y
-        # Iteration loop
-        t_lst=[time[0]]
-        t = time[0]
-        while t < time[1]:
-            out = fun(t,y_prev,args)
+        # Simulation loop
+        t_lst=[t_eval[0]]
+        t = t_eval[0]
+        while t < t_eval[-1]:
+            out = fun(t, l, y_prev, args)
             y_prev=out
             out = np.reshape(out,[out.size,1])
             y = np.append(y,out,axis=1)
-            t = t + 1
+            t = t + l
             t_lst.append(t)
-        # Make a dictionary with output
-        output = {
-            'y':    y,
-            't':    t_lst
-        }
-        return output
+        # Interpolate output y to times t_eval
+        y_eval = np.zeros([y.shape[0], len(t_eval)])
+        for row_idx in range(y.shape[0]):
+            y_eval[row_idx,:] = np.interp(t_eval, t_lst, y[row_idx,:])
+        return {'y': y_eval, 't': t_eval}
 
-    def _mp_sim_single(self, drawn_parameters, time, actual_start_date, method, rtol):
+    def _mp_sim_single(self, drawn_parameters, time, actual_start_date, method, rtol, l):
         """
         A Multiprocessing-compatible wrapper for _sim_single, assigns the drawn dictionary and runs _sim_single
         """
         self.parameters.update(drawn_parameters)
-        out = self._sim_single(time, actual_start_date, method, rtol)
+        out = self._sim_single(time, actual_start_date, method, rtol, l)
         return out
 
     def date_to_diff(self, actual_start_date, end_date):
@@ -444,7 +518,7 @@ class BaseModel:
         date = actual_start_date + pd.Timedelta(t, unit='D')
         return date
 
-    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, processes=None):
+    def sim(self, time, warmup=0, start_date=None, N=1, draw_fcn=None, samples=None, method='RK23', rtol=5e-3, l=1/2, processes=None):
 
         """
         Run a model simulation for the given time period. Can optionally perform N repeated simulations of time days.
@@ -484,6 +558,9 @@ class BaseModel:
         
         rtol: float
             Relative tolerance of Scipy `solve_ivp`. Default: 5e-3.
+
+        l: float
+            Leaping time of tau-leaping Gillespie algorithm
 
         Returns
         -------
@@ -566,11 +643,11 @@ class BaseModel:
         # Run simulations
         if processes: # Needed 
             with mp.Pool(processes) as p:
-                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date, method=method, rtol=rtol), drawn_dictionaries)
+                output = p.map(partial(self._mp_sim_single, time=time, actual_start_date=actual_start_date, method=method, rtol=rtol, l=l), drawn_dictionaries)
         else:
             output=[]
             for dictionary in drawn_dictionaries:
-                output.append(self._mp_sim_single(dictionary, time, actual_start_date, method=method, rtol=rtol))
+                output.append(self._mp_sim_single(dictionary, time, actual_start_date, method=method, rtol=rtol, l=l))
 
         # Append results
         out = output[0]

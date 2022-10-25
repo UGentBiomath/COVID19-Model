@@ -126,7 +126,10 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]
+if agg == 'prov':
+    df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
+elif agg == 'arr':
+    df_hosp = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
 # Set end of calibration to last datapoint if no enddate is provided by user
 if not args.end_calibration:
     end_calibration = df_hosp.index.get_level_values('date').max()
@@ -137,7 +140,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, start_date=start_calibration.strftime("%Y-%m-%d"))
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
+                                                                                    start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
 
 if __name__ == '__main__':
 
@@ -146,7 +150,7 @@ if __name__ == '__main__':
     #############################################################
 
     from covid19model.optimization.utils import variance_analysis
-    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None)), 'H_in'], 'W')
+    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     #print(results)
     print('\n')
@@ -166,13 +170,13 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 10
+    print_n = 5
     # Define dataset
-    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None)), 'H_in'], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values, dispersion_weighted, dispersion_weighted]
+    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [[],[dispersion_weighted],[dispersion_weighted]] #[results.loc[(slice(None), 'negative binomial'), 'theta'].values, dispersion_weighted, dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -192,13 +196,13 @@ if __name__ == '__main__':
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,2),(0,2),(0,2))
+    bounds2=((0,0.80),(0,1),(0,1))
     # Variants
     pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.45),(1.40,2.20))
+    bounds3 = ((1.20, 1.60),(1.50,2.20))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.50),)
+    bounds4 = ((0,0.40),)
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
@@ -208,18 +212,18 @@ if __name__ == '__main__':
     #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
     #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
 
-    theta = [0.027, 0.027, 0.032, 0.3, 0.6, 0.53, 1.35, 1.60, 0.25]
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic
+    #theta = [0.0229, 0.0229, 0.0255, 0.49, 0.589, 0.593, 1.3, 1.63, 0.22] # first try --> prov stochstic
+    l=1/2
 
-    theta = [0.023, 0.0232, 0.0273, 0.375, 0.799, 0.522, 1.34, 1.45, 0.24] # Obtained from MCMC run on 2022-09-16
-    
     ####################################
     ## Local Nelder-mead optimization ##
     ####################################
     
     # Define objective function
-    #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # Run Nelder Mead optimization
-    step = len(bounds)*[0.05,]
+    #step = len(bounds)*[0.05,]
     #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
 
     #######################################
@@ -233,18 +237,18 @@ if __name__ == '__main__':
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
-        out = model.sim(end_visualization,start_date=start_calibration)
+        out = model.sim(end_visualization,start_date=start_calibration, l=l)
         # National fit
         data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
         # Regional fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
         plt.show()
         plt.close()
         # Provincial fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
+        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
         plt.show() 
         plt.close()
 
@@ -264,17 +268,17 @@ if __name__ == '__main__':
             pars_PSO = assign_PSO(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration)
+            out = model.sim(end_visualization,start_date=start_calibration, l=l)
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
             plt.close()
             # Visualize regional fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='reg')
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
             plt.show()
             plt.close()
             # Visualize provincial fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg='prov')
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
             plt.show()
             plt.close()
             # Satisfied?
@@ -302,13 +306,13 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.10, 0.10, 0.10]
-    # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2=[0.50, 0.50, 0.50]
+    pert1=[0.02, 0.02, 0.02]
+    # pars2 = ['eff_work', 'eff_rest', 'mentality']
+    pert2=[0.20, 0.20, 0.20]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.05, 0.05]
+    pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.50,] 
+    pert4 = [0.20,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Labels for traceplots
@@ -334,14 +338,14 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
+    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta, 'l': l}
     with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
         pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {}, backend, identifier, processes, agg=agg)
+    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'l': l}}, backend, identifier, processes, agg=agg)
 
     #####################
     ## Process results ##

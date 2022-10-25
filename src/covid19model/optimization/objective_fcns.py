@@ -58,7 +58,7 @@ def ll_poisson(ymodel, ydata):
     # Raise ymodel if there are negative values present
     if min(ymodel) <= 0:
         offset_value = - min(ymodel) + 1e-3 
-        warnings.warn("I automatically set the ofset to {0} to prevent the probability function from returning NaN".format(offset_value))
+        #warnings.warn("I automatically set the ofset to {0} to prevent the probability function from returning NaN".format(offset_value))
     else:
         offset_value = 0
     
@@ -96,7 +96,7 @@ def ll_negative_binomial(ymodel, ydata, alpha):
     # Set offset
     if min(ymodel) <= 0:
         offset_value = - min(ymodel) + 1e-3
-        warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+        #warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
         ymodel += offset_value
     # Compute log-likelihood
     if alpha > 0:
