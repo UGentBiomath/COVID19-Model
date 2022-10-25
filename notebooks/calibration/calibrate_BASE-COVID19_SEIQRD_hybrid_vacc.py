@@ -5,6 +5,9 @@ This script contains a calibration of national COVID-19 SEIQRD model to hospital
 __author__      = "Tijs Alleman"
 __copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
+import warnings
+warnings.filterwarnings("ignore")
+
 ############################
 ## Load required packages ##
 ############################
