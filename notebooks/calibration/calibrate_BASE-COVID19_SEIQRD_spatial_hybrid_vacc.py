@@ -163,7 +163,7 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = 9 #int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     maxiter = n_pso
     popsize = multiplier_pso*processes
@@ -175,8 +175,9 @@ if __name__ == '__main__':
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [[],[dispersion_weighted],[dispersion_weighted]] #[results.loc[(slice(None), 'negative binomial'), 'theta'].values, dispersion_weighted, dispersion_weighted]
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
