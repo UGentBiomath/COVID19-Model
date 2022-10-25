@@ -5,6 +5,10 @@ This script contains a calibration of the spatial COVID-19 SEIQRD model to hospi
 __author__      = " Tijs W. Alleman, Michiel Rollier"
 __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
+# Suppres warnings
+import warnings
+warnings.filterwarnings("ignore")
+
 ############################
 ## Load required packages ##
 ############################
