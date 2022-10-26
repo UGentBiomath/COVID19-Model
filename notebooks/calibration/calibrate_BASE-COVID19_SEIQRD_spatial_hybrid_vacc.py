@@ -35,9 +35,8 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_v
 # Import packages containing functions to load in necessary data
 from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
-from covid19model.optimization.nelder_mead import nelder_mead
+from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.pso import *
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
@@ -144,6 +143,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
+warmup=0
+l=1/2
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
                                                                                     start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
 
@@ -167,10 +168,8 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = 9 #int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
-    maxiter = n_pso
-    popsize = multiplier_pso*processes
     # MCMC settings
     multiplier_mcmc = 10
     max_n = n_mcmc
@@ -188,7 +187,7 @@ if __name__ == '__main__':
     print('--------------------------------------------------------------------------------------\n')
     print('Using data from '+start_calibration.strftime("%Y-%m-%d")+' until '+end_calibration.strftime("%Y-%m-%d")+'\n')
     print('\n1) Particle swarm optimization\n')
-    print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
+    print(f'Using {str(processes)} cores for a population of {multiplier_pso*processes}, for maximally {n_pso} iterations.\n')
     sys.stdout.flush()
 
     #############################
@@ -211,25 +210,25 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
+
+    ############
+    ## 
+
     # Setup objective function without priors and with negative weights 
-    #objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
-    # Perform pso
-    #theta, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_function, bounds, args=(), kwargs={},
-    #                                                                        swarmsize=popsize, maxiter=maxiter, processes=processes, debug=True)
-
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic
-    #theta = [0.0229, 0.0229, 0.0255, 0.49, 0.589, 0.593, 1.3, 1.63, 0.22] # first try --> prov stochstic
-    l=1/2
-
-    ####################################
-    ## Local Nelder-mead optimization ##
-    ####################################
-    
-    # Define objective function
-    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
-    # Run Nelder Mead optimization
-    #step = len(bounds)*[0.05,]
-    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
+    objective_function = log_posterior_probability([],[],model,pars,data,states,
+                                               log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    # PSO
+    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    # A good guess
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic                   
+    # Nelder-mead
+    step = len(bounds)*[0.01,]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+                            processes=processes, max_iter=n_pso)[0]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -305,9 +304,6 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Setup prior functions and arguments
-    log_prior_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_fnc_args = bounds
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
