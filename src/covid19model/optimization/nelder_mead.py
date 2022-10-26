@@ -11,8 +11,8 @@ from functools import partial
 def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
 
-def optimize(f, x_start,
-                step, f_args=(), f_kwargs={}, processes=1, no_improve_thr=10e-6,
+def optimize(func, x_start,
+                step, args=(), kwargs={}, processes=1, no_improve_thr=10e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
     '''
@@ -30,7 +30,7 @@ def optimize(f, x_start,
         return: tuple (best parameter array, best score)
     '''
 
-    obj = partial(_obj_wrapper, f, f_args, f_kwargs)
+    obj = partial(_obj_wrapper, func, args, kwargs)
 
     # Convert x_start to a numpy array
     if isinstance(x_start,list):
