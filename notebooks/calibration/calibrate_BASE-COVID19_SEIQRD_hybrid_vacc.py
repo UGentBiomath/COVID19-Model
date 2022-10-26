@@ -27,8 +27,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
-from covid19model.optimization.pso import *
-from covid19model.optimization.nelder_mead import nelder_mead
+from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
 from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
 from covid19model.visualization.optimization import plot_PSO
@@ -187,21 +186,26 @@ if __name__ == '__main__':
     # Join them together
     pars = pars2 + pars3 + pars4
     bounds =  bounds2 + bounds3 + bounds4
-    # run optimizat
-    #theta = fit_pso(model, data, pars, states, bounds, weights, maxiter=maxiter, popsize=popsize,
-    #                    start_date=start_calibration, warmup=warmup, processes=processes)
+    # Setup prior functions and arguments
+    log_prior_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_fnc_args = bounds
 
-    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]
+    ##################
+    ## Optimization ##
+    ##################
 
-    ####################################
-    ## Local Nelder-mead optimization ##
-    ####################################
-
-    # Define objective function
-    objective_function = log_posterior_probability([],[],model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,-weights)
-    # Run Nelder Mead optimization
-    step = len(bounds)*[0.10,]
-    #sol = nelder_mead(objective_function, np.array(theta), step, (), processes=processes)
+    # Setup objective function without priors and with negative weights 
+    objective_function = log_posterior_probability([],[],model,pars,data,states,
+                                               log_likelihood_fnc,log_likelihood_fnc_args,-weights)
+    # PSO
+    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    # A good guess
+    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
+    # Nelder-mead
+    step = len(bounds)*[0.01,]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+                            processes=processes, max_iter=n_pso)[0]
 
     ###################
     ## Visualize fit ##

@@ -214,8 +214,9 @@ if __name__ == '__main__':
     log_prior_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_fnc_args = bounds
 
-    ############
-    ## 
+    ##################
+    ## Optimization ##
+    ##################
 
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability([],[],model,pars,data,states,
