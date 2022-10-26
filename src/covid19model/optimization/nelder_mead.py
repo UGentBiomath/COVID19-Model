@@ -1,13 +1,18 @@
 import copy
 import numpy as np
 import multiprocessing as mp
+from functools import partial
+
 '''
     Pure Python/Numpy implementation of the Nelder-Mead algorithm.
     Reference: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 '''
 
+def _obj_wrapper(func, args, kwargs, x):
+    return func(x, *args, **kwargs)
+
 def optimize(f, x_start,
-                step, f_args, processes=1, no_improve_thr=10e-6,
+                step, f_args=(), f_kwargs={}, processes=1, no_improve_thr=10e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
     '''
@@ -25,6 +30,8 @@ def optimize(f, x_start,
         return: tuple (best parameter array, best score)
     '''
 
+    obj = partial(_obj_wrapper, f, f_args, f_kwargs)
+
     # Convert x_start to a numpy array
     if isinstance(x_start,list):
         x_start = np.array(x_start)
@@ -32,7 +39,7 @@ def optimize(f, x_start,
     # Compute score of initial estimate
 
     dim = len(x_start)
-    prev_best = f(x_start, *f_args)
+    prev_best = obj(x_start) #f(x_start, *f_args)
     no_improv = 0
     res = [[x_start, prev_best]]
 
@@ -43,13 +50,15 @@ def optimize(f, x_start,
     for i in range(dim):
         x = copy.copy(x_start)
         x[i] = x[i] + step[i]*x[i]
-        mp_args.append((x, *f_args))
+        mp_args.append(x)
     # Compute
     mp_pool = mp.Pool(processes)
-    score = mp_pool.starmap(f, mp_args)
+    score = mp_pool.map(obj, mp_args)
+    mp_pool.close()
+
     # Construct res
     for i in range(len(score)):
-        res.append([mp_args[i][0], score[i]])
+        res.append([mp_args[i], score[i]])
 
     # simplex iter
     iters = 0
@@ -83,7 +92,7 @@ def optimize(f, x_start,
 
         # reflection
         xr = x0 + alpha*(x0 - res[-1][0])
-        rscore = f(xr, *f_args)
+        rscore = obj(xr)
         if res[0][1] <= rscore < res[-2][1]:
             del res[-1]
             res.append([xr, rscore])
@@ -92,7 +101,7 @@ def optimize(f, x_start,
         # expansion
         if rscore < res[0][1]:
             xe = x0 + gamma*(x0 - res[-1][0])
-            escore = f(xe, *f_args)
+            escore = obj(xe)
             if escore < rscore:
                 del res[-1]
                 res.append([xe, escore])
@@ -104,7 +113,7 @@ def optimize(f, x_start,
 
         # contraction
         xc = x0 + rho*(x0 - res[-1][0])
-        cscore = f(xc, *f_args)
+        cscore = obj(xc)
         if cscore < res[-1][1]:
             del res[-1]
             res.append([xc, cscore])
@@ -118,11 +127,12 @@ def optimize(f, x_start,
         mp_args = []
         for tup in res:
             redx = x1 + sigma*(tup[0] - x1)
-            mp_args.append((redx, *f_args))
+            mp_args.append(redx)
         # Compute
         mp_pool = mp.Pool(processes)
-        score = mp_pool.starmap(f, mp_args)
+        score = mp_pool.map(obj, mp_args)
+        mp_pool.close()
         # Construct nres
         for i in range(len(score)):
-            nres.append([mp_args[i][0], score[i]])
+            nres.append([mp_args[i], score[i]])
         res = nres
