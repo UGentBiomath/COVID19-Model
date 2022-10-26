@@ -1,11 +1,12 @@
 import copy
+import numpy as np
 import multiprocessing as mp
 '''
     Pure Python/Numpy implementation of the Nelder-Mead algorithm.
     Reference: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 '''
 
-def nelder_mead(f, x_start,
+def optimize(f, x_start,
                 step, f_args, processes=1, no_improve_thr=10e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
