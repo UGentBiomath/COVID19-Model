@@ -443,9 +443,7 @@ class log_posterior_probability():
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
-
-        print(out)
-
+        
         total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
@@ -455,11 +453,11 @@ class log_posterior_probability():
                 if dimension in self.aggregate_over[idx]:
                     out_copy = out_copy.sum(dim=dimension)
             # Interpolate to right time
-            interp = out_copy.interp(time=df.index.get_level_values('date').unique(), method="linear")
+            interp = out_copy.interp(time=df.index.get_level_values('date').unique().values, method="linear")
             # Select right axes
             if not self.additional_axes_data[idx]:
                 # Only dates must be matched
-                ymodel = interp.sel(time=df.index.get_level_values('date').unique()).values
+                ymodel = interp.sel(time=df.index.get_level_values('date').unique().values).values
                 if n_log_likelihood_extra_args[idx] == 0:
                     total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values)
                 else:
@@ -467,7 +465,7 @@ class log_posterior_probability():
             else:
                 # Make a dictionary containing the axes names and the values we'd like to match
                 # TODO: get rid of this transpose, does this work in 3 dimensions?
-                ymodel = np.transpose(interp.sel(time=df.index.get_level_values('date').unique()).sel({k:self.coordinates_data_also_in_model[idx][jdx] for jdx,k in enumerate(self.additional_axes_data[idx])}).values)
+                ymodel = np.transpose(interp.sel(time=df.index.get_level_values('date').unique().values).sel({k:self.coordinates_data_also_in_model[idx][jdx] for jdx,k in enumerate(self.additional_axes_data[idx])}).values)
                 if n_log_likelihood_extra_args[idx] == 0:
                     total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, self.series_to_ndarray(df))
                 else:
