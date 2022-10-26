@@ -5,20 +5,12 @@ This script contains a calibration of the spatial COVID-19 SEIQRD model to hospi
 __author__      = " Tijs W. Alleman, Michiel Rollier"
 __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
-# Suppres warnings
-import warnings
-warnings.filterwarnings("ignore")
-
 ############################
 ## Load required packages ##
 ############################
 
-# Numpy has this weird glitch, deep down, where, if the number of 'reads' it has to perform becomes too large, it starts to use multiprocessing and this results in quadratic CPU usage (very undesirable)
-# The following line of code prevents this from happening
-import os
-os.environ["OMP_NUM_THREADS"] = "1"
-
 # Load standard packages
+import os
 import ast
 import click
 import sys
