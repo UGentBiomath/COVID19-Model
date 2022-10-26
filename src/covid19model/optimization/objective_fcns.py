@@ -369,18 +369,18 @@ class log_posterior_probability():
                 elif len(self.additional_axes_data[idx]) == 1:
                     if (isinstance(log_likelihood_fnc_args[idx], float)) | (isinstance(log_likelihood_fnc_args[idx], int)):
                         raise Exception(
-                             f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset. You provided: int or float."
+                             f"Length of list containing arguments of the log likelihood function '{log_likelihood_fnc[idx]}' must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset. You provided: int or float."
                         )
                     if not len(df.index.get_level_values(self.additional_axes_data[idx][0]).unique()) == len(log_likelihood_fnc_args[idx]):
                         raise Exception(
-                            f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset."
+                            f"Length of list containing arguments of the log likelihood function '{log_likelihood_fnc[idx]}' must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset."
                         )
                 else:
                     # never tested
                     for i,l in enumerate(log_likelihood_fnc_args[idx].shape()):
                         if not l == len(df.index.get_level_values(self.additional_axes_data[idx][i]).unique()):
                             raise Exception(
-                                "Hakuna matata, I haven't tested this yet."
+                                "Hakuna matata, I have only tested this module with two data axes."
                             )
 
         # Find out if 'warmup' needs to be estimated
