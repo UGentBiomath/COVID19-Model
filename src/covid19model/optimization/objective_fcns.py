@@ -238,7 +238,8 @@ class log_posterior_probability():
     """ Computation of log posterior probability
 
     A generic implementation to compute the log posterior probability of a model given some data, computed as the sum of the log prior probabilities and the log likelihoods.
-    The class allows the user to compare model states to multiple datasets, using a different stochastic model (gaussian, poisson, neg. binomial) for each dataset.
+    The class allows the user to compare model states to multiple datasets, using a different observation model (gaussian, poisson, neg. binomial) for each dataset.
+    The data must be of type pd.DataFrame and must contain the axes "date". 
     # TODO: update docstring
     """
     def __init__(self, log_prior_prob_fnc, log_prior_prob_fnc_args, model, parameter_names, data, states, log_likelihood_fnc, log_likelihood_fnc_args, weights):
@@ -257,20 +258,20 @@ class log_posterior_probability():
         ## Checks on data ##
         ####################
 
-        self.data_indices_diff=[] 
+        self.additional_axes_data=[] 
         for idx, df in enumerate(data):
             # Does data contain NaN values anywhere?
             if np.isnan(df).any():
                 raise Exception(
-                    "Dataset {0} contains nans.".format(idx)
+                    f"{idx}th dataset contains nans"
                     )
             # Does data have 'date' as index level? (required)
             if 'date' not in df.index.names:
                 raise Exception(
-                    "Index of dataset {0} does not have 'date' as index level (index levels: {1}).".format(idx, df.index.names)
+                    "Index of {idx}th dataset does not have 'date' as index level (index levels: {df.index.names})."
                     )   
             # Does data contain any axes other than the mandatory 'date'?
-            self.data_indices_diff.append([name for name in df.index.names if name != 'date'])
+            self.additional_axes_data.append([name for name in df.index.names if name != 'date'])
 
         # Extract start- and enddate of simulations
         index_min=[]
@@ -285,12 +286,12 @@ class log_posterior_probability():
         ## Compare data and model stratifications ##
         ############################################
 
-        self.data_model_coordinates_to_match=[]
-        for i, data_index_diff in enumerate(self.data_indices_diff):
+        self.coordinates_data_also_in_model=[]
+        for i, data_index_diff in enumerate(self.additional_axes_data):
             tmp1=[]
             for data_dim in data_index_diff:
                 tmp2=[]
-                # Verify the axes in data_indices_diff are valid model dimensions
+                # Verify the axes in additional_axes_data are valid model dimensions
                 if data_dim not in model.stratification:
                     raise Exception(
                         f"{i}th dataset coordinate '{data_dim}' is not a valid model stratification"
@@ -307,11 +308,12 @@ class log_posterior_probability():
                         else:
                             tmp2.append(coord)
                 tmp1.append(tmp2)
-            self.data_model_coordinates_to_match.append(tmp1)
+            self.coordinates_data_also_in_model.append(tmp1)
 
-        # Construct a list containing (per dataset) the axes we need to aggregate the model output over
+        # Construct a list containing (per dataset) the axes we need to sum the model output over prior to matching the data
+        # Is the difference between  the data axes and model axes (excluding time/date)
         self.aggregate_over=[]
-        for i, data_index_diff in enumerate(self.data_indices_diff):
+        for i, data_index_diff in enumerate(self.additional_axes_data):
             tmp=[]
             for model_strat in model.stratification:
                 if model_strat not in data_index_diff:
@@ -359,24 +361,24 @@ class log_posterior_probability():
                         "The likelihood function {0} used for the {1}th dataset has no extra arguments. Expected an empty list as argument. You have provided a non-empty list.".format(log_likelihood_fnc[idx], idx)
                         )
             else:
-                if not self.data_indices_diff[idx]:
+                if not self.additional_axes_data[idx]:
                     if not (isinstance(log_likelihood_fnc_args[idx], int) | isinstance(log_likelihood_fnc_args[idx], float)):
                         raise Exception(
                             f"The provided arguments of the log likelihood function for the {idx}th dataset must be of type int or float"
                         )
-                elif len(self.data_indices_diff[idx]) == 1:
+                elif len(self.additional_axes_data[idx]) == 1:
                     if (isinstance(log_likelihood_fnc_args[idx], float)) | (isinstance(log_likelihood_fnc_args[idx], int)):
                         raise Exception(
-                             f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.data_indices_diff[idx][0]}' in the {idx}th dataset. You provided: int or float."
+                             f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset. You provided: int or float."
                         )
-                    if not len(df.index.get_level_values(self.data_indices_diff[idx][0]).unique()) == len(log_likelihood_fnc_args[idx]):
+                    if not len(df.index.get_level_values(self.additional_axes_data[idx][0]).unique()) == len(log_likelihood_fnc_args[idx]):
                         raise Exception(
-                            f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.data_indices_diff[idx][0]}' in the {idx}th dataset."
+                            f"Length of list containing arguments of the log likelihood function must equal the length of the stratification axes '{self.additional_axes_data[idx][0]}' in the {idx}th dataset."
                         )
                 else:
                     # never tested
                     for i,l in enumerate(log_likelihood_fnc_args[idx].shape()):
-                        if not l == len(df.index.get_level_values(self.data_indices_diff[idx][i]).unique()):
+                        if not l == len(df.index.get_level_values(self.additional_axes_data[idx][i]).unique()):
                             raise Exception(
                                 "Hakuna matata, I haven't tested this yet."
                             )
@@ -431,15 +433,18 @@ class log_posterior_probability():
     
         return dict, total_n_values
 
+
     @staticmethod
-    def compute_log_likelihood(out, states, data, aggregate_over, data_indices_diff, data_model_coordinates_to_match, weights, log_likelihood_fnc, log_likelihood_fnc_args, n_log_likelihood_extra_args):
+    def series_to_ndarray(df):
+            shape = [len(df.index.get_level_values(i).unique().values) for i in range(df.index.nlevels)]
+            return df.to_numpy().reshape(shape)
+
+    def compute_log_likelihood(self, out, states, data, weights, log_likelihood_fnc, log_likelihood_fnc_args, n_log_likelihood_extra_args):
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
 
-        def series_to_ndarray(df):
-            shape = [len(df.index.get_level_values(i).unique().values) for i in range(df.index.nlevels)]
-            return df.to_numpy().reshape(shape)
+        print(out)
 
         total_ll=0
         # Loop over dataframes
@@ -447,12 +452,12 @@ class log_posterior_probability():
             # Reduce dimensions
             out_copy = out[states[idx]]
             for dimension in out.dims:
-                if dimension in aggregate_over[idx]:
+                if dimension in self.aggregate_over[idx]:
                     out_copy = out_copy.sum(dim=dimension)
             # Interpolate to right time
             interp = out_copy.interp(time=df.index.get_level_values('date').unique(), method="linear")
             # Select right axes
-            if not data_indices_diff[idx]:
+            if not self.additional_axes_data[idx]:
                 # Only dates must be matched
                 ymodel = interp.sel(time=df.index.get_level_values('date').unique()).values
                 if n_log_likelihood_extra_args[idx] == 0:
@@ -462,11 +467,11 @@ class log_posterior_probability():
             else:
                 # Make a dictionary containing the axes names and the values we'd like to match
                 # TODO: get rid of this transpose, does this work in 3 dimensions?
-                ymodel = np.transpose(interp.sel(time=df.index.get_level_values('date').unique()).sel({k:data_model_coordinates_to_match[idx][jdx] for jdx,k in enumerate(data_indices_diff[idx])}).values)
+                ymodel = np.transpose(interp.sel(time=df.index.get_level_values('date').unique()).sel({k:self.coordinates_data_also_in_model[idx][jdx] for jdx,k in enumerate(self.additional_axes_data[idx])}).values)
                 if n_log_likelihood_extra_args[idx] == 0:
-                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df))
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, self.series_to_ndarray(df))
                 else:
-                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df), *[log_likelihood_fnc_args[idx],])
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, self.series_to_ndarray(df), *[log_likelihood_fnc_args[idx],])
 
         return total_ll
 
@@ -495,6 +500,6 @@ class log_posterior_probability():
         lp = self.compute_log_prior_probability(thetas, self.log_prior_prob_fnc, self.log_prior_prob_fnc_args)
 
         # Add log likelihood
-        lp += self.compute_log_likelihood(out, self.states, self.data, self.aggregate_over, self.data_indices_diff, self.data_model_coordinates_to_match, self.weights, self.log_likelihood_fnc, self.log_likelihood_fnc_args, self.n_log_likelihood_extra_args)
+        lp += self.compute_log_likelihood(out, self.states, self.data, self.weights, self.log_likelihood_fnc, self.log_likelihood_fnc_args, self.n_log_likelihood_extra_args)
 
         return lp
