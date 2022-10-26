@@ -460,14 +460,13 @@ class log_posterior_probability():
                 else:
                     total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, df.values)
             else:
-                # Additional axes must be matched (n-dimensional)
-                for jdx,ax in enumerate(data_indices_diff[idx]):
-                    # TODO: fix this tranpose: does this work in higher dimensions?
-                    ymodel = np.transpose(interp.sel({ax: data_model_coordinates_to_match[idx][jdx]}).sel(time=df.index.get_level_values('date').unique()).values)
-                    if log_likelihood_fnc_args[idx]:
-                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df), log_likelihood_fnc_args[idx])
-                    else:
-                        total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df))
+                # Make a dictionary containing the axes names and the values we'd like to match
+                # TODO: get rid of this transpose, does this work in 3 dimensions?
+                ymodel = np.transpose(interp.sel(time=df.index.get_level_values('date').unique()).sel({k:data_model_coordinates_to_match[idx][jdx] for jdx,k in enumerate(data_indices_diff[idx])}).values)
+                if log_likelihood_fnc_args[idx]:
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df), log_likelihood_fnc_args[idx])
+                else:
+                    total_ll += weights[idx]*log_likelihood_fnc[idx](ymodel, series_to_ndarray(df))
 
         return total_ll
 
