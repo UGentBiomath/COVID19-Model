@@ -1,8 +1,6 @@
 import numpy as np
-import warnings
 from scipy.stats import norm, weibull_min, triang, gamma
 from scipy.special import gammaln
-import sys
 import inspect
 
 ##############################
@@ -443,7 +441,7 @@ class log_posterior_probability():
         """
         Matches the model output of the desired states to the datasets provided by the user and then computes the log likelihood using the user-specified function.
         """
-        
+
         total_ll=0
         # Loop over dataframes
         for idx,df in enumerate(data):
@@ -477,7 +475,7 @@ class log_posterior_probability():
         """
         This function manages the internal bookkeeping (assignment of model parameters, model simulation) and then computes and sums the log prior probabilities and log likelihoods to compute the log posterior probability.
         """
-                
+
         # Add exception for estimation of warmup
         if self.warmup_position:
             simulation_kwargs.update({'warmup': thetas[self.warmup_position]})
