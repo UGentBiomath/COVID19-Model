@@ -214,14 +214,14 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability([],[],model,pars,data,states,
                                                log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # PSO
-    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
     theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
-    step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                            processes=processes, max_iter=n_pso)[0]
+    #step = len(bounds)*[0.01,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     #######################################
     ## Visualize fits on multiple levels ##
