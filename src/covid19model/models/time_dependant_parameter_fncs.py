@@ -1709,13 +1709,24 @@ class make_contact_matrix_function():
                                                         1*mentality, # F
                                                         1*mentality, 1*mentality]) # W
             elif self.G == 43:
+                idx_Vlaams_Brabant = [4,5]
+                idx_Waals_Brabant = [6,]
+                idx_F = [0, 1, 2,                           # Antwerpen
+                        4, 5,                              # Vlaams-Brabant
+                        7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
+                        15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
+                        32, 33, 34]                        # Limburg      
+                idx_Bxl = [3,]                              # Brussel                    
+                idx_W = [6,                                 # Waals-Brabant
+                        21, 22, 23, 24, 25, 26, 27,        # Henegouwen
+                        28, 29, 30, 31,                    # Luik
+                        35, 36, 37, 38, 39,                # Luxemburg
+                        40, 41, 42]                        # Namen
                 mentality_summer_2020_lockdown = mentality*np.ones(43)
                 mentality_summer_2020_lockdown[7:15] = 0.75*mentality
                 mentality_summer_2020_lockdown[21:28] = 1
                 mentality_summer_2020_lockdown[28:32] = 1
                 mentality_summer_2020_lockdown[35:40] = 1
-
-
 
             ################
             ## First wave ##

@@ -1,6 +1,9 @@
+# Prevents numpy from using multiple threads to perform computations on large matrices
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+# Other packages
 import inspect
 import itertools
-
 import xarray
 import copy
 import numpy as np
