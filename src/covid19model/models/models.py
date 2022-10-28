@@ -772,14 +772,14 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
 class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C', 'C_icurec','ICU', 'R', 'D', 'M_in', 'H_in','H_out','H_tot']
+    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['NIS','Nc','doses']
 
     @staticmethod
     @jit(nopython=True)
-    def integrate(t, S, E, I, A, M_R, M_H, C, C_icurec, ICU, R, D, M_in, H_in, H_out, H_tot, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc_work, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, # age-stratified parameters
@@ -896,7 +896,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         ## calculate total population ##
         ################################
 
-        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C + C_icurec + ICU + R_post_vacc, axis=2) # Sum over doses
+        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R_post_vacc, axis=2) # Sum over doses
 
         ################################
         ## Compute infection pressure ##
@@ -904,7 +904,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
 
         # For total population and for the relevant compartments I and A
         G = S.shape[0] # spatial stratification
-        N = S.shape[1] # age stratification
 
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
@@ -940,21 +939,22 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         ############################
 
         dS  = dS - dS_inf
-        dE  = dS_inf - E/sigma 
+        dE  = dS_inf - (1/sigma)*E
         dI = (1/sigma)*E - (1/omega)*I
-        dA = (a/omega)*I - A/da
-        dM_R = (1-h_acc)*((1-a)/omega)*I - M_R*(1/dm)
-        dM_H = h_acc*((1-a)/omega)*I - M_H*(1/dhospital)
-        dC = M_H*(1/dhospital)*c - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D))
-        dICUstar = M_H*(1/dhospital)*(1-c) - (1-m_ICU)*ICU/(dICU_R) - m_ICU*ICU/(dICU_D)
-        dC_icurec = (1-m_ICU)*ICU/(dICU_R) - C_icurec*(1/dICUrec)
-        dR  = dR + A/da + M_R*(1/dm) + (1-m_C)*C*(1/(dc_R)) + C_icurec*(1/dICUrec)
-        dD  = (m_ICU/(dICU_D))*ICU + (m_C/(dc_D))*C 
-        
+        dA = (a/omega)*I - (1/da)*A
+        dM_R = (1-h_acc)*((1-a)/omega)*I - (1/dm)*M_R
+        dM_H = h_acc*((1-a)/omega)*I - (1/dhospital)*M_H
+        dC_R = (1/dhospital)*c*(1-m_C)*M_H - (1/dc_R)*C_R
+        dC_D = (1/dhospital)*c*m_C*M_H - (1/dc_D)*C_D
+        dICU_star_R = (1/dhospital)*(1-c)*(1-m_ICU)*M_H - (1/dICU_R)*ICU_R
+        dICU_star_D = (1/dhospital)*(1-c)*m_ICU*M_H - (1/dICU_D)*ICU_D
+        dC_icurec = (1/dICU_R)*ICU_R - (1/dICUrec)*C_icurec
+        dR  = dR + (1/da)*A + (1/dm)*M_R  + (1/dc_R)*C_R + (1/dICUrec)*C_icurec
+        dD  = (1/dICU_D)*ICU_D + (1/dc_D)*C_D
+
         dM_in = ((1-a)/omega)*I - M_in
-        dH_in = M_H*(1/dhospital) - H_in
-        dH_out =  (1-m_C)*C*(1/(dc_R)) +  m_C*C*(1/(dc_D)) + m_ICU/(dICU_D)*ICU + C_icurec*(1/dICUrec) - H_out
-        dH_tot = M_H*(1/dhospital) - (1-m_C)*C*(1/(dc_R)) - m_C*C*(1/(dc_D)) - m_ICU*ICU/(dICU_D)- C_icurec*(1/dICUrec) 
+        dH_in = (1/dhospital)*M_H - H_in
+        dH_tot = (1/dhospital)*M_H - (1/dc_R)*C_R - (1/dc_D)*C_D - (1/dICUrec)*C_icurec - (1/dICU_D)*ICU_D
 
         ########################
         ## Waning of immunity ##
@@ -964,7 +964,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         dS[:,:,0] = dS[:,:,0] + zeta*R_post_vacc[:,:,0] 
         dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]      
 
-        return (dS, dE, dI, dA, dM_R, dM_H, dC, dC_icurec, dICUstar, dR, dD, dM_in, dH_in, dH_out, dH_tot)
+        return (dS, dE, dI, dA, dM_R, dM_H, dC_R, dC_D, dC_icurec, dICU_star_R, dICU_star_D, dR, dD, dM_in, dH_in, dH_tot)
 
 @jit(nopython=True)
 def compute_transitionings_spatial_jit(G, N, D, l, states, rates):
