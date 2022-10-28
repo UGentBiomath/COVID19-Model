@@ -998,13 +998,13 @@ def compute_transitionings_spatial_jit(G, N, D, l, states, rates):
 class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C', 'C_icurec','ICU', 'R', 'D', 'M_in', 'H_in','H_out','H_tot']
+    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc_work']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['NIS','Nc','doses']
 
     @staticmethod
-    def integrate(t, l, S, E, I, A, M_R, M_H, C, C_icurec, ICU, R, D, M_in, H_in, H_out, H_tot, # time + SEIRD classes
+    def integrate(t, l, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc_work, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D, # age-stratified parameters
@@ -1133,7 +1133,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         ## calculate total population ##
         ################################
 
-        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C + C_icurec + ICU + R_post_vacc, axis=2) # Sum over doses
+        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R_post_vacc, axis=2) # Sum over doses
 
         ################################
         ## Compute infection pressure ##
@@ -1183,23 +1183,48 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         N = S.shape[1]
         D = S.shape[2]
         
-        states=[S_post_vacc, E, I, A, M_R, M_H, C, ICU, C_icurec, R_post_vacc, S_work]
+        states=[S_post_vacc, E, I, A, M_R, M_H, C_R, C_D, ICU_R, ICU_D, C_icurec, R_post_vacc, S_work]
         # Convert all rate sizes to size (11,10,4) for numba
         # --> TO DO: prettify this
         size_dummy = np.ones([G,N,D], np.float64)
         rates=[
             [multip_rest*e_s,], # S_post_vacc
             [size_dummy*(1/sigma),], # E
-            [np.squeeze(a/omega)[np.newaxis, :, np.newaxis]*size_dummy, (1-h_acc)*((1-a)/omega), h_acc*((1-a)/omega)], # I
-            [size_dummy*(1/da)], # A
-            [size_dummy*(1/dm)], # M_R
-            [np.squeeze((1/dhospital)*c)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze((1/dhospital)*(1-c))[np.newaxis, :, np.newaxis]*size_dummy], # M_H
-            [np.squeeze((1-m_C)/dc_R)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze(m_C/dc_D)[np.newaxis, :, np.newaxis]*size_dummy], # C
-            [np.squeeze((1-m_ICU)/dICU_R)[np.newaxis, :, np.newaxis]*size_dummy, np.squeeze(m_ICU/dICU_D)[np.newaxis, :, np.newaxis]*size_dummy], # ICU
+            [np.squeeze(a/omega)[np.newaxis, :, np.newaxis]*size_dummy,
+                (1-h_acc)*((1-a)/omega),
+                h_acc*((1-a)/omega)], # I
+            [size_dummy*(1/da),], # A
+            [size_dummy*(1/dm),], # M_R
+            [np.squeeze((1/dhospital)*c*(1-m_C))[np.newaxis, :, np.newaxis]*size_dummy,
+                np.squeeze((1/dhospital)*c*m_C)[np.newaxis, :, np.newaxis]*size_dummy,
+                np.squeeze((1/dhospital)*(1-c)*(1-m_ICU))[np.newaxis, :, np.newaxis]*size_dummy,
+                np.squeeze((1/dhospital)*(1-c)*m_ICU)[np.newaxis, :, np.newaxis]*size_dummy], # M_H
+            [np.squeeze(1/dc_R)[np.newaxis, :, np.newaxis]*size_dummy,], # C_R
+            [np.squeeze(1/dc_D)[np.newaxis, :, np.newaxis]*size_dummy,], # C_D
+            [np.squeeze(1/dICU_R)[np.newaxis, :, np.newaxis]*size_dummy,], # ICU_R
+            [np.squeeze(1/dICU_D)[np.newaxis, :, np.newaxis]*size_dummy,], # ICU_D
             [np.squeeze(1/dICUrec)[np.newaxis, :, np.newaxis]*size_dummy,], # C_icurec
             [size_dummy*zeta,], # R
-            [multip_work*e_s,] # S_work
-        ]
+            [multip_work*e_s,]] # S_work
+
+        # 0: S --> E
+        # 1: E --> I
+        # 2: I --> A
+        # 3: I --> M_R
+        # 4: I --> M_H
+        # 5: A --> R
+        # 6: M_R --> R
+        # 7: M_H --> C_R
+        # 8: M_H --> C_D
+        # 9: M_H --> ICU_R
+        # 10: M_H --> ICU_D
+        # 11: C_R --> R
+        # 12: C_D --> D
+        # 13: ICU_R --> C_icurec
+        # 14: ICU_D --> D
+        # 15: C_icurec --> R
+        # 16: R --> S
+        # 17: S_work --> E
 
         # Compute the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1218,25 +1243,27 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S_post_vacc - T[0] - T[15] + T[14]
-        E_new = E + T[0] + T[15] - T[1]
+        S_new = S_post_vacc - T[0] - T[17] + T[16]
+        E_new = E + T[0] + T[17] - T[1]
         I_new = I + T[1] - (T[2] + T[3] + T[4])
         A_new = A + T[2] - T[5]
         M_R_new = M_R + T[3] - T[6]
-        M_H_new = M_H + T[4] - (T[7] + T[8])
-        C_new = C + T[7] - (T[9] + T[10])
-        ICU_new = ICU + T[8] - (T[11] + T[12])
-        C_icurec_new = C_icurec + T[11] - T[13]
-        R_new = R_post_vacc + T[5] + T[6] + T[9] + T[13] - T[14]
-        D_new = D + T[10] + T[12]
+        M_H_new = M_H + T[4] - (T[7] + T[8] + T[9] + T[10])
+        C_R_new = C_R + T[7] - T[11]
+        C_D_new = C_D + T[8] - T[12]
+        ICU_R_new = ICU_R + T[9] - T[13]
+        ICU_D_new = ICU_D + T[10] - T[14]
+        C_icurec_new = C_icurec + T[13] - T[15]
+        R_new = R_post_vacc + T[5] + T[6] + T[11] + T[15] - T[16]
+        D_new = D + T[12] + T[14]
 
         # Derivative states
         M_in_new = (T[3] + T[4])/l
-        H_in_new = (T[7] + T[8])/l
-        H_out_new = (T[9] + T[10] + T[12] + T[13])/l
+        H_in_new = (T[7] + T[8] + T[9] + T[10])/l
+        H_out_new = (T[11] + T[12] + T[14] + T[15])/l
         H_tot_new = H_tot + (H_in_new - H_out_new)*l
 
-        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_new, C_icurec_new, ICU_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new)
+        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new)
 
 
 class Economic_Model(BaseModel):
