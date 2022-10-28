@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
-    plt.show()
+    #plt.show()
     plt.close()
 
     ##########################
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic                   
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
     #step = len(bounds)*[0.01,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},

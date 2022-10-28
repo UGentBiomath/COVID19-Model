@@ -1529,6 +1529,7 @@ class make_contact_matrix_function():
                     35, 36, 37, 38, 39,                # Luxemburg
                     40, 41, 42]                        # Namen
             mentality_summer_2020_lockdown = mentality*np.ones(43)
+            mentality_summer_2020_lockdown[4:6] = 0.75*mentality
             mentality_summer_2020_lockdown[7:15] = 0.75*mentality
             mentality_summer_2020_lockdown[21:28] = 1
             mentality_summer_2020_lockdown[28:32] = 1
@@ -1590,18 +1591,18 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.30
+            mat[idx_Bxl,:,:] *= 1.15
             mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-            mat[idx_Waals_Brabant,:,:] *= 1/1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
+            mat[idx_Waals_Brabant,:,:] *= 1/1.15
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.30
+            mat[idx_Bxl,:,:] *= 1.15
             mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-            mat[idx_Waals_Brabant,:,:] *= 1/1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
+            mat[idx_Waals_Brabant,:,:] *= 1/1.15
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
@@ -1723,6 +1724,7 @@ class make_contact_matrix_function():
                         35, 36, 37, 38, 39,                # Luxemburg
                         40, 41, 42]                        # Namen
                 mentality_summer_2020_lockdown = mentality*np.ones(43)
+                mentality_summer_2020_lockdown[4:6] = 0.75*mentality
                 mentality_summer_2020_lockdown[7:15] = 0.75*mentality
                 mentality_summer_2020_lockdown[21:28] = 1
                 mentality_summer_2020_lockdown[28:32] = 1
