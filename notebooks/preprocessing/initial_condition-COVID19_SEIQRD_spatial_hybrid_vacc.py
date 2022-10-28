@@ -13,6 +13,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
+import click
 import os
 import sys
 import argparse
@@ -121,6 +122,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #     # Visualize
 #     fig,ax = plt.subplots(figsize=(12,4))
 #     ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#     ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #     ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
@@ -147,6 +149,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 #         # Visualize new fit
 #         fig,ax = plt.subplots(figsize=(12,4))
 #         ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#         ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
 #         ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #         ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
 #         ax.axvline(x=pd.Timestamp('2020-03-23'),linestyle='--',linewidth=1,color='black')
@@ -167,7 +170,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 
 # prov
 if args.agg == 'prov':
-    initial_infected = [0.40, 0.15, 0.04, 0.50, 0.18, 0.25, 0.30, 0.30, 0.25, 0.08, 0.08]
+    initial_infected = [0.02, 0.015, 0.004, 0.025, 0.0075, 0.012, 0.02, 0.013, 0.014, 0.003, 0.004]
 # agg
 elif args.agg == 'arr':
     initial_infected = [0.012, 0.004, 0.006, 0.025, 0.007, 0.007, 0.004, 0.002, 0.0004, 0.0002,
@@ -210,6 +213,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+out.coords.update({'Nc': range(len(out.coords['Nc']))})
 out.to_netcdf(file_path+str(args.agg)+'_INITIAL-CONDITION.nc')
 
 # Work is done
