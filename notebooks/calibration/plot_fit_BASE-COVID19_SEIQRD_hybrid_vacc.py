@@ -117,7 +117,7 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True, start_date=start_calibration)
 model.parameters['beta'] = samples_dict['beta']
 
 #######################
@@ -274,6 +274,7 @@ if args.save:
 print('4) Save a copy of the simulation output')
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+out.coords.update({'Nc': range(len(out.coords['Nc']))})
 out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
 
 # Work is done
