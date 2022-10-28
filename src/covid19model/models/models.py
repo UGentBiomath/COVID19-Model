@@ -549,14 +549,14 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_out','H_tot', 'Inf_in', 'Inf_out']
+    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot', 'Inf_in', 'Inf_out']
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification = ['Nc','doses']
 
     # ..transitions/equations
     @staticmethod
-    def integrate(t, l, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_out, H_tot, Inf_in, Inf_out,
+    def integrate(t, l, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
                   beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
                   Nc, doses):
@@ -766,7 +766,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(BaseModel):
         Inf_in_new = T[0]/l
         Inf_out_new = (T[5] + T[6] + T[11] + T[12] + T[14] + T[15])/l
 
-        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_out_new, H_tot_new, Inf_in_new, Inf_out_new)
+        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new, Inf_in_new, Inf_out_new)
 
 
 class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
