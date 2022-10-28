@@ -108,20 +108,14 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
 
-#from covid19model.data import model_parameters
-#age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
-#Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-
-#def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
-#    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
-#    return sum((R0_i*initN)/sum(initN))
-
-#print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
-
+# Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
+
+# Stochastic
+#warmup = 0
 
 if __name__ == '__main__':
 
@@ -195,14 +189,14 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability([],[],model,pars,data,states,
                                                log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # PSO
-    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
     theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
     # Nelder-mead
     step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                            processes=processes, max_iter=n_pso)[0]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     ###################
     ## Visualize fit ##
