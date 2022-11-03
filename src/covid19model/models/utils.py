@@ -11,7 +11,7 @@ import xarray as xr
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -23,6 +23,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
     elif age_stratification_size == 10:
         age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    elif age_stratification_size == 18:
+        age_classes = pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),
+                                                        (50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -109,7 +112,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
         for data_var in out.keys():
-            initial_states.update({data_var: out.sel(time=start_date)[data_var].values})
+            initial_states.update({data_var: out.sel(time=start_date)[data_var].values})     
 
     ##########################################################################
     ## Vaccination module requires some additional parameters to be defined ##
@@ -144,11 +147,16 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                'e_h' : efficacy_function.e_h})                      
     
     # Initialize model
-    model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    if stochastic == True:
+        for key,state in initial_states.items():
+            initial_states.update({key: np.rint(state)})
+        model = models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    else:
+        model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False):
+def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -162,6 +170,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         age_classes = pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left')
     elif age_stratification_size == 10:
         age_classes = pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')
+    elif age_stratification_size == 18:
+        age_classes = pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),
+                                                        (50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -198,7 +209,10 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Proximus mobility data
     proximus_mobility_data = mobility.get_proximus_mobility_data(agg)
     # Google Mobility data
-    df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+    if agg == 'prov':
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+    elif agg == 'arr':
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
 
     #####################################################################
     ## Construct time-dependent parameter functions except vaccination ##
@@ -207,8 +221,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Time-dependent VOC function, updating alpha
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent social contact matrix over all policies, updating Nc
-    policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_spatial
-    policy_function_work = make_contact_matrix_function(df_google, Nc_dict).policies_all_work_only
+    policy_function = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_spatial
+    policy_function_work = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_work_only
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
     # Time-dependent seasonality function, updating season_factor
@@ -218,20 +232,30 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Construct vaccination time-dependent parameter functions ##
     ##############################################################
 
-    # Time-dependent (first) vaccination function, updating N_vacc.
-    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
-    N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
-    # Extract the smoothed dataframe
-    df_incidences = N_vacc_function.df
-    # Check if the vaccination efficacies must be updated
-    rescaling_update=False
-    if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
-        rescaling_update = True
-    elif update_data == True:
-        rescaling_update = True
-    # Construct the efficacy function subject to waning
-    efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
-                                              VOCs=VOCs, age_classes=age_classes)
+    try:
+        # Check if dataframe with incidences is available
+        df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
+        # Time-dependent (first) vaccination function, updating N_vacc.
+        N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
+        # Extract the smoothed dataframe
+        df_incidences = N_vacc_function.df
+        # Check if the vaccination efficacies must be updated
+        rescaling_update=False
+        if ((not vaccine_params_previous.equals(vaccine_params)) or (not df_incidences_previous.equals(df_incidences))):
+            rescaling_update = True
+        elif update_data == True:
+            rescaling_update = True
+        # Construct the efficacy function subject to waning
+        rescaling_update=False
+        efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                                VOCs=VOCs, age_classes=age_classes)
+    except:
+        N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
+        # Extract the smoothed dataframe
+        df_incidences = N_vacc_function.df
+        # Construct the efficacy function subject to waning
+        efficacy_function = make_vaccination_efficacy_function(update=True, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
+                                                VOCs=VOCs, age_classes=age_classes)
 
     ####################
     ## Initial states ##
@@ -255,7 +279,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                         }
     else:
         reference_sim_path = os.path.join(abs_dir, data_path + f'/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{agg}/')
-        reference_sim_name = 'prov_INITIAL-CONDITION_2022-09-16.nc'
+        reference_sim_name = f'{agg}_INITIAL-CONDITION.nc'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
         for data_var in out.keys():
@@ -308,7 +332,12 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'e_h' : efficacy_function.e_h})                      
                                
     # Setup model
-    model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    if stochastic == True:
+        for key,state in initial_states.items():
+            initial_states.update({key: np.rint(state)})
+        model = models.COVID19_SEIQRD_spatial_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+    else:
+        model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
@@ -337,6 +366,8 @@ def load_samples_dict(filepath, age_stratification_size=10):
         age_path = '0_10_20_30_40_50_60_70_80/'
     elif age_stratification_size == 10:
         age_path = '0_12_18_25_35_45_55_65_75_85/'
+    elif age_stratification_size == 18:
+        age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85/'
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
@@ -372,7 +403,6 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     """
 
     idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
@@ -712,7 +742,7 @@ def construct_coordinates_Nc(age_stratification_size=10):
     Parameter
     ---------
     N: int
-        Number of age groups (3, 9 or 10)
+        Number of age groups (3, 9, 10 or 18)
     
     Returns
     -------
@@ -721,8 +751,8 @@ def construct_coordinates_Nc(age_stratification_size=10):
     
 
     """
-    if age_stratification_size not in [3, 9, 10]:
-        raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9 (default), or 10.")
+    if age_stratification_size not in [3, 9, 10, 18]:
+        raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9, 10 (default) or 18.")
 
     if age_stratification_size == 3:
         return pd.IntervalIndex.from_tuples([(0, 20), (20, 60), (60, 120)], closed='left')
@@ -730,6 +760,8 @@ def construct_coordinates_Nc(age_stratification_size=10):
         return pd.IntervalIndex.from_tuples([(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60), (60, 70), (70, 80), (80, 120)], closed='left')
     elif age_stratification_size == 10:
         return pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left')
+    elif age_stratification_size == 18:
+        return pd.IntervalIndex.from_tuples([(0,5),(5,10),(10,15),(15,20),(20,25),(25,30),(30,35),(35,40),(40,45),(45,50),(50,55),(55,60),(60,65),(65,70),(70,75),(75,80),(80,85),(85,120)], closed='left')
 
 def read_areas(agg='arr'):
     """
@@ -785,3 +817,193 @@ def read_pops(agg='arr',age_stratification_size=10,return_matrix=False,drop_tota
         pops = pops_df.T.to_dict()
 
     return pops
+
+
+
+def initial_state(dist='bxl', agg='arr', number=1, age=-1, age_stratification_size=9):
+    """
+    Function determining the initial state of a model compartment.
+    
+    Input
+    -----
+    dist: str or int
+        Spatial distribution of the initial state. Choose between 'bxl' (Brussels-only, default), 'hom' (homogeneous), 'data' (data-inspired), or 'frac' (fraction of hospitalisations at March 20th 2020), or choose a NIS code (5-digit int) corresponding to the aggregation level.
+    agg: str
+        Level of spatial aggregation. Choose between 'mun' (581 municipalities), 'arr' (43 arrondissements, default), or 'prov' (10+1 provinces)
+    number: int
+        Total number of people initialised in the compartment. 1 by default. Note that this generally needs to be changed if dist != 'bxl'
+    age: int
+        Integer larger than -1. If -1 (default), random ages are chosen (following demography and age stratification). If a non-negative integer is chosen, this corresponds to the index of the stratified class. Exception is raised when an age is chosen beyond the number of age classes.
+    age_stratification_size: int
+        The stratification size of the ages considered in the model. Choose between 3, 9 (default) or 10.
+
+    Returns
+    -------
+    init: np.array containing integers
+        The initial state with 11, 43 or 581 rows and 9 columns, representing the initial age and spatial distribution of people in a particular SEIR compartment.
+    """
+    
+    from covid19model.data.model_parameters import construct_initN
+    
+    # Raise exceptions if input is wrong
+    if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data', 'frac']):
+        raise Exception(f"Input dist={dist} is not recognised. Choose between 'bxl', 'hom', 'data' or 'frac', or pick a NIS code (integer).")
+    if agg not in ['mun', 'arr', 'prov']:
+        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
+    if not ((number > 0) and float(number).is_integer()):
+        raise Exception(f"Input number={number} is not acceptable. Choose a natural number.")
+    if not ((-1 <= age) and float(number).is_integer()):
+        raise Exception(f"Input age={age} is not acceptable. Choose an integer -1 (random) or positive (reduces to age decade).")
+    if age >= age_stratification_size:
+        raise Exception(f"Age index {age} falls outside the number of stratified age classes ({age_stratification_size}).")
+
+    if age_stratification_size == 3:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,20),(20,60),(60,120)], closed='left'), agg).values
+    elif age_stratification_size == 9:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)], closed='left'), agg).values
+    elif age_stratification_size == 10:
+        initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), agg).values
+    else:
+        raise ValueError(
+            "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9 or 10".format(age_stratification_size)
+        )      
+            
+    # Initialise matrix with proper dimensions.
+    G, N = initN.shape
+    initE = np.zeros((G,N))
+    
+    # Case for chosen NIS code
+    if isinstance(dist,int):
+        # Find coordinate of chosen NIS code
+        gg=np.where(read_coordinates_nis(spatial=agg)==dist)[0][0]
+        initE[gg] = _initial_age_dist(number, age, initN[gg], age_stratification_size=age_stratification_size)
+    
+    # Case for Brussels
+    elif dist=='bxl':
+        # Find coordinate of bxl NIS code
+        if agg in ['arr', 'prov']:
+            gg=np.where(read_coordinates_nis(spatial=agg)==21000)[0][0]
+        else:
+            gg=np.where(read_coordinates_nis(spatial=agg)==21004)[0][0] # Choice is made for historical Brussels
+        initE[gg]= _initial_age_dist(number, age, initN[gg], age_stratification_size=age_stratification_size)
+    
+    # Case for data-inspired initial conditions, based on highest concentration in first peak
+    # Note: the cases are spread almost equally (local population is only a secondary attention point)
+    elif dist=='data':
+        # Find coordinates of NIS codes for Alken, Sint-Truiden, Quévy
+        coordinates_nis=read_coordinates_nis(spatial=agg)
+        gg_array=[]
+        if agg == 'arr':
+            gg_array.append(np.where(coordinates_nis==73000)[0][0]) # arrondissement Tongeren (Alken)
+            gg_array.append(np.where(coordinates_nis==71000)[0][0]) # arrondissement Hasselt (Sint-Truiden)
+            gg_array.append(np.where(coordinates_nis==53000)[0][0]) # arrondissement Mons (Quévy)
+        elif agg == 'prov':
+            gg_array.append(np.where(coordinates_nis==70000)[0][0]) # province Limburg (Alken)
+            gg_array.append(np.where(coordinates_nis==70000)[0][0]) # province Limburg (Sint-Truiden), count double
+            gg_array.append(np.where(coordinates_nis==50000)[0][0]) # province Hainaut (Quévy)
+        else:
+            gg_array.append(np.where(coordinates_nis==73001)[0][0]) # municipality Alken
+            gg_array.append(np.where(coordinates_nis==71053)[0][0]) # municipality Sint-Truiden
+            gg_array.append(np.where(coordinates_nis==53084)[0][0]) # municipality Quévy
+        initN_tot=np.array([initN[gg_array[i]].sum(axis=0) for i in range(3)])
+        initE_all_ages = np.array([number//3 for i in range(3)])
+        for i in range(number%3):
+            jj = np.where(initN_tot==np.sort(initN_tot)[-i-1])[0][0] # find index of highest populations
+            initE_all_ages[jj] += 1 # add remaining initial states to region with highest population first
+        for i in range(3):
+            initE[gg_array[i]] += _initial_age_dist(initE_all_ages[i], age, initN[gg_array[i]], age_stratification_size=age_stratification_size)
+            
+    # Case for homogeneous initial conditions: equal country-wide distribution
+    # Note: the cases are spread almost equally (local population is only a secondary attention point)
+    elif dist=='hom':
+        initN_tot = initN.sum(axis=1)
+        initE_all_ages = np.array([number//G for i in range(G)])
+        initN_tot_sorted = np.sort(initN_tot)
+        for i in range(number%G):
+            jj = np.where(initN_tot==initN_tot_sorted[i-1])[0][0] # find index of highest populations
+            initE_all_ages[jj] += 1 # add remaining initial states to region with highest population first
+        for i in range(G):
+            initE[i] += _initial_age_dist(initE_all_ages[i], age, initN[i], age_stratification_size=age_stratification_size)
+          
+    # Case for initial conditions based on fraction of hospitalisations on 20 March
+    # If age < 0, the number of people is distributed over the age classes fractionally
+    elif dist=='frac':
+        from covid19model.data.sciensano import get_sciensano_COVID19_data_spatial
+        # Note that this gives non-natural numbers as output
+        max_date = '2020-03-20' # Hard-coded and based on Arenas's convention
+        values = 'hospitalised_IN' # Hard-coded and 
+        df = get_sciensano_COVID19_data_spatial(agg=agg, values=values, moving_avg=True)
+        max_value = df.loc[max_date].sum()
+        df_frac = (df.loc[max_date] / max_value * number)
+        for nis in df_frac.index:
+            gg = np.where(read_coordinates_nis(spatial=agg)==nis)[0][0]
+            initE[gg] = _initial_age_dist(df_frac.loc[nis], age, initN[gg], fractional=True, age_stratification_size=age_stratification_size)
+            
+    return initE
+
+def _initial_age_dist(number, age,  pop, fractional=False, age_stratification_size=9):
+    """
+    Help function for initial_state, for the distribution of the initial state over the required age classes.
+    
+    Input
+    -----
+    number: int
+        Total number of people initialised in the compartment.
+    age: int
+        Integer ranging from -1 to age_stratification_size-1. If -1, random ages are chosen (following demography). If 0 to age_stratification_size-1 is chosen, the number corresponds to the index of the stratified age class (e.g. 1 = ages 10-19)
+    pop: np.array
+        Contains population in the various age classes
+    fractional: Boolean
+        If True, the number is distributed over the age classes fractionally (such that we are no longer dealing with a whole number of people)
+    age_stratification_size: int
+        The stratification size of the ages considered in the model. Choose between 3, 9 (default) or 10.
+        
+    Returns
+    -------
+    init_per_age: np.array with integers of dimension 9
+        The distribution of the people in a particular state in one particular region per age    
+    """
+    # Initialise age vector
+    init_per_age = np.zeros(age_stratification_size)
+    
+    # Return vector with people in one particular age class
+    if age > -1:
+        init_per_age[int(age)] = number
+    
+    elif not fractional:
+        indices = list(range(0,age_stratification_size))
+        probs = pop/pop.sum(axis=0)
+        index_choices = np.random.choice(indices, p=probs, size=number)
+        unique, counts = np.unique(index_choices, return_counts=True)
+        index_dict = dict(zip(unique, counts))
+        for key in index_dict:
+            init_per_age[key] = index_dict[key]
+            
+    elif fractional:
+        indices = list(range(0,age_stratification_size))
+        probs = pop/pop.sum(axis=0)
+        init_per_age = number * probs
+    
+    return init_per_age
+
+def read_coordinates_nis(spatial='arr'):
+    """
+    A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
+
+    Parameters
+    ----------
+    spatial : str
+        choose geographical aggregation. Pick between 'arr', 'mun', 'prov', 'test'. Default is 'arr'.
+
+    Returns
+    -------
+     NIS: list
+        a list containing the NIS codes of the 43 Belgian arrondissements, 581 municipalities, 10 provinces (+ Brussels-Capital), or 3
+        arrondissements in the 'test' case (Antwerp, Brussels, Gent)
+
+    """
+
+    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col=[0])
+    NIS = initN_df.index.values
+
+    return NIS

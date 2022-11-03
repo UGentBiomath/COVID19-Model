@@ -1,8 +1,6 @@
-from functools import partial
-import numpy as np
-import multiprocessing as mp
-from covid19model.optimization import objective_fcns
 import sys
+import numpy as np
+from functools import partial
 
 def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
@@ -24,7 +22,7 @@ def _cons_f_ieqcons_wrapper(f_ieqcons, args, kwargs, x):
     return np.array(f_ieqcons(x, *args, **kwargs))
 
 
-def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
+def optimize(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         swarmsize=100, omega=0.8, phip=0.8, phig=0.8, maxiter=100,
         minstep=1e-12, minfunc=1e-12, debug=False, processes=1,
         particle_output=False, transform_pars=None):
@@ -130,17 +128,12 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     is_feasible = partial(_is_feasible_wrapper, cons)
 
-#     print('CHECKPOINT: right before first mention of multiprocessing in optim function')
-    
     # Initialize the multiprocessing module if necessary
     if processes > 1:
         import multiprocessing
-#         print('CHECKPOINT: multiprocessing is imported')
         mp_pool = multiprocessing.Pool(processes)
         
-#     print('CHECKPOINT: right after first mention of multiprocessing in optim function')
-#     print(f'CHECKPOINT: processes = {processes}.')
-    
+
     # Initialize the particle swarm ############################################
     S = swarmsize
     D = len(lb)  # the number of dimensions each particle has
@@ -190,9 +183,7 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
     # Iterate until termination criterion met ##################################
     it = 1
-    
-#     print('CHECKPOINT: start of while loop in optim function')
-    
+
     while it <= maxiter:
         rp = np.random.uniform(size=(S, D))
         rg = np.random.uniform(size=(S, D))
@@ -210,28 +201,20 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
 
 
         # Update objectives and constraints
-        
-#         print('CHECKPOINT: right before multiprocessing pool init in optim function')
-        
+
         if processes > 1:
-#             print(f'CHECKPOINT: processes == {processes} in optim function')
             fx = np.array(mp_pool.map(obj, x))
             fs = np.array(mp_pool.map(is_feasible, x))
         else:
-#             print(f'CHECKPOINT: processes == {processes} in optim function')
             for i in range(S):
                 fx[i] = obj(x[i, :])
                 fs[i] = is_feasible(x[i, :])
-                
-#         print('CHECKPOINT: right after multiprocessing pool init in optim function')
 
         # Store particle's best position (if constraints are satisfied)
         i_update = np.logical_and((fx < fp), fs)
         p[i_update, :] = x[i_update, :].copy()
         fp[i_update] = fx[i_update]
 
-#         print('CHECKPOINT: end of first update in optim function')
-        
         # Compare swarm's best position with global best position
         i_min = np.argmin(fp)
         if fp[i_min] < fg:
@@ -280,59 +263,3 @@ def optim(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         return g, fg, p, fp
     else:
         return g, fg
-
-def fit_pso(model,data,parNames,states,bounds,weights=[1],draw_fcn=None,samples=None,start_date=None,dist='poisson',warmup=0,disp=True,maxiter=30,popsize=10, processes=1, omega=0.8, phip=0.8, phig=0.8, agg=None, poisson_offset=0):
-    """
-    A function to compute the mimimum of the absolute value of the maximum likelihood estimator using a particle swarm optimization
-
-    Parameters
-    -----------
-    model: model object
-        correctly initialised model to be fitted to the dataset
-    data: array
-        list containing dataseries. If agg != None, list contains DataFrame with time series pweights[idx]*
-        list containg the names of the model states to be fitted to data
-    bounds: tuple
-        contains one tuples with the lower and upper bounds of each parameter theta
-    disp: boolean
-        display the pso output stream
-    maxiter: float or int
-        maximum number of pso iterations
-    popsize: float or int
-        population size of particle swarm
-        increasing this variable lowers the chance of finding local minima but slows down calculations
-    agg : str or None
-        Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively.
-        None (default) if non-spatial model is used
-
-    Returns
-    -----------
-    theta_hat : array
-        maximum likelihood estimates of model parameters
-
-    Notes
-    -----------
-    Use all available cores minus one by default (optimal number of processors for 2-,4- or 6-core PC's with an OS). 
-
-    Example use
-    -----------
-    theta_hat = pso(BaseModel,BaseModel,data,parNames,states,bounds)
-    """
-
-    # Exceptions
-    if processes > mp.cpu_count():
-        raise ValueError(
-            f"Desired number of logical processors ({processes}) unavailable. Maximum number: {mp.cpu_count()}"
-        )
-    if agg and (agg not in ['prov', 'arr', 'mun']):
-        raise Exception(f"Aggregation level {agg} not recognised. Choose between 'prov', 'arr' or 'mun'.")
-    
-    # -------------------------------------------
-    # Run pso algorithm on MLE objective function
-    # -------------------------------------------
-
-    p_hat, obj_fun_val, pars_final_swarm, obj_fun_val_final_swarm = optim(objective_fcns.MLE, bounds, args=(model, data, states, parNames), kwargs={'weights': weights, 'draw_fcn':draw_fcn, 'samples':samples, 'start_date':start_date, 'warmup':warmup, 'dist':dist, 'agg':agg, 'poisson_offset':poisson_offset}, swarmsize=popsize, maxiter=maxiter, processes=processes,minfunc=1e-9, minstep=1e-9,debug=True, particle_output=True, omega=omega, phip=phip, phig=phig)
-
-    theta_hat = p_hat
-
-    return theta_hat
