@@ -1,8 +1,9 @@
 import gc
-import os
 import sys
 import emcee
 import datetime
+import pickle
+import os, inspect
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,23 +14,23 @@ from covid19model.models.utils import stratify_beta
 
 abs_dir = os.path.dirname(__file__)
 
-def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, objective_fcn_kwargs, backend, identifier, processes, agg=None, progress=True):
-    
-    # Define path to figures and samples
-    fig_path = os.path.join(os.path.dirname(__file__),'../../../results/calibrations/COVID19_SEIQRD/')
-    samples_path = os.path.join(os.path.dirname(__file__),'../../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
-    
-    # Determine save path
-    if agg:
-        if agg not in ['mun', 'arr', 'prov']:
-            raise Exception(f"Aggregation type {agg} not recognised. Choose between 'mun', 'arr' or 'prov'.")
-        fig_path_agg = f'{fig_path}/{agg}/'
-        samples_path_agg = f'{samples_path}/{agg}/'
+def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objective_fcn_kwargs,
+                fig_path=None, samples_path=None, print_n=10, labels=None, backend=None, processes=1, progress=True, settings_dict=None):
+
+    # Set default fig_path/samples_path as same directory as calibration script
+    if not fig_path:
+        fig_path = os.getcwd()
     else:
-        fig_path_agg = f'{fig_path}/national/'
-        samples_path_agg = f'{samples_path}/national/'
-    # Determine data of calibration
+        fig_path = os.path.join(os.getcwd(), fig_path)
+    if not samples_path:
+        samples_path = os.getcwd()
+    else:
+        samples_path = os.path.join(os.getcwd(), samples_path)
+    # Determine current date
     run_date = str(datetime.date.today())
+    # Save setings dictionary to samples_path
+    with open(samples_path+'/'+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
+        pickle.dump(settings_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
     # This will be useful to testing convergence
@@ -50,11 +51,11 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             
             # Update autocorrelation plot
             ax, tau = autocorrelation_plot(sampler.get_chain(), labels=labels,
-                                            filename=fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf',
+                                            filename=fig_path+'/'+identifier+'_AUTOCORR_'+run_date+'.pdf',
                                             plt_kwargs={'linewidth':2, 'color': 'red'})
             # Update traceplot
             traceplot(sampler.get_chain(),labels=labels,
-                        filename=fig_path_agg+'traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
+                        filename=fig_path+'/'+identifier+'_TRACE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
             # Garbage collection
             plt.close('all')
@@ -87,7 +88,7 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
                 sys.stdout.flush()
                 
             flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path_agg+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
+            with open(samples_path+'/'+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
                 np.save(f,flat_samples)
                 f.close()
                 gc.collect()

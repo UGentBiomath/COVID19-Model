@@ -110,6 +110,7 @@ def traceplot(samples, labels=None, filename=None, plt_kwargs={}):
         ax.plot(samples[:, :, i], **plt_kwargs)
         ax.set_xlim(0, nsamples)
         ax.set_ylabel(labels[i])
+        ax.grid(False)
     axes[-1].set_xlabel("step number")
 
     # Save result if desired
