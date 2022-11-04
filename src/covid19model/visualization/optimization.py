@@ -65,7 +65,7 @@ def autocorrelation_plot(samples):
 
     return ax
 
-def traceplot(samples,labels,plt_kwargs={},filename=None):
+def traceplot(samples, labels=None, filename=None, plt_kwargs={}):
     """Make a visualization of sampled parameters
 
     Parameters
@@ -84,12 +84,15 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     """
     # extract dimensions of sampler output
     nsamples,nwalkers, ndim = samples.shape
-    # input check
-    if len(labels) != ndim:
-        raise ValueError(
-        "The length of label list is not equal to the length of the z-dimension of the samples.\n"
-        "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
-        )
+    if not labels:
+        labels = [f"$\\theta_{i}$" for i in range(ndim)]
+    else:
+        # input check
+        if len(labels) != ndim:
+            raise ValueError(
+            "The length of label list is not equal to the length of the z-dimension of the samples.\n"
+            "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
+            )
     # initialise figure
     fig, axes = plt.subplots(len(labels))
     # Error when only one parameter is calibrated: axes not suscribable
@@ -98,17 +101,15 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
-
     for i in range(ndim):
         ax = axes[i]
         ax.plot(samples[:, :, i], **plt_kwargs)
         ax.set_xlim(0, nsamples)
         ax.set_ylabel(labels[i])
     axes[-1].set_xlabel("step number")
-
+    # Save result if desired
     if filename:
-        plt.savefig(filename, dpi=600, bbox_inches='tight',
-                    orientation='portrait')
+        plt.savefig(filename, dpi=600, bbox_inches='tight', orientation='portrait')
 
     return ax
 
