@@ -1147,7 +1147,8 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta_density(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+        #beta = stratify_beta_density(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+        beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
