@@ -32,13 +32,8 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
     run_date = str(datetime.date.today())
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
-    # We'll track how the average autocorrelation time estimate changes
-    index = 0
-    autocorr = np.empty(max_n)
     # This will be useful to testing convergence
     old_tau = np.inf
-    # Initialize autocorr vector and autocorrelation figure
-    autocorr = np.zeros([1,ndim])
 
     with get_context("spawn").Pool(processes=processes) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
