@@ -29,7 +29,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     if ymodel.shape != ydata.shape:
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
     # Expand first dimensions on 'alpha' to match the axes
-    sigma = sigma[np.newaxis, ...]
+    sigma = np.array(sigma)[np.newaxis, ...]
 
     return - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
 
