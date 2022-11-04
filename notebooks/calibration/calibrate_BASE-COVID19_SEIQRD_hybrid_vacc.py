@@ -145,9 +145,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 20
+    multiplier_mcmc = 3
     max_n = n_mcmc
-    print_n = 20
+    print_n = 2
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
@@ -195,14 +195,14 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability([],[],model,pars,data,states,
                                                log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # PSO
-    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
     theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
     # Nelder-mead
-    step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                            processes=processes, max_iter=n_pso)[0]
+    #step = len(bounds)*[0.01,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     ###################
     ## Visualize fit ##
@@ -285,13 +285,17 @@ if __name__ == '__main__':
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
     'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
-    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
-        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
+
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'warmup': warmup}}, backend, identifier, processes)
+    # Suppress warnings
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                        fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
+                        settings_dict=settings) 
 
     #####################
     ## Process results ##

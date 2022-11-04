@@ -29,7 +29,7 @@ def ll_gaussian(ymodel, ydata, sigma):
     if ymodel.shape != ydata.shape:
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
     # Expand first dimensions on 'alpha' to match the axes
-    sigma = sigma[np.newaxis, ...]
+    sigma = np.array(sigma)[np.newaxis, ...]
 
     return - 1/2 * np.sum((ydata - ymodel) ** 2 / sigma**2 + np.log(2*np.pi*sigma**2))
 
@@ -52,15 +52,20 @@ def ll_poisson(ymodel, ydata):
     # Check if shapes are consistent
     if ymodel.shape != ydata.shape:
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
+    # Convert datatype to float
+    ymodel = ymodel.astype('float64')
+    ydata = ydata.astype('float64')
+    # Raise ymodel or ydata if there are negative values present
+    if ((np.min(ymodel) < 0) | (np.min(ydata) < 0)):
+        offset_value = (-1 - 1e-6)*np.min([np.min(ymodel), np.min(ydata)])
+        ymodel += offset_value
+        ydata += offset_value
+        #warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+    elif ((np.min(ymodel) == 0) | (np.min(ydata) == 0)):
+        ymodel += 1e-6
+        ydata += 1e-6
 
-    # Raise ymodel if there are negative values present
-    if np.min(ymodel) <= 0:
-        offset_value = - np.min(ymodel) + 1e-3 
-        #warnings.warn("I automatically set the ofset to {0} to prevent the probability function from returning NaN".format(offset_value))
-    else:
-        offset_value = 0
-
-    return - np.sum(ymodel+offset_value) + np.sum(np.log(ymodel+offset_value)*(ydata+offset_value)) - np.sum(gammaln(ydata+offset_value))
+    return - np.sum(ymodel) + np.sum(ydata*np.log(ymodel)) - np.sum(gammaln(ydata))
 
 def ll_negative_binomial(ymodel, ydata, alpha):
     """Loglikelihood of negative binomial distribution
@@ -89,14 +94,21 @@ def ll_negative_binomial(ymodel, ydata, alpha):
     if ymodel.shape != ydata.shape:
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
     # Expand first dimensions on 'alpha' to match the axes
-    alpha = alpha[np.newaxis, ...]
-    # Set offset
-    if np.min(ymodel) <= 0:
-        offset_value = - np.min(ymodel) + 1e-3
-        #warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+    alpha = np.array(alpha)[np.newaxis, ...]
+    # Convert datatype to float
+    ymodel = ymodel.astype('float64')
+    ydata = ydata.astype('float64')
+    # Raise ymodel or ydata if there are negative values present
+    if ((np.min(ymodel) < 0) | (np.min(ydata) < 0)):
+        offset_value = (-1 - 1e-6)*np.min([np.min(ymodel), np.min(ydata)])
         ymodel += offset_value
+        ydata += offset_value
+        #warnings.warn(f"One or more values in the prediction were negative thus the prediction was offset, minimum predicted value: {min(ymodel)}")
+    elif ((np.min(ymodel) == 0) | (np.min(ydata) == 0)):
+        ymodel += 1e-6
+        ydata += 1e-6
 
-    return np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1)) - np.sum(ydata.shape[0]*gammaln(1/alpha))
+    return np.sum(ydata*np.log(ymodel)) - np.sum((ydata + 1/alpha)*np.log(1+alpha*ymodel)) + np.sum(ydata*np.log(alpha)) + np.sum(gammaln(ydata+1/alpha)) - np.sum(gammaln(ydata+1))- np.sum(ydata.shape[0]*gammaln(1/alpha))
 
 #####################################
 ## Log prior probability functions ##
