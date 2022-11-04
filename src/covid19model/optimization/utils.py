@@ -26,6 +26,10 @@ def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objectiv
         samples_path = os.getcwd()
     else:
         samples_path = os.path.join(os.getcwd(), samples_path)
+    # Check if the fig_path/autocorrelation and fig_path/traceplots exist and if not make them
+    for directory in [fig_path+"/autocorrelation/", fig_path+"/traceplots/"]:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
     # Determine current date
     run_date = str(datetime.date.today())
     # Save setings dictionary to samples_path
@@ -51,11 +55,11 @@ def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objectiv
             
             # Update autocorrelation plot
             ax, tau = autocorrelation_plot(sampler.get_chain(), labels=labels,
-                                            filename=fig_path+'/'+identifier+'_AUTOCORR_'+run_date+'.pdf',
+                                            filename=fig_path+'/autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf',
                                             plt_kwargs={'linewidth':2, 'color': 'red'})
             # Update traceplot
             traceplot(sampler.get_chain(),labels=labels,
-                        filename=fig_path+'/'+identifier+'_TRACE_'+run_date+'.pdf',
+                        filename=fig_path+'/traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
             # Garbage collection
             plt.close('all')
