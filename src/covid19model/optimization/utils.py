@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, get_context
-from covid19model.visualization.optimization import traceplot
+from covid19model.visualization.optimization import traceplot, autocorrelation_plot
 from covid19model.visualization.output import _apply_tick_locator
 from covid19model.models.utils import stratify_beta
 
@@ -53,28 +53,12 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # UPDATE FIGURES #
             ##################
             
-            # Hardcode threshold values defining convergence
-            thres_multi = 50.0
-            thres_frac = 0.03
-            # Compute the autocorrelation time so far
-            tau = sampler.get_autocorr_time(tol=0)
-            autocorr = np.append(autocorr,np.transpose(np.expand_dims(tau,axis=1)),axis=0)
-            index += 1
             # Update autocorrelation plot
-            n = print_n * np.arange(0, index + 1)
-            y = autocorr[:index+1,:]
-            fig,ax = plt.subplots(figsize=(10,5))
-            ax.plot(n, n / thres_multi, "--k")
-            ax.plot(n, y, linewidth=2,color='red')
-            ax.set_xlim(0, n.max())
-            ymax = np.nanmax(np.append(y, n.max()/thres_multi))
-            ymin = np.nanmin(np.append(y, 0))
-            ax.set_ylim(0, ymax + 0.1 * (ymax - ymin))
-            ax.set_xlabel("number of steps")
-            ax.set_ylabel(r"integrated autocorrelation time $(\hat{\tau})$")
-            fig.savefig(fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf', dpi=400, bbox_inches='tight')
+            ax, tau = autocorrelation_plot(sampler.get_chain(), labels=labels,
+                                            filename=fig_path_agg+'autocorrelation/'+identifier+'_AUTOCORR_'+run_date+'.pdf',
+                                            plt_kwargs={'linewidth':2, 'color': 'red'})
             # Update traceplot
-            traceplot(sampler.get_chain(),labels,
+            traceplot(sampler.get_chain(),labels=labels,
                         filename=fig_path_agg+'traceplots/'+identifier+'_TRACE_'+run_date+'.pdf',
                         plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
             # Garbage collection
@@ -85,6 +69,9 @@ def run_MCMC(pos, max_n, print_n, labels, objective_fcn, objective_fcn_args, obj
             # CHECK CONVERGENCE #
             #####################
 
+            # Hardcode threshold values defining convergence
+            thres_multi = 50.0
+            thres_frac = 0.03
             # Check convergence using mean tau
             converged = np.all(np.mean(tau) * thres_multi < sampler.iteration)
             converged &= np.all(np.abs(np.mean(old_tau) - np.mean(tau)) / np.mean(tau) < thres_frac)
@@ -232,24 +219,6 @@ def assign_PSO(param_dict, parNames, thetas):
         return warmup, param_dict
     else:
         return param_dict
-
-from covid19model.optimization.objective_fcns import log_prior_custom
-def attach_BASE_priors(pars, labels, theta, CORE_samples_dict, pert, log_prior_fcn, log_prior_fcn_args, weight=10):
-    """
-    A function to extended all necessary MCMC input (pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args) with the posteriors of the parameters 'eff_schools', 'eff_work', 'eff_rest', 'eff_home' and 'amplitude', as obtained during the CORE calibration.
-    """
-
-    pars_prior = ['eff_schools', 'eff_work', 'eff_rest', 'eff_home', 'amplitude']
-    pars = pars + pars_prior 
-    labels = labels + ['$\Omega_{schools}$', '$\Omega_{work}$', '$\Omega_{rest}$', '$\Omega_{home}$', 'A']
-    theta = np.append(theta, np.array([np.mean(CORE_samples_dict['eff_schools']), np.mean(CORE_samples_dict['eff_work']), np.mean(CORE_samples_dict['eff_rest']), np.mean(CORE_samples_dict['eff_home']), np.mean(CORE_samples_dict['amplitude'])]))
-    pert = pert + len(pars_prior)*[0.02,]
-    log_prior_fcn = log_prior_fcn + len(pars_prior)*[log_prior_custom,]
-    for par in pars_prior:
-        density_my_par, bins_my_par = np.histogram(CORE_samples_dict[par], bins=20, density=True)
-        density_my_par_norm = density_my_par/np.sum(density_my_par)
-        log_prior_fcn_args = log_prior_fcn_args + ((density_my_par_norm, bins_my_par, weight),)
-    return pars, labels, theta, pert, log_prior_fcn, log_prior_fcn_args
 
 def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """
