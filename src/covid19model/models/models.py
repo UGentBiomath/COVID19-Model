@@ -10,7 +10,7 @@ import numpy as np
 from numba import jit
 from scipy.stats import poisson
 from .base import BaseModel
-from .utils import stratify_beta, read_coordinates_place, construct_coordinates_Nc
+from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
 from ..data.economic_parameters import read_economic_labels
 # Register pandas formatters and converters with matplotlib
@@ -909,7 +909,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(BaseModel):
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+        beta = stratify_beta_density(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
@@ -1147,7 +1147,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(BaseModel):
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
+        beta = stratify_beta_density(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
