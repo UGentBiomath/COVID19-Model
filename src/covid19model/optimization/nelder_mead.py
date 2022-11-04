@@ -4,7 +4,7 @@ import multiprocessing as mp
 from functools import partial
 
 '''
-    Pure Python/Numpy implementation of the Nelder-Mead algorithm.
+    Pure Python/Numpy implementation of the Nelder-Mead algorithm with multiprocessing support.
     Reference: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 '''
 
@@ -39,7 +39,7 @@ def optimize(func, x_start,
     # Compute score of initial estimate
 
     dim = len(x_start)
-    prev_best = obj(x_start) #f(x_start, *f_args)
+    prev_best = obj(x_start)
     no_improv = 0
     res = [[x_start, prev_best]]
 
@@ -52,9 +52,14 @@ def optimize(func, x_start,
         x[i] = x[i] + step[i]*x[i]
         mp_args.append(x)
     # Compute
-    mp_pool = mp.Pool(processes)
-    score = mp_pool.map(obj, mp_args)
-    mp_pool.close()
+    if processes > 1:
+        mp_pool = mp.Pool(processes)
+        score = mp_pool.map(obj, mp_args)
+        mp_pool.close()
+    else:
+        score=[]
+        for x in mp_args:
+            score.append(obj(x))
 
     # Construct res
     for i in range(len(score)):
@@ -129,9 +134,14 @@ def optimize(func, x_start,
             redx = x1 + sigma*(tup[0] - x1)
             mp_args.append(redx)
         # Compute
-        mp_pool = mp.Pool(processes)
-        score = mp_pool.map(obj, mp_args)
-        mp_pool.close()
+        if processes > 1:
+            mp_pool = mp.Pool(processes)
+            score = mp_pool.map(obj, mp_args)
+            mp_pool.close()
+        else:
+            score=[]
+            for x in mp_args:
+                score.append(obj(x))
         # Construct nres
         for i in range(len(score)):
             nres.append([mp_args[i], score[i]])
