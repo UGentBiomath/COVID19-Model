@@ -11,6 +11,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ############################
 
 import sys,os
+import random
 import pickle
 import datetime
 import pandas as pd
@@ -74,6 +75,14 @@ class influenza_model(BaseModel):
 ## Setup model ##
 #################
 
+# Set start date and warmup
+warmup=25
+start_idx=0
+start_date = df_influenza.index.get_level_values('date').unique()[start_idx]
+end_date = df_influenza.index.get_level_values('date').unique()[-1] 
+sim_len = (end_date - start_date)/pd.Timedelta(days=1)+warmup
+# Get initial condition
+I_init = df_influenza.loc[start_date]
 # Define contact matrix (PolyMod study)
 Nc = np.array([[1.3648649, 1.1621622, 5.459459, 0.3918919],
              [0.5524476, 5.1328671,  6.265734, 0.4055944],
@@ -83,16 +92,6 @@ Nc = np.array([[1.3648649, 1.1621622, 5.459459, 0.3918919],
 params={'beta':0.10,'sigma':1,'f_a':0,'f_m':0.5,'gamma_m':1,'gamma_s':8.6,'mu':[0.01, 0.05, 0.08, 0.13],'Nc':np.transpose(Nc)}
 init_states = {'S':construct_initN(age_groups).values,'E':construct_initN(age_groups).values/construct_initN(age_groups).values[0]}
 coordinates=[age_groups,]
-
-# Set start date and warmup
-warmup = 25
-start_idx=0
-start_date = df_influenza.index.get_level_values('date').unique()[start_idx]
-end_date = df_influenza.index.get_level_values('date').unique()[-1] 
-sim_len = (end_date - start_date)/pd.Timedelta(days=1)+warmup
-
-# Get initial condition
-I_init = df_influenza.loc[start_date]
 
 # Initialize model
 model = influenza_model(init_states,params,coordinates)
@@ -108,17 +107,16 @@ if __name__ == '__main__':
     #####################
 
     # Maximum number of PSO iterations
-    n_pso = 10
+    n_pso = 50
     # Maximum number of MCMC iterations
     n_mcmc = 100
-
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 30
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 20
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -142,10 +140,10 @@ if __name__ == '__main__':
     #theta = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.1,0.1]         
+    theta = [0.10,0.10]         
     # Nelder-mead
     step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},processes=processes, max_iter=n_pso)[0]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}}, processes=processes, max_iter=n_pso)[0]
 
     ######################
     ## Visualize result ##
@@ -159,12 +157,12 @@ if __name__ == '__main__':
     axs = axs.reshape(-1)
     for id, age_class in enumerate(df_influenza.index.get_level_values('Nc').unique()):
         axs[id].plot(out['time'],out.sel(Nc=age_class)['Im'], color='black')
-        axs[id].plot(df_influenza.index.get_level_values('date').unique(),df_influenza.loc[slice(None),age_class], color='orange', linestyle='--')
+        axs[id].plot(df_influenza.index.get_level_values('date').unique(),df_influenza.loc[slice(None),age_class], color='orange')
         axs[id].set_title(age_class)
         axs[id].legend(['$I_{m}$','data'])
         axs[id].xaxis.set_major_locator(plt.MaxNLocator(2))
         axs[id].grid(False)
-    #plt.show()
+    plt.show()
     plt.close()
 
     ##########
@@ -172,7 +170,7 @@ if __name__ == '__main__':
     ##########
 
     # Perturbate previously obtained estimate
-    pert = [0.50, 0.50]
+    pert = [0.10, 0.10]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
     labels = ['$\\beta$', '$f_a$']
@@ -192,4 +190,50 @@ if __name__ == '__main__':
     sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
                         fig_path=None, samples_path=None, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
                         settings_dict=settings) 
+    # Discard and thin chains: check convergence
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
+        sys.stdout.flush()
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Setting thinning to 1.\n')
+        sys.stdout.flush()
+    # Construct a dictionary of samples
+    flat_samples = sampler.get_chain(discard=30,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(pars):
+        samples_dict[name] = flat_samples[:,count].tolist()
+    # Append the settings to the dictionary of samples
+    samples_dict.update(settings)
+
+    ######################
+    ## Visualize result ##
+    ######################
+
+    # Define draw function
+    def draw_fcn(param_dict, samples_dict):
+        # @Wolf: Waarom zorg ik ervoor dat de samples voor 'beta' en 'f_a' van dezelfde positie 'idx' komen?
+        idx, param_dict['beta'] = random.choice(list(enumerate(samples_dict['beta'])))  
+        param_dict['f_a'] = samples_dict['f_a'][idx]
+        return param_dict
+    
+    # Simulate model
+    out = model.sim(end_date, start_date=start_date, warmup=warmup, N=50, samples=samples_dict, draw_fcn=draw_fcn, processes=processes)
+
+    # Make visualization
+    fig, axs = plt.subplots(2,2,sharex=True, sharey=True, figsize=(8,6))
+    axs = axs.reshape(-1)
+    for id, age_class in enumerate(df_influenza.index.get_level_values('Nc').unique()):
+        axs[id].plot(out['time'].values,out['Im'].sel(Nc=age_class).mean(dim='draws'), color='black') # Dimensie erbij gekomen: draws !
+        axs[id].fill_between(out['time'].values,out['Im'].sel(Nc=age_class).quantile(dim='draws', q=0.025),
+                             out['Im'].sel(Nc=age_class).quantile(dim='draws', q=0.975), color='black', alpha=0.1)
+        axs[id].plot(df_influenza.index.get_level_values('date').unique(),df_influenza.loc[slice(None),age_class], color='orange')
+        axs[id].set_title(age_class)
+        axs[id].legend(['$I_{m}$','confint', 'data'])
+        axs[id].xaxis.set_major_locator(plt.MaxNLocator(2))
+        axs[id].grid(False)
+    plt.show()
+    plt.close()
     
