@@ -52,6 +52,9 @@ def ll_poisson(ymodel, ydata):
     # Check if shapes are consistent
     if ymodel.shape != ydata.shape:
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
+    # Convert datatype to float
+    ymodel = ymodel.astype('float64')
+    ydata = ydata.astype('float64')
     # Raise ymodel or ydata if there are negative values present
     if ((np.min(ymodel) < 0) | (np.min(ydata) < 0)):
         offset_value = (-1 - 1e-6)*np.min([np.min(ymodel), np.min(ydata)])
@@ -92,6 +95,9 @@ def ll_negative_binomial(ymodel, ydata, alpha):
         raise Exception(f"Shapes of model prediction {ymodel.shape} and {ydata.shape} do not correspond; np.arrays 'ymodel' and 'ydata' must be of the same size")
     # Expand first dimensions on 'alpha' to match the axes
     alpha = np.array(alpha)[np.newaxis, ...]
+    # Convert datatype to float
+    ymodel = ymodel.astype('float64')
+    ydata = ydata.astype('float64')
     # Raise ymodel or ydata if there are negative values present
     if ((np.min(ymodel) < 0) | (np.min(ydata) < 0)):
         offset_value = (-1 - 1e-6)*np.min([np.min(ymodel), np.min(ydata)])
