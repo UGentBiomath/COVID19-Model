@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, get_context
 from covid19model.visualization.optimization import traceplot
 from covid19model.visualization.output import _apply_tick_locator
-from covid19model.models.utils import stratify_beta
+from covid19model.models.utils import stratify_beta_regional
 
 abs_dir = os.path.dirname(__file__)
 
@@ -278,7 +278,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """
 
     if agg:
-        beta = stratify_beta('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
+        beta = stratify_beta_density('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
         sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R
         G = initN.shape[0]
         N = initN.shape[1]

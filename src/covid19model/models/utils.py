@@ -717,7 +717,7 @@ def stratify_beta_density(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400,
     return beta
 
 @jit(nopython=True)
-def stratify_beta_regional(beta_FL, beta_W, beta_Bxl, G):
+def stratify_beta_regional(beta_W, beta_FL, beta_Bxl, G):
     """
     Function that returns a spatially stratified infectivity parameter. Stratified per Belgian region (Flanders, Wallonia, Brussels).
 
