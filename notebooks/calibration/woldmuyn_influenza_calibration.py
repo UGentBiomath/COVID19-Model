@@ -202,7 +202,7 @@ if __name__ == '__main__':
     # Save samples dictionary to json for long-term storage: _SETTINGS_ and _BACKEND_ can be removed at this point
     with open(str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
-    # Make a cornerplot
+    # Look at the resulting distributions in a cornerplot
     import corner
     CORNER_KWARGS = dict(smooth=0.90,title_fmt=".2E")
     fig = corner.corner(sampler.get_chain(discard=50, thin=2, flat=True), labels=labels, **CORNER_KWARGS)
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         ax.grid(False)
     plt.show()
     plt.close()
-    
+
     ######################
     ## Visualize result ##
     ######################
