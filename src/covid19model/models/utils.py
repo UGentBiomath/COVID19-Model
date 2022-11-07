@@ -741,23 +741,21 @@ def stratify_beta_regional(beta_W, beta_FL, beta_Bxl, G):
 
     # Initialize array containing Flanders infectivity
     beta = beta_FL*np.ones(G, np.float64)
-
+    # Set Brussels infectivity
+    beta[3] = beta_Bxl
     # Hardcode indices for prov and arr
     if G == 11:
-        idx_Bxl = 3
         idx_W = [2, 6, 7, 9, 10]
-    elif G == 43:
-        idx_Bxl = 3                                           
+    elif G == 43:                                    
         idx_W = [6,                                # Waals-Brabant
                 21, 22, 23, 24, 25, 26, 27,        # Henegouwen
                 28, 29, 30, 31,                    # Luik
                 35, 36, 37, 38, 39,                # Luxemburg
                 40, 41, 42]                        # Namen
 
-    # Set correct infectivities for Brussels and Wallonia
-    beta[idx_Bxl] = beta_Bxl
-    for idx in idx_W:
-        beta[idx] = beta_W
+    # Set correct infectivities for Wallonia
+    for i in idx_W:
+        beta[i] = beta_W
 
     return beta
 
