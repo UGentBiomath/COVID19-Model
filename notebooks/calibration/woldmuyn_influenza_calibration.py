@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from covid19model.models.base import BaseModel
 from covid19model.data.utils import construct_initN
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, sampler_to_dictionary
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from covid19model.optimization import pso, nelder_mead
 
 # Suppress warnings
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     # Maximum number of PSO iterations
     n_pso = 10
     # Maximum number of MCMC iterations
-    n_mcmc = 100
+    n_mcmc = 30
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 30
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     # Perturbate previously obtained estimate
     ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.10, 0.01], multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=True)
     # Labels for traceplots
-    labels = ['$\\beta$', 'f_a']
+    labels = ['$\\beta$', '$f_a$']
     pars_postprocessing = ['beta', 'f_a']
     # Variables
     samples_path=None
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)
     # Generate a sample dictionary
-    samples_dict = sampler_to_dictionary(sampler, pars_postprocessing, discard=50, settings=settings)
+    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=50, settings=settings)
     # Save samples dictionary to json for long-term storage: _SETTINGS_ and _BACKEND_ can be removed at this point
     with open(str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

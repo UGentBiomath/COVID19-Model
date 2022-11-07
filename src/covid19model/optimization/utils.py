@@ -108,7 +108,7 @@ def run_EnsembleSampler(pos, max_n, identifier, objective_fcn, objective_fcn_arg
 
     return sampler
 
-def sampler_to_dictionary(sampler, parameter_names, discard=0, thin=1, settings={}):
+def emcee_sampler_to_dictionary(sampler, parameter_names, discard=0, thin=1, settings={}):
     """
     A function to discard and thin the samples available in the sampler object. Convert them to a dictionary of format: {parameter_name: [sample_0, ..., sample_n]}.
     Append a dictionary of settings (f.i. starting estimate of MCMC sampler, start- and enddate of calibration).

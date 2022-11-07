@@ -26,7 +26,7 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, sampler_to_dictionary, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_PSO
 from covid19model.visualization.optimization import plot_PSO
 
 #############################
@@ -288,7 +288,7 @@ if __name__ == '__main__':
     #####################
 
     # Generate a sample dictionary
-    samples_dict = sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
     # Save samples dictionary to json
     with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
