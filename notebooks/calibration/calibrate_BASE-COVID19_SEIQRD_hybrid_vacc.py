@@ -26,7 +26,7 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, sampler_to_dictionary, assign_PSO
 from covid19model.visualization.optimization import plot_PSO
 
 #############################
@@ -260,15 +260,10 @@ if __name__ == '__main__':
     pert4 = [0.10,] 
     # Add them together and perturbate
     pert =  pert2 + pert3 + pert4 #+ pert5
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
     labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
     pars_postprocessing = ['eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
-    # Set up the sampler backend if needed
-    if backend:
-        filename = identifier+run_date
-        backend = emcee.backends.HDFBackend(backend_folder+filename)
-        backend.reset(nwalkers, ndim)
     # initialize objective function
     objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
@@ -276,7 +271,7 @@ if __name__ == '__main__':
     ## Run MCMC sampler ##
     ######################
 
-    # Write settings to a .txt
+    # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
     'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
 
@@ -287,38 +282,18 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings("ignore")
 
-    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                        fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
-                        settings_dict=settings) 
+    # Setup sampler
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings) 
 
     #####################
     ## Process results ##
     #####################
 
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = int(0.5 * np.min(autocorr))
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain!\n')
-
-    print('\n3) Sending samples to dictionary')
-
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-
-    samples_dict={}
-    for count,name in enumerate(pars):
-        samples_dict.update({name: flat_samples[:,count].tolist()})
-
-    samples_dict.update({'n_chains': nwalkers,
-                        'start_calibration': args.start_calibration,
-                        'end_calibration': args.end_calibration,
-                        'dispersion': dispersion,
-                        'warmup': warmup,
-                        'beta': model.parameters['beta'],
-                        'starting_estimate': theta
-                        })
-
+    # Generate a sample dictionary
+    samples_dict = sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    # Save samples dictionary to json
     with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
