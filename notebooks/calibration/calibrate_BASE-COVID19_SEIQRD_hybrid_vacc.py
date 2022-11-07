@@ -26,7 +26,7 @@ from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_theta
 from covid19model.visualization.optimization import plot_PSO
 
 #############################
@@ -206,7 +206,7 @@ if __name__ == '__main__':
         
         print(theta)
         # Assign estimate
-        model.parameters = assign_PSO(model.parameters, pars, theta)
+        model.parameters = assign_theta(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
         out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
@@ -229,7 +229,7 @@ if __name__ == '__main__':
             print(theta)
             # Visualize new fit
             # Assign estimate
-            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
             out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)

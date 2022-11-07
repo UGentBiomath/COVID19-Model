@@ -212,7 +212,7 @@ def perturbate_theta(theta, pert, multiplier=2, bounds=None, verbose=True):
     return ndim, nwalkers, pos
 
 from .objective_fcns import log_posterior_probability 
-def assign_PSO(param_dict, parNames, thetas):
+def assign_theta(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
     Parameters

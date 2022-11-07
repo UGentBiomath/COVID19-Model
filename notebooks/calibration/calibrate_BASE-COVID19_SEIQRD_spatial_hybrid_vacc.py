@@ -29,7 +29,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_theta
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 ####################################
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     if high_performance_computing:
         # Assign estimate.
         print(theta)
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
+        pars_PSO = assign_theta(model.parameters, pars, theta)
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
@@ -262,7 +262,7 @@ if __name__ == '__main__':
                 theta[val[0]] = float(val[1])
             print(theta)
             # Assign estimate
-            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
             out = model.sim(end_visualization,start_date=start_calibration, l=l)
