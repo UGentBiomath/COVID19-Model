@@ -195,7 +195,7 @@ if __name__ == '__main__':
     theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
     # Nelder-mead
     #step = len(bounds)*[0.01,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                        processes=processes, max_iter=n_pso)[0]
 
     ###################

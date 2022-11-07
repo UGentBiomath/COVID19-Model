@@ -220,7 +220,7 @@ if __name__ == '__main__':
     theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
     #step = len(bounds)*[0.01,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                        processes=processes, max_iter=n_pso)[0]
 
     #######################################
