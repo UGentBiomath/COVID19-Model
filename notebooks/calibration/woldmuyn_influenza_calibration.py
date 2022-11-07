@@ -117,7 +117,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 18
+    multiplier_mcmc = 9
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -199,10 +199,18 @@ if __name__ == '__main__':
                                     settings_dict=settings)
     # Generate a sample dictionary
     samples_dict = sampler_to_dictionary(sampler, pars_postprocessing, discard=50, settings=settings)
-    # Save samples dictionary to json
+    # Save samples dictionary to json for long-term storage: _SETTINGS_ and _BACKEND_ can be removed at this point
     with open(str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
-
+    # Make a cornerplot
+    import corner
+    CORNER_KWARGS = dict(smooth=0.90,title_fmt=".2E")
+    fig = corner.corner(sampler.get_chain(discard=50, thin=2, flat=True), labels=labels, **CORNER_KWARGS)
+    for idx,ax in enumerate(fig.get_axes()):
+        ax.grid(False)
+    plt.show()
+    plt.close()
+    
     ######################
     ## Visualize result ##
     ######################
