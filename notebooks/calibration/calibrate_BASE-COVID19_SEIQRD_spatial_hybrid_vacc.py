@@ -149,7 +149,7 @@ if __name__ == '__main__':
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    #print(results)
+    print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
     #plt.show()
@@ -170,9 +170,9 @@ if __name__ == '__main__':
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
+    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
+    #log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,0.80),(0,1),(0,1))
+    bounds2=((0,1),(0,1),(0,1))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic                   
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
     #step = len(bounds)*[0.01,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},

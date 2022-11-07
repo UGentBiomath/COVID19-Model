@@ -12,7 +12,7 @@ def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
 
 def optimize(func, x_start,
-                step, args=(), kwargs={}, processes=1, no_improve_thr=10e-6,
+                step, args=(), kwargs={}, processes=1, no_improve_thr=1e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
     '''
@@ -65,6 +65,12 @@ def optimize(func, x_start,
     for i in range(len(score)):
         res.append([mp_args[i], score[i]])
 
+    # order
+    res.sort(key=lambda x: x[1])
+    best = res[0][1]
+    
+    print(f'Best after iteration 0: score: {best}, theta: {res[0][0]}')
+
     # simplex iter
     iters = 0
     while 1:
@@ -74,11 +80,12 @@ def optimize(func, x_start,
 
         # break after max_iter
         if max_iter and iters >= max_iter:
+            print('Maximum number of iteration reached. quitting.')
             return res[0]
         iters += 1
 
         # break after no_improv_break iterations with no improvement
-        print('best after iteration ' + str(iters) + ':', res[0][0], best)
+        print(f'Best after iteration {str(iters)}: score: {best}, theta: {res[0][0]}')
 
         if best < prev_best - no_improve_thr:
             no_improv = 0
@@ -87,6 +94,7 @@ def optimize(func, x_start,
             no_improv += 1
 
         if no_improv >= no_improv_break:
+            print('Maximum number of iterations without improvement reached. quitting.')
             return res[0]
 
         # centroid

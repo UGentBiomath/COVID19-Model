@@ -133,8 +133,8 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
-df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
+out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, l=1/2, processes=int(args.processes))
+df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['time'].values
 
 ####################################
@@ -178,7 +178,7 @@ simtime = out['time'].values
 print('2) Visualizing fit')
 
 # Plot hospitalizations
-fig,(ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,figsize=(12,16),sharex=True)
+fig,(ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,figsize=(12,16),sharex=True)
 ax1.plot(df_2plot['H_in','mean'],'--', color='blue')
 ax1.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.20, color = 'blue')
 ax1.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
@@ -196,30 +196,38 @@ ax2 = _apply_tick_locator(ax2)
 ax2.set_ylabel('Total patients in hospitals (-)', fontsize=12)
 ax2.get_yaxis().set_label_coords(-0.1,0.5)
 ax2.grid(False)
-# Deaths
-ax3.plot(simtime, df_2plot['D', 'mean'],'--', color='blue')
-ax3.scatter(deaths_hospital[start_calibration:end_sim].index,deaths_hospital[start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
-ax3.fill_between(simtime, df_2plot['D', 'lower'], df_2plot['D', 'upper'], alpha=0.20, color = 'blue')
-deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
+# Plot ICU
+ax3.plot(simtime, df_2plot['ICU_R', 'mean']+df_2plot['ICU_D', 'mean']+df_2plot['C_icurec', 'mean'],'--', color='blue')
+ax3.fill_between(simtime, df_2plot['ICU_R', 'lower']+df_2plot['ICU_D', 'lower']+df_2plot['C_icurec', 'lower'], df_2plot['ICU_R', 'upper']+df_2plot['ICU_D', 'upper']+df_2plot['C_icurec', 'upper'], alpha=0.20, color = 'blue')
+ax3.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['ICU_tot'][start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
 ax3 = _apply_tick_locator(ax3)
-ax3.set_xlim('2020-03-01',end_sim)
-ax3.set_ylabel('Deaths in hospitals (-)', fontsize=12)
+ax3.set_ylabel('Total patients in IC (-)', fontsize=12)
 ax3.get_yaxis().set_label_coords(-0.1,0.5)
 ax3.grid(False)
-# Plot fraction of immunes
-ax4.plot(df_2plot['R','mean'][start_calibration:'2021-03-01']/sum(initN)*100,'--', color='blue')
-yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
-ax4.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
-yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
-ax4.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
+# Deaths
+ax4.plot(simtime, df_2plot['D', 'mean'],'--', color='blue')
+ax4.scatter(deaths_hospital[start_calibration:end_sim].index,deaths_hospital[start_calibration:end_sim], color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax4.fill_between(simtime, df_2plot['D', 'lower'], df_2plot['D', 'upper'], alpha=0.20, color = 'blue')
+deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_level=True)['hospital','cumsum']
 ax4 = _apply_tick_locator(ax4)
-ax4.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax4.fill_between(simtime, df_2plot['R','lower']/sum(initN)*100, df_2plot['R','upper']/sum(initN)*100,alpha=0.20, color = 'blue')
-ax4.set_xlim(start_sim,end_sim)
-ax4.set_ylim(0,25)
-ax4.set_ylabel('Seroprelevance (%)', fontsize=12)
+ax4.set_xlim('2020-03-01',end_sim)
+ax4.set_ylabel('Deaths in hospitals (-)', fontsize=12)
 ax4.get_yaxis().set_label_coords(-0.1,0.5)
 ax4.grid(False)
+# Plot fraction of immunes
+ax5.plot(df_2plot['R','mean'][start_calibration:'2021-03-01']/sum(initN)*100,'--', color='blue')
+yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
+ax5.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
+yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
+ax5.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
+ax5 = _apply_tick_locator(ax5)
+ax5.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
+ax5.fill_between(simtime, df_2plot['R','lower']/sum(initN)*100, df_2plot['R','upper']/sum(initN)*100,alpha=0.20, color = 'blue')
+ax5.set_xlim(start_sim,end_sim)
+ax5.set_ylim(0,25)
+ax5.set_ylabel('Seroprelevance (%)', fontsize=12)
+ax5.get_yaxis().set_label_coords(-0.1,0.5)
+ax5.grid(False)
 
 plt.tight_layout()
 plt.show()
@@ -266,6 +274,7 @@ if args.save:
 print('4) Save a copy of the simulation output')
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+out.coords.update({'Nc': range(len(out.coords['Nc']))})
 out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
 
 # Work is done
