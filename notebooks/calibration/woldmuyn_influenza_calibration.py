@@ -116,7 +116,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 18
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -127,8 +127,8 @@ if __name__ == '__main__':
     log_likelihood_fnc_args = [[],]
 
     # Calibated parameters and bounds
-    pars = ['beta','f_a']
-    bounds = [(0.05,0.15),(0,1)]
+    pars = ['beta', 'f_a']
+    bounds = [(0.05,0.15), (0,1)]
     # Setup prior functions and arguments
     log_prior_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_fnc_args = bounds
@@ -140,17 +140,17 @@ if __name__ == '__main__':
     #theta = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.10,0.10]         
+    theta = [0.10, 0.10]         
     # Nelder-mead
-    step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}}, processes=processes, max_iter=n_pso)[0]
+    step = len(bounds)*[0.10,]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}}, processes=processes, max_iter=n_pso)[0]
 
     ######################
     ## Visualize result ##
     ######################
 
     # Assign results to model
-    model.parameters.update({'beta': theta[0],'f_a': theta[1]})
+    model.parameters.update({'beta': theta[0],})
     out = model.sim(end_date, start_date=start_date, warmup=warmup)
 
     fig, axs = plt.subplots(2,2,sharex=True, sharey=True, figsize=(8,6))
@@ -170,11 +170,11 @@ if __name__ == '__main__':
     ##########
 
     # Perturbate previously obtained estimate
-    pert = [0.10, 0.10]
+    pert = [0.10, ]
     ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # Labels for traceplots
-    labels = ['$\\beta$', '$f_a$']
-    pars_postprocessing = ['beta', 'f_a',]
+    labels = ['$\\beta$', ]
+    pars_postprocessing = ['beta', ]
     # Variables
     backend=None
     identifier = 'woldemun_test'
