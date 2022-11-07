@@ -4,7 +4,7 @@ import multiprocessing as mp
 from functools import partial
 
 '''
-    Pure Python/Numpy implementation of the Nelder-Mead algorithm.
+    Pure Python/Numpy implementation of the Nelder-Mead algorithm with multiprocessing support.
     Reference: https://en.wikipedia.org/wiki/Nelder%E2%80%93Mead_method
 '''
 
@@ -12,7 +12,7 @@ def _obj_wrapper(func, args, kwargs, x):
     return func(x, *args, **kwargs)
 
 def optimize(func, x_start,
-                step, args=(), kwargs={}, processes=1, no_improve_thr=10e-6,
+                step, args=(), kwargs={}, processes=1, no_improve_thr=1e-6,
                 no_improv_break=100, max_iter=1000,
                 alpha=1., gamma=2., rho=-0.5, sigma=0.5):
     '''
@@ -39,7 +39,7 @@ def optimize(func, x_start,
     # Compute score of initial estimate
 
     dim = len(x_start)
-    prev_best = obj(x_start) #f(x_start, *f_args)
+    prev_best = obj(x_start)
     no_improv = 0
     res = [[x_start, prev_best]]
 
@@ -52,13 +52,24 @@ def optimize(func, x_start,
         x[i] = x[i] + step[i]*x[i]
         mp_args.append(x)
     # Compute
-    mp_pool = mp.Pool(processes)
-    score = mp_pool.map(obj, mp_args)
-    mp_pool.close()
+    if processes > 1:
+        mp_pool = mp.Pool(processes)
+        score = mp_pool.map(obj, mp_args)
+        mp_pool.close()
+    else:
+        score=[]
+        for x in mp_args:
+            score.append(obj(x))
 
     # Construct res
     for i in range(len(score)):
         res.append([mp_args[i], score[i]])
+
+    # order
+    res.sort(key=lambda x: x[1])
+    best = res[0][1]
+    
+    print(f'Best after iteration 0: score: {best}, theta: {res[0][0]}')
 
     # simplex iter
     iters = 0
@@ -69,11 +80,12 @@ def optimize(func, x_start,
 
         # break after max_iter
         if max_iter and iters >= max_iter:
+            print('Maximum number of iteration reached. quitting.')
             return res[0]
         iters += 1
 
         # break after no_improv_break iterations with no improvement
-        print('best after iteration ' + str(iters) + ':', res[0][0], best)
+        print(f'Best after iteration {str(iters)}: score: {best}, theta: {res[0][0]}')
 
         if best < prev_best - no_improve_thr:
             no_improv = 0
@@ -82,6 +94,7 @@ def optimize(func, x_start,
             no_improv += 1
 
         if no_improv >= no_improv_break:
+            print('Maximum number of iterations without improvement reached. quitting.')
             return res[0]
 
         # centroid
@@ -129,9 +142,14 @@ def optimize(func, x_start,
             redx = x1 + sigma*(tup[0] - x1)
             mp_args.append(redx)
         # Compute
-        mp_pool = mp.Pool(processes)
-        score = mp_pool.map(obj, mp_args)
-        mp_pool.close()
+        if processes > 1:
+            mp_pool = mp.Pool(processes)
+            score = mp_pool.map(obj, mp_args)
+            mp_pool.close()
+        else:
+            score=[]
+            for x in mp_args:
+                score.append(obj(x))
         # Construct nres
         for i in range(len(score)):
             nres.append([mp_args[i], score[i]])

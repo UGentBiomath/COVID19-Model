@@ -11,29 +11,7 @@ import emcee
 from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
-def checkplots(sampler, discard, thin, fig_path, spatial_unit, figname, labels):
-
-    samples = sampler.get_chain(discard=discard,thin=thin,flat=False)
-    flatsamples = sampler.get_chain(discard=discard,thin=thin,flat=True)
-
-    # Traceplots of samples
-    traceplot(samples,labels=labels,plt_kwargs={'linewidth':2,'color': 'red','alpha': 0.15})
-    plt.savefig(fig_path+'traceplots/'+str(spatial_unit)+'_TRACE_'+figname+'_'+str(datetime.date.today())+'.pdf',
-                dpi=400, bbox_inches='tight')
-
-    # Autocorrelation plots of chains
-    autocorrelation_plot(samples)
-    plt.savefig(fig_path+'autocorrelation/'+str(spatial_unit)+'_AUTOCORR_'+figname+'_'+str(datetime.date.today())+'.pdf',
-                dpi=400, bbox_inches='tight')
-
-    # Cornerplots of samples
-    fig = corner.corner(flatsamples,labels=labels)
-    plt.savefig(fig_path+'cornerplots/'+str(spatial_unit)+'_CORNER_'+figname+'_'+str(datetime.date.today())+'.pdf',
-                dpi=400, bbox_inches='tight')
-
-    return
-
-def autocorrelation_plot(samples):
+def autocorrelation_plot(samples, labels=None, filename=None, plt_kwargs={}):
     """Make a visualization of autocorrelation of each chain
 
     Parameters
@@ -44,8 +22,25 @@ def autocorrelation_plot(samples):
 
     Returns
     -------
-    ax
+    ax: matplotlib axis object
+
+    tau_vect[-1]: list
+        Autocorrelation of last step
     """
+
+    # Extract dimensions of sampler output
+    nsamples,nwalkers, ndim = samples.shape
+    # Generate list of lables if none provided
+    if not labels:
+        labels = [f"$\\theta_{i}$" for i in range(ndim)]
+    else:
+        # input check
+        if len(labels) != ndim:
+            raise ValueError(
+            "The length of label list is not equal to the length of the z-dimension of the samples.\n"
+            "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
+            )
+
     # Compute autocorrelation/chain
     ndim = samples.shape[2]
     step_autocorr = math.ceil(samples.shape[0]/100)
@@ -55,17 +50,24 @@ def autocorrelation_plot(samples):
         tau_vect.append(emcee.autocorr.integrated_time(samples[:i], tol = 0))
         index += 1
     n = step_autocorr * np.arange(1, index + 1)
+
     # Make figure
     fig,ax=plt.subplots(figsize=(10,4))
-    ax.plot(n, n / step_autocorr, "--k")
-    ax.plot(n, tau_vect)
+    # Autocorrelation
+    ax.plot(n, np.array(tau_vect))
+    ax.plot(n, n/50, "--k")
     ax.set_xlim(0, n.max())
-    ax.set_xlabel("number of steps")
-    ax.set_ylabel(r"$\hat{\tau}$");
+    ax.set_ylabel(r"$\hat{\tau}$");    
+    ax.grid(False)
+    ax.legend(labels)
 
-    return ax
+    # Save result if desired
+    if filename:
+        plt.savefig(filename, dpi=600, bbox_inches='tight', orientation='portrait')
 
-def traceplot(samples,labels,plt_kwargs={},filename=None):
+    return ax, tau_vect[-1]
+
+def traceplot(samples, labels=None, filename=None, plt_kwargs={}):
     """Make a visualization of sampled parameters
 
     Parameters
@@ -82,14 +84,19 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     -------
     ax
     """
-    # extract dimensions of sampler output
+    # Extract dimensions of sampler output
     nsamples,nwalkers, ndim = samples.shape
-    # input check
-    if len(labels) != ndim:
-        raise ValueError(
-        "The length of label list is not equal to the length of the z-dimension of the samples.\n"
-        "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
-        )
+    # Generate list of lables if none provided
+    if not labels:
+        labels = [f"$\\theta_{i}$" for i in range(ndim)]
+    else:
+        # input check
+        if len(labels) != ndim:
+            raise ValueError(
+            "The length of label list is not equal to the length of the z-dimension of the samples.\n"
+            "The list of label is of length: {0}. The z-dimension of the samples of length: {1}".format(len(labels), ndim)
+            )
+
     # initialise figure
     fig, axes = plt.subplots(len(labels))
     # Error when only one parameter is calibrated: axes not suscribable
@@ -98,17 +105,17 @@ def traceplot(samples,labels,plt_kwargs={},filename=None):
     # set size
     fig.set_size_inches(10, len(labels)*7/3)
     # plot data
-
     for i in range(ndim):
         ax = axes[i]
         ax.plot(samples[:, :, i], **plt_kwargs)
         ax.set_xlim(0, nsamples)
         ax.set_ylabel(labels[i])
+        ax.grid(False)
     axes[-1].set_xlabel("step number")
 
+    # Save result if desired
     if filename:
-        plt.savefig(filename, dpi=600, bbox_inches='tight',
-                    orientation='portrait')
+        plt.savefig(filename, dpi=600, bbox_inches='tight', orientation='portrait')
 
     return ax
 

@@ -108,20 +108,14 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
 
-#from covid19model.data import model_parameters
-#age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left')
-#Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
-
-#def compute_RO_COVID19_SEIQRD(beta, a, da, omega, Nc, initN):
-#    R0_i = beta*(a*da+omega)*np.sum(Nc,axis=1)
-#    return sum((R0_i*initN)/sum(initN))
-
-#print(compute_RO_COVID19_SEIQRD(0.027, model.parameters['a'], model.parameters['da'], model.parameters['omega'], Nc_dict['total'], initN))
-
+# Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
+
+# Stochastic
+#warmup = 0
 
 if __name__ == '__main__':
 
@@ -145,9 +139,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 20
+    multiplier_mcmc = 3
     max_n = n_mcmc
-    print_n = 20
+    print_n = 2
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
@@ -195,14 +189,14 @@ if __name__ == '__main__':
     objective_function = log_posterior_probability([],[],model,pars,data,states,
                                                log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # PSO
-    out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                       swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
     theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
     # Nelder-mead
-    step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                            processes=processes, max_iter=n_pso)[0]
+    #step = len(bounds)*[0.01,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     ###################
     ## Visualize fit ##
@@ -285,13 +279,17 @@ if __name__ == '__main__':
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
     'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
-    with open(samples_path+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
-        pickle.dump(settings, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
+
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, print_n, labels, objective_function, (), {'simulation_kwargs': {'warmup': warmup}}, backend, identifier, processes)
+    # Suppress warnings
+    import warnings
+    warnings.filterwarnings("ignore")
+
+    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                        fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
+                        settings_dict=settings) 
 
     #####################
     ## Process results ##
