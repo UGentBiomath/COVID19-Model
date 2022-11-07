@@ -29,7 +29,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, sampler_to_dictionary, assign_PSO
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 ####################################
@@ -316,13 +316,7 @@ if __name__ == '__main__':
                 '$A$']
     pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
-    # Set up the sampler backend if needed
-    if backend:
-        import emcee
-        filename = f'{identifier}_backend_{run_date}'
-        backend = emcee.backends.HDFBackend(samples_path+filename)
-        backend.reset(nwalkers, ndim)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # initialize objective function
     objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
@@ -337,46 +331,21 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                        fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
-                        settings_dict=settings) 
+    # Setup sampler
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings) 
 
     #####################
     ## Process results ##
     #####################
 
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
-        sys.stdout.flush()
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
-        sys.stdout.flush()
-
-    print('\n3) Sending samples to dictionary')
-    sys.stdout.flush()
-
-    # Take all samples (discard=0, thin=1)
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-
-    samples_dict.update({
-        'start_calibration' : args.start_calibration,
-        'end_calibration': args.end_calibration,
-        'n_chains' : nwalkers,
-        'dispersion': dispersion_weighted,
-        'warmup': 0
-    })
-
-    json_file = f'{samples_path}{agg}_{str(identifier)}_SAMPLES_{run_date}.json'
-    with open(json_file, 'w') as fp:
+    # Generate a sample dictionary
+    samples_dict = sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    # Save samples dictionary to json
+    with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    sys.stdout.flush()
