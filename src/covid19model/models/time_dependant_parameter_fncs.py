@@ -1529,11 +1529,15 @@ class make_contact_matrix_function():
                     35, 36, 37, 38, 39,                # Luxemburg
                     40, 41, 42]                        # Namen
             mentality_summer_2020_lockdown = mentality*np.ones(43)
-            mentality_summer_2020_lockdown[4:6] = 0.75*mentality
+            mentality_summer_2020_lockdown[0:3] = mentality
+            mentality_summer_2020_lockdown[3] = mentality
+            mentality_summer_2020_lockdown[4:6] = mentality
             mentality_summer_2020_lockdown[7:15] = 0.75*mentality
+            mentality_summer_2020_lockdown[15:21] = mentality
             mentality_summer_2020_lockdown[21:28] = 1
             mentality_summer_2020_lockdown[28:32] = 1
-            mentality_summer_2020_lockdown[35:40] = 1
+            mentality_summer_2020_lockdown[32:35] = 0.25*mentality
+            mentality_summer_2020_lockdown[35:40] = mentality
 
         ################
         ## First wave ##
@@ -1724,11 +1728,15 @@ class make_contact_matrix_function():
                         35, 36, 37, 38, 39,                # Luxemburg
                         40, 41, 42]                        # Namen
                 mentality_summer_2020_lockdown = mentality*np.ones(43)
-                mentality_summer_2020_lockdown[4:6] = 0.75*mentality
+                mentality_summer_2020_lockdown[0:3] = mentality
+                mentality_summer_2020_lockdown[3] = mentality
+                mentality_summer_2020_lockdown[4:6] = mentality
                 mentality_summer_2020_lockdown[7:15] = 0.75*mentality
+                mentality_summer_2020_lockdown[15:21] = mentality
                 mentality_summer_2020_lockdown[21:28] = 1
                 mentality_summer_2020_lockdown[28:32] = 1
-                mentality_summer_2020_lockdown[35:40] = 1
+                mentality_summer_2020_lockdown[32:35] = 0.25*mentality
+                mentality_summer_2020_lockdown[35:40] = mentality
 
             ################
             ## First wave ##
