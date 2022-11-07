@@ -124,7 +124,7 @@ def optimize(func, x_start, bounds,
         # Check if we need to stop
         # Break after max_iter
         if max_iter and iters >= max_iter:
-            print('Maximum number of iteration reached. Quitting.')
+            print('Maximum number of iteration reached. Quitting.\n')
             return res[0]
         iters += 1
         # Break if no improvements for too long
@@ -134,7 +134,7 @@ def optimize(func, x_start, bounds,
         else:
             no_improv += 1
         if no_improv >= no_improv_break:
-            print('Maximum number of iterations without improvement reached. Quitting.')
+            print('Maximum number of iterations without improvement reached. Quitting.\n')
             return res[0]
 
         ################
