@@ -60,6 +60,10 @@ def optimize(func, x_start,
     for i in range(len(score)):
         res.append([mp_args[i], score[i]])
 
+    # order
+    res.sort(key=lambda x: x[1])
+    best = res[0][1]
+    
     print(f'Best after iteration 0: score: {best}, theta: {res[0][0]}')
 
     # simplex iter
