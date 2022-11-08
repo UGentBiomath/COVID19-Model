@@ -1,15 +1,16 @@
 """
-This script converts a temporary samples dictionary in .npy format (matrix) to a .json format (dictionary) suitable for long-term storage
-The sript allows to discard MCMC chains and to thin them. A cornerplot of the resulting chains is automatically shown.
+This script converts the samples in an emcee backend (.h5) to a dictionary, which is then saved using json.
+During the conversion, the script allows to discard MCMC chains and to thin them. A cornerplot of the resulting chains is automatically shown.
+The use of json is preferred over HDF5 because of the large file size.
 
 Arguments:
 ----------
 -path:
-    Path, relative to the location of this script, to _BACKEND_ and _SETTINGS_ files.
+    Path, relative to the location of this script, to _BACKEND_ and _SETTINGS_ files. Defaults to current working directory.
 -ID:
     Identifier of the backend to be loaded.
 -date:
-    Date of calibration
+    Date of calibration.
 -range:
     Axis limits of every parameter in cornerplot, provided as follows: " -r '(0,1)' '(0,1)' ... '(0,1)' "
     Range argument is optional.
