@@ -21,6 +21,7 @@ setup(
         'rbfopt',
         'numba',
         'SAlib',
+        'h5py'
     ],
     extras_require={
         "develop":  ["pytest",

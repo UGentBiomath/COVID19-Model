@@ -46,10 +46,10 @@ def optimize(func, bounds, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         to 0.0 in a successfully optimized problem. If f_ieqcons is specified, 
         ieqcons is ignored (Default: None)
     args : tuple
-        Additional arguments passed to objective and constraint functions
+        Additional arguments passed to objective function
         (Default: empty tuple)
     kwargs : dict
-        Additional keyword arguments passed to objective and constraint weights[idx]*
+        Additional keyword arguments passed to objective function
     phig : scalar
         Scaling factor to search away from the swarm's best known position
         (Default: 0.5)

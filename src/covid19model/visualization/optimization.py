@@ -1,14 +1,7 @@
-import datetime
-import random
 import math
-import corner
-import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import pandas as pd
 import numpy as np
 import emcee
-from .utils import colorscale_okabe_ito
 from .output import _apply_tick_locator
 
 def autocorrelation_plot(samples, labels=None, filename=None, plt_kwargs={}):
