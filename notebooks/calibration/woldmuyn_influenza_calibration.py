@@ -198,6 +198,7 @@ if __name__ == '__main__':
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)
     # Generate a sample dictionary
+    # Have a look at the script `emcee_sampler_to_dictionary.py`, which does the same thing as the function below but can be used while your MCMC is running.
     samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=50, settings=settings)
     # Save samples dictionary to json for long-term storage: _SETTINGS_ and _BACKEND_ can be removed at this point
     with open(str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
