@@ -12,16 +12,17 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 
 import sys,os
 import random
-import pickle
+import emcee
 import datetime
+import json
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 from covid19model.models.base import BaseModel
 from covid19model.data.utils import construct_initN
-from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_gaussian, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from covid19model.optimization import pso, nelder_mead
 
 # Suppress warnings
@@ -33,7 +34,7 @@ warnings.filterwarnings("ignore")
 ###############
 
 # Load data
-data = pd.read_csv(os.path.join(os.getcwd(),'../../data/interim/influenza/dataset_influenza_1718_format.csv'), index_col=[0,1], parse_dates=True)
+data = pd.read_csv(os.path.join(os.path.dirname(__file__),'../../data/interim/influenza/dataset_influenza_1718_format.csv'), index_col=[0,1], parse_dates=True)
 data = data.squeeze()
 # Re-insert pd.IntervalIndex (pd.IntervalIndex is always loaded as a string..)
 age_groups = pd.IntervalIndex.from_tuples([(0,5),(5,15),(15,65),(65,120)])
@@ -107,16 +108,16 @@ if __name__ == '__main__':
     #####################
 
     # Maximum number of PSO iterations
-    n_pso = 50
+    n_pso = 10
     # Maximum number of MCMC iterations
-    n_mcmc = 100
+    n_mcmc = 30
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 30
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 9
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -127,8 +128,8 @@ if __name__ == '__main__':
     log_likelihood_fnc_args = [[],]
 
     # Calibated parameters and bounds
-    pars = ['beta','f_a']
-    bounds = [(0.05,0.15),(0,1)]
+    pars = ['beta', 'f_a']
+    bounds = [(0.05,0.15), (0,1)]
     # Setup prior functions and arguments
     log_prior_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_fnc_args = bounds
@@ -140,17 +141,17 @@ if __name__ == '__main__':
     #theta = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.10,0.10]         
+    theta = [0.10, 0.10]         
     # Nelder-mead
-    step = len(bounds)*[0.01,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}}, processes=processes, max_iter=n_pso)[0]
+    step = len(bounds)*[0.10,]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}}, processes=processes, max_iter=n_pso)[0]
 
     ######################
     ## Visualize result ##
     ######################
 
     # Assign results to model
-    model.parameters.update({'beta': theta[0],'f_a': theta[1]})
+    model.parameters.update({'beta': theta[0],})
     out = model.sim(end_date, start_date=start_date, warmup=warmup)
 
     fig, axs = plt.subplots(2,2,sharex=True, sharey=True, figsize=(8,6))
@@ -170,43 +171,46 @@ if __name__ == '__main__':
     ##########
 
     # Perturbate previously obtained estimate
-    pert = [0.10, 0.10]
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.10, 0.01], multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=True)
     # Labels for traceplots
     labels = ['$\\beta$', '$f_a$']
-    pars_postprocessing = ['beta', 'f_a',]
+    pars_postprocessing = ['beta', 'f_a']
     # Variables
-    backend=None
+    samples_path=None
+    fig_path=None
     identifier = 'woldemun_test'
     run_date = str(datetime.date.today())
     # initialize objective function
     objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
-    # Write settings to a pickle file
-    settings={'start_calibration': start_date, 'end_calibration': end_date, 'n_chains': nwalkers,
-                'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta}
+    # Write some usefull settings to a pickle file (no pd.Timestamps or np.arrays allowed!)
+    settings={'start_calibration': start_date.strftime("%Y-%m-%d"), 'end_calibration': end_date.strftime("%Y-%m-%d"), 'n_chains': nwalkers,
+                'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': list(theta)}
     # Start calibration
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
-    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                        fig_path=None, samples_path=None, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
-                        settings_dict=settings) 
-    # Discard and thin chains: check convergence
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
-        sys.stdout.flush()
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Setting thinning to 1.\n')
-        sys.stdout.flush()
-    # Construct a dictionary of samples
-    flat_samples = sampler.get_chain(discard=30,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-    # Append the settings to the dictionary of samples
-    samples_dict.update(settings)
+    # Sample 100 iterations
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings) 
+    backend = emcee.backends.HDFBackend('woldemun_test_BACKEND_2022-11-07.h5')   
+    # Sample 100 more
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
+                                    settings_dict=settings)
+    # Generate a sample dictionary
+    # Have a look at the script `emcee_sampler_to_dictionary.py`, which does the same thing as the function below but can be used while your MCMC is running.
+    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=50, settings=settings)
+    # Save samples dictionary to json for long-term storage: _SETTINGS_ and _BACKEND_ can be removed at this point
+    with open(str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
+        json.dump(samples_dict, fp)
+    # Look at the resulting distributions in a cornerplot
+    import corner
+    CORNER_KWARGS = dict(smooth=0.90,title_fmt=".2E")
+    fig = corner.corner(sampler.get_chain(discard=50, thin=2, flat=True), labels=labels, **CORNER_KWARGS)
+    for idx,ax in enumerate(fig.get_axes()):
+        ax.grid(False)
+    plt.show()
+    plt.close()
 
     ######################
     ## Visualize result ##
