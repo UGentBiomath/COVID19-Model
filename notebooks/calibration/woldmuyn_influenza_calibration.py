@@ -192,7 +192,7 @@ if __name__ == '__main__':
     sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
-    backend = emcee.backends.HDFBackend('woldemun_test_BACKEND_2022-11-07.h5')   
+    backend = emcee.backends.HDFBackend('woldemun_test_BACKEND_'+run_date+'.h5')   
     # Sample 100 more
     sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
