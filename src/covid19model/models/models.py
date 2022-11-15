@@ -12,7 +12,6 @@ from scipy.stats import poisson
 from pySODM.models.base import BaseModel
 from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
-from ..data.economic_parameters import read_economic_labels
 # Register pandas formatters and converters with matplotlib
 from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
@@ -1268,10 +1267,9 @@ class Economic_Model(BaseModel):
 
     # ...state variables and parameters
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H']
-    parameters_stratified_names = [['epsilon_S','epsilon_D','epsilon_F']]
-    stratification = ['A']
-    coordinates = [read_economic_labels('NACE64')]
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
+    parameters_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
+    stratification_names = ['NACE64']
 
     # Bookkeeping of 2D stock matrix
     state_2d = ["S"]
@@ -1279,7 +1277,7 @@ class Economic_Model(BaseModel):
      # ..transitions/equations
     @staticmethod
 
-    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, epsilon_S, epsilon_D, epsilon_F, A):
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
         """
         BIOMATH production network model for Belgium
 
