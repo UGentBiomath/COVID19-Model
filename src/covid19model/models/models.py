@@ -223,9 +223,8 @@ class simple_stochastic_SIR(BaseModel):
 
     # state variables and parameters
     state_names = ['S', 'I', 'R']
-    parameter_names = ['beta', 'gamma']
-    parameters_stratified_names = []
-    stratification = ['Nc']
+    parameter_names = ['beta', 'gamma', 'Nc']
+    stratification_names = ['age_groups']
 
     @staticmethod
     def integrate(t, l, S, I, R, beta, gamma, Nc):
@@ -307,9 +306,8 @@ class simple_multivariant_SIR(BaseModel):
 
     # state variables and parameters
     state_names = ['S', 'I', 'R', 'alpha']
-    parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio']
-    parameters_stratified_names = []
-    stratification = ['Nc']
+    parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio', 'Nc']
+    stratification_names = ['age_groups']
 
     @staticmethod
     def integrate(t, S, I, R, alpha, beta, gamma, injection_day, injection_ratio, K_inf, Nc):
