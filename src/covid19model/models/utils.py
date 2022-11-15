@@ -123,7 +123,6 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
-                   'doses': np.zeros(len(df_vacc.index.get_level_values('dose').unique())),
                    'e_i': e_i,
                    'e_s': e_s,
                    'e_h': e_h,
@@ -134,7 +133,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ##########################
 
     # Define coordinates
-    coordinates = [construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+    coordinates = {'age_groups':construct_coordinates_Nc(age_stratification_size=age_stratification_size),
+                    'doses': ['none', 'partial', 'full', 'boosted']}
 
     # Construct dictionary of time dependent parameters
     time_dependent_parameters={'Nc' : policy_function,

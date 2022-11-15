@@ -9,7 +9,7 @@ import numba as nb
 import numpy as np
 from numba import jit
 from scipy.stats import poisson
-from .base import BaseModel
+from pySODM.models.base import BaseModel
 from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
 from ..data.economic_parameters import read_economic_labels
@@ -353,17 +353,16 @@ class COVID19_SEIQRD_hybrid_vacc(BaseModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out']
-    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification = ['Nc','doses']
+    stratification_names = ['age_groups','doses']
 
     # ..transitions/equations
     @staticmethod
     @jit(nopython=True)
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
-                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h,
-                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D,
-                  Nc, doses):
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
+                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
         """
         Biomath extended SEIRD model for COVID-19
         *Deterministic implementation*

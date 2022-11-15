@@ -161,10 +161,10 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
         # Reduce dimensions
         new_xarray = output[states[idx]].copy(deep=True)
         for dimension in output.dims:
-            if (dimension != 'time') :
+            if (dimension != 'date') :
                 new_xarray = new_xarray.sum(dim=dimension)
         # Plot data
-        ax.plot(output['time'],new_xarray,'--', color='blue')
+        ax.plot(output['date'],new_xarray,'--', color='blue')
         try: 
             ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         except:
@@ -176,10 +176,10 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
             # Reduce dimensions
             new_xarray = output[states[idx]].copy(deep=True)
             for dimension in output.dims:
-                if (dimension != 'time') :
+                if (dimension != 'date') :
                     new_xarray = new_xarray.sum(dim=dimension)
             # Plot data
-            ax.plot(output['time'],new_xarray,'--', color='blue')
+            ax.plot(output['date'],new_xarray,'--', color='blue')
             try:
                 ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             except:
