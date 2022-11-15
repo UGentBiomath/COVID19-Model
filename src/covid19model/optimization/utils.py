@@ -3,6 +3,7 @@ import sys
 import emcee
 import datetime
 import pickle
+import json
 import os, inspect
 import numpy as np
 import pandas as pd
@@ -10,12 +11,13 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool, get_context
 from covid19model.visualization.optimization import traceplot, autocorrelation_plot
 from covid19model.visualization.output import _apply_tick_locator
-from covid19model.models.utils import stratify_beta
+from covid19model.models.utils import stratify_beta_regional
 
 abs_dir = os.path.dirname(__file__)
 
-def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objective_fcn_kwargs,
-                fig_path=None, samples_path=None, print_n=10, labels=None, backend=None, processes=1, progress=True, settings_dict=None):
+def run_EnsembleSampler(pos, max_n, identifier, objective_fcn, objective_fcn_args, objective_fcn_kwargs,
+                moves=[(emcee.moves.DEMove(), 0.5),(emcee.moves.KDEMove(bw_method='scott'), 0.5)],
+                fig_path=None, samples_path=None, print_n=10, labels=None, backend=None, processes=1, progress=True, settings_dict={}):
 
     # Set default fig_path/samples_path as same directory as calibration script
     if not fig_path:
@@ -33,25 +35,32 @@ def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objectiv
     # Determine current date
     run_date = str(datetime.date.today())
     # Save setings dictionary to samples_path
-    with open(samples_path+'/'+str(identifier)+'_SETTINGS_'+run_date+'.pkl', 'wb') as handle:
-        pickle.dump(settings_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(samples_path+'/'+str(identifier)+'_SETTINGS_'+run_date+'.json', 'w') as file:
+        json.dump(settings_dict, file)
     # Derive nwalkers, ndim from shape of pos
     nwalkers, ndim = pos.shape
+    # By default: set up a fresh hdf5 backend in samples_path
+    if not backend:
+        filename = '/'+str(identifier)+'_BACKEND_'+run_date+'.h5'
+        backend = emcee.backends.HDFBackend(samples_path+filename)
+        backend.reset(nwalkers, ndim)
+    # If user provides an existing backend: continue sampling 
+    else:
+        pos = backend.get_chain(discard=0, thin=1, flat=False)[-1, ...]
     # This will be useful to testing convergence
     old_tau = np.inf
 
     with get_context("spawn").Pool(processes=processes) as pool:
         sampler = emcee.EnsembleSampler(nwalkers, ndim, objective_fcn, backend=backend, pool=pool,
-                        args=objective_fcn_args, kwargs=objective_fcn_kwargs,
-                        moves=[(emcee.moves.DEMove(), 0.5),(emcee.moves.KDEMove(bw_method='scott'), 0.5)])
+                        args=objective_fcn_args, kwargs=objective_fcn_kwargs, moves=moves)
         for sample in sampler.sample(pos, iterations=max_n, progress=progress, store=True, tune=True):
             # Only check convergence every print_n steps
             if sampler.iteration % print_n:
                 continue
 
-            ##################
-            # UPDATE FIGURES #
-            ##################
+            #############################
+            # UPDATE DIAGNOSTIC FIGURES #
+            #############################
             
             # Update autocorrelation plot
             ax, tau = autocorrelation_plot(sampler.get_chain(), labels=labels,
@@ -79,27 +88,61 @@ def run_MCMC(pos, max_n, identifier, objective_fcn, objective_fcn_args, objectiv
                 break
             old_tau = tau
 
-            ###############################
-            # WRITE SAMPLES TO DICTIONARY #
-            ###############################
+            #################################
+            # LEGACY: WRITE SAMPLES TO .NPY #
+            #################################
 
             # Write samples to dictionary every print_n steps
-            if sampler.iteration % print_n:
-                continue
+            #if sampler.iteration % print_n:
+            #    continue
 
-            if not progress:
-                print(f"Saving samples as .npy file for iteration {sampler.iteration}/{max_n}.")
-                sys.stdout.flush()
+            #if not progress:
+            #    print(f"Saving samples as .npy file for iteration {sampler.iteration}/{max_n}.")
+            #    sys.stdout.flush()
                 
-            flat_samples = sampler.get_chain(flat=True)
-            with open(samples_path+'/'+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
-                np.save(f,flat_samples)
-                f.close()
-                gc.collect()
+            #flat_samples = sampler.get_chain(flat=True)
+            #with open(samples_path+'/'+str(identifier)+'_SAMPLES_'+run_date+'.npy', 'wb') as f:
+            #    np.save(f,flat_samples)
+            #    f.close()
+            #    gc.collect()
 
     return sampler
 
-def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
+def emcee_sampler_to_dictionary(sampler, parameter_names, discard=0, thin=1, settings={}):
+    """
+    A function to discard and thin the samples available in the sampler object. Convert them to a dictionary of format: {parameter_name: [sample_0, ..., sample_n]}.
+    Append a dictionary of settings (f.i. starting estimate of MCMC sampler, start- and enddate of calibration).
+    """
+    ####################
+    # Discard and thin #
+    ####################
+
+    thin = 1
+    try:
+        autocorr = sampler.get_autocorr_time()
+        thin = max(1,int(0.5 * np.min(autocorr)))
+        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
+        sys.stdout.flush()
+    except:
+        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Setting thinning to 1.\n')
+        sys.stdout.flush()
+
+    #####################################
+    # Construct a dictionary of samples #
+    #####################################
+
+    # Samples
+    flat_samples = sampler.get_chain(discard=discard,thin=thin,flat=True)
+    samples_dict = {}
+    for count,name in enumerate(parameter_names):
+        samples_dict[name] = flat_samples[:,count].tolist()
+    
+    # Append settings
+    samples_dict.update(settings)
+
+    return samples_dict
+
+def perturbate_theta(theta, pert, multiplier=2, bounds=None, verbose=True):
     """ A function to perturbate a PSO estimate and construct a matrix with initial positions for the MCMC chains
 
     Parameters
@@ -169,7 +212,7 @@ def perturbate_PSO(theta, pert, multiplier=2, bounds=None, verbose=True):
     return ndim, nwalkers, pos
 
 from .objective_fcns import log_posterior_probability 
-def assign_PSO(param_dict, parNames, thetas):
+def assign_theta(param_dict, parNames, thetas):
     """ A generic function to assign a PSO estimate to the model parameters dictionary
 
     Parameters
@@ -247,7 +290,7 @@ def calculate_R0(samples_beta, model, initN, Nc_total, agg=None):
     """
 
     if agg:
-        beta = stratify_beta('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
+        beta = stratify_beta_density('beta_R','beta_U', 'beta_M', agg) # name at correct spatial index
         sample_size = len(samples_beta['beta_M']) # or beta_U or beta_R
         G = initN.shape[0]
         N = initN.shape[1]

@@ -16,3 +16,4 @@ dependencies:
   - zarr
   - SAlib
   - numba
+  - h5py

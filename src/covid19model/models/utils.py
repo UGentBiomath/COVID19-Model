@@ -674,9 +674,10 @@ def name2nis(name):
         return name_df[name_df['name'] == name]['NIS'].values[0]
 
 @jit(nopython=True)
-def stratify_beta(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_threshold=4000):
+def stratify_beta_density(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_threshold=4000):
     """
-    Function that returns a spatially stratified infectivity parameter. IMPORTANT: this assumes that throughout the model, all NIS values are in order (e.g. 11000 to 93000). Currently hard-coded on threshold densities of 400/km2 and 4000/km2. Indices indicated in order of density.
+    Function that returns a spatially stratified infectivity parameter.
+    Assumes that the NIS values are in order (e.g. 11000 to 93000).
     
     Input
     -----
@@ -697,7 +698,7 @@ def stratify_beta(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_thre
 
     Returns
     -------
-    beta : np.array of floats
+    beta : np.array
         Array with length fitting to aggregation level agg, and three degrees of freedom depending on beta_R, beta_U, beta_M
     """
 
@@ -712,6 +713,49 @@ def stratify_beta(beta_R, beta_U, beta_M, areas, pops, RU_threshold=400, UM_thre
     beta = np.full(len(dens), beta_U, np.float64) # np.ones(len(dens))*beta_U # inbetween values
     beta[dens < RU_threshold] = beta_R # lower-than-threshold values
     beta[dens >= UM_threshold] = beta_M # higher-than-threshold values
+
+    return beta
+
+@jit(nopython=True)
+def stratify_beta_regional(beta_W, beta_FL, beta_Bxl, G):
+    """
+    Function that returns a spatially stratified infectivity parameter. Stratified per Belgian region (Flanders, Wallonia, Brussels).
+
+    Input
+    -----
+
+    beta_FL : float
+        Infecitivity in Flanders
+    beta_W : float
+        Infectivity in Wallonia
+    beta_Bxl : float
+        Infectivity in Brussels
+    G : int
+        Number of spatial patches in the model
+
+     Returns
+    -------
+    beta : np.array
+        Array of length G containing the infectivity parameter per spatial patch.
+    """
+
+    # Initialize array containing Flanders infectivity
+    beta = beta_FL*np.ones(G, np.float64)
+    # Set Brussels infectivity
+    beta[3] = beta_Bxl
+    # Hardcode indices for prov and arr
+    if G == 11:
+        idx_W = [2, 6, 7, 9, 10]
+    elif G == 43:                                    
+        idx_W = [6,                                # Waals-Brabant
+                21, 22, 23, 24, 25, 26, 27,        # Henegouwen
+                28, 29, 30, 31,                    # Luik
+                35, 36, 37, 38, 39,                # Luxemburg
+                40, 41, 42]                        # Namen
+
+    # Set correct infectivities for Wallonia
+    for i in idx_W:
+        beta[i] = beta_W
 
     return beta
 

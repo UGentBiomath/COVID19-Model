@@ -29,7 +29,7 @@ from covid19model.data import sciensano
 # Import function associated with the PSO and MCMC
 from covid19model.optimization import pso, nelder_mead
 from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_PSO, run_MCMC, assign_PSO
+from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_theta
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 
 ####################################
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    #print(results)
+    print(results)
     print('\n')
     print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
     #plt.show()
@@ -170,9 +170,9 @@ if __name__ == '__main__':
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
+    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
+    #log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,0.80),(0,1),(0,1))
+    bounds2=((0,1),(0,1),(0,1))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
@@ -217,10 +217,10 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.35, 1.45, 0.24] # --> prov stochastic                   
+    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
     #step = len(bounds)*[0.01,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                        processes=processes, max_iter=n_pso)[0]
 
     #######################################
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     if high_performance_computing:
         # Assign estimate.
         print(theta)
-        pars_PSO = assign_PSO(model.parameters, pars, theta)
+        pars_PSO = assign_theta(model.parameters, pars, theta)
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
@@ -262,7 +262,7 @@ if __name__ == '__main__':
                 theta[val[0]] = float(val[1])
             print(theta)
             # Assign estimate
-            pars_PSO = assign_PSO(model.parameters, pars, theta)
+            pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
             out = model.sim(end_visualization,start_date=start_calibration, l=l)
@@ -316,13 +316,7 @@ if __name__ == '__main__':
                 '$A$']
     pars_postprocessing = ['beta_R', 'beta_U', 'beta_M', 'eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_PSO(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
-    # Set up the sampler backend if needed
-    if backend:
-        import emcee
-        filename = f'{identifier}_backend_{run_date}'
-        backend = emcee.backends.HDFBackend(samples_path+filename)
-        backend.reset(nwalkers, ndim)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # initialize objective function
     objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
 
@@ -337,46 +331,21 @@ if __name__ == '__main__':
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
-    sampler = run_MCMC(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                        fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=backend, processes=processes, progress=True,
-                        settings_dict=settings) 
+    # Setup sampler
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings) 
 
     #####################
     ## Process results ##
     #####################
 
-    thin = 1
-    try:
-        autocorr = sampler.get_autocorr_time()
-        thin = max(1,int(0.5 * np.min(autocorr)))
-        print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
-        sys.stdout.flush()
-    except:
-        print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Saving all samples (thinning=1).\n')
-        sys.stdout.flush()
-
-    print('\n3) Sending samples to dictionary')
-    sys.stdout.flush()
-
-    # Take all samples (discard=0, thin=1)
-    flat_samples = sampler.get_chain(discard=0,thin=thin,flat=True)
-    samples_dict = {}
-    for count,name in enumerate(pars):
-        samples_dict[name] = flat_samples[:,count].tolist()
-
-    samples_dict.update({
-        'start_calibration' : args.start_calibration,
-        'end_calibration': args.end_calibration,
-        'n_chains' : nwalkers,
-        'dispersion': dispersion_weighted,
-        'warmup': 0
-    })
-
-    json_file = f'{samples_path}{agg}_{str(identifier)}_SAMPLES_{run_date}.json'
-    with open(json_file, 'w') as fp:
+    # Generate a sample dictionary
+    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    # Save samples dictionary to json
+    with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
 
     print('DONE!')
-    print(f'SAMPLES DICTIONARY SAVED IN "{json_file}"')
+    print('SAMPLES DICTIONARY SAVED IN '+'"'+samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json'+'"')
     print('-----------------------------------------------------------------------------------------------------------------------------------\n')
-    sys.stdout.flush()
