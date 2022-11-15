@@ -332,7 +332,7 @@ class simple_multivariant_SIR(BaseModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         if np.all((IP_old == 0)) and np.all((IP_new == 0)):
-            dalpha = np.zeros(9)
+            dalpha = np.zeros(len(Nc))
         else:
             dalpha = IP_new/(IP_old+IP_new) - alpha
 
