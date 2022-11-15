@@ -28,7 +28,7 @@ from covid19model.data import sciensano
 from covid19model.visualization.optimization import plot_PSO
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
-from pySODM.optimization.utils import add_poisson_noise, assign_theta
+from pySODM.optimization.utils import assign_theta
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial
 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     ## Compute the overdispersion parameters for our H_in data ##
     #############################################################
 
-    from covid19model.optimization.utils import variance_analysis
+    from pySODM.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
     dispersion = results.loc['negative binomial', 'theta']
     plt.show()

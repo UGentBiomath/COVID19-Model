@@ -306,18 +306,19 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     e_i=e_h=e_s = np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
     # Add vaccination parameters to parameter dictionary
     params.update({'N_vacc': np.zeros([G, N, D]),
-                'doses': np.zeros(D),
-                'e_i': e_i,
-                'e_s': e_s,
-                'e_h': e_h,
-                })  
+                    'e_i': e_i,
+                    'e_s': e_s,
+                    'e_h': e_h,
+                    })  
 
     ##########################
     ## Initialize the model ##
     ##########################
 
     # Define coordinates
-    coordinates = [read_coordinates_place(agg=agg), construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+    coordinates = {'NIS': read_coordinates_place(agg=agg),
+                   'age_groups': construct_coordinates_Nc(age_stratification_size=age_stratification_size),
+                   'doses': ['none', 'partial', 'full', 'boosted']}
 
     # Define time-dependent-parameters
     time_dependent_parameters={'Nc' : policy_function,
