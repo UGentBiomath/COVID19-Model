@@ -51,7 +51,7 @@ from covid19model.models.utils import load_samples_dict
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)", default='national')
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
@@ -117,7 +117,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True,
+                                                                        start_date=start_calibration)
 model.parameters['beta'] = samples_dict['beta']
 
 #######################
