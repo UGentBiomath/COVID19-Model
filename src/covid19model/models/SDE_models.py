@@ -414,12 +414,12 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         D_new = D + transitionings['ICU_D'][0] + transitionings['C_D'][0]
 
         # Derivative states
-        M_in_new =  transitionings['I'][1] + transitionings['I'][2]
-        H_in_new = transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3]
-        H_out_new = transitionings['C_R'][0] + transitionings['C_icurec'][0] + transitionings['ICU_D'][0] + transitionings['C_D'][0]
-        H_tot_new = H_tot + H_in_new - H_out_new
-        Inf_in_new = transitionings['S'][0]
-        Inf_out_new = H_out_new + transitionings['A'][0] + transitionings['M_R'][0]
+        M_in_new =  (transitionings['I'][1] + transitionings['I'][2])/tau
+        H_in_new = (transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3])/tau
+        H_out_new = (transitionings['C_R'][0] + transitionings['C_icurec'][0] + transitionings['ICU_D'][0] + transitionings['C_D'][0])/tau
+        H_tot_new = H_tot + (H_in_new - H_out_new)*tau
+        Inf_in_new = transitionings['S'][0]/tau
+        Inf_out_new = (transitionings['A'][0] + transitionings['M_R'][0])/tau
 
         # Make absolutely sure the vaccinations don't push the S or R states below zero
         S_new = np.where(S_new < 0, 0, S_new)
