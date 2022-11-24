@@ -113,14 +113,13 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True,
+                                                                        start_date=start_calibration.strftime("%Y-%m-%d"))
 
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
-warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
+warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
 
-# Stochastic
-#warmup = 0
 
 if __name__ == '__main__':
 

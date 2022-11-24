@@ -305,6 +305,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
+        
 
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -334,7 +335,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
                             s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
         
         # Round the vaccination data
-        N_vacc = np.rint(tau*N_vacc)
+        N_vacc = tau*N_vacc
 
         ############################################
         ## Compute the vaccination transitionings ##
@@ -398,7 +399,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S + dS - transitionings['S'][0] + transitionings['R'][0]
+        S_new = S + np.rint(dS) - transitionings['S'][0] + transitionings['R'][0]
         E_new = E + transitionings['S'][0] - transitionings['E'][0]
         I_new = I + transitionings['E'][0] - (transitionings['I'][0] + transitionings['I'][1] + transitionings['I'][2])
         A_new = A + transitionings['I'][0] - transitionings['A'][0]
@@ -409,14 +410,14 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ICU_R_new = ICU_R + transitionings['M_H'][2] - transitionings['ICU_R'][0]
         ICU_D_new = ICU_D + transitionings['M_H'][3] - transitionings['ICU_D'][0]
         C_icurec_new = C_icurec + transitionings['ICU_R'][0] - transitionings['C_icurec'][0]
-        R_new = R + dR + transitionings['A'][0] + transitionings['M_R'][0] + transitionings['C_R'][0] + transitionings['C_icurec'][0] - transitionings['R'][0]
+        R_new = R + np.rint(dR) + transitionings['A'][0] + transitionings['M_R'][0] + transitionings['C_R'][0] + transitionings['C_icurec'][0] - transitionings['R'][0]
         D_new = D + transitionings['ICU_D'][0] + transitionings['C_D'][0]
 
         # Derivative states
         M_in_new =  transitionings['I'][1] + transitionings['I'][2]
         H_in_new = transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3]
         H_out_new = transitionings['C_R'][0] + transitionings['C_icurec'][0] + transitionings['ICU_D'][0] + transitionings['C_D'][0]
-        H_tot_new = H_tot + (H_in_new - H_out_new)
+        H_tot_new = H_tot + H_in_new - H_out_new
         Inf_in_new = transitionings['S'][0]
         Inf_out_new = H_out_new + transitionings['A'][0] + transitionings['M_R'][0]
 

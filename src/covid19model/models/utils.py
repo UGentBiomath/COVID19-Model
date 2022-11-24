@@ -549,7 +549,7 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
     columns = [[],[]]
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["model state", "quantity"])
-    df = pd.DataFrame(index=pd.to_datetime(output['time'].values), columns=columns)
+    df = pd.DataFrame(index=pd.to_datetime(output['date'].values), columns=columns)
     df.index.name = 'simtime'
     # Deepcopy xarray output (it is mutable like a dictionary!)
     copy = output.copy(deep=True)
@@ -557,7 +557,7 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
     for state_name in states:
         # Automatically sum all dimensions except time and draws
         for dimension in output.dims:
-            if ((dimension != 'time') & (dimension != 'draws')):
+            if ((dimension != 'date') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
         mean, median, lower, upper = add_negative_binomial(copy[state_name].values, alpha, n_draws_per_sample, UL, LL, add_to_mean=False)
         # Add to dataframe

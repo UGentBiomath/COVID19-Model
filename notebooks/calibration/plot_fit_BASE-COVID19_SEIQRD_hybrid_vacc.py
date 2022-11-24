@@ -136,7 +136,7 @@ print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times'
 start_sim = start_calibration
 out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
-simtime = out['time'].values
+simtime = out['date'].values
 
 ####################################
 ## Compute and visualize the RMSE ##
