@@ -30,6 +30,10 @@ from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial
 
+# Suppress warnings
+import warnings
+warnings.filterwarnings("ignore")
+
 #############################
 ## Handle script arguments ##
 #############################
@@ -139,7 +143,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -181,7 +185,7 @@ if __name__ == '__main__':
     labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,
-                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights, labels=labels)
+                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
 
     ##################
     ## Optimization ##
@@ -194,7 +198,7 @@ if __name__ == '__main__':
     theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
     # Nelder-mead
     #step = len(bounds)*[0.05,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                             processes=processes, max_iter=n_pso)[0]
 
     ###################
