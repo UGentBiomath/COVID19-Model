@@ -14,8 +14,6 @@ import sys
 import ast
 import click
 import json
-import pickle
-import emcee
 import datetime
 import argparse
 import pandas as pd
@@ -28,7 +26,7 @@ from covid19model.data import sciensano
 from covid19model.visualization.optimization import plot_PSO
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
-from pySODM.optimization.utils import assign_theta
+from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial
 
@@ -126,7 +124,6 @@ if __name__ == '__main__':
     ## Compute the overdispersion parameters for our H_in data ##
     #############################################################
 
-    from pySODM.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
     dispersion = results.loc['negative binomial', 'theta']
     plt.show()
@@ -181,17 +178,10 @@ if __name__ == '__main__':
     pars = pars2 + pars3 + pars4
     bounds =  bounds2 + bounds3 + bounds4
     # Define labels
-    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', 'A']
-    # Setup prior functions and arguments
-    log_prior_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_fnc_args = bounds
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
     # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability([],[],model,pars,bounds,data,states,
-                                               log_likelihood_fnc,log_likelihood_fnc_args,-weights, labels=labels)
-    # Extract formatted parameter_names, bounds and labels
-    pars_postprocessing = objective_function.parameter_names_postprocessing
-    labels = objective_function.labels 
-    bounds = objective_function.bounds
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,
+                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights, labels=labels)
 
     ##################
     ## Optimization ##
@@ -218,7 +208,7 @@ if __name__ == '__main__':
         model.parameters = assign_theta(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+        out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
         plt.show()
@@ -241,7 +231,7 @@ if __name__ == '__main__':
             pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+            out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
             # Visualize fit
             ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
             plt.show()
@@ -264,11 +254,15 @@ if __name__ == '__main__':
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.10,] 
+    # Setup prior functions and arguments
+    log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
     pert =  pert2 + pert3 + pert4 #+ pert5
-    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
     # initialize objective function
-    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels,
+                                                    log_prior_prob_fnc=log_prior_prob_fnc, log_prior_prob_fnc_args=log_prior_prob_fnc_args)
 
     ######################
     ## Run MCMC sampler ##
@@ -276,7 +270,7 @@ if __name__ == '__main__':
 
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
@@ -291,7 +285,7 @@ if __name__ == '__main__':
     #####################
 
     # Generate a sample dictionary
-    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    samples_dict = emcee_sampler_to_dictionary(sampler, discard=1, identifier=identifier, samples_path=samples_path, settings=settings)
     # Save samples dictionary to json
     with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
