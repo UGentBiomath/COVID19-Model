@@ -312,7 +312,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         size_dummy = np.ones(S.shape)
 
         rates = {
-            'S':[IP*e_s,],
+            'S': [IP*e_s,],
             'E': [size_dummy*(1/sigma),],
             'I': [size_dummy*(a/omega), size_dummy*(1-h_acc)*((1-a)/omega), size_dummy*h_acc*((1-a)/omega)],
             'A': [size_dummy*(1/da)],
