@@ -84,14 +84,16 @@ with open(os.path.join(abs_dir, args.path)+filename) as f:
 # Samples
 flat_samples = sampler.get_chain(discard=int(args.discard),thin=int(args.thin),flat=True)
 samples_dict = {}
+count=0
 for i,(name,value) in enumerate(settings['calibrated_parameters'].items()):
     if isinstance(value,list):
         vals=[]
         for j in range(len(value)):
             vals.append(list(flat_samples[:, i+j]))
+        count+=len(value)-1
         samples_dict[name] = vals
     else:
-        samples_dict[name] = list(flat_samples[:,i])
+        samples_dict[name] = list(flat_samples[:,i+count])
 
 # Append settings
 samples_dict.update(settings)
