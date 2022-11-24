@@ -223,7 +223,7 @@ class simple_stochastic_SIR(SDEModel):
         return {'S': [beta*np.matmul(Nc,I/(S+I+R)),], 'I': [gamma*np.ones(S.size),]}
 
     @staticmethod
-    def apply_transitionings(t, transitionings, S, I, R, beta, gamma, Nc):
+    def apply_transitionings(t, tau, transitionings, S, I, R, beta, gamma, Nc):
 
         S_new  = S - transitionings['S'][0]
         I_new =  I + transitionings['S'][0] - transitionings['I'][0]
@@ -329,13 +329,10 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         return rates
 
     @staticmethod
-    def apply_transitionings(t, transitionings, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
-                                beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
-                                s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
+    def apply_transitionings(t, tau, transitionings, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
+                            beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
+                            s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
         
-        # TODO: make sure we can acces tau in this function
-        tau = 0.5
-
         # Round the vaccination data
         N_vacc = np.rint(tau*N_vacc)
 
@@ -467,7 +464,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
     stratification_names = ['NIS','age_groups','doses']
 
     @staticmethod
-    def integrate(t, l, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
+    def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_work, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
