@@ -231,56 +231,29 @@ class simple_stochastic_SIR(SDEModel):
 
         return S_new, I_new, R_new
 
-@jit(nopython=True)
-def compute_transitionings_national_jit(N, D, l, state, rate):
-    T =[]
-    size_dummy=np.ones((N,D),np.float64)
-    trans_vals=np.zeros((N,D,len(rate)),np.float64)
-    for n in range(N):
-        for d in range(D):
-            # Construct vector of probabilities
-            p=np.zeros(len(rate),np.float64)
-            for k in range(len(rate)):
-                r = size_dummy*rate[k]
-                p[k] = 1 - np.exp(-l*r[n,d])
-            p = np.append(p, 1-np.sum(p))
-            # Draw from multinomial distribution and omit the chance of not transitioning
-            trans_vals[n,d,:] = np.random.multinomial(int(state[n,d]), p)[:-1]
-    # Assign result to correct transitioning
-    for k in range(len(rate)):
-        T.append(trans_vals[:,:,k])
-    return T
 
 class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
-    """
-    The docstring will go here
-    """
+    """"""
 
-    # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot', 'Inf_in', 'Inf_out']
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h','Nc']
     parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification = ['age_groups','doses']
+    stratification_names = ['age_groups','doses']
 
-    # ..transitions/equations
     @staticmethod
-    def integrate(t, l, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
-                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
-                  s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
+    def compute_rates(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
+                        beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
+                        s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
         """
         Biomath extended SEIRD model for COVID-19
-        *Deterministic implementation*
+        *Stochastic implementation*
         """
 
         ###################
         ## Format inputs ##
         ###################
 
-        np.random.seed()
-        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
-        f_VOC[1,:][f_VOC[1,:] < 0] = 0
-        # Split derivatives and fraction
-        d_VOC = f_VOC[1,:]
+        # Extract fraction
         f_VOC = f_VOC[0,:]        
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
@@ -318,15 +291,60 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         dICUrec = np.expand_dims(dICUrec, axis=1)
         h_acc = e_h*h
 
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.expand_dims(np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=1),axis=1) # sum over doses
+
+        ################################
+        ## Compute the transitionings ##
+        ################################
+
+        # Compute infection pressure (IP) of all variants
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
+
+        # Define the rates of the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        size_dummy = np.ones(S.shape)
+
+        rates = {
+            'S':[IP*e_s,],
+            'E': [size_dummy*(1/sigma),],
+            'I': [size_dummy*(a/omega), size_dummy*(1-h_acc)*((1-a)/omega), size_dummy*h_acc*((1-a)/omega)],
+            'A': [size_dummy*(1/da)],
+            'M_R': [size_dummy*(1/dm)],
+            'M_H': [size_dummy*(1/dhospital)*c*(1-m_C), size_dummy*(1/dhospital)*c*m_C, size_dummy*(1/dhospital)*(1-c)*(1-m_ICU), size_dummy*(1/dhospital)*(1-c)*m_ICU],
+            'C_R': [size_dummy*(1/dc_R),],
+            'C_D': [size_dummy*(1/dc_D),], 
+            'ICU_R': [size_dummy*(1/dICU_R),],
+            'ICU_D': [size_dummy*(1/dICU_D)],
+            'C_icurec': [size_dummy*(1/dICUrec),],
+            'R': [size_dummy*zeta,]
+        }
+
+        return rates
+
+    @staticmethod
+    def apply_transitionings(t, transitionings, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
+                                beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
+                                s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
+        
+        # TODO: make sure we can acces tau in this function
+        tau = 0.5
+
+        # Round the vaccination data
+        N_vacc = np.rint(tau*N_vacc)
+
         ############################################
         ## Compute the vaccination transitionings ##
         ############################################
 
         dS = np.zeros(S.shape, np.float64)
         dR = np.zeros(R.shape, np.float64)
-
-        # Round the vaccination data
-        N_vacc = l*N_vacc
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~
@@ -379,99 +397,35 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         dS[:,3] = dS[:,3] + N_vacc[:,3]*f_S
         dR[:,3] = dR[:,3] + N_vacc[:,3]*f_R
 
-        # Update the S and R state
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        S_post_vacc = np.rint(S + dS)
-        R_post_vacc = np.rint(R + dR)
-
-        # Make absolutely sure the vaccinations don't let theses state go below zero
-        S_post_vacc = np.where(S_post_vacc < 0, 0, S_post_vacc)
-        R_post_vacc = np.where(R_post_vacc < 0, 0, R_post_vacc)
-
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = np.expand_dims(np.sum(S_post_vacc + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R_post_vacc, axis=1),axis=1) # sum over doses
-
-        ################################
-        ## Compute the transitionings ##
-        ################################
-
-        # Compute infection pressure (IP) of all variants
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
-
-        # Define the rates of the transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        states=[S_post_vacc, E, I, A, M_R, M_H, C_R, C_D, ICU_R, ICU_D, C_icurec, R_post_vacc]
-        rates=[
-            [IP*e_s,], # S
-            [1/sigma,], # E
-            [a/omega, (1-h_acc)*((1-a)/omega), h_acc*((1-a)/omega)], # I
-            [1/da], # A
-            [1/dm], # M_R
-            [(1/dhospital)*c*(1-m_C), (1/dhospital)*c*m_C, (1/dhospital)*(1-c)*(1-m_ICU), (1/dhospital)*(1-c)*m_ICU], # M_H
-            [1/dc_R,], # C_R
-            [1/dc_D,], # C_D
-            [1/dICU_R,], # ICU_R
-            [1/dICU_D], # ICU_D
-            [1/dICUrec,], # C_icurec
-            [zeta,] # R
-        ]
-
-        # 0: S --> E
-        # 1: E --> I
-        # 2: I --> A
-        # 3: I --> M_R
-        # 4: I --> M_H
-        # 5: A --> R
-        # 6: M_R --> R
-        # 7: M_H --> C_R
-        # 8: M_H --> C_D
-        # 9: M_H --> ICU_R
-        # 10: M_H --> ICU_D
-        # 11: C_R --> R
-        # 12: C_D --> D
-        # 13: ICU_R --> C_icurec
-        # 14: ICU_D --> D
-        # 15: C_icurec --> R
-        # 16: R --> S
-
-        
-        T=[]
-        for i, rate in enumerate(rates):
-            state = states[i]
-            T.extend(compute_transitionings_national_jit(S.shape[0], S.shape[1], l, state, rate))
-
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S_post_vacc - T[0] + T[16]
-        E_new = E + T[0] - T[1]
-        I_new = I + T[1] - (T[2] + T[3] + T[4])
-        A_new = A + T[2] - T[5]
-        M_R_new = M_R + T[3] - T[6]
-        M_H_new = M_H + T[4] - (T[7] + T[8] + T[9] + T[10])
-        C_R_new = C_R + T[7] - T[11]
-        C_D_new = C_D + T[8] - T[12]
-        ICU_R_new = ICU_R + T[9] - T[13]
-        ICU_D_new = ICU_D + T[10] - T[14]
-        C_icurec_new = C_icurec + T[13] - T[15]
-        R_new = R_post_vacc + T[5] + T[6] + T[11] + T[15] - T[16]
-        D_new = D + T[12] + T[14]
+        S_new = S + dS - transitionings['S'][0] + transitionings['R'][0]
+        E_new = E + transitionings['S'][0] - transitionings['E'][0]
+        I_new = I + transitionings['E'][0] - (transitionings['I'][0] + transitionings['I'][1] + transitionings['I'][2])
+        A_new = A + transitionings['I'][0] - transitionings['A'][0]
+        M_R_new = M_R + transitionings['I'][1] - transitionings['M_R'][0]
+        M_H_new = M_H + transitionings['I'][2] - (transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3])
+        C_R_new = C_R + transitionings['M_H'][0] - transitionings['C_R'][0]
+        C_D_new = C_D + transitionings['M_H'][1] - transitionings['C_D'][0]
+        ICU_R_new = ICU_R + transitionings['M_H'][2] - transitionings['ICU_R'][0]
+        ICU_D_new = ICU_D + transitionings['M_H'][3] - transitionings['ICU_D'][0]
+        C_icurec_new = C_icurec + transitionings['ICU_R'][0] - transitionings['C_icurec'][0]
+        R_new = R + dR + transitionings['A'][0] + transitionings['M_R'][0] + transitionings['C_R'][0] + transitionings['C_icurec'][0] - transitionings['R'][0]
+        D_new = D + transitionings['ICU_D'][0] + transitionings['C_D'][0]
 
         # Derivative states
-        M_in_new = (T[3] + T[4])/l
-        H_in_new = (T[7] + T[8] + T[9] + T[10])/l
-        H_out_new = (T[11] + T[12] + T[14] + T[15])/l
-        H_tot_new = H_tot + (H_in_new - H_out_new)*l
-        Inf_in_new = T[0]/l
-        Inf_out_new = (T[5] + T[6] + T[11] + T[12] + T[14] + T[15])/l
+        M_in_new =  transitionings['I'][1] + transitionings['I'][2]
+        H_in_new = transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3]
+        H_out_new = transitionings['C_R'][0] + transitionings['C_icurec'][0] + transitionings['ICU_D'][0] + transitionings['C_D'][0]
+        H_tot_new = H_tot + (H_in_new - H_out_new)
+        Inf_in_new = transitionings['S'][0]
+        Inf_out_new = H_out_new + transitionings['A'][0] + transitionings['M_R'][0]
+
+        # Make absolutely sure the vaccinations don't push the S or R states below zero
+        S_new = np.where(S_new < 0, 0, S_new)
+        R_new = np.where(R_new < 0, 0, R_new)
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new, Inf_in_new, Inf_out_new)
 
