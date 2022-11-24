@@ -27,7 +27,7 @@ from covid19model.data import sciensano
 from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
-from pySODM.optimization.utils import assign_theta
+from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_poisson, ll_negative_binomial
 
@@ -134,10 +134,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-warmup=0
-l=1/2
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
-                                                                                    start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
+                                                                                    start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=False)
 
 if __name__ == '__main__':
 
@@ -145,7 +143,6 @@ if __name__ == '__main__':
     ## Compute the overdispersion parameters for our H_in data ##
     #############################################################
 
-    from pySODM.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
     dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
     print(results)
@@ -201,31 +198,24 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
-    # Setup prior functions and arguments
-    log_prior_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_fnc_args = bounds
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$K_{inf}$', '$A$']
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
     # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability([],[],model,pars,bounds,data,states,
-                                               log_likelihood_fnc,log_likelihood_fnc_args,-weights,labels=labels)
-    # Extract formatted parameter_names, bounds and labels
-    pars_postprocessing = objective_function.parameter_names_postprocessing
-    labels = objective_function.labels 
-    bounds = objective_function.bounds
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,
+                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
 
     ##################
     ## Optimization ##
     ##################
 
     # PSO
-    #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
     theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
-    step = len(bounds)*[0.05,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-                            processes=processes, max_iter=n_pso)[0]
+    #step = len(bounds)*[0.05,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -238,7 +228,7 @@ if __name__ == '__main__':
         model.parameters = pars_PSO
         end_visualization = '2022-01-01'
         # Perform simulation with best-fit results
-        out = model.sim(end_visualization,start_date=start_calibration, l=l)
+        out = model.sim([start_calibration, pd.Timestamp(end_visualization)])
         # National fit
         data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
@@ -269,7 +259,7 @@ if __name__ == '__main__':
             pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration, l=l)
+            out = model.sim([start_calibration, pd.Timestamp(end_visualization)])
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
@@ -313,6 +303,9 @@ if __name__ == '__main__':
     pert4 = [0.20,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
+    # Setup prior functions and arguments
+    log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_prob_fnc_args = bounds
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
     # initialize objective function
@@ -324,13 +317,13 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'parameters': pars_postprocessing, 'starting_estimate': theta, 'l': l}
+    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'starting_estimate': theta, 'l': l}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': 0}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
 

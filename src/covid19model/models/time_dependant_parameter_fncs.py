@@ -233,7 +233,7 @@ class make_VOC_function():
             else:
                 alpha[:,idx-1] = [1-f,-df]
                 alpha[:,idx] = [f,df]
-            return alpha            
+            return np.array(alpha, np.float64)            
 
 ###########################
 ## Vaccination functions ##

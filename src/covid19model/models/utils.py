@@ -182,7 +182,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #####################################
 
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import models
+    from covid19model.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
     from covid19model.models.time_dependant_parameter_fncs import   make_mobility_update_function, \
                                                                     make_contact_matrix_function, \
@@ -330,14 +330,14 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
                                'e_h' : efficacy_function.e_h})                      
-                               
+                                
     # Setup model
     if stochastic == True:
         for key,state in initial_states.items():
             initial_states.update({key: np.rint(state)})
-        model = models.COVID19_SEIQRD_spatial_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = SDE_models.COVID19_SEIQRD_spatial_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
     else:
-        model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = ODE_models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
