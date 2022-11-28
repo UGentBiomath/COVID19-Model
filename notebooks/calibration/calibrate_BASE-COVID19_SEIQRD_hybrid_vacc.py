@@ -194,7 +194,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.39, 0.55, 1.35, 1.7, 0.18]         
+    theta = [0.39, 0.39, 0.55, 1.3, 1.6, 0.18]         
     # Nelder-mead
     #step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
@@ -263,9 +263,6 @@ if __name__ == '__main__':
     # Add them together and perturbate
     pert =  pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
-    # initialize objective function
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels,
-                                                    log_prior_prob_fnc=log_prior_prob_fnc, log_prior_prob_fnc_args=log_prior_prob_fnc_args)
 
     ######################
     ## Run MCMC sampler ##
