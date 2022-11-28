@@ -199,9 +199,8 @@ if __name__ == '__main__':
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
-    # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,
-                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
+    # Setup objective function with uniform priors
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
 
     ##################
     ## Optimization ##
@@ -303,13 +302,8 @@ if __name__ == '__main__':
     pert4 = [0.20,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
-    # Setup prior functions and arguments
-    log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_prob_fnc_args = bounds
     # Use perturbation function
-    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
-    # initialize objective function
-    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=bounds, verbose=False)
 
     ######################
     ## Run MCMC sampler ##
@@ -317,7 +311,7 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'starting_estimate': theta, 'l': l}
+              'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'starting_estimate': theta}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
@@ -332,7 +326,7 @@ if __name__ == '__main__':
     #####################
 
     # Generate a sample dictionary
-    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    samples_dict = emcee_sampler_to_dictionary(sampler, discard=1, identifier=identifier, samples_path=samples_path, settings=settings)
     # Save samples dictionary to json
     with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)

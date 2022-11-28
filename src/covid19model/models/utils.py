@@ -327,9 +327,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'seasonality' : seasonality_function,}
     if vaccination:
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
-                               'e_s' : efficacy_function.e_s,
-                               'e_i' : efficacy_function.e_i,
-                               'e_h' : efficacy_function.e_h})                      
+                                          'e_s' : efficacy_function.e_s,
+                                          'e_i' : efficacy_function.e_i,
+                                          'e_h' : efficacy_function.e_h})                      
                                 
     # Setup model
     if stochastic == True:

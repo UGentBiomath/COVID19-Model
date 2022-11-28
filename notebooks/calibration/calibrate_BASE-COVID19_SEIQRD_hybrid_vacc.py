@@ -270,7 +270,7 @@ if __name__ == '__main__':
 
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+              'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()

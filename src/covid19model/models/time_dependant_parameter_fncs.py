@@ -1595,18 +1595,18 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.15
-            mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.10
+            mat[idx_W,:,:] *= 1.05
+            mat[idx_Vlaams_Brabant,:,:] *= 1.0
+            mat[idx_Waals_Brabant,:,:] *= 1.0/1.05
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.15
-            mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.10
+            mat[idx_W,:,:] *= 1.05
+            mat[idx_Vlaams_Brabant,:,:] *= 1.0
+            mat[idx_Waals_Brabant,:,:] *= 1.0/1.05
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
@@ -1791,10 +1791,10 @@ class make_contact_matrix_function():
             elif t7 < t <= t8:
                 mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
                 mat[idx_F,:,:] *= 1.0
-                mat[idx_Bxl,:,:] *= 1.30
-                mat[idx_W,:,:] *= 1.10
-                mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-                mat[idx_Waals_Brabant,:,:] *= 1/1.20
+                mat[idx_Bxl,:,:] *= 1.10
+                mat[idx_W,:,:] *= 1.05
+                mat[idx_Vlaams_Brabant,:,:] *= 1
+                mat[idx_Waals_Brabant,:,:] *= 1/1.05
                 return mat
             elif t8 < t <= t9:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
