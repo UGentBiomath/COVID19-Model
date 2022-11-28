@@ -135,7 +135,7 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ##########################
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
-                                                                                    start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=False)
+                                                                                start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
 
 if __name__ == '__main__':
 

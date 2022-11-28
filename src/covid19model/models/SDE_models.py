@@ -361,13 +361,13 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
 class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
+    state_names = ['S', 'S_work', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_work', 'NIS']
     parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     stratification_names = ['NIS','age_groups','doses']
 
     @staticmethod
-    def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
+    def compute_rates(t, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_work, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
@@ -376,11 +376,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         ## Format inputs ##
         ###################
 
-        np.random.seed()
-        # Remove negative derivatives to ease further computation (jit compatible in 1D but not in 2D!)
-        f_VOC[1,:][f_VOC[1,:] < 0] = 0
-        # Split derivatives and fraction
-        d_VOC = f_VOC[1,:]
         f_VOC = f_VOC[0,:]        
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
@@ -420,15 +415,97 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         dICUrec = np.expand_dims(dICUrec, axis=1)
         h_acc = e_h*h
 
+        ################################
+        ## calculate total population ##
+        ################################
+
+        T = np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=2) # Sum over doses
+
+        ################################
+        ## Compute infection pressure ##
+        ################################
+
+        # For total population and for the relevant compartments I and A
+        G = S.shape[0] # spatial stratification
+        N = S.shape[1] # age stratification
+        D = S.shape[2] # dose stratification
+
+        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
+        place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
+        
+        # Expand beta to size G
+        beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
+
+        # Compute populations after application of 'place' to obtain the S, I and A populations
+        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
+        I_work = matmul_q_2D(np.transpose(place_eff), I)
+        A_work = matmul_q_2D(np.transpose(place_eff), A)
+        # The following line of code is the numpy equivalent of the above loop (verified)
+        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
+
+        # Compute infectious work population (11,10)
+        infpop_work = np.sum( (I_work + A_work)/T_work*e_i, axis=2)
+        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
+
+        # Multiply with number of contacts
+        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
+        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
+
+        # Multiply result with beta
+        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+
+        ################################
+        ## Compute the transitionings ##
+        ################################
+
+        # Define the rates of the transitionings
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        size_dummy = size_dummy = np.ones([G,N,D], np.float64)
+        rates = {
+            'S': [multip_rest*e_s,],
+            'S_work': [multip_work*e_s,],
+            'E': [size_dummy*(1/sigma),],
+            'I': [np.squeeze(a/omega)[np.newaxis, :, np.newaxis]*size_dummy, (1-h_acc)*((1-a)/omega), h_acc*((1-a)/omega)],
+            'A': [size_dummy*(1/da),],
+            'M_R': [size_dummy*(1/dm),],
+            'M_H': [np.squeeze((1/dhospital)*c*(1-m_C))[np.newaxis, :, np.newaxis]*size_dummy,
+                    np.squeeze((1/dhospital)*c*m_C)[np.newaxis, :, np.newaxis]*size_dummy,
+                    np.squeeze((1/dhospital)*(1-c)*(1-m_ICU))[np.newaxis, :, np.newaxis]*size_dummy,
+                    np.squeeze((1/dhospital)*(1-c)*m_ICU)[np.newaxis, :, np.newaxis]*size_dummy],
+            'C_R': [np.squeeze(1/dc_R)[np.newaxis, :, np.newaxis]*size_dummy,],
+            'C_D': [np.squeeze(1/dc_D)[np.newaxis, :, np.newaxis]*size_dummy,], 
+            'ICU_R': [np.squeeze(1/dICU_R)[np.newaxis, :, np.newaxis]*size_dummy,],
+            'ICU_D': [np.squeeze(1/dICU_D)[np.newaxis, :, np.newaxis]*size_dummy,],
+            'C_icurec': [np.squeeze(1/dICUrec)[np.newaxis, :, np.newaxis]*size_dummy,],
+            'R': [size_dummy*zeta,],
+        }
+
+        return rates
+    
+    @staticmethod
+    def apply_transitionings(t, tau, transitionings, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
+                             beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_work, NIS, # SEIRD parameters
+                             area, p, # spatially stratified parameters. 
+                             s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
+
+        ############################
+        ## Update work population ##
+        ############################
+
+        place_eff = np.outer(p, p)*NIS + np.identity(S.shape[0])*(NIS @ (1-np.outer(p,p)))
+        S_work_new = matmul_q_2D(np.transpose(place_eff), S)
+
         ############################################
         ## Compute the vaccination transitionings ##
         ############################################
 
+        # Round the vaccination data
+        N_vacc = tau*N_vacc
+
         dS = np.zeros(S.shape, np.float64)
         dR = np.zeros(R.shape, np.float64)
-
-        # Round the vaccination data
-        N_vacc = l*N_vacc
 
         # 0 --> 1 and  0 --> 2
         # ~~~~~~~~~~~~~~~~~~~~
@@ -481,149 +558,33 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         dS[:,:,3] = dS[:,:,3] + N_vacc[:,:,3]*f_S
         dR[:,:,3] = dR[:,:,3] + N_vacc[:,:,3]*f_R
 
-        # Update the S and R state
-        # ~~~~~~~~~~~~~~~~~~~~~~~~
-
-        S_post_vacc = np.rint(S + dS)
-        R_post_vacc = np.rint(R + dR)
-
-        # Make absolutely sure the vaccinations don't let theses state go below zero
-        S_post_vacc = np.where(S_post_vacc < 0, 0, S_post_vacc)
-        R_post_vacc = np.where(R_post_vacc < 0, 0, R_post_vacc)
-
-        ################################
-        ## calculate total population ##
-        ################################
-
-        T = np.sum(S_post_vacc + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R_post_vacc, axis=2) # Sum over doses
-
-        ################################
-        ## Compute infection pressure ##
-        ################################
-
-        # For total population and for the relevant compartments I and A
-        G = S.shape[0] # spatial stratification
-        N = S.shape[1] # age stratification
-
-        # Define effective mobility matrix place_eff from user-defined parameter p[patch]
-        place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
-        
-        # Expand beta to size G
-        beta = stratify_beta_density(beta_R, beta_U, beta_M, area, T.sum(axis=1))*np.sum(f_VOC*K_inf)
-        #beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
-
-        # Compute populations after application of 'place' to obtain the S, I and A populations
-        T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
-        S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
-        I_work = matmul_q_2D(np.transpose(place_eff), I)
-        A_work = matmul_q_2D(np.transpose(place_eff), A)
-        # The following line of code is the numpy equivalent of the above loop (verified)
-        #S_work = np.transpose(np.matmul(np.transpose(S_post_vacc), place_eff))
-
-        # Compute infectious work population (11,10)
-        infpop_work = np.sum( (I_work + A_work)/T_work*e_i, axis=2)
-        infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
-
-        # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
-
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-
-        # Compute rates of change
-        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*e_s
-
-        ################################
-        ## Compute the transitionings ##
-        ################################
-
-        # Define the rates of the transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        G = S.shape[0]
-        N = S.shape[1]
-        D = S.shape[2]
-        
-        states=[S_post_vacc, E, I, A, M_R, M_H, C_R, C_D, ICU_R, ICU_D, C_icurec, R_post_vacc, S_work]
-        # Convert all rate sizes to size (11,10,4) for numba
-        # --> TO DO: prettify this
-        size_dummy = np.ones([G,N,D], np.float64)
-        rates=[
-            [multip_rest*e_s,], # S_post_vacc
-            [size_dummy*(1/sigma),], # E
-            [np.squeeze(a/omega)[np.newaxis, :, np.newaxis]*size_dummy,
-                (1-h_acc)*((1-a)/omega),
-                h_acc*((1-a)/omega)], # I
-            [size_dummy*(1/da),], # A
-            [size_dummy*(1/dm),], # M_R
-            [np.squeeze((1/dhospital)*c*(1-m_C))[np.newaxis, :, np.newaxis]*size_dummy,
-                np.squeeze((1/dhospital)*c*m_C)[np.newaxis, :, np.newaxis]*size_dummy,
-                np.squeeze((1/dhospital)*(1-c)*(1-m_ICU))[np.newaxis, :, np.newaxis]*size_dummy,
-                np.squeeze((1/dhospital)*(1-c)*m_ICU)[np.newaxis, :, np.newaxis]*size_dummy], # M_H
-            [np.squeeze(1/dc_R)[np.newaxis, :, np.newaxis]*size_dummy,], # C_R
-            [np.squeeze(1/dc_D)[np.newaxis, :, np.newaxis]*size_dummy,], # C_D
-            [np.squeeze(1/dICU_R)[np.newaxis, :, np.newaxis]*size_dummy,], # ICU_R
-            [np.squeeze(1/dICU_D)[np.newaxis, :, np.newaxis]*size_dummy,], # ICU_D
-            [np.squeeze(1/dICUrec)[np.newaxis, :, np.newaxis]*size_dummy,], # C_icurec
-            [size_dummy*zeta,], # R
-            [multip_work*e_s,]] # S_work
-
-        # 0: S --> E
-        # 1: E --> I
-        # 2: I --> A
-        # 3: I --> M_R
-        # 4: I --> M_H
-        # 5: A --> R
-        # 6: M_R --> R
-        # 7: M_H --> C_R
-        # 8: M_H --> C_D
-        # 9: M_H --> ICU_R
-        # 10: M_H --> ICU_D
-        # 11: C_R --> R
-        # 12: C_D --> D
-        # 13: ICU_R --> C_icurec
-        # 14: ICU_D --> D
-        # 15: C_icurec --> R
-        # 16: R --> S
-        # 17: S_work --> E
-
-        # Compute the transitionings
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # Convert states and rates to typed lists
-        typed_states = nb.typed.List()
-        [typed_states.append(state) for state in states]
-        # Convert states and rates to typed lists
-        typed_rates = nb.typed.List()
-        [typed_rates.append(rate) for rate in rates]
-        T = compute_transitionings_spatial_jit(G, N, D, l, typed_states, typed_rates)
-        # Convert T back to list
-        T = [T[:,:,:,i] for i in range(T.shape[-1])]
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~
 
         # Flowchart states
-        S_new = S_post_vacc - T[0] - T[17] + T[16]
-        E_new = E + T[0] + T[17] - T[1]
-        I_new = I + T[1] - (T[2] + T[3] + T[4])
-        A_new = A + T[2] - T[5]
-        M_R_new = M_R + T[3] - T[6]
-        M_H_new = M_H + T[4] - (T[7] + T[8] + T[9] + T[10])
-        C_R_new = C_R + T[7] - T[11]
-        C_D_new = C_D + T[8] - T[12]
-        ICU_R_new = ICU_R + T[9] - T[13]
-        ICU_D_new = ICU_D + T[10] - T[14]
-        C_icurec_new = C_icurec + T[13] - T[15]
-        R_new = R_post_vacc + T[5] + T[6] + T[11] + T[15] - T[16]
-        D_new = D + T[12] + T[14]
+        S_new = S + np.rint(dS) - transitionings['S'][0] - transitionings['S_work'][0] + transitionings['R'][0]
+        E_new = E + transitionings['S'][0] + transitionings['S_work'][0] - transitionings['E'][0]
+        I_new = I + transitionings['E'][0] - (transitionings['I'][0] + transitionings['I'][1] + transitionings['I'][2])
+        A_new = A + transitionings['I'][0] - transitionings['A'][0]
+        M_R_new = M_R + transitionings['I'][1] - transitionings['M_R'][0]
+        M_H_new = M_H + transitionings['I'][2] - (transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3])
+        C_R_new = C_R + transitionings['M_H'][0] - transitionings['C_R'][0]
+        C_D_new = C_D + transitionings['M_H'][1] - transitionings['C_D'][0]
+        ICU_R_new = ICU_R + transitionings['M_H'][2] - transitionings['ICU_R'][0]
+        ICU_D_new = ICU_D + transitionings['M_H'][3] - transitionings['ICU_D'][0]
+        C_icurec_new = C_icurec + transitionings['ICU_R'][0] - transitionings['C_icurec'][0]
+        R_new = R + np.rint(dR) + transitionings['A'][0] + transitionings['M_R'][0] + transitionings['C_R'][0] + transitionings['C_icurec'][0] - transitionings['R'][0]
+        D_new = D + transitionings['ICU_D'][0] + transitionings['C_D'][0]
 
         # Derivative states
-        M_in_new = (T[3] + T[4])/l
-        H_in_new = (T[7] + T[8] + T[9] + T[10])/l
-        H_out_new = (T[11] + T[12] + T[14] + T[15])/l
-        H_tot_new = H_tot + (H_in_new - H_out_new)*l
+        M_in_new =  (transitionings['I'][1] + transitionings['I'][2])/tau
+        H_in_new = (transitionings['M_H'][0] + transitionings['M_H'][1] + transitionings['M_H'][2] + transitionings['M_H'][3])/tau
+        H_out_new = (transitionings['C_R'][0] + transitionings['C_icurec'][0] + transitionings['ICU_D'][0] + transitionings['C_D'][0])/tau
+        H_tot_new = H_tot + (H_in_new - H_out_new)*tau
 
-        return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new)
+        # Make absolutely sure the vaccinations don't push the S or R states below zero
+        S_new = np.where(S_new < 0, 0, S_new)
+        R_new = np.where(R_new < 0, 0, R_new)
+
+        return (S_new, S_work_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new)

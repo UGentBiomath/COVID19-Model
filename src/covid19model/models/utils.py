@@ -297,6 +297,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                 converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
+    if stochastic == True:
+        initial_states.update({'S_work': np.zeros([G,N,D])})
+
     ##########################################################################
     ## Vaccination module requires some additional parameters to be defined ##
     ##########################################################################
