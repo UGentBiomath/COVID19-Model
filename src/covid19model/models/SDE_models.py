@@ -23,28 +23,14 @@ warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 ###############
 
 @jit(nopython=True)
-def jit_matmul_1D_2D(a, B):
-    """A simple jitted implementation of a 1Dx2D matrix multiplication
-    """
-    n = B.shape[1]
-    f = len(a)
-    out = np.zeros(n, np.float64)
-    for i in range(n):
-            for k in range(f):
-                out[i] += a[k]*B[k,i] 
-    return out
-
-@jit(nopython=True)
 def jit_matmul_2D_1D(A, b):
-    """ A simple jitted implementation of a 2D (n,m) with a 1D (m,) matrix multiplication
-        Result is a 1D matrix (n,)
-    """
+    """ (n,m) x (m,) --> (n,)"""
     n = A.shape[0]
-    f = A.shape[1]
+    m = A.shape[1]
     out = np.zeros(n, np.float64)
     for i in range(n):
-            for k in range(f):
-                out[i] += A[i, k] * b[k]
+        for k in range(m):
+            out[i] += A[i, k] * b[k]
     return out
 
 @jit(nopython=True)
