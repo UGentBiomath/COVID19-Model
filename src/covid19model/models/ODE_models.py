@@ -100,42 +100,6 @@ def jit_matmul_klmn_n(A,b):
     return out
 
 @jit(nopython=True)
-def jit_main_function_spatial(place, S, beta, Nc, I_dens):
-    """
-    Function determining the infection pressure in the spatial context.
-    
-    Input
-    -----
-    place : np.array for mobility matrix P^gh. Dimensions [G,G]
-    S : np.array for susceptible compartment S^g_i. Dimensions [G,N]
-    beta : np.array for effective transmission coefficient beta^gh_ij (rescaled local beta with E_inf and E_susc). Dimensions [G,G,N,N]
-    Nc : np.array for effective local social contact N^gh_ij. Dimensions [G,G,N,N]
-    I_dens : np.array for density of infectious subjects. This is the fraction (A_eff^h_j + I_eff^h_j)/T_eff^h_j. Dimensions [G,N]
-    
-    Output
-    ------
-    Sdot: np.array for change of number of susceptibles Sdot^g_i. Dimensions [G,N]
-    
-    Note
-    ----
-    index g denotes the province of origin; index h denotes the visited province; index i denotes the subject's age class; index j denote's the contact's age class.
-    
-    """
-    G = S.shape[0]
-    N = S.shape[1]
-    Sdot = np.zeros((G,N), np.float64)
-    
-    for i in range(N):
-        for g in range(G):
-            value = 0
-            for h in range(G):
-                for j in range(N):
-                     value += place[g,h] * S[g,i] * beta[g,h,i,j] * Nc[g,h,i,j] * I_dens[h,j]
-            Sdot[g,i] += value
-    return Sdot
-    
-
-@jit(nopython=True)
 def matmul_q_2D(A,B):
     """ A simple jitted implementation to multiply a 2D matrix of size (n,m) with a 3D matrix (m,k,q)
         Implemented as q times the matrix multiplication (n,m) x (m,k)
