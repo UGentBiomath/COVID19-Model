@@ -14,32 +14,13 @@ from pandas.plotting import register_matplotlib_converters
 register_matplotlib_converters()
 
 # Ignore numba warnings
-from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+from numba.core.errors import NumbaPendingDeprecationWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 ###############
 ## jit utils ##
 ###############
-
-@jit(nopython=True)
-def vaccination_write_protection_2D(X, X_post_vacc, dX):
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            if X_post_vacc[i,j] < 0:
-                dX[i,j] = 0 - X[i,j]
-                X_post_vacc[i,j] = 0
-    return X_post_vacc, dX
-
-@jit(nopython=True)
-def vaccination_write_protection_3D(X, X_post_vacc, dX):
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            for k in range(X.shape[2]):
-                if X_post_vacc[i,j,k] < 0:
-                    dX[i,j,k] = 0 - X[i,j,k]
-                    X_post_vacc[i,j,k] = 0
-    return X_post_vacc, dX
 
 @jit(nopython=True)
 def jit_matmul_1D_2D(a, B):
@@ -426,35 +407,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         R_new = np.where(R_new < 0, 0, R_new)
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new, Inf_in_new, Inf_out_new)
-
-@jit(nopython=True)
-def compute_transitionings_spatial_jit(G, N, D, l, states, rates):
-
-    T=np.zeros((G,N,D,1), np.float64)
-    for i in range(len(rates)):
-        rate = rates[i]
-        state = states[i]
-        trans_vals=np.zeros((G,N,D,len(rate)),np.float64)
-        for g in range(G):
-            for n in range(N):
-                for d in range(D):
-                    # Construct vector of probabilities
-                    p=np.zeros(len(rate),np.float64)
-                    for k in range(len(rate)):
-                        p_tmp = 1 - np.exp(-l*rate[k][g,n,d])
-                        # Sometimes these rates become smaller than zero
-                        # This likely has to do with Nc-Nc_work becoming negative
-                        if p_tmp < 0:
-                            p[k]=0
-                        else:
-                            p[k]=p_tmp
-                    p = np.append(p, 1-np.sum(p))
-                    # Draw from multinomial distribution and omit the chance of not transitioning
-                    trans_vals[g,n,d,:] = np.random.multinomial(int(state[g,n,d]), p)[:-1]
-        # Assign result to correct transitioning
-        T = np.append(T, trans_vals, axis=3)
-    T = T[:,:,:,1:]
-    return T
 
 class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
 

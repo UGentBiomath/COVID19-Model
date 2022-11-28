@@ -25,25 +25,6 @@ warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 ###############
 
 @jit(nopython=True)
-def vaccination_write_protection_2D(X, X_post_vacc, dX):
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            if X_post_vacc[i,j] < 0:
-                dX[i,j] = 0 - X[i,j]
-                X_post_vacc[i,j] = 0
-    return X_post_vacc, dX
-
-@jit(nopython=True)
-def vaccination_write_protection_3D(X, X_post_vacc, dX):
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            for k in range(X.shape[2]):
-                if X_post_vacc[i,j,k] < 0:
-                    dX[i,j,k] = 0 - X[i,j,k]
-                    X_post_vacc[i,j,k] = 0
-    return X_post_vacc, dX
-
-@jit(nopython=True)
 def jit_matmul_1D_2D(a, B):
     """A simple jitted implementation of a 1Dx2D matrix multiplication
     """
