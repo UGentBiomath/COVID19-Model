@@ -7,7 +7,7 @@ from __future__ import print_function
 import numba as nb
 import numpy as np
 from numba import jit
-from pySODM.models.base import ODEModel, SDEModel
+from pySODM.models.base import ODEModel
 from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
 from .economic_utils import *
 # Register pandas formatters and converters with matplotlib

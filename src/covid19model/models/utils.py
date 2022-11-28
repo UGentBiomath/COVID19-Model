@@ -302,12 +302,12 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ##########################################################################
     
     # Define dummy vaccine efficacies
-    e_i=e_h=e_s = np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_i=e_h=e_s=np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
     # Add vaccination parameters to parameter dictionary
     params.update({'N_vacc': np.zeros([G, N, D]),
-                    'e_i': e_i,
-                    'e_s': e_s,
-                    'e_h': e_h,
+                   'e_i': e_i,
+                   'e_s': e_s,
+                   'e_h': e_h,
                     })  
 
     ##########################
@@ -329,8 +329,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                           'e_s' : efficacy_function.e_s,
                                           'e_i' : efficacy_function.e_i,
-                                          'e_h' : efficacy_function.e_h})                      
-                                
+                                          'e_h' : efficacy_function.e_h})       
+                                                        
     # Setup model
     if stochastic == True:
         for key,state in initial_states.items():
