@@ -14,20 +14,25 @@ import sys
 import ast
 import click
 import json
-import pickle
-import emcee
 import datetime
 import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+# COVID-19 code
 from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19model.data import sciensano
-from covid19model.optimization import pso, nelder_mead
-from covid19model.optimization.objective_fcns import log_prior_uniform, ll_poisson, ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary, assign_theta
 from covid19model.visualization.optimization import plot_PSO
+# pySODM code
+from pySODM.optimization import pso, nelder_mead
+from pySODM.optimization.utils import assign_theta, variance_analysis
+from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
+from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial
+
+# Suppress warnings
+import warnings
+warnings.filterwarnings("ignore")
 
 #############################
 ## Handle script arguments ##
@@ -108,14 +113,13 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True,
+                                                                        start_date=start_calibration.strftime("%Y-%m-%d"))
 
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
-warmup = 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
+warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
 
-# Stochastic
-#warmup = 0
 
 if __name__ == '__main__':
 
@@ -123,7 +127,6 @@ if __name__ == '__main__':
     ## Compute the overdispersion parameters for our H_in data ##
     #############################################################
 
-    from covid19model.optimization.utils import variance_analysis
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
     dispersion = results.loc['negative binomial', 'theta']
     plt.show()
@@ -139,7 +142,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -177,26 +180,25 @@ if __name__ == '__main__':
     # Join them together
     pars = pars2 + pars3 + pars4
     bounds =  bounds2 + bounds3 + bounds4
-    # Setup prior functions and arguments
-    log_prior_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_fnc_args = bounds
+    # Define labels
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
+    # Setup objective function without priors and with negative weights 
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,
+                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
 
     ##################
     ## Optimization ##
     ##################
 
-    # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability([],[],model,pars,data,states,
-                                               log_likelihood_fnc,log_likelihood_fnc_args,-weights)
     # PSO
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.42, 0.42, 0.55, 1.35, 1.7, 0.18]         
+    theta = [0.39, 0.39, 0.55, 1.3, 1.6, 0.18]         
     # Nelder-mead
-    #step = len(bounds)*[0.01,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), bounds, step, kwargs={'simulation_kwargs':{'warmup': warmup}},
-    #                        processes=processes, max_iter=n_pso)[0]
+    #step = len(bounds)*[0.05,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
+    #                             processes=processes, max_iter=n_pso)[0]
 
     ###################
     ## Visualize fit ##
@@ -209,7 +211,7 @@ if __name__ == '__main__':
         model.parameters = assign_theta(model.parameters, pars, theta)
         # Perform simulation
         end_visualization = '2022-07-01'
-        out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+        out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
         # Visualize fit
         ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
         plt.show()
@@ -232,7 +234,7 @@ if __name__ == '__main__':
             pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim(end_visualization,start_date=start_calibration, warmup=warmup)
+            out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
             # Visualize fit
             ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
             plt.show()
@@ -246,9 +248,6 @@ if __name__ == '__main__':
 
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
-    # Setup prior functions and arguments
-    log_prior_fnc = len(bounds)*[log_prior_uniform,]
-    log_prior_fnc_args = bounds
     # Perturbate PSO Estimate
     # pars1 = ['beta',]
     #pert1 = [0.01,]
@@ -258,14 +257,12 @@ if __name__ == '__main__':
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.10,] 
+    # Setup prior functions and arguments
+    log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
+    log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
     pert =  pert2 + pert3 + pert4 #+ pert5
-    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_fnc_args, verbose=False)
-    # Labels for traceplots
-    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, delta}$', 'A']
-    pars_postprocessing = ['eff_work', 'eff_rest', 'mentality', 'K_inf_abc', 'K_inf_delta', 'amplitude']
-    # initialize objective function
-    objective_function = log_posterior_probability(log_prior_fnc,log_prior_fnc_args,model,pars,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################
     ## Run MCMC sampler ##
@@ -273,14 +270,14 @@ if __name__ == '__main__':
 
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-    'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'parameters': pars_postprocessing, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+              'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
     # Setup sampler
     sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, labels=labels, backend=None, processes=processes, progress=True,
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
 
     #####################
@@ -288,7 +285,7 @@ if __name__ == '__main__':
     #####################
 
     # Generate a sample dictionary
-    samples_dict = emcee_sampler_to_dictionary(sampler, pars_postprocessing, discard=1, settings=settings)
+    samples_dict = emcee_sampler_to_dictionary(sampler, discard=1, identifier=identifier, samples_path=samples_path, settings=settings)
     # Save samples dictionary to json
     with open(samples_path+str(identifier)+'_SAMPLES_'+run_date+'.json', 'w') as fp:
         json.dump(samples_dict, fp)
