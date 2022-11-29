@@ -51,7 +51,7 @@ from covid19model.models.utils import load_samples_dict
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)", default='national')
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
@@ -117,7 +117,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True,
+                                                                        start_date=start_calibration)
 model.parameters['beta'] = samples_dict['beta']
 
 #######################
@@ -133,9 +134,9 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, l=1/2, processes=int(args.processes))
+out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
-simtime = out['time'].values
+simtime = out['date'].values
 
 ####################################
 ## Compute and visualize the RMSE ##

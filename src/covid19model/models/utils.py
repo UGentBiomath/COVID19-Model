@@ -2,7 +2,6 @@ import os
 import json
 import warnings
 import random
-from re import A
 from numba import jit
 import numpy as np
 import pandas as pd
@@ -36,7 +35,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     #####################################
 
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import models
+    from covid19model.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
     from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
                                                                     make_VOC_function, \
@@ -123,7 +122,6 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     # Vaccination parameters when using the stratified vaccination model
     params.update({'N_vacc': np.zeros([age_stratification_size, len(df_vacc.index.get_level_values('dose').unique())]),
-                   'doses': np.zeros(len(df_vacc.index.get_level_values('dose').unique())),
                    'e_i': e_i,
                    'e_s': e_s,
                    'e_h': e_h,
@@ -134,7 +132,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     ##########################
 
     # Define coordinates
-    coordinates = [construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+    coordinates = {'age_groups':construct_coordinates_Nc(age_stratification_size=age_stratification_size),
+                    'doses': ['none', 'partial', 'full', 'boosted']}
 
     # Construct dictionary of time dependent parameters
     time_dependent_parameters={'Nc' : policy_function,
@@ -150,9 +149,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     if stochastic == True:
         for key,state in initial_states.items():
             initial_states.update({key: np.rint(state)})
-        model = models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = SDE_models.COVID19_SEIQRD_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
     else:
-        model = models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = ODE_models.COVID19_SEIQRD_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
@@ -183,7 +182,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #####################################
 
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import models
+    from covid19model.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
     from covid19model.models.time_dependant_parameter_fncs import   make_mobility_update_function, \
                                                                     make_contact_matrix_function, \
@@ -298,26 +297,30 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                 converted_value[i,:,j] = convert_age_stratified_quantity(data, age_classes).values
         initial_states.update({key: converted_value})
 
+    if stochastic == True:
+        initial_states.update({'S_work': np.zeros([G,N,D])})
+
     ##########################################################################
     ## Vaccination module requires some additional parameters to be defined ##
     ##########################################################################
     
     # Define dummy vaccine efficacies
-    e_i=e_h=e_s = np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
+    e_i=e_h=e_s=np.ones([G, N, D, len(vaccine_params.index.get_level_values('VOC').unique())])
     # Add vaccination parameters to parameter dictionary
     params.update({'N_vacc': np.zeros([G, N, D]),
-                'doses': np.zeros(D),
-                'e_i': e_i,
-                'e_s': e_s,
-                'e_h': e_h,
-                })  
+                   'e_i': e_i,
+                   'e_s': e_s,
+                   'e_h': e_h,
+                    })  
 
     ##########################
     ## Initialize the model ##
     ##########################
 
     # Define coordinates
-    coordinates = [read_coordinates_place(agg=agg), construct_coordinates_Nc(age_stratification_size=age_stratification_size), ['none', 'partial', 'full', 'boosted']]
+    coordinates = {'NIS': read_coordinates_place(agg=agg),
+                   'age_groups': construct_coordinates_Nc(age_stratification_size=age_stratification_size),
+                   'doses': ['none', 'partial', 'full', 'boosted']}
 
     # Define time-dependent-parameters
     time_dependent_parameters={'Nc' : policy_function,
@@ -327,17 +330,17 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'seasonality' : seasonality_function,}
     if vaccination:
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
-                               'e_s' : efficacy_function.e_s,
-                               'e_i' : efficacy_function.e_i,
-                               'e_h' : efficacy_function.e_h})                      
-                               
+                                          'e_s' : efficacy_function.e_s,
+                                          'e_i' : efficacy_function.e_i,
+                                          'e_h' : efficacy_function.e_h})       
+                                                        
     # Setup model
     if stochastic == True:
         for key,state in initial_states.items():
             initial_states.update({key: np.rint(state)})
-        model = models.COVID19_SEIQRD_spatial_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = SDE_models.COVID19_SEIQRD_spatial_hybrid_vacc_sto(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
     else:
-        model = models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+        model = ODE_models.COVID19_SEIQRD_spatial_hybrid_vacc(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
 
     return model, samples_dict, initN
 
@@ -405,7 +408,7 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
+    param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx] 
 
     # Hospitalization
@@ -461,7 +464,7 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
     param_dict['eff_work'] = samples_dict['eff_work'][idx]       
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['K_inf'] = np.array([samples_dict['K_inf_abc'][idx], samples_dict['K_inf_delta'][idx]], np.float64)
+    param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
 
     # Hospitalization
@@ -549,7 +552,7 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
     columns = [[],[]]
     tuples = list(zip(*columns))
     columns = pd.MultiIndex.from_tuples(tuples, names=["model state", "quantity"])
-    df = pd.DataFrame(index=pd.to_datetime(output['time'].values), columns=columns)
+    df = pd.DataFrame(index=pd.to_datetime(output['date'].values), columns=columns)
     df.index.name = 'simtime'
     # Deepcopy xarray output (it is mutable like a dictionary!)
     copy = output.copy(deep=True)
@@ -557,7 +560,7 @@ def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.0
     for state_name in states:
         # Automatically sum all dimensions except time and draws
         for dimension in output.dims:
-            if ((dimension != 'time') & (dimension != 'draws')):
+            if ((dimension != 'date') & (dimension != 'draws')):
                 copy[state_name] = copy[state_name].sum(dim=dimension)
         mean, median, lower, upper = add_negative_binomial(copy[state_name].values, alpha, n_draws_per_sample, UL, LL, add_to_mean=False)
         # Add to dataframe
