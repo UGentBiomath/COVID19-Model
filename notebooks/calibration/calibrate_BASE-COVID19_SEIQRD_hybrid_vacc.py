@@ -183,8 +183,7 @@ if __name__ == '__main__':
     # Define labels
     labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
     # Setup objective function without priors and with negative weights 
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,
-                                                    log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
     ##################
     ## Optimization ##
@@ -276,9 +275,9 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': warmup}},
-                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
-                                    settings_dict=settings) 
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup}},
+                                  fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
+                                  settings_dict=settings)
 
     #####################
     ## Process results ##
