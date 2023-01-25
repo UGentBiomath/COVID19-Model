@@ -460,16 +460,12 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
 
 class Economic_Model(ODEModel):
 
-    # ...state variables and parameters
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
     parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
-    parameters_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
-    stratification_names = ['NACE64']
+    parameter_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
+    dimension_names = ['NACE64']
+    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64']]
 
-    # Bookkeeping of 2D stock matrix
-    state_2d = ["S"]
-
-     # ..transitions/equations
     @staticmethod
 
     def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
