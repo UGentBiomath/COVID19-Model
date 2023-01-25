@@ -51,7 +51,7 @@ class simple_stochastic_SIR(SDEModel):
     # state variables and parameters
     state_names = ['S', 'I', 'R']
     parameter_names = ['beta', 'gamma', 'Nc']
-    stratification_names = ['age_groups']
+    dimension_names = ['age_groups']
 
     @staticmethod
     def compute_rates(t, S, I, R, beta, gamma, Nc):
@@ -74,8 +74,8 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
 
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot', 'Inf_in', 'Inf_out']
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h','Nc']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification_names = ['age_groups','doses']
+    parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimension_names = ['age_groups','doses']
 
     @staticmethod
     def compute_rates(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
@@ -269,8 +269,8 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
     # ...state variables and parameters
     state_names = ['S', 'S_work', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_work', 'NIS']
-    parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification_names = ['NIS','age_groups','doses']
+    parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimension_names = ['NIS','age_groups','doses']
 
     @staticmethod
     def compute_rates(t, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
