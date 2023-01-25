@@ -56,7 +56,7 @@ class simple_multivariant_SIR(ODEModel):
     # state variables and parameters
     state_names = ['S', 'I', 'R', 'alpha']
     parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio', 'Nc']
-    stratification_names = ['age_groups']
+    dimension_names = ['age_groups']
 
     @staticmethod
     def integrate(t, S, I, R, alpha, beta, gamma, injection_day, injection_ratio, K_inf, Nc):
@@ -101,8 +101,8 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out']
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc']
-    parameters_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification_names = ['age_groups','doses']
+    parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimension_names = ['age_groups','doses']
 
     # ..transitions/equations
     @staticmethod
@@ -270,8 +270,8 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
     parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_work', 'NIS']
-    parameters_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    stratification_names = ['NIS','age_groups','doses']
+    parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimension_names = ['NIS','age_groups','doses']
 
     @staticmethod
     @jit(nopython=True)
@@ -460,16 +460,12 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
 
 class Economic_Model(ODEModel):
 
-    # ...state variables and parameters
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
     parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
-    parameters_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
-    stratification_names = ['NACE64']
+    parameter_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
+    dimension_names = ['NACE64']
+    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64']]
 
-    # Bookkeeping of 2D stock matrix
-    state_2d = ["S"]
-
-     # ..transitions/equations
     @staticmethod
 
     def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):

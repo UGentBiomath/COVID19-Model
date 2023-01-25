@@ -200,7 +200,7 @@ if __name__ == '__main__':
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
     # Setup objective function with uniform priors
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,weights,labels=labels)
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
     ##################
     ## Optimization ##
@@ -212,9 +212,9 @@ if __name__ == '__main__':
     # A good guess
     theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
     # Nelder-mead
-    #step = len(bounds)*[0.05,]
-    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
-    #                        processes=processes, max_iter=n_pso)[0]
+    step = len(bounds)*[0.05,]
+    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
+                            processes=processes, max_iter=n_pso)[0]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -317,7 +317,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, (), {'simulation_kwargs': {'warmup': 0}},
+    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
 
