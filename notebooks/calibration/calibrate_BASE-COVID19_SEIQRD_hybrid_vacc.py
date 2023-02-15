@@ -49,7 +49,7 @@ parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="sto
 parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-15')
 parser.add_argument("-e", "--end_calibration", help="Calibration enddate")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
-parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100000)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
 args = parser.parse_args()
@@ -93,14 +93,12 @@ if args.end_calibration:
 fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
 # Path where MCMC samples should be saved
 samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
-# Path where samples backend should be stored
-backend_folder = f'../../results/calibrations/COVID19_SEIQRD/national/national/'
 # Verify that the paths exist and if not, generate them
-for directory in [fig_path, samples_path, backend_folder]:
+for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 # Verify that the fig_path subdirectories used in the code exist
-for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+"pso/"]:
+for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -134,7 +132,7 @@ if __name__ == '__main__':
 
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
     dispersion = results.loc['negative binomial', 'theta']
-    plt.show()
+    #plt.show()
     plt.close()
 
     ##########################
@@ -174,14 +172,14 @@ if __name__ == '__main__':
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,2),(0,2),(0,1))
+    bounds2=((0,1),(0,1),(0,1e6))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.15,1.50),(1.45,2.4))
+    bounds3 = ((1.10,1.50),(1.40,2.40))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.50),)
+    bounds4 = ((0,0.60),)
     # Join them together
     pars = pars2 + pars3 + pars4
     bounds =  bounds2 + bounds3 + bounds4
@@ -198,7 +196,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.39, 0.55, 1.3, 1.6, 0.18]         
+    theta = [0.39, 0.39, 2000, 1.25, 1.6, 0.25]  
     # Nelder-mead
     #step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
@@ -280,10 +278,16 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup}},
+    sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup}},
                                   fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                   settings_dict=settings)
-
+    # Sample 5*n_mcmc more
+    import emcee
+    for i in range(4):
+        backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
+        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function,
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
+                                    settings_dict=settings)                 
     #####################
     ## Process results ##
     #####################
