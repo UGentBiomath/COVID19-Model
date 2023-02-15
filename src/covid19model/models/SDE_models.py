@@ -16,59 +16,6 @@ from numba.core.errors import NumbaPendingDeprecationWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
-###############
-## jit utils ##
-###############
-
-
-class simple_stochastic_SIR(SDEModel):
-    """
-    A minimal example of a SIR compartmental disease model based on stochastic difference equations (SDEs)
-    To be simulated with a tau-leaping Gillespie algorithm.
-
-    Parameters
-    ----------
-    To initialise the model, provide following inputs:
-
-    states : dictionary
-        contains the initial values of all non-zero model states
-        e.g. {'S': N, 'E': np.ones(n_stratification)} with N being the total population and n_stratifications the number of stratified layers
-        initialising zeros is thus not required
-
-        S : susceptible
-        I : infectious
-        R : removed
-
-    parameters : dictionary
-        containing the values of all parameters
-
-        beta : probability of infection when encountering an infected person
-        gamma : recovery rate (inverse of duration of infectiousness)
-        Nc : contact matrix between all age groups in stratification
-
-    """
-
-    # state variables and parameters
-    state_names = ['S', 'I', 'R']
-    parameter_names = ['beta', 'gamma', 'Nc']
-    dimension_names = ['age_groups']
-
-    @staticmethod
-    def compute_rates(t, S, I, R, beta, gamma, Nc):
-        """Basic stochastic SIR model """
-
-        return {'S': [beta*np.matmul(Nc,I/(S+I+R)),], 'I': [gamma*np.ones(S.size),]}
-
-    @staticmethod
-    def apply_transitionings(t, tau, transitionings, S, I, R, beta, gamma, Nc):
-
-        S_new  = S - transitionings['S'][0]
-        I_new =  I + transitionings['S'][0] - transitionings['I'][0]
-        R_new  = R + transitionings['I'][0]
-
-        return S_new, I_new, R_new
-
-
 class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
     """"""
 
