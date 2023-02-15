@@ -25,6 +25,10 @@ Returns:
 --------
 Discarded and thinned MCMC chains in .json format
 Cornerplot of said MCMC chains.
+
+Example use:
+------------
+python emcee_sampler_to_dictionary.py -p ../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/ -ID test -d 2023-02-15 -discard 60 -t 2
 """
 
 __author__      = "Tijs Alleman"
