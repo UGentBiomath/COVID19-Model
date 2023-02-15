@@ -34,7 +34,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
-import os
+import sys,os
 import ast
 import json
 import emcee
@@ -53,12 +53,10 @@ parser.add_argument("-a", "--agg", help="Spatial aggregation", default='national
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-r", "--range", help="Range used in cornerplot", nargs='*')
-parser.add_argument("-discard", "--discard", help="Number of samples to be discarded per MCMC chain")
+parser.add_argument("-discard", "--discard", help="Number of samples to be discarded per MCMC chain", type=int)
 parser.add_argument("-t", "--thin", help="Thinning factor of MCMC chain")
 parser.add_argument("-s", "--save", help="Save thinned samples dictionary", action='store_true')
 args = parser.parse_args()
-
-args.path = args.path+args.agg+'/'
 
 ##################
 ## Load sampler ##
@@ -77,26 +75,44 @@ filename = str(args.agg) + '_'  + str(args.identifier)+'_SETTINGS_'+args.date+'.
 with open(os.path.join(abs_dir, args.path)+filename) as f:
     settings = json.load(f)
 
+####################
+# Discard and thin #
+####################
+
+try:
+    autocorr = sampler.get_autocorr_time()
+    thin = max(1, round(0.5 * np.max(autocorr)))
+    print(f'Convergence: the chain is longer than 50 times the intergrated autocorrelation time.\nPreparing to save samples with thinning value {thin}.')
+    sys.stdout.flush()
+except:
+    thin = 1
+    print('Warning: The chain is shorter than 50 times the integrated autocorrelation time.\nUse this estimate with caution and run a longer chain! Setting thinning to 1.\n')
+    sys.stdout.flush()
+
 #####################################
 # Construct a dictionary of samples #
 #####################################
 
-# Samples
-flat_samples = sampler.get_chain(discard=int(args.discard),thin=int(args.thin),flat=True)
+flat_samples = sampler.get_chain(discard=args.discard,thin=thin,flat=True)
 samples_dict = {}
 count=0
-for i,(name,value) in enumerate(settings['calibrated_parameters'].items()):
-    if isinstance(value,list):
+for name,value in settings['calibrated_parameters_shapes'].items():
+    if value != [1]:
         vals=[]
-        for j in range(len(value)):
-            vals.append(list(flat_samples[:, i+j]))
-        count+=len(value)-1
+        for j in range(np.prod(value)):
+            vals.append(list(flat_samples[:, count+j]))
+        count += np.prod(value)
         samples_dict[name] = vals
     else:
-        samples_dict[name] = list(flat_samples[:,i+count])
+        samples_dict[name] = list(flat_samples[:, count])
+        count += 1
 
-# Append settings
+# Remove calibrated parameters from the settings
+del settings['calibrated_parameters_shapes']
+# Append settings to samples dictionary
 samples_dict.update(settings)
+# Remove settings .json
+os.remove(os.path.join(os.getcwd(), args.path + str(args.agg)+'_'+str(args.identifier)+'_SETTINGS_'+args.date+'.json'))
 
 #####################
 ## Save dictionary ##
