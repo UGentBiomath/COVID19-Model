@@ -1058,9 +1058,12 @@ class make_contact_matrix_function():
         self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
         self.G = G
-        # Compute start and endtimes of dataframe
+        # Compute start and endtimes of dataframe Google
         self.df_google_start = df_google.index.get_level_values('date')[0]
         self.df_google_end = df_google.index.get_level_values('date')[-1]
+        # Make a memory of hospital load
+        lag = 20
+        self.I = list(600*np.ones(lag))
         # Check if provincial data is provided
         self.provincial = None
         if 'NIS' in self.df_google.index.names:
@@ -1087,8 +1090,7 @@ class make_contact_matrix_function():
         if school is None:
             raise ValueError(
                 "Please indicate to which extend schools are open")
-
-
+        
         places_var = [work, transport, leisure, others]
         places_names = ['work', 'transport', 'leisure', 'others']
         GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
@@ -1226,14 +1228,23 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
         eff_{location} : float
             "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
-        mentality : float
-            Lockdown mentality multipier
+        mentality: float
+            Parameter of the behavioral change model
+            https://www.sciencedirect.com/science/article/pii/S1755436518301063 
 
         Returns
         -------
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
+
+        # Behavioral change model
+        # Moving window of hospital in
+        self.I.append(np.sum(states['H_tot']))
+        self.I = self.I[1:]
+        I = self.I[0]
+        T=11e6
+        mentality = (1-I/T)**mentality
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
