@@ -1,5 +1,10 @@
 """
 This script contains a calibration of national COVID-19 SEIQRD model to hospitalization data in Belgium.
+
+Example function call
+---------------------
+
+python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-08-23 -n_ag 10 -ID test
 """
 
 __author__      = "Tijs Alleman"

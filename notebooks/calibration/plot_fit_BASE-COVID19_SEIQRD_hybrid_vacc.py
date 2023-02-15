@@ -22,7 +22,7 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_COVID19_SEIQRD_stratified_vacc.py -f BE_WAVE2_stratified_vacc_R0_COMP_EFF_2021-11-15.json -n_ag 10 -n 5 -k 1 
+python plot_fit_BASE-COVID19_SEIQRD_hybrid_vacc.py -ID test -d 2023-02-15 -n_ag 10 -n 10 -k 1
 
 """
 
@@ -134,7 +134,7 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, processes=int(args.processes))
+out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_function=draw_fcn,samples=samples_dict, processes=int(args.processes))
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['date'].values
 
