@@ -165,7 +165,7 @@ if __name__ == '__main__':
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1, 1]) # Scores of individual contributions: 1) 17055, 2+3) 255 860, 3) 175571
+    weights = np.array([1, 1, 1])
     log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
     log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
     #log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
