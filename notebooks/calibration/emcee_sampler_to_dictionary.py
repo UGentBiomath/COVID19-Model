@@ -116,7 +116,7 @@ del settings['calibrated_parameters_shapes']
 # Append settings to samples dictionary
 samples_dict.update(settings)
 # Remove settings .json
-os.remove(os.path.join(os.getcwd(), args.path + str(args.agg)+'_'+str(args.identifier)+'_SETTINGS_'+args.date+'.json'))
+#os.remove(os.path.join(os.getcwd(), args.path + str(args.agg)+'_'+str(args.identifier)+'_SETTINGS_'+args.date+'.json'))
 
 #####################
 ## Save dictionary ##
