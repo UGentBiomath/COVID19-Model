@@ -127,6 +127,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                    'e_h': e_h,
                    })
 
+    # Behavioral model
+    params.update({'k': 500})
+
     ##########################
     ## Initialize the model ##
     ##########################
@@ -406,8 +409,8 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     """
 
     idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['k'] = samples_dict['k'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx] 
 

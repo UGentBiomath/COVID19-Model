@@ -33,7 +33,7 @@ from covid19model.visualization.optimization import plot_PSO
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
-from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial
+from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_negative_binomial, ll_poisson
 
 # Suppress warnings
 import warnings
@@ -123,7 +123,6 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
 
-
 if __name__ == '__main__':
 
     #############################################################
@@ -145,19 +144,25 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 2
+    print_n = 5
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+    # States to calibrate
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1, 1]) # Scores of individual contributions: Dataset: 0, total ll: -4590, Dataset: 1, total ll: -4694, Dataset: 2, total ll: -4984
+    # Compute lengths to define weights
+    l1 = len(df_hosp['H_in'][start_calibration:end_calibration])
+    l2 = len(df_sero_herzog['abs','mean'])
+    l3 = len(df_sero_sciensano['abs','mean'][:23])   
+    weights = np.array([1, l1/l2, l1/l3])
+    # Log likelihood functions
     log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
     log_likelihood_fnc_args = [dispersion, dispersion, dispersion]
 
-    print('\n--------------------------------------------------------------------------------------')
-    print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
-    print('--------------------------------------------------------------------------------------\n')
+    print('\n--------------------------------------------------------------------------------------------------')
+    print('PERFORMING CALIBRATION OF CONTACT EFFECTIVITY, BEHAVIORAL CHANGES, VOC INFECTIVITY AND SEASONALITY')
+    print('--------------------------------------------------------------------------------------------------\n')
     print('Using data from '+start_calibration.strftime("%Y-%m-%d")+' until '+end_calibration.strftime("%Y-%m-%d")+'\n')
     print('\n1) Particle swarm optimization\n')
     print(f'Using {str(processes)} cores for a population of {popsize}, for maximally {maxiter} iterations.\n')
@@ -171,20 +176,20 @@ if __name__ == '__main__':
     #pars1 = ['beta',]
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,1),(0,1),(0,1e6))
+    pars2 = ['eff_work', 'mentality', 'k']
+    bounds2=((0.05,0.95),(0.05,0.95),(1e2,1e4))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.10,1.50),(1.40,2.40))
+    bounds3 = ((1.10,1.60),(1.40,2.40))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.60),)
+    bounds4 = ((0,0.50),)
     # Join them together
     pars = pars2 + pars3 + pars4
     bounds =  bounds2 + bounds3 + bounds4
     # Define labels
-    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
+    labels = ['$\Omega_{work}$', 'M', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -196,7 +201,8 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.39, 2000, 1.25, 1.6, 0.25]  
+    theta = [0.403, 0.597, 610, 1.41, 1.65, 0.211] # use H_tot
+    theta = [0.4, 0.58, 2000.0, 1.41, 1.65, 0.211] # use H_in
     # Nelder-mead
     #step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
@@ -258,7 +264,7 @@ if __name__ == '__main__':
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.10,] 
+    pert4 = [0.20,] 
     # Setup prior functions and arguments
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
@@ -283,7 +289,7 @@ if __name__ == '__main__':
                                   settings_dict=settings)
     # Sample 5*n_mcmc more
     import emcee
-    for i in range(4):
+    for i in range(40):
         backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
         sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function,
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
