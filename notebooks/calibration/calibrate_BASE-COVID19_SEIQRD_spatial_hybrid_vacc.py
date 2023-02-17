@@ -48,7 +48,7 @@ parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Fo
 parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
-parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 10000)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100)
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
 parser.add_argument("-a", "--agg", help="Geographical aggregation type. Choose between mun, arr (default) or prov.")
@@ -159,9 +159,9 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 6
     max_n = n_mcmc
-    print_n = 5
+    print_n = 1
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     # Social intertia
     # Effectivity parameters
     pars2 = ['eff_work', 'k', 'mentality']
-    bounds2=((0,1),(1e2,1e4),(0,1))
+    bounds2=((0,2),(1e2,1e4),(0,1))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
@@ -214,10 +214,9 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.023, 0.0235, 0.0255, 0.55, 3000, 0.55, 1.25, 1.45, 0.24]
-    theta = [0.55*0.023, 0.55*0.0235, 0.55*0.0255, 1, 3000, 0.55, 1.25, 1.45, 0.24]    
-    #theta = [0.0213, 0.0217, 0.0252, 0.50, 3000, 0.614, 1.29, 1.66, 0.187]                  
-    
+    theta = [0.0228, 0.0235, 0.026, 0.55, 3000, 0.55, 1.3, 1.45, 0.24]
+    #theta = [0.016, 0.016, 0.0175, 1, 3000, 0.55, 1.25, 1.45, 0.2] # --> start with effectivity of one
+
     # Nelder-mead
     step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
@@ -312,9 +311,17 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, max_n, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
+    sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
+
+    # Sample 40*n_mcmc more
+    import emcee
+    for i in range(40):
+        backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
+        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings)   
 
     #####################
     ## Process results ##
