@@ -1340,7 +1340,7 @@ class make_contact_matrix_function():
         elif t7 < t <= t8:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1) # Government proclaimed pandemic is over  
         elif t8  < t <= t8 + l2_days:
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
