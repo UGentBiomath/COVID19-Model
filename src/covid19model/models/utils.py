@@ -316,6 +316,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                    'e_h': e_h,
                     })  
 
+    # Behavioral model
+    params.update({'k': 500})
+
     ##########################
     ## Initialize the model ##
     ##########################

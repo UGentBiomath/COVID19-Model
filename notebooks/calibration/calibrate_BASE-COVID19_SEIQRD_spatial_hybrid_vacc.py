@@ -159,16 +159,20 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 5
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    weights = np.array([1, 1, 1])
-    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
-    #log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
+    # Compute lengths to define weights
+    l1 = len(df_hosp.groupby(by='date').sum()[start_calibration:end_calibration])
+    l2 = len(df_sero_herzog['abs','mean'])
+    l3 = len(df_sero_sciensano['abs','mean'][:23])   
+    weights = np.array([1, l1/l2, l1/l3])
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -187,8 +191,8 @@ if __name__ == '__main__':
     bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'mentality']
-    bounds2=((0,1),(0,1),(0,1))
+    pars2 = ['eff_work', 'k', 'mentality']
+    bounds2=((0,1),(1e2,1e4),(0,1))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
@@ -198,7 +202,7 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', 'k', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
     # Setup objective function with uniform priors
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -210,11 +214,14 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta =  [0.0225, 0.0225, 0.0255, 0.5, 0.65, 0.522, 1.25, 1.45, 0.24] # --> prov stochastic                   
+    theta = [0.023, 0.0235, 0.0255, 0.55, 3000, 0.55, 1.25, 1.45, 0.24]
+    theta = [0.55*0.023, 0.55*0.0235, 0.55*0.0255, 1, 3000, 0.55, 1.25, 1.45, 0.24]    
+    #theta = [0.0213, 0.0217, 0.0252, 0.50, 3000, 0.614, 1.29, 1.66, 0.187]                  
+    
     # Nelder-mead
     step = len(bounds)*[0.05,]
-    theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
-                            processes=processes, max_iter=n_pso)[0]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': 0}},
+    #                        processes=processes, max_iter=n_pso)[0]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -274,32 +281,20 @@ if __name__ == '__main__':
             # Satisfied?
             satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
-    # Print statement to stdout once
-    print(f'\nPSO RESULTS:')
-    print(f'------------')
-    print(f'infectivities {pars[0:3]}: {theta[0:3]}.')
-    print(f'effectivity parameters {pars[3:8]}: {theta[3:8]}.')
-    print(f'VOC effects {pars[8:9]}: {theta[8:10]}.')
-    print(f'Seasonality {pars[9:10]}: {theta[10:11]}')
-    #print(f'Waning antibodies {pars[10:]}: {theta[11]}')
-    sys.stdout.flush()
-
     ########################
     ## Setup MCMC sampler ##
     ########################
 
-    print('\n2) Markov Chain Monte Carlo sampling\n')
-
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.02, 0.02, 0.02]
-    # pars2 = ['eff_work', 'eff_rest', 'mentality']
-    pert2=[0.20, 0.20, 0.20]
+    pert1=[0.25, 0.25, 0.25]
+    # pars2 = ['eff_work', 'k', 'mentality']
+    pert2=[0.25, 0.25, 0.25]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.10, 0.10]
     # pars4 = ['amplitude']
-    pert4 = [0.20,] 
+    pert4 = [0.25,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Use perturbation function
