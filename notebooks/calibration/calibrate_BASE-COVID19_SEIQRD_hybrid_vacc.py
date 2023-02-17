@@ -201,7 +201,6 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.403, 0.597, 610, 1.41, 1.65, 0.211] # use H_tot
     theta = [0.4, 0.58, 2000.0, 1.41, 1.65, 0.211] # use H_in
     # Nelder-mead
     #step = len(bounds)*[0.05,]
