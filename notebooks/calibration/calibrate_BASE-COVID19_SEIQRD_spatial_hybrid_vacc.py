@@ -31,6 +31,9 @@ from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_poisson, ll_negative_binomial
 
+import warnings
+warnings.filterwarnings("ignore")
+
 ####################################
 ## Public or private spatial data ##
 ####################################
@@ -159,9 +162,9 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 6
+    multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 1
+    print_n = 5
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
@@ -169,7 +172,7 @@ if __name__ == '__main__':
     l1 = len(df_hosp.groupby(by='date').sum()[start_calibration:end_calibration])
     l2 = len(df_sero_herzog['abs','mean'])
     l3 = len(df_sero_sciensano['abs','mean'][:23])   
-    weights = np.array([1, l1/l2, l1/l3])
+    weights = np.array([1, 1, 1])
     log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
     #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
     log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
@@ -214,8 +217,8 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.0228, 0.0235, 0.026, 0.55, 3000, 0.55, 1.3, 1.45, 0.24]
-    #theta = [0.016, 0.016, 0.0175, 1, 3000, 0.55, 1.25, 1.45, 0.2] # --> start with effectivity of one
+    theta = [0.0245, 0.0235, 0.028, 0.55, 3000, 0.55, 1.35, 1.45, 0.24]
+    theta = [0.0215, 0.021, 0.0255, 0.6, 3000, 0.55, 1.35, 1.45, 0.25]
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
@@ -287,13 +290,13 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.25, 0.25, 0.25]
+    pert1=[0.05, 0.05, 0.05]
     # pars2 = ['eff_work', 'k', 'mentality']
-    pert2=[0.25, 0.25, 0.25]
+    pert2=[0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.10, 0.10]
+    pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.25,] 
+    pert4 = [0.05,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Use perturbation function
@@ -319,8 +322,8 @@ if __name__ == '__main__':
     import emcee
     for i in range(40):
         backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
-        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
-                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
+        sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0}},
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)   
 
     #####################

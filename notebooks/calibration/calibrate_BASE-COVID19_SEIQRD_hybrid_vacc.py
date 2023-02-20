@@ -146,7 +146,7 @@ if __name__ == '__main__':
     # MCMC settings
     multiplier_mcmc = 10
     max_n = n_mcmc
-    print_n = 5
+    print_n = 2
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     # States to calibrate
@@ -286,13 +286,14 @@ if __name__ == '__main__':
     sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup}},
                                   fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                   settings_dict=settings)
-    # Sample 5*n_mcmc more
+    # Sample 40*n_mcmc more
     import emcee
     for i in range(40):
         backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
         sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function,
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
-                                    settings_dict=settings)                 
+                                    settings_dict=settings)            
+
     #####################
     ## Process results ##
     #####################

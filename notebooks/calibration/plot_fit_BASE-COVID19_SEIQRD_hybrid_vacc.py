@@ -250,12 +250,12 @@ for idx,date in enumerate(dates):
    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
     
-   axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)],color='black',marker='v',zorder=1)
-   yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
-   yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(time=date)].values
-   yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)]
+   axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)],color='black',marker='v',zorder=1)
+   yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(date=date)].values)])
+   yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(date=date)].values
+   yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(date=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)]
    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
-                      y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(time=date)],
+                      y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(date=date)],
                       yerr=yerr,
                       color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)
