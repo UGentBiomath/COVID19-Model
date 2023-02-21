@@ -144,7 +144,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -185,11 +185,14 @@ if __name__ == '__main__':
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.50),)
+    # New hospprop
+    pars5 = ['f_h',]
+    bounds5 = ((0,1),)    
     # Join them together
-    pars = pars2 + pars3 + pars4
-    bounds =  bounds2 + bounds3 + bounds4
+    pars = pars2 + pars3 + pars4 + pars5
+    bounds =  bounds2 + bounds3 + bounds4 + bounds5
     # Define labels
-    labels = ['$\Omega_{work}$', 'M', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', 'A']
+    labels = ['$\Omega_{work}$', '$M$', '$k$', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -201,7 +204,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.4, 0.58, 2000.0, 1.41, 1.65, 0.211] # use H_in
+    theta = [0.41, 0.554, 3190, 1.43, 1.64, 0.208, 0.75]
     # Nelder-mead
     #step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
@@ -264,11 +267,13 @@ if __name__ == '__main__':
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.20,] 
+    # pars5 = ['f_h']
+    pert5 = [0.20,]     
     # Setup prior functions and arguments
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
-    pert =  pert2 + pert3 + pert4 #+ pert5
+    pert =  pert2 + pert3 + pert4 + pert5
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################
