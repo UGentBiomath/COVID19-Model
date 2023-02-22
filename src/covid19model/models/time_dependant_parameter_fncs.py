@@ -30,6 +30,17 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
 
+def h_func(t, states, param, f_h):
+
+    t = pd.Timestamp(t.date())
+
+    if t <= pd.Timestamp('2020-07-01'):
+        return param
+    elif pd.Timestamp('2020-07-01') < t <=  pd.Timestamp('2020-09-01'):
+        return ramp_fun(param, f_h*param, t, pd.Timestamp('2020-07-01'),(pd.Timestamp('2020-09-01')-pd.Timestamp('2020-07-01'))/pd.Timedelta(days=1))
+    else:
+        return f_h*param
+
 ###############################
 ## Mobility update functions ##
 ###############################

@@ -41,7 +41,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
                                                                     make_vaccination_efficacy_function, \
-                                                                    make_seasonality_function
+                                                                    make_seasonality_function, \
+                                                                    h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
@@ -130,6 +131,9 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Behavioral model
     params.update({'k': 500})
 
+    # Change in hospital propensity between wave 1 and wave 2
+    params.update({'f_h': 0.75})
+
     ##########################
     ## Initialize the model ##
     ##########################
@@ -146,7 +150,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
-                               'e_h' : efficacy_function.e_h})                      
+                               'e_h' : efficacy_function.e_h,
+                               'h': h_func})                      
     
     # Initialize model
     if stochastic == True:
@@ -192,7 +197,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
                                                                     make_vaccination_efficacy_function, \
-                                                                    make_seasonality_function
+                                                                    make_seasonality_function, \
+                                                                    h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
@@ -319,6 +325,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Behavioral model
     params.update({'k': 500})
 
+    # Change in hospital propensity between wave 1 and wave 2
+    params.update({'f_h': 0.75})
+
     ##########################
     ## Initialize the model ##
     ##########################
@@ -333,7 +342,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'Nc_work' : policy_function_work,
                                'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
-                               'seasonality' : seasonality_function,}
+                               'seasonality' : seasonality_function,
+                               'h': h_func}
     if vaccination:
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                           'e_s' : efficacy_function.e_s,
@@ -415,7 +425,8 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['k'] = samples_dict['k'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx] 
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['f_h'] = samples_dict['f_h'][idx]
 
     # Hospitalization
     # ---------------
