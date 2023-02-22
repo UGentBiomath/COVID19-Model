@@ -212,7 +212,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     proximus_mobility_data = mobility.get_proximus_mobility_data(agg)
     # Google Mobility data
     if agg == 'prov':
-        df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
     elif agg == 'arr':
         df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
 
@@ -467,7 +467,8 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
     param_dict['beta_M'] = samples_dict['beta_M'][idx]    
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
     param_dict['k'] = samples_dict['k'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)

@@ -162,20 +162,19 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 4
     max_n = n_mcmc
-    print_n = 5
+    print_n = 2
     # Define dataset
-    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+    data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))],
+          df_sero_herzog['abs','mean'],
+          df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
-    # Compute lengths to define weights
-    l1 = len(df_hosp.groupby(by='date').sum()[start_calibration:end_calibration])
-    l2 = len(df_sero_herzog['abs','mean'])
-    l3 = len(df_sero_sciensano['abs','mean'][:23])   
     weights = np.array([1, 1, 1])
     log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    #log_likelihood_fnc_args = [[],dispersion_weighted,dispersion_weighted]
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,dispersion_weighted,dispersion_weighted]
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,
+                               dispersion_weighted,
+                               dispersion_weighted]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -194,8 +193,8 @@ if __name__ == '__main__':
     bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_work', 'k', 'mentality']
-    bounds2=((0,2),(1e2,1e4),(0,1))
+    pars2 = ['eff_work', 'eff_rest', 'k', 'mentality']
+    bounds2=((0,2),(0,2),(1e2,1e4),(0,1))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
@@ -205,7 +204,7 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4  
     bounds = bounds1 + bounds2 + bounds3 + bounds4
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', 'k', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
+    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'k', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
     # Setup objective function with uniform priors
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -217,8 +216,7 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.0245, 0.0235, 0.028, 0.55, 3000, 0.55, 1.35, 1.45, 0.24]
-    theta = [0.0215, 0.021, 0.0255, 0.6, 3000, 0.55, 1.35, 1.45, 0.25]
+    theta = [0.0261, 0.0257, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # iteration 1
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
@@ -238,7 +236,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim([start_calibration, pd.Timestamp(end_visualization)])
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+        data_star=[data[0].groupby(by=['date']).sum(), data[1].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -291,12 +289,12 @@ if __name__ == '__main__':
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.05, 0.05, 0.05]
-    # pars2 = ['eff_work', 'k', 'mentality']
-    pert2=[0.05, 0.05, 0.05]
+    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality']
+    pert2=[0.20, 0.20, 0.20, 0.20]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.05,] 
+    pert4 = [0.20,] 
     # Add them together
     pert = pert1 + pert2 + pert3 + pert4
     # Use perturbation function
