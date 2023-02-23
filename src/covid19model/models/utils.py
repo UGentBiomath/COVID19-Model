@@ -218,7 +218,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     proximus_mobility_data = mobility.get_proximus_mobility_data(agg)
     # Google Mobility data
     if agg == 'prov':
-        df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
     elif agg == 'arr':
         df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
 

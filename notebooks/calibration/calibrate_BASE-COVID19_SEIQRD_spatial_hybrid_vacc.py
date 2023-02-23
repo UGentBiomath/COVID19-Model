@@ -216,7 +216,9 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.0261, 0.0257, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # iteration 1
+    theta = [0.0261, 0.0257, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # starting point: calibration with provincial GCMR = False
+    theta = [0.0260, 0.0250, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # we could start from here
+    theta = [0.0260, 0.0250, 0.0292, 0.298, 0.475, 4560, 0.67, 1.35, 1.85, 0.22] # 
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
@@ -236,7 +238,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim([start_calibration, pd.Timestamp(end_visualization)])
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), data[1].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()

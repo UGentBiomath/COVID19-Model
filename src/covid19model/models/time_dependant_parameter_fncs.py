@@ -1546,23 +1546,23 @@ class make_contact_matrix_function():
             idx_F = [0, 1, 4, 5, 8]
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
-            mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
+            mentality_summer_2020_lockdown = 1.25*np.array([1.30*mentality, 0.80*mentality, # F
                                                     0.75*mentality, # W
-                                                    mentality, # Bxl
-                                                    1.25*mentality, 1.25*mentality, # F
-                                                    1.50*mentality, 1.25*mentality, # W
-                                                    1*mentality, # F
+                                                    1.50*mentality, # Bxl
+                                                    0.80*mentality, 1.30*mentality, # F
+                                                    1.35*mentality, 1.30*mentality, # W
+                                                    0.75*mentality, # F
                                                     0.75*mentality, 1*mentality]) # W
         elif self.G == 43:
             idx_Vlaams_Brabant = [4,5]
             idx_Waals_Brabant = [6,]
-            idx_F = [0, 1, 2,                           # Antwerpen
+            idx_F = [0, 1, 2,                          # Antwerpen
                     4, 5,                              # Vlaams-Brabant
                     7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
                     15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
                     32, 33, 34]                        # Limburg      
-            idx_Bxl = [3,]                              # Brussel                    
-            idx_W = [6,                                 # Waals-Brabant
+            idx_Bxl = [3,]                             # Brussel                    
+            idx_W = [6,                                # Waals-Brabant
                     21, 22, 23, 24, 25, 26, 27,        # Henegouwen
                     28, 29, 30, 31,                    # Luik
                     35, 36, 37, 38, 39,                # Luxemburg
@@ -1635,16 +1635,16 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.35
-            mat[idx_W,:,:] *= 1.20
+            mat[idx_Bxl,:,:] *= 1.40
+            mat[idx_W,:,:] *= 1.15
             mat[idx_Vlaams_Brabant,:,:] *= 0.8
             mat[idx_Waals_Brabant,:,:] *= 0.8
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.35
-            mat[idx_W,:,:] *= 1.20
+            mat[idx_Bxl,:,:] *= 1.40
+            mat[idx_W,:,:] *= 1.15
             mat[idx_Vlaams_Brabant,:,:] *= 0.8
             mat[idx_Waals_Brabant,:,:] *= 0.8
             return mat 
@@ -1758,12 +1758,12 @@ class make_contact_matrix_function():
                 idx_F = [0, 1, 4, 5, 8]
                 idx_Bxl = [3,]
                 idx_W = [2, 6, 7, 9, 10]
-                mentality_summer_2020_lockdown = np.array([1.25*mentality, 0.75*mentality, # F
+                mentality_summer_2020_lockdown = 1.25*np.array([1.30*mentality, 0.80*mentality, # F
                                                         0.75*mentality, # W
-                                                        mentality, # Bxl
-                                                        1.25*mentality, 1.25*mentality, # F
-                                                        1.50*mentality, 1.25*mentality, # W
-                                                        1*mentality, # F
+                                                        1.50*mentality, # Bxl
+                                                        0.80*mentality, 1.30*mentality, # F
+                                                        1.35*mentality, 1.30*mentality, # W
+                                                        0.75*mentality, # F
                                                         0.75*mentality, 1*mentality]) # W
             elif self.G == 43:
                 idx_Vlaams_Brabant = [4,5]
@@ -1848,8 +1848,8 @@ class make_contact_matrix_function():
             elif t8 < t <= t9:
                 mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
                 mat[idx_F,:,:] *= 1.0
-                mat[idx_Bxl,:,:] *= 1.35
-                mat[idx_W,:,:] *= 1.20
+                mat[idx_Bxl,:,:] *= 1.40
+                mat[idx_W,:,:] *= 1.15
                 mat[idx_Vlaams_Brabant,:,:] *= 0.8
                 mat[idx_Waals_Brabant,:,:] *= 0.8
                 return mat
