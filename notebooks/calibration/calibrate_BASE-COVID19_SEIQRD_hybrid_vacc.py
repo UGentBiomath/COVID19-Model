@@ -139,26 +139,22 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 5
+    processes = 6# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    multiplier_pso = 10
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 2
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     # States to calibrate
-    states = ["H_in", "R", "R"]
-    # Compute lengths to define weights
-    l1 = len(df_hosp['H_in'][start_calibration:end_calibration])
-    l2 = len(df_sero_herzog['abs','mean'])
-    l3 = len(df_sero_sciensano['abs','mean'][:23])   
-    weights = np.array([1, l1/l2, l1/l3])
+    states = ["H_in", "R", "R"]  
+    weights = np.array([1, 1, 1])
     # Log likelihood functions
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [dispersion, dispersion, dispersion]
+    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [[], dispersion, dispersion]
 
     print('\n--------------------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF CONTACT EFFECTIVITY, BEHAVIORAL CHANGES, VOC INFECTIVITY AND SEASONALITY')
@@ -176,23 +172,23 @@ if __name__ == '__main__':
     #pars1 = ['beta',]
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
-    pars2 = ['eff_work', 'mentality', 'k']
-    bounds2=((0.05,0.95),(0.05,0.95),(1e2,1e4))
+    pars2 = ['eff_work', 'eff_rest', 'mentality','k']
+    bounds2=((0.20,0.60),(0.20,0.60),(0.40,0.80),(3e3,7e3))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
-    bounds3 = ((1.10,1.60),(1.40,2.40))
+    bounds3 = ((1.20,1.60),(1.60,2.40))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.50),)
+    bounds4 = ((0,0.35),)
     # New hospprop
     pars5 = ['f_h',]
     bounds5 = ((0,1),)    
     # Join them together
-    pars = pars2 + pars3 + pars4 + pars5
-    bounds =  bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars2 + pars3 + pars4 #+ pars5
+    bounds =  bounds2 + bounds3 + bounds4 #+ bounds5
     # Define labels
-    labels = ['$\Omega_{work}$', '$M$', '$k$', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -202,9 +198,10 @@ if __name__ == '__main__':
 
     # PSO
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
-    #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
+    #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.41, 0.554, 3190, 1.43, 1.64, 0.208, 0.75]
+    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196]
+
     # Nelder-mead
     #step = len(bounds)*[0.05,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, kwargs={'simulation_kwargs':{'warmup': warmup}},
@@ -262,7 +259,7 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.10, 0.10, 0.10]
+    pert2 = [0.05, 0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
@@ -273,7 +270,7 @@ if __name__ == '__main__':
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
-    pert =  pert2 + pert3 + pert4 + pert5
+    pert =  pert2 + pert3 + pert4 #+ pert5
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################

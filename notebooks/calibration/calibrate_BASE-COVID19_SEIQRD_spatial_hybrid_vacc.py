@@ -159,7 +159,7 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = 12 #int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
     multiplier_mcmc = 4
@@ -216,9 +216,7 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.0261, 0.0257, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # starting point: calibration with provincial GCMR = False
-    theta = [0.0260, 0.0250, 0.0290, 0.298, 0.475, 4560, 0.698, 1.38, 1.94, 0.197] # we could start from here
-    theta = [0.0260, 0.0250, 0.0292, 0.298, 0.475, 4560, 0.67, 1.35, 1.85, 0.22] # 
+    theta = [0.0260, 0.0250, 0.0292, 0.298, 0.475, 4560, 0.67, 1.30, 1.70, 0.22] # 
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
