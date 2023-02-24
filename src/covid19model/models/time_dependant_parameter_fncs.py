@@ -1258,12 +1258,8 @@ class make_contact_matrix_function():
         T=11e6
         mentality_behavioral = 1-(1-I/T)**k
 
-        # Protection against dipping below zero
-        #if mentality_behavioral > mentality:
-        #    mentality_behavioral = mentality
-
         # Assumption eff_schools = eff_work
-        eff_schools=eff_rest=eff_work
+        eff_schools=eff_work
 
         t = pd.Timestamp(t.date())
         # Convert compliance l to dates
@@ -1552,7 +1548,7 @@ class make_contact_matrix_function():
                                                     0.80*mentality, 1.30*mentality, # F
                                                     1.35*mentality, 1.30*mentality, # W
                                                     0.75*mentality, # F
-                                                    0.75*mentality, 1*mentality]) # W
+                                                    0.50*mentality, 1*mentality]) # W
         elif self.G == 43:
             idx_Vlaams_Brabant = [4,5]
             idx_Waals_Brabant = [6,]
@@ -1764,7 +1760,7 @@ class make_contact_matrix_function():
                                                         0.80*mentality, 1.30*mentality, # F
                                                         1.35*mentality, 1.30*mentality, # W
                                                         0.75*mentality, # F
-                                                        0.75*mentality, 1*mentality]) # W
+                                                        0.50*mentality, 1*mentality]) # W
             elif self.G == 43:
                 idx_Vlaams_Brabant = [4,5]
                 idx_Waals_Brabant = [6,]
