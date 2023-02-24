@@ -47,9 +47,9 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ## Compute variant weighted-average properties ##
         #################################################
 
-        # Hospitalization propensity
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        h[h > 1] = 1
+        # Hospitalization propensity (OR --> probability)
+        h = (np.sum(f_VOC*K_hosp)*(h/(1-h)))/(1+ np.sum(f_VOC*K_hosp)*(h/(1-h)))
+
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
@@ -239,8 +239,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         #################################################
 
         # Hospitalization propensity
-        h = np.sum(np.outer(h, f_VOC*K_hosp),axis=1)
-        h[h > 1] = 1
+        h = (np.sum(f_VOC*K_hosp)*(h/(1-h)))/(1+ np.sum(f_VOC*K_hosp)*(h/(1-h)))
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
