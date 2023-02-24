@@ -408,6 +408,18 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['K_inf'] = []
     pars_dict['K_hosp'] = []
 
+    ######################
+    ## Behavioral model ##
+    ######################
+
+    pars_dict['k'] = 0 # disabled by default
+
+    ###############################################
+    ## Hospprop change between WAVE 1 and WAVE 2 ##
+    ###############################################
+
+    pars_dict['f_h'] = 0.75
+
     ########################
     ## Spatial parameters ##
     ########################

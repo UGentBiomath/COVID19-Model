@@ -128,12 +128,6 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                    'e_h': e_h,
                    })
 
-    # Behavioral model
-    params.update({'k': 500})
-
-    # Change in hospital propensity between wave 1 and wave 2
-    params.update({'f_h': 0.75})
-
     ##########################
     ## Initialize the model ##
     ##########################
@@ -321,12 +315,6 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                    'e_s': e_s,
                    'e_h': e_h,
                     })  
-
-    # Behavioral model
-    params.update({'k': 500})
-
-    # Change in hospital propensity between wave 1 and wave 2
-    params.update({'f_h': 0.75})
 
     ##########################
     ## Initialize the model ##
