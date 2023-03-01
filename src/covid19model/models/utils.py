@@ -500,6 +500,79 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
         param_dict[names[idx]] = np.array(param_val)
     return param_dict
 
+import xarray as xr
+def aggregation_arr_prov(simulation_in):
+    """ A function to convert an arrondissement simulation to the provincial level
+    
+    Input
+    =====
+    
+    simulation_in: xarray.DataArray
+        Simulation result (arrondissement level). Obtained from a pySODM xarray.Dataset simulation result by using: xarray.Dataset[state_name]
+    
+    Output
+    ======
+    
+    simulation_out: xarray.DataArray
+        Simulation result (provincial level)
+    """
+    
+    # Conversion keys
+    prov = [10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
+    arr2prov = [
+               [11000, 12000, 13000],
+               [23000, 24000],
+               [25000,],
+               [21000,],
+               [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+               [41000, 42000, 43000, 44000, 45000, 46000],
+               [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+               [61000, 62000, 63000, 64000],
+               [71000, 72000, 73000],
+               [81000, 82000, 83000, 84000, 85000],
+               [91000, 92000, 93000]
+        ] 
+    
+    # Preallocate a tensor to hold the data
+    if 'draws' in simulation_in.dims:
+        data = np.zeros([len(prov),
+                         len(simulation_in.coords['draws']),
+                         len(simulation_in.coords['age_groups']),
+                         len(simulation_in.coords['doses']),
+                         len(simulation_in.coords['date'])])
+    else: 
+        data = np.zeros([len(prov),
+                         len(simulation_in.coords['age_groups']),
+                         len(simulation_in.coords['doses']),
+                         len(simulation_in.coords['date'])])
+
+    # Aggregate data
+    for i,arr_lst in enumerate(arr2prov):
+        som=0
+        for arr_NIS in arr_lst:
+            som+=simulation_in.sel(NIS=arr_NIS).values
+        data[i,...] = som
+
+
+    # Assign to output
+    if 'draws' in simulation_in.dims:
+        simulation_out = xr.DataArray(data,
+                                      dims=['NIS', 'draws', 'age_groups', 'doses', 'date'],
+                                      coords=dict(NIS = (['NIS'], prov),
+                                                  draws = simulation_in.coords['draws'],
+                                                  age_groups = simulation_in.coords['age_groups'],
+                                                  doses = simulation_in.coords['doses'],
+                                                  date = simulation_in.coords['date']))
+    else:
+        simulation_out = xr.DataArray(data,
+                                      dims=simulation_in.dims,
+                                      coords=dict(NIS = (['NIS'], prov),
+                                                  age_groups = simulation_in.coords['age_groups'],
+                                                  doses = simulation_in.coords['doses'],
+                                                  date = simulation_in.coords['date']))
+    
+    return simulation_out
+
 def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
     A function to add the a-posteriori poisson uncertainty on the relationship between the model output and data
