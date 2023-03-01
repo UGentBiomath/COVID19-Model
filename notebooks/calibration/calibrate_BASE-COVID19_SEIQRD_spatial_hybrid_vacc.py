@@ -123,10 +123,9 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-if agg == 'prov':
-    df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
-elif agg == 'arr':
-    df_hosp = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
+df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
+if agg == 'arr':
+    df_hosp_arr = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
 # Set end of calibration to last datapoint if no enddate is provided by user
 if not args.end_calibration:
     end_calibration = df_hosp.index.get_level_values('date').max()
@@ -139,6 +138,17 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
                                                                                 start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True)
+
+if agg == 'arr':
+    # Switch to the provinicial initN
+    from covid19model.data.utils import construct_initN
+    initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
+
+####################################
+## Define an aggregation function ##
+####################################
+
+from covid19model.models.utils import aggregation_arr_prov
 
 if __name__ == '__main__':
 
@@ -206,7 +216,10 @@ if __name__ == '__main__':
     bounds = bounds1 + bounds2 + bounds3 + bounds4
     labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', 'k', 'M', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
     # Setup objective function with uniform priors
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
+    if agg == 'prov':
+        objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
+    elif agg =='arr':
+        objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels, aggregation_function=aggregation_arr_prov)
 
     ##################
     ## Optimization ##
@@ -240,14 +253,24 @@ if __name__ == '__main__':
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
-        # Regional fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
-        plt.show()
-        plt.close()
-        # Provincial fit
-        ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
-        plt.show() 
-        plt.close()
+        if agg == 'arr':
+            # Regional fit
+            ax = plot_PSO_spatial(out, df_hosp_arr.loc[(slice(start_calibration,end_calibration), slice(None))], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+            plt.show()
+            plt.close()
+            # Provincial fit
+            ax = plot_PSO_spatial(out, df_hosp_arr.loc[(slice(start_calibration,end_calibration), slice(None))], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+            plt.show() 
+            plt.close()
+        elif agg=='prov':
+            # Regional fit
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+            plt.show()
+            plt.close()
+            # Provincial fit
+            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+            plt.show() 
+            plt.close()
 
         ####################################
         ## Ask the user for manual tweaks ##
@@ -270,14 +293,24 @@ if __name__ == '__main__':
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
             plt.close()
-            # Visualize regional fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
-            plt.show()
-            plt.close()
-            # Visualize provincial fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
-            plt.show()
-            plt.close()
+            if agg == 'arr':
+                # Regional fit
+                ax = plot_PSO_spatial(out, df_hosp_arr.loc[(slice(start_calibration,end_calibration), slice(None))], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                plt.show()
+                plt.close()
+                # Provincial fit
+                ax = plot_PSO_spatial(out, df_hosp_arr.loc[(slice(start_calibration,end_calibration), slice(None))], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                plt.show() 
+                plt.close()
+            elif agg=='prov':
+                # Regional fit
+                ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                plt.show()
+                plt.close()
+                # Provincial fit
+                ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                plt.show() 
+                plt.close()
             # Satisfied?
             satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
