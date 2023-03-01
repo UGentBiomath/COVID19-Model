@@ -475,6 +475,7 @@ class make_N_vacc_function():
         
         
         from covid19model.data.utils import convert_age_stratified_quantity
+        print('\nConverting stored vaccine incidence from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
 
         # Define a new dataframe with the desired age groups
         iterables=[]
@@ -488,16 +489,20 @@ class make_N_vacc_function():
 
         # Loop to the dataseries level and perform demographic aggregation
         if agg:
-            for date in df.index.get_level_values('date').unique():
-                for NIS in df.index.get_level_values('NIS').unique():
-                    for dose in df.index.get_level_values('dose').unique():
-                        data = df.loc[date, NIS, slice(None), dose].reset_index().set_index('age')
-                        df_new.loc[date, NIS, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes, agg=agg, NIS=NIS).values
+            with tqdm(total=len(df.index.get_level_values('date').unique())*len(df.index.get_level_values('NIS').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for NIS in df.index.get_level_values('NIS').unique():
+                        for dose in df.index.get_level_values('dose').unique():
+                            data = df.loc[date, NIS, slice(None), dose].reset_index().set_index('age')
+                            df_new.loc[date, NIS, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes, agg=agg, NIS=NIS).values
+                        pbar.update(1)
         else:
-            for date in df.index.get_level_values('date').unique():
-                for dose in df.index.get_level_values('dose').unique():
-                    data = df.loc[date, slice(None), dose].reset_index().set_index('age')
-                    df_new.loc[date, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes).values
+            with tqdm(total=len(df.index.get_level_values('date').unique())*len(df.index.get_level_values('NIS').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for dose in df.index.get_level_values('dose').unique():
+                        data = df.loc[date, slice(None), dose].reset_index().set_index('age')
+                        df_new.loc[date, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes).values
+                    pbar.update(1)
 
         return df_new
     
@@ -628,7 +633,7 @@ class make_vaccination_efficacy_function():
                 df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
-            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.", stacklevel=2)
+            print('\nThe vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.\n")
             # Downsample the incidences dataframe to weekly frequency, if weekly incidences are provided this does nothing. Not tested if the data frequency is higher than one week.
             df_incidences = self.convert_frequency_WMON(df_incidences)
             # Add the one-shot J&J and the second doses together
@@ -906,6 +911,8 @@ class make_vaccination_efficacy_function():
         """
 
         from covid19model.data.utils import convert_age_stratified_property
+
+        print('\nConverting stored vaccine efficacies from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
 
         # Define a new dataframe with the desired age groups
         iterables=[]
