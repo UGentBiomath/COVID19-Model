@@ -428,9 +428,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     ########################
 
     if agg:
-        # Use ten days for l1, yields better fit to first wave
-        pars_dict['l1'] = 7
-        pars_dict['l2'] = 7
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
