@@ -117,10 +117,11 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False,
                                                                                 start_date=start_calibration, stochastic=True)
 
-#######################
-## Sampling function ##
-#######################
+############################################
+## Sampling function/aggregation function ##
+############################################
 
+from covid19model.models.utils import aggregation_arr_prov
 from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
 
 #########################
@@ -129,8 +130,18 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vac
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes))
+out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes), tau=0.75)
 simtime = out['date'].values
+
+if agg == 'arr':
+    # Switch to the provinicial initN
+    from covid19model.data.utils import construct_initN
+    initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
+    # Aggregate arrondissement simulation to the provincial level
+    agg_H_in = aggregation_arr_prov(out['H_in'])
+    agg_R = aggregation_arr_prov(out['R'])
+    out = agg_H_in.to_dataset(name='H_in')
+    out['R'] = agg_R
 
 #######################
 ## Visualize results ##
@@ -214,40 +225,40 @@ plt.close()
 print('3) Visualizing provincial fit')
 
 # Visualize the provincial result (pt. I)
-if agg=='prov':
-    fig,ax = plt.subplots(nrows=int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
-    for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[0:int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)]):
-        pop = sum(initN.loc[NIS].values)
-        mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
-        ax[idx].plot(simtime, mean,'--', color='blue')
-        ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax[idx].legend(['NIS: '+ str(NIS)])
-        ax[idx] = _apply_tick_locator(ax[idx])
-        ax[idx].grid(False)
-        ax[idx].set_ylabel('$H_{in}$ (-)')
-        ax[idx].set_ylim([0,12])
-    plt.suptitle('Provincial incidence per 100K inhabitants')
-    plt.tight_layout()
-    plt.show()
-    plt.close()
 
-    fig,ax = plt.subplots(nrows=len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
-    for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[(len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)+1):]):
-        pop = sum(initN.loc[NIS].values)
-        mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim=['age_groups', 'doses']).values, dispersion, args.n_draws_per_sample)/pop*100000
-        ax[idx].plot(simtime, mean,'--', color='blue')
-        ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-        ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
-        ax[idx].legend(['NIS: '+ str(NIS)])
-        ax[idx] = _apply_tick_locator(ax[idx])
-        ax[idx].grid(False)
-        ax[idx].set_ylabel('$H_{in}$ (-)')
-        ax[idx].set_ylim([0,12])
-    plt.suptitle('Provincial incidence per 100K inhabitants')
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+fig,ax = plt.subplots(nrows=int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
+for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[0:int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)]):
+    pop = sum(initN.loc[NIS].values)
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
+    ax[idx].plot(simtime, mean,'--', color='blue')
+    ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].legend(['NIS: '+ str(NIS)])
+    ax[idx] = _apply_tick_locator(ax[idx])
+    ax[idx].grid(False)
+    ax[idx].set_ylabel('$H_{in}$ (-)')
+    ax[idx].set_ylim([0,12])
+plt.suptitle('Provincial incidence per 100K inhabitants')
+plt.tight_layout()
+plt.show()
+plt.close()
+
+fig,ax = plt.subplots(nrows=len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
+for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[(len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)+1):]):
+    pop = sum(initN.loc[NIS].values)
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim=['age_groups', 'doses']).values, dispersion, args.n_draws_per_sample)/pop*100000
+    ax[idx].plot(simtime, mean,'--', color='blue')
+    ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].legend(['NIS: '+ str(NIS)])
+    ax[idx] = _apply_tick_locator(ax[idx])
+    ax[idx].grid(False)
+    ax[idx].set_ylabel('$H_{in}$ (-)')
+    ax[idx].set_ylim([0,12])
+plt.suptitle('Provincial incidence per 100K inhabitants')
+plt.tight_layout()
+plt.show()
+plt.close()
 
 print('4) Visualize the seroprevalence fit')
 
