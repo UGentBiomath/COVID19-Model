@@ -1453,7 +1453,7 @@ class make_contact_matrix_function():
         mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, school=0) 
         return nc[:, np.newaxis, np.newaxis]*mat
 
-    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k):
+    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1544,19 +1544,27 @@ class make_contact_matrix_function():
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
 
         if self.G == 11:
+            idx_Hainaut = [6,]
             idx_Vlaams_Brabant = [1,]
             idx_Waals_Brabant = [2,]
             idx_F = [0, 1, 4, 5, 8]
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
-            mentality_summer_2020_lockdown = 1.25*np.array([1.30*mentality, 0.80*mentality, # F
-                                                    0.75*mentality, # W
-                                                    1.50*mentality, # Bxl
-                                                    0.80*mentality, 1.30*mentality, # F
-                                                    1.35*mentality, 1.30*mentality, # W
-                                                    0.75*mentality, # F
-                                                    0.50*mentality, 1*mentality]) # W
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                    2,              # W
+                                                    4.11,           # Bxl
+                                                    2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                    4.44, 4,        # W
+                                                    1.5,            # original: 1.11, # F
+                                                    2.22, 2.67])    # W
+
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
         elif self.G == 43:
+            idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
             idx_Vlaams_Brabant = [4,5]
             idx_Waals_Brabant = [6,]
             idx_F = [0, 1, 2,                          # Antwerpen
@@ -1570,16 +1578,18 @@ class make_contact_matrix_function():
                     28, 29, 30, 31,                    # Luik
                     35, 36, 37, 38, 39,                # Luxemburg
                     40, 41, 42]                        # Namen
-            mentality_summer_2020_lockdown = mentality*np.ones(43)
-            mentality_summer_2020_lockdown[0:3] = mentality
-            mentality_summer_2020_lockdown[3] = mentality
-            mentality_summer_2020_lockdown[4:6] = mentality
-            mentality_summer_2020_lockdown[7:15] = 0.75*mentality
-            mentality_summer_2020_lockdown[15:21] = mentality
-            mentality_summer_2020_lockdown[21:28] = 1
-            mentality_summer_2020_lockdown[28:32] = 1
-            mentality_summer_2020_lockdown[32:35] = 0.25*mentality
-            mentality_summer_2020_lockdown[35:40] = mentality
+            mentality_summer_2020_lockdown = 1.25*mentality*np.ones(43)
+            mentality_summer_2020_lockdown[0:3] *= 0.75    # Antwerpen --> different
+            mentality_summer_2020_lockdown[3] *= 1.50     # Brussel
+            mentality_summer_2020_lockdown[6] *= 0.75       # Waals-Brabant
+            mentality_summer_2020_lockdown[4:6] *= 0.50     # Vlaams-Brabant
+            mentality_summer_2020_lockdown[7:15] *= 0.75    # West-Vlaanderen
+            mentality_summer_2020_lockdown[15:21] *= 1.00   # Oost-Vlaanderen
+            mentality_summer_2020_lockdown[21:28] *= 1.50   # Henegouwen
+            mentality_summer_2020_lockdown[28:32] *= 1.00   # Luik
+            mentality_summer_2020_lockdown[32:35] *= 0.75   # Limburg
+            mentality_summer_2020_lockdown[35:40] *= 0.75  # Luxemburg
+            mentality_summer_2020_lockdown[40:43] *= 1.50   # Namen
 
         ################
         ## First wave ##
@@ -1606,8 +1616,7 @@ class make_contact_matrix_function():
             policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)    
-            #return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)                                     
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)                                     
         elif t5 < t <= t6:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)      
 
@@ -1639,17 +1648,17 @@ class make_contact_matrix_function():
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
             mat[idx_Bxl,:,:] *= 1.40
-            mat[idx_W,:,:] *= 1.15
-            mat[idx_Vlaams_Brabant,:,:] *= 0.8
-            mat[idx_Waals_Brabant,:,:] *= 0.8
+            mat[idx_Hainaut,:,:] *= 1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 0.7
+            mat[idx_Waals_Brabant,:,:] *= 0.5
             return mat 
         elif t15 < t <= t16:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
             mat[idx_Bxl,:,:] *= 1.40
-            mat[idx_W,:,:] *= 1.15
-            mat[idx_Vlaams_Brabant,:,:] *= 0.8
-            mat[idx_Waals_Brabant,:,:] *= 0.8
+            mat[idx_Hainaut,:,:] *= 1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 0.7
+            mat[idx_Waals_Brabant,:,:] *= 0.5
             return mat 
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                        
@@ -1715,7 +1724,7 @@ class make_contact_matrix_function():
         else:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 
-    def policies_all_work_only(self, t, states, param, eff_work, l1, l2, mentality, k):
+    def policies_all_work_only(self, t, states, param, eff_work, l1, l2, mentality, k, summer_rescaling_F, summer_rescaling_W):
             '''
             Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
             
@@ -1756,42 +1765,52 @@ class make_contact_matrix_function():
             l2_days = pd.Timedelta(l2, unit='D')
 
             if self.G == 11:
+                idx_Hainaut = [6,]
                 idx_Vlaams_Brabant = [1,]
                 idx_Waals_Brabant = [2,]
                 idx_F = [0, 1, 4, 5, 8]
                 idx_Bxl = [3,]
                 idx_W = [2, 6, 7, 9, 10]
-                mentality_summer_2020_lockdown = 1.25*np.array([1.30*mentality, 0.80*mentality, # F
-                                                        0.75*mentality, # W
-                                                        1.50*mentality, # Bxl
-                                                        0.80*mentality, 1.30*mentality, # F
-                                                        1.35*mentality, 1.30*mentality, # W
-                                                        0.75*mentality, # F
-                                                        0.50*mentality, 1*mentality]) # W
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                        2,              # W
+                                                        4.11,           # Bxl
+                                                        2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                        4.44, 4,        # W
+                                                        1.5,            # original: 1.11, # F
+                                                        2.22, 2.67])    # W
+
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
             elif self.G == 43:
+                idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
                 idx_Vlaams_Brabant = [4,5]
                 idx_Waals_Brabant = [6,]
-                idx_F = [0, 1, 2,                           # Antwerspen
+                idx_F = [0, 1, 2,                          # Antwerpen
                         4, 5,                              # Vlaams-Brabant
                         7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
                         15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
                         32, 33, 34]                        # Limburg      
-                idx_Bxl = [3,]                              # Brussel                    
-                idx_W = [6,                                 # Waals-Brabant
+                idx_Bxl = [3,]                             # Brussel                    
+                idx_W = [6,                                # Waals-Brabant
                         21, 22, 23, 24, 25, 26, 27,        # Henegouwen
                         28, 29, 30, 31,                    # Luik
                         35, 36, 37, 38, 39,                # Luxemburg
                         40, 41, 42]                        # Namen
-                mentality_summer_2020_lockdown = mentality*np.ones(43)
-                mentality_summer_2020_lockdown[0:3] = mentality
-                mentality_summer_2020_lockdown[3] = mentality
-                mentality_summer_2020_lockdown[4:6] = mentality
-                mentality_summer_2020_lockdown[7:15] = 0.75*mentality
-                mentality_summer_2020_lockdown[15:21] = mentality
-                mentality_summer_2020_lockdown[21:28] = 1
-                mentality_summer_2020_lockdown[28:32] = 1
-                mentality_summer_2020_lockdown[32:35] = 0.25*mentality
-                mentality_summer_2020_lockdown[35:40] = mentality
+                mentality_summer_2020_lockdown = 1.25*mentality*np.ones(43)
+                mentality_summer_2020_lockdown[0:3] *= 0.75    # Antwerpen --> different
+                mentality_summer_2020_lockdown[3] *= 1.50       # Brussel
+                mentality_summer_2020_lockdown[6] *= 0.75       # Waals-Brabant
+                mentality_summer_2020_lockdown[4:6] *= 0.50     # Vlaams-Brabant
+                mentality_summer_2020_lockdown[7:15] *= 0.75    # West-Vlaanderen
+                mentality_summer_2020_lockdown[15:21] *= 1.00   # Oost-Vlaanderen
+                mentality_summer_2020_lockdown[21:28] *= 1.50   # Henegouwen
+                mentality_summer_2020_lockdown[28:32] *= 1.00   # Luik
+                mentality_summer_2020_lockdown[32:35] *= 0.75   # Limburg
+                mentality_summer_2020_lockdown[35:40] *= 0.75  # Luxemburg
+                mentality_summer_2020_lockdown[40:43] *= 1.50   # Namen
 
             ################
             ## First wave ##
@@ -1830,7 +1849,6 @@ class make_contact_matrix_function():
                 return self.ramp_fun(policy_old, policy_new, t, t2, l)
             elif t3 < t <= t4:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=tuple(mentality_summer_2020_lockdown), school=0)
-                #return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)
             elif t4 < t <= t5:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)       
 
@@ -1852,9 +1870,9 @@ class make_contact_matrix_function():
                 mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
                 mat[idx_F,:,:] *= 1.0
                 mat[idx_Bxl,:,:] *= 1.40
-                mat[idx_W,:,:] *= 1.15
-                mat[idx_Vlaams_Brabant,:,:] *= 0.8
-                mat[idx_Waals_Brabant,:,:] *= 0.8
+                mat[idx_Hainaut,:,:] *= 1.20
+                mat[idx_Vlaams_Brabant,:,:] *= 0.7
+                mat[idx_Waals_Brabant,:,:] *= 0.5
                 return mat
             elif t9 < t <= t10:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0)

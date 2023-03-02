@@ -320,6 +320,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
+    params.update({'summer_rescaling_F': 1, 'summer_rescaling_W': 1})
+
     # Define coordinates
     coordinates = {'NIS': read_coordinates_place(agg=agg),
                    'age_groups': construct_coordinates_Nc(age_stratification_size=age_stratification_size),
@@ -473,6 +475,8 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['summer_rescaling_F'] = samples_dict['summer_rescaling_F'][idx]
+    param_dict['summer_rescaling_W'] = samples_dict['summer_rescaling_W'][idx]
 
     # Hospitalization
     # ---------------
