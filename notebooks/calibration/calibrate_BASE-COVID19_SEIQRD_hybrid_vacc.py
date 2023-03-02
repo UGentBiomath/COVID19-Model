@@ -144,7 +144,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -173,14 +173,14 @@ if __name__ == '__main__':
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality','k']
-    bounds2=((0.20,0.60),(0.20,0.60),(0.40,0.80),(3e3,7e3))
+    bounds2=((0.20,0.95),(0.20,0.95),(0.20,0.80),(1e3,1e4))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
     bounds3 = ((1.20,1.60),(1.60,2.40))
     # Seasonality
     pars4 = ['amplitude',]
-    bounds4 = ((0,0.35),)
+    bounds4 = ((0,0.40),)
     # New hospprop
     pars5 = ['f_h',]
     bounds5 = ((0,1),)    
@@ -200,7 +200,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196]
+    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196] # 2023-02-24
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
