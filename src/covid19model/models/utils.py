@@ -320,7 +320,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
-    params.update({'summer_rescaling_F': 1, 'summer_rescaling_W': 1})
+    params.update({'summer_rescaling_F': 0.39, 'summer_rescaling_W': 0.18}) # Obtained from prov_summer_mentality_CORNER_2023-03-01.pdf
 
     # Define coordinates
     coordinates = {'NIS': read_coordinates_place(agg=agg),
