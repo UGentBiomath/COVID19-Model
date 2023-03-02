@@ -1558,7 +1558,7 @@ class make_contact_matrix_function():
                                                     4.44, 4,        # W
                                                     1.5,            # original: 1.11, # F
                                                     2.22, 2.67])    # W
-
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
             mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
             mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
@@ -1578,18 +1578,25 @@ class make_contact_matrix_function():
                     28, 29, 30, 31,                    # Luik
                     35, 36, 37, 38, 39,                # Luxemburg
                     40, 41, 42]                        # Namen
-            mentality_summer_2020_lockdown = 1.25*mentality*np.ones(43)
-            mentality_summer_2020_lockdown[0:3] *= 0.75    # Antwerpen --> different
-            mentality_summer_2020_lockdown[3] *= 1.50     # Brussel
-            mentality_summer_2020_lockdown[6] *= 0.75       # Waals-Brabant
-            mentality_summer_2020_lockdown[4:6] *= 0.50     # Vlaams-Brabant
-            mentality_summer_2020_lockdown[7:15] *= 0.75    # West-Vlaanderen
-            mentality_summer_2020_lockdown[15:21] *= 1.00   # Oost-Vlaanderen
-            mentality_summer_2020_lockdown[21:28] *= 1.50   # Henegouwen
-            mentality_summer_2020_lockdown[28:32] *= 1.00   # Luik
-            mentality_summer_2020_lockdown[32:35] *= 0.75   # Limburg
-            mentality_summer_2020_lockdown[35:40] *= 0.75  # Luxemburg
-            mentality_summer_2020_lockdown[40:43] *= 1.50   # Namen
+
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.ones(43)
+            mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+            mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+            mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+            mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+            mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+            mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+            mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+            mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+            mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+            mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+            mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+            
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
         ################
         ## First wave ##
@@ -1799,18 +1806,25 @@ class make_contact_matrix_function():
                         28, 29, 30, 31,                    # Luik
                         35, 36, 37, 38, 39,                # Luxemburg
                         40, 41, 42]                        # Namen
-                mentality_summer_2020_lockdown = 1.25*mentality*np.ones(43)
-                mentality_summer_2020_lockdown[0:3] *= 0.75    # Antwerpen --> different
-                mentality_summer_2020_lockdown[3] *= 1.50       # Brussel
-                mentality_summer_2020_lockdown[6] *= 0.75       # Waals-Brabant
-                mentality_summer_2020_lockdown[4:6] *= 0.50     # Vlaams-Brabant
-                mentality_summer_2020_lockdown[7:15] *= 0.75    # West-Vlaanderen
-                mentality_summer_2020_lockdown[15:21] *= 1.00   # Oost-Vlaanderen
-                mentality_summer_2020_lockdown[21:28] *= 1.50   # Henegouwen
-                mentality_summer_2020_lockdown[28:32] *= 1.00   # Luik
-                mentality_summer_2020_lockdown[32:35] *= 0.75   # Limburg
-                mentality_summer_2020_lockdown[35:40] *= 0.75  # Luxemburg
-                mentality_summer_2020_lockdown[40:43] *= 1.50   # Namen
+
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.ones(43)
+                mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+                mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+                mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+                mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+                mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+                mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+                mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+                mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+                mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+                mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+                mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+                
+                # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
             ################
             ## First wave ##
