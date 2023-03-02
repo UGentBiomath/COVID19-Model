@@ -533,7 +533,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.53, 1.53, 1] #alpha variant: https://www.frontiersin.org/articles/10.3389/fpubh.2021.775224/full
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.34, 1.34, 1] #alpha variant: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9121661/ 
     VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1, 1, 1]
 
     ###############################################
