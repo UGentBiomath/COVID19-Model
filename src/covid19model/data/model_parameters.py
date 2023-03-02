@@ -457,8 +457,6 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         # Add Nc_work and Nc to parameters
         pars_dict['Nc'] = np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
         pars_dict['Nc_work'] = np.expand_dims(Nc_dict['work'],axis=0) 
-        #pars_dict['Nc'] = Nc_dict['total']
-        #pars_dict['Nc_work'] = Nc_dict['work']
 
     ############################
     ## BASE fitted parameters ##
