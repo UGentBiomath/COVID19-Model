@@ -633,7 +633,7 @@ class make_vaccination_efficacy_function():
                 df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
-            print('\nThe vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.\n")
+            print('\nThe vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.\n')
             # Downsample the incidences dataframe to weekly frequency, if weekly incidences are provided this does nothing. Not tested if the data frequency is higher than one week.
             df_incidences = self.convert_frequency_WMON(df_incidences)
             # Add the one-shot J&J and the second doses together
