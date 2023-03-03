@@ -173,7 +173,7 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 3
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -230,8 +230,8 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.0260, 0.0250, 0.0292, 0.298, 0.475, 4560, 0.67, 0.5, 0.5, 1.30, 1.70, 0.22] # 2023-02-24; prov
-    theta = [0.026, 0.024, 0.028, 0.298, 0.475, 4560, 0.67, 0.65, 0.25, 1.35, 1.7, 0.22]
+    theta = [0.026, 0.024, 0.028, 0.298, 0.475, 4560, 0.67, 0.65, 0.25, 1.35, 1.7, 0.22] # Start of prov_summer_mentality_CORNER_2023-03-01.pdf
+    theta = [0.0256, 0.0243, 0.0269, 0.284, 0.559, 4850, 0.644, 0.39, 0.18, 1.35, 1.57, 0.21] # End of prov_summer_mentality_CORNER_2023-03-01.pdf
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
