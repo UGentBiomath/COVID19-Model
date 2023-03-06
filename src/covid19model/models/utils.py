@@ -41,7 +41,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
                                                                     make_vaccination_efficacy_function, \
-                                                                    make_seasonality_function
+                                                                    make_seasonality_function, \
+                                                                    h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
@@ -143,7 +144,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                'e_s' : efficacy_function.e_s,
                                'e_i' : efficacy_function.e_i,
-                               'e_h' : efficacy_function.e_h})                      
+                               'e_h' : efficacy_function.e_h,
+                               'h': h_func})                      
     
     # Initialize model
     if stochastic == True:
@@ -189,7 +191,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
                                                                     make_vaccination_efficacy_function, \
-                                                                    make_seasonality_function
+                                                                    make_seasonality_function, \
+                                                                    h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19model.data import mobility, sciensano, model_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
@@ -209,7 +212,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     proximus_mobility_data = mobility.get_proximus_mobility_data(agg)
     # Google Mobility data
     if agg == 'prov':
-        df_google = mobility.get_google_mobility_data(update=update_data, provincial=True)
+        df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
     elif agg == 'arr':
         df_google = mobility.get_google_mobility_data(update=update_data, provincial=False)
 
@@ -283,7 +286,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         initial_states={}
         for data_var in out.keys():
             try:
-                initial_states.update({data_var: out.sel(time=start_date)[data_var].values})
+                initial_states.update({data_var: out.sel(date=start_date)[data_var].values})
             except:
                 raise ValueError("Chosen startdate '{0}' not found.".format(start_date))
             
@@ -317,6 +320,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
+    params.update({'summer_rescaling_F': 0.39, 'summer_rescaling_W': 0.18}) # Obtained from prov_summer_mentality_CORNER_2023-03-01.pdf
+
     # Define coordinates
     coordinates = {'NIS': read_coordinates_place(agg=agg),
                    'age_groups': construct_coordinates_Nc(age_stratification_size=age_stratification_size),
@@ -327,7 +332,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                'Nc_work' : policy_function_work,
                                'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
-                               'seasonality' : seasonality_function,}
+                               'seasonality' : seasonality_function,
+                               'h': h_func}
     if vaccination:
         time_dependent_parameters.update({'N_vacc' : N_vacc_function,
                                           'e_s' : efficacy_function.e_s,
@@ -408,8 +414,10 @@ def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
     idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
     param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
+    param_dict['k'] = samples_dict['k'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx] 
+    param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    #param_dict['f_h'] = samples_dict['f_h'][idx]
 
     # Hospitalization
     # ---------------
@@ -460,12 +468,15 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
 
     idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
     param_dict['beta_U'] = samples_dict['beta_U'][idx]  
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]    
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]       
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
+    param_dict['beta_M'] = samples_dict['beta_M'][idx]
+    param_dict['eff_work'] = samples_dict['eff_work'][idx]
+    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
+    param_dict['k'] = samples_dict['k'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
+    param_dict['summer_rescaling_F'] = samples_dict['summer_rescaling_F'][idx]
+    param_dict['summer_rescaling_W'] = samples_dict['summer_rescaling_W'][idx]
 
     # Hospitalization
     # ---------------
@@ -492,6 +503,79 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
             param_val.append(np.mean(draw))
         param_dict[names[idx]] = np.array(param_val)
     return param_dict
+
+import xarray as xr
+def aggregation_arr_prov(simulation_in):
+    """ A function to convert an arrondissement simulation to the provincial level
+    
+    Input
+    =====
+    
+    simulation_in: xarray.DataArray
+        Simulation result (arrondissement level). Obtained from a pySODM xarray.Dataset simulation result by using: xarray.Dataset[state_name]
+    
+    Output
+    ======
+    
+    simulation_out: xarray.DataArray
+        Simulation result (provincial level)
+    """
+    
+    # Conversion keys
+    prov = [10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
+    arr2prov = [
+               [11000, 12000, 13000],
+               [23000, 24000],
+               [25000,],
+               [21000,],
+               [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+               [41000, 42000, 43000, 44000, 45000, 46000],
+               [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+               [61000, 62000, 63000, 64000],
+               [71000, 72000, 73000],
+               [81000, 82000, 83000, 84000, 85000],
+               [91000, 92000, 93000]
+        ] 
+    
+    # Preallocate a tensor to hold the data
+    if 'draws' in simulation_in.dims:
+        data = np.zeros([len(prov),
+                         len(simulation_in.coords['draws']),
+                         len(simulation_in.coords['age_groups']),
+                         len(simulation_in.coords['doses']),
+                         len(simulation_in.coords['date'])])
+    else: 
+        data = np.zeros([len(prov),
+                         len(simulation_in.coords['age_groups']),
+                         len(simulation_in.coords['doses']),
+                         len(simulation_in.coords['date'])])
+
+    # Aggregate data
+    for i,arr_lst in enumerate(arr2prov):
+        som=0
+        for arr_NIS in arr_lst:
+            som+=simulation_in.sel(NIS=arr_NIS).values
+        data[i,...] = som
+
+
+    # Assign to output
+    if 'draws' in simulation_in.dims:
+        simulation_out = xr.DataArray(data,
+                                      dims=['NIS', 'draws', 'age_groups', 'doses', 'date'],
+                                      coords=dict(NIS = (['NIS'], prov),
+                                                  draws = simulation_in.coords['draws'],
+                                                  age_groups = simulation_in.coords['age_groups'],
+                                                  doses = simulation_in.coords['doses'],
+                                                  date = simulation_in.coords['date']))
+    else:
+        simulation_out = xr.DataArray(data,
+                                      dims=simulation_in.dims,
+                                      coords=dict(NIS = (['NIS'], prov),
+                                                  age_groups = simulation_in.coords['age_groups'],
+                                                  doses = simulation_in.coords['doses'],
+                                                  date = simulation_in.coords['date']))
+    
+    return simulation_out
 
 def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
