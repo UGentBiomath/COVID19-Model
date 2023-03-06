@@ -222,6 +222,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         if ((dimension != 'date') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
     
+    prov = [10000, 20001, 30000, 40000, 70000, 21000, 20002, 50000, 60000, 80000, 90000]
 
     agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
                     [21000],
@@ -281,7 +282,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         
         elif desired_agg == 'prov':
             fig,ax = plt.subplots(nrows=len(title_list_prov),ncols=1,figsize=(12,16), sharex=True)
-            for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
+            for idx,NIS in enumerate(prov):
                 ax[idx].plot(output['date'], output['H_in'].sel(NIS=NIS),'--', color='blue')
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
