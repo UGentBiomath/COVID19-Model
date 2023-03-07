@@ -469,7 +469,6 @@ class Economic_Model(ODEModel):
     def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
         """
         BIOMATH production network model for Belgium
-
         *Based on the Oxford INET implementation*
         """
 
@@ -488,6 +487,7 @@ class Economic_Model(ODEModel):
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
         x_inp = calc_input_restriction(S,A,C)
+
         # 5. Compute total consumer demand
  
         # Compute consumer preference vector
@@ -503,18 +503,18 @@ class Economic_Model(ODEModel):
         c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
 
         # 6. Compute B2B demand
-        O_desired = calc_intermediate_demand(d,S,A,S_0,tau) # 2D
         # ---------------------   
+        O_desired = calc_intermediate_demand(d,S,A,S_0,tau) # 2D
 
         # 7. Compute total demand
         # -----------------------
-        d_new = calc_total_demand(O_desired,c_desired_new,f_desired)
+        d_new = calc_total_demand(O_desired, c_desired_new, f_desired)
 
         # 8. Leontief production function with critical inputs
         # ----------------------------------------------------
         x_new = leontief(x_cap, x_inp, d_new)
-        # 9. Perform rationing
 
+        # 9. Perform rationing
         # --------------------
         O_new, c_new, f_new = rationing(x_new,d_new,O_desired,c_desired_new,f_desired)
 
@@ -526,9 +526,10 @@ class Economic_Model(ODEModel):
         # ---------------------
         l_new = hiring_firing(l, l_0, x_0, x_inp, x_cap, d_new, gamma_F, gamma_H, epsilon_S)
 
-        # --------------------------------------------------------------
         # 12. Convert order matrix to total order per sector (2D --> 1D)
+        # --------------------------------------------------------------
         O_new = np.sum(O_new,axis=1)
+
         return (x_new-x, c_new-c, c_desired_new-c_desired, f_new-f, d_new-d, l_new-l, O_new-O, S_new-S)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
