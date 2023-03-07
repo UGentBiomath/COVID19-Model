@@ -22,7 +22,7 @@ Arguments:
 
 Example use:
 ------------
-python plot_fit_COVID19_SEIQRD_stratified_vacc.py -f BE_WAVE2_stratified_vacc_R0_COMP_EFF_2021-11-15.json -n_ag 10 -n 5 -k 1 
+python plot_fit_BASE-COVID19_SEIQRD_hybrid_vacc.py -ID test -d 2023-02-15 -n_ag 10 -n 10 -k 1
 
 """
 
@@ -51,7 +51,7 @@ from covid19model.models.utils import load_samples_dict
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)")
+parser.add_argument("-a", "--agg", help="Spatial aggregation level (national, prov or arr)", default='national')
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
 parser.add_argument("-n_ag", "--n_age_groups", help="Number of age groups used in the model.", default = 10)
@@ -117,7 +117,8 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=False)
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, stochastic=True,
+                                                                        start_date=start_calibration)
 model.parameters['beta'] = samples_dict['beta']
 
 #######################
@@ -133,9 +134,9 @@ from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as dra
 print('\n1) Simulating COVID19_SEIQRD_hybrid_vacc '+str(args.n_samples)+' times')
 
 start_sim = start_calibration
-out = model.sim(end_sim,start_date=start_sim,warmup=warmup,N=args.n_samples,draw_fcn=draw_fcn,samples=samples_dict, l=1/2, processes=int(args.processes))
+out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_function=draw_fcn,samples=samples_dict, processes=int(args.processes))
 df_2plot = output_to_visuals(out, ['H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
-simtime = out['time'].values
+simtime = out['date'].values
 
 ####################################
 ## Compute and visualize the RMSE ##
@@ -249,12 +250,12 @@ for idx,date in enumerate(dates):
    for jdx,age_group in enumerate(df_sciensano_mortality.index.get_level_values(0).unique().values[1:]):
        data_sciensano.append(df_sciensano_mortality.xs(key=age_group, level="age_class", drop_level=True).loc[dates[idx]]['hospital','cumsum'])
     
-   axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)],color='black',marker='v',zorder=1)
-   yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(time=date)].values)])
-   yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(time=date)].values
-   yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(time=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(time=date)]
+   axes[idx].scatter(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)],color='black',marker='v',zorder=1)
+   yerr = np.zeros([2,len(out['D'].quantile(dim='draws',q=0.975).loc[dict(date=date)].values)])
+   yerr[0,:] = out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)] - out['D'].sum(dim='doses').quantile(dim='draws',q=0.025).loc[dict(date=date)].values
+   yerr[1,:] = out['D'].sum(dim='doses').quantile(dim='draws',q=0.975).loc[dict(date=date)].values - out['D'].mean(dim='draws').sum(dim='doses').loc[dict(date=date)]
    axes[idx].errorbar(x=df_sciensano_mortality.index.get_level_values(0).unique().values[1:],
-                      y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(time=date)],
+                      y=out['D'].sum(dim='doses').mean(dim='draws').loc[dict(date=date)],
                       yerr=yerr,
                       color = 'black', fmt = '--v', zorder=1, linewidth=1, ecolor='black', elinewidth=1, capsize=5)
    axes[idx].bar(df_sciensano_mortality.index.get_level_values(0).unique().values[1:],data_sciensano,width=1,alpha=0.7,zorder=0)

@@ -320,9 +320,12 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
     # Hospitalization propensity (manually fitted to deaths in hospital per age category)
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
-                          data=np.array([0.01, 0.01, 0.015, 0.025, 0.03, 0.06, 0.12, 0.45, 0.85, 0.99]))
-    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
-                         data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
+                          data=np.array([0.01, 0.01, 0.015, 0.025, 0.03, 0.06, 0.12, 0.45, 0.95, 0.99]))
+    #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
+    #                     data=np.array([0.181, 0.224, 0.305, 0.355, 0.646]))
+    rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80,85), (85, 120)], closed='left'),
+                         data=np.array([0.181, 0.224, 0.305, 0.355, 0.646, 0.99])) # 85 --> 120 is truncated because the model severily underestimates the number of deaths in that age group
+
 
     # https://www.nature.com/articles/s41591-020-0962-9
     #hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
@@ -408,14 +411,23 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
     pars_dict['K_inf'] = []
     pars_dict['K_hosp'] = []
 
+    ######################
+    ## Behavioral model ##
+    ######################
+
+    pars_dict['k'] = 0 # disabled by default
+
+    ###############################################
+    ## Hospprop change between WAVE 1 and WAVE 2 ##
+    ###############################################
+
+    pars_dict['f_h'] = 0.75 # Calibrated: see national_testh_CORNER_2023-02-20.pdf
+
     ########################
     ## Spatial parameters ##
     ########################
 
     if agg:
-        # Use ten days for l1, yields better fit to first wave
-        pars_dict['l1'] = 10
-        pars_dict['l2'] = 7
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
         mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
@@ -443,10 +455,8 @@ def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 
         p = np.ones(pars_dict['NIS'].shape[0])
         pars_dict['p'] = p
         # Add Nc_work and Nc to parameters
-        # np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
-        pars_dict['Nc'] = Nc_dict['total']
-        # np.expand_dims(Nc_dict['work'],axis=0) # dims (1, N, N)
-        pars_dict['Nc_work'] = Nc_dict['work']
+        pars_dict['Nc'] = np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
+        pars_dict['Nc_work'] = np.expand_dims(Nc_dict['work'],axis=0) 
 
     ############################
     ## BASE fitted parameters ##
@@ -521,8 +531,8 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
     VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1, 1, 0.30]
-    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1.50, 1.50, 3.00]
+    VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.34, 1.34, 1] #alpha variant: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9121661/ 
+    VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1, 1, 1]
 
     ###############################################
     ## Build a dataframe with vaccine properties ##

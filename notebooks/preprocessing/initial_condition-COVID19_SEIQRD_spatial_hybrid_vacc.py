@@ -20,9 +20,8 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pySODM.optimization.utils import assign_theta
 from covid19model.data import sciensano
-from covid19model.optimization.pso import *
-from covid19model.optimization.utils import assign_PSO
 from covid19model.visualization.optimization import plot_PSO
 from covid19model.visualization.output import _apply_tick_locator 
 
@@ -75,11 +74,9 @@ model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(
 
 # Assume effectivities are equal to one, no seasonality
 model.parameters['eff_work'] = 1
-model.parameters['eff_rest'] = 1
-model.parameters['eff_home'] = 1
 model.parameters['amplitude'] = 0
 # Set warmup to date of first infected in Belgium
-warmup = pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05')
+warmup = (pd.to_datetime('2020-03-15') - pd.to_datetime('2020-02-05'))/pd.Timedelta(days=1)
 # Set betas to assume R0=3.3
 model.parameters['beta_R'] = model.parameters['beta_U'] = model.parameters['beta_M'] = 0.027
 # Disable mobility
@@ -113,15 +110,18 @@ end_calibration='2020-04-01'
 end_visualization=end_calibration
 data=[df_hosp[start_calibration:end_calibration],]
 
+N=2
+
 # for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 #     # Assign estimate
-#     #pars_PSO = assign_PSO(model.parameters, pars, theta)
+#     #pars_PSO = assign_theta(model.parameters, pars, theta)
 #     #model.parameters = pars_PSO
 #     # Perform simulation
-#     out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+#     out = model.sim([start_calibration, pd.Timestamp(end_visualization)],warmup=warmup,N=N)
 #     # Visualize
 #     fig,ax = plt.subplots(figsize=(12,4))
-#     ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#     for i in range(N):
+#         ax.plot(out['date'],out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').isel(draws=i),'--', color='blue', alpha=0.10)
 #     ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
 #     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
@@ -142,13 +142,14 @@ data=[df_hosp[start_calibration:end_calibration],]
 #         model.initial_states['E'][idx,:,0] = val
 #         model.initial_states['I'][idx,:,0] = val
 #         # Assign estimate
-#         #pars_PSO = assign_PSO(model.parameters, pars, theta)
+#         #pars_PSO = assign_theta(model.parameters, pars, theta)
 #         #model.parameters = pars_PSO
 #         # Perform simulation
-#         out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+#         out = model.sim([start_calibration, pd.Timestamp(end_visualization)],warmup=warmup,N=N)
 #         # Visualize new fit
 #         fig,ax = plt.subplots(figsize=(12,4))
-#         ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+#         for i in range(N):
+#             ax.plot(out['date'],out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').isel(draws=i),'--', color='blue', alpha=0.10)
 #         ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
 #         ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
 #         ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
@@ -170,7 +171,7 @@ data=[df_hosp[start_calibration:end_calibration],]
 
 # prov
 if args.agg == 'prov':
-    initial_infected = [0.02, 0.015, 0.004, 0.025, 0.0075, 0.012, 0.02, 0.013, 0.014, 0.003, 0.004]
+    initial_infected = [0.025, 0.01, 0.003, 0.03, 0.01, 0.014, 0.02, 0.016, 0.016, 0.004, 0.005]
 # agg
 elif args.agg == 'arr':
     initial_infected = [0.010, 0.004, 0.005, 0.022, 0.007, 0.006, 0.004, 0.002, 0.00015, 0.0001,
@@ -184,16 +185,14 @@ I = np.zeros([G,N,D])
 for idx, val in enumerate(initial_infected):
     E0[idx,:,0] = val
     model.initial_states.update({'E': E0, 'I': E0})
-# Simulate
-out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
 
 #Visualize
 for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
     # Perform simulation
-    out = model.sim(end_visualization,start_date=start_calibration,warmup=warmup)
+    out = model.sim([start_calibration, pd.Timestamp(end_visualization)],warmup=warmup)
     # Visualize new fit
     fig,ax = plt.subplots(figsize=(12,4))
-    ax.plot(out['time'],out['H_in'].sel(NIS=NIS).sum(dim='Nc').sum(dim='doses'),'--', color='blue')
+    ax.plot(out['date'],out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses'),'--', color='blue')
     ax.scatter(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS], color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
     ax.plot(data[0].index.get_level_values('date').unique(), data[0].loc[slice(None), NIS].ewm(span=3).mean(), color='red', linewidth=2)
     ax.axvline(x=pd.Timestamp('2020-03-14'),linestyle='--',linewidth=1,color='black')
@@ -213,7 +212,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 
 # Path where the xarray should be stored
 file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
-out.coords.update({'Nc': range(len(out.coords['Nc']))})
+out.coords.update({'age_groups': range(len(out.coords['age_groups']))})
 out.to_netcdf(file_path+str(args.agg)+'_INITIAL-CONDITION.nc')
 
 # Work is done

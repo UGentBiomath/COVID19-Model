@@ -161,10 +161,10 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
         # Reduce dimensions
         new_xarray = output[states[idx]].copy(deep=True)
         for dimension in output.dims:
-            if (dimension != 'time') :
+            if (dimension != 'date') :
                 new_xarray = new_xarray.sum(dim=dimension)
         # Plot data
-        ax.plot(output['time'],new_xarray,'--', color='blue')
+        ax.plot(output['date'],new_xarray,'--', color='blue')
         try: 
             ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
         except:
@@ -176,10 +176,10 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
             # Reduce dimensions
             new_xarray = output[states[idx]].copy(deep=True)
             for dimension in output.dims:
-                if (dimension != 'time') :
+                if (dimension != 'date') :
                     new_xarray = new_xarray.sum(dim=dimension)
             # Plot data
-            ax.plot(output['time'],new_xarray,'--', color='blue')
+            ax.plot(output['date'],new_xarray,'--', color='blue')
             try:
                 ax.scatter(data[idx].index,data[idx].sum(axis=1), color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
             except:
@@ -219,9 +219,10 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
     
     # Reduce all dimensions except time and space
     for dimension in output.dims:
-        if ((dimension != 'time') & (dimension != 'NIS')):
+        if ((dimension != 'date') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
     
+    prov = [10000, 20001, 30000, 40000, 70000, 21000, 20002, 50000, 60000, 80000, 90000]
 
     agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
                     [21000],
@@ -270,7 +271,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                     model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
                     data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
-                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_reg[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
@@ -281,8 +282,8 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         
         elif desired_agg == 'prov':
             fig,ax = plt.subplots(nrows=len(title_list_prov),ncols=1,figsize=(12,16), sharex=True)
-            for idx,NIS in enumerate(df_sciensano.index.get_level_values('NIS').unique()):
-                ax[idx].plot(output['time'], output['H_in'].sel(NIS=NIS),'--', color='blue')
+            for idx,NIS in enumerate(prov):
+                ax[idx].plot(output['date'], output['H_in'].sel(NIS=NIS),'--', color='blue')
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_xlim([start_calibration, end_calibration])
@@ -301,7 +302,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                     model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
                     data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
-                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
@@ -330,7 +331,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                     model_vals += mat
                     data_vals += data_vals_list[i]
                 # Plot
-                ax[idx].plot(output['time'].values, model_vals, '--', color='blue')
+                ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_reg[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])

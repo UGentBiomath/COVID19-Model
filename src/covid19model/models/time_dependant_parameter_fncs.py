@@ -30,6 +30,17 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
     """
     return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
 
+def h_func(t, states, param, f_h):
+
+    t = pd.Timestamp(t.date())
+
+    if t <= pd.Timestamp('2020-07-01'):
+        return param
+    elif pd.Timestamp('2020-07-01') < t <=  pd.Timestamp('2020-09-01'):
+        return ramp_fun(param, f_h*param, t, pd.Timestamp('2020-07-01'),(pd.Timestamp('2020-09-01')-pd.Timestamp('2020-07-01'))/pd.Timedelta(days=1))
+    else:
+        return f_h*param
+
 ###############################
 ## Mobility update functions ##
 ###############################
@@ -233,7 +244,7 @@ class make_VOC_function():
             else:
                 alpha[:,idx-1] = [1-f,-df]
                 alpha[:,idx] = [f,df]
-            return alpha            
+            return np.array(alpha, np.float64)            
 
 ###########################
 ## Vaccination functions ##
@@ -464,6 +475,7 @@ class make_N_vacc_function():
         
         
         from covid19model.data.utils import convert_age_stratified_quantity
+        print('\nConverting stored vaccine incidence from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
 
         # Define a new dataframe with the desired age groups
         iterables=[]
@@ -477,16 +489,20 @@ class make_N_vacc_function():
 
         # Loop to the dataseries level and perform demographic aggregation
         if agg:
-            for date in df.index.get_level_values('date').unique():
-                for NIS in df.index.get_level_values('NIS').unique():
-                    for dose in df.index.get_level_values('dose').unique():
-                        data = df.loc[date, NIS, slice(None), dose].reset_index().set_index('age')
-                        df_new.loc[date, NIS, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes, agg=agg, NIS=NIS).values
+            with tqdm(total=len(df.index.get_level_values('date').unique())*len(df.index.get_level_values('NIS').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for NIS in df.index.get_level_values('NIS').unique():
+                        for dose in df.index.get_level_values('dose').unique():
+                            data = df.loc[date, NIS, slice(None), dose].reset_index().set_index('age')
+                            df_new.loc[date, NIS, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes, agg=agg, NIS=NIS).values
+                        pbar.update(1)
         else:
-            for date in df.index.get_level_values('date').unique():
-                for dose in df.index.get_level_values('dose').unique():
-                    data = df.loc[date, slice(None), dose].reset_index().set_index('age')
-                    df_new.loc[date, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes).values
+            with tqdm(total=len(df.index.get_level_values('date').unique())*len(df.index.get_level_values('NIS').unique())) as pbar:
+                for date in df.index.get_level_values('date').unique():
+                    for dose in df.index.get_level_values('dose').unique():
+                        data = df.loc[date, slice(None), dose].reset_index().set_index('age')
+                        df_new.loc[date, slice(None), dose] = convert_age_stratified_quantity(data, desired_age_classes).values
+                    pbar.update(1)
 
         return df_new
     
@@ -617,7 +633,7 @@ class make_vaccination_efficacy_function():
                 df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
-            warnings.warn("The vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.", stacklevel=2)
+            print('\nThe vaccination rescaling parameters must be updated because a change was made to the vaccination parameters, or the dataframe with incidences was changed/updated. This may take some time.\n')
             # Downsample the incidences dataframe to weekly frequency, if weekly incidences are provided this does nothing. Not tested if the data frequency is higher than one week.
             df_incidences = self.convert_frequency_WMON(df_incidences)
             # Add the one-shot J&J and the second doses together
@@ -896,6 +912,8 @@ class make_vaccination_efficacy_function():
 
         from covid19model.data.utils import convert_age_stratified_property
 
+        print('\nConverting stored vaccine efficacies from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
+
         # Define a new dataframe with the desired age groups
         iterables=[]
         for index_name in df.index.names:
@@ -1058,9 +1076,12 @@ class make_contact_matrix_function():
         self.df_google = df_google.astype(float)
         self.Nc_all = Nc_all
         self.G = G
-        # Compute start and endtimes of dataframe
+        # Compute start and endtimes of dataframe Google
         self.df_google_start = df_google.index.get_level_values('date')[0]
         self.df_google_end = df_google.index.get_level_values('date')[-1]
+        # Make a memory of hospital load
+        lag = 14
+        self.I = list(70*np.ones(lag))
         # Check if provincial data is provided
         self.provincial = None
         if 'NIS' in self.df_google.index.names:
@@ -1087,8 +1108,7 @@ class make_contact_matrix_function():
         if school is None:
             raise ValueError(
                 "Please indicate to which extend schools are open")
-
-
+        
         places_var = [work, transport, leisure, others]
         places_names = ['work', 'transport', 'leisure', 'others']
         GCMR_names = ['work', 'transport', 'retail_recreation', 'grocery']
@@ -1208,7 +1228,7 @@ class make_contact_matrix_function():
     ## National model ##
     ####################
 
-    def policies_all(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
+    def policies_all(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1226,14 +1246,24 @@ class make_contact_matrix_function():
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
         eff_{location} : float
             "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
-        mentality : float
-            Lockdown mentality multipier
+        k: float
+            Parameter of the behavioral change model, linking number of infections to reduction in contacts.
+            https://www.sciencedirect.com/science/article/pii/S1755436518301063 
+        mentality: float
 
         Returns
         -------
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
+
+        # Behavioral change model
+        # Moving window of hospital in
+        self.I.append(np.sum(states['H_in']))
+        self.I = self.I[1:]
+        I = np.mean(self.I)
+        T=11e6
+        mentality_behavioral = 1-(1-I/T)**k
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
@@ -1291,73 +1321,73 @@ class make_contact_matrix_function():
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
         elif t1 < t <= t1 + l1_days:
-            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)            
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality = 1, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality = 1-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                                          
         elif t5 < t <= t6:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
 
         ######################      
         ## Winter 2020-2021 ##
         ######################
 
         elif t6 < t <= t7:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)  
         elif t7 < t <= t8:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1) # Government proclaimed pandemic is over  
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t9 < t <= t10:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)    
         elif t14 < t <= t15:
-            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t15 < t <= t16:
-            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality,school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral,school=1)
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                           
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                           
         elif t17 < t <= t18:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
 
         ######################
@@ -1365,49 +1395,49 @@ class make_contact_matrix_function():
         ######################
         
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest,  mentality=1-mentality_behavioral, school=1)  
         elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0) 
         elif t24 < t <= t25:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
         elif t25 < t <= t26:
             # Gradual re-introduction of mentality change during overlegcommites
             l = (t26 - t25)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t25, l)
         elif t26 < t <= t27:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t30 < t <= t31:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t31 < t <= t32:
             l = (t32 - t31)/pd.Timedelta(days=1)
             r = (t32 - t31)/(t33 - t31)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t31, l)
         elif t32 < t <= t33:
             l = (t33 - t32)/pd.Timedelta(days=1)
             r = (t33 - t32)/(t33 - t31)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t32, l)
         elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
         elif t34 < t <= t35:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)                                                                                                                                 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)                                                                                                                                 
         else:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=1, transport=0.7, leisure=1, others=1, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, work=1, transport=0.7, leisure=1, others=1, school=0)    
 
     ###################
     ## Spatial model ##
@@ -1423,7 +1453,7 @@ class make_contact_matrix_function():
         mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, school=0) 
         return nc[:, np.newaxis, np.newaxis]*mat
 
-    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality):
+    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1452,6 +1482,18 @@ class make_contact_matrix_function():
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
+
+        # Behavioral change model
+        # Moving window of hospital in
+        self.I.append(np.sum(states['H_in']))
+        self.I = self.I[1:]
+        I = np.mean(self.I)
+        T=11e6
+        mentality_behavioral = 1-(1-I/T)**k
+
+        # Protection against dipping below zero
+        if mentality_behavioral > mentality:
+            mentality_behavioral = mentality
 
         t = pd.Timestamp(t.date())
         # Convert compliance l to dates
@@ -1502,127 +1544,144 @@ class make_contact_matrix_function():
         # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
 
         if self.G == 11:
+            idx_Hainaut = [6,]
             idx_Vlaams_Brabant = [1,]
             idx_Waals_Brabant = [2,]
             idx_F = [0, 1, 4, 5, 8]
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
-            mentality_summer_2020_lockdown = np.array([1*mentality, 0.75*mentality, # F
-                                                        1, # W
-                                                        1, # Bxl
-                                                        0.75*mentality, 1*mentality, # F
-                                                        1, 1, # W
-                                                        1*mentality, # F
-                                                        1*mentality, 1*mentality]) # W
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                    2,              # W
+                                                    4.11,           # Bxl
+                                                    2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                    4.44, 4,        # W
+                                                    1.5,            # original: 1.11, # F
+                                                    2.22, 2.67])    # W
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
         elif self.G == 43:
+            idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
             idx_Vlaams_Brabant = [4,5]
             idx_Waals_Brabant = [6,]
-            idx_F = [0, 1, 2,                           # Antwerpen
+            idx_F = [0, 1, 2,                          # Antwerpen
                     4, 5,                              # Vlaams-Brabant
                     7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
                     15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
                     32, 33, 34]                        # Limburg      
-            idx_Bxl = [3,]                              # Brussel                    
-            idx_W = [6,                                 # Waals-Brabant
+            idx_Bxl = [3,]                             # Brussel                    
+            idx_W = [6,                                # Waals-Brabant
                     21, 22, 23, 24, 25, 26, 27,        # Henegouwen
                     28, 29, 30, 31,                    # Luik
                     35, 36, 37, 38, 39,                # Luxemburg
                     40, 41, 42]                        # Namen
-            mentality_summer_2020_lockdown = mentality*np.ones(43)
-            mentality_summer_2020_lockdown[0:3] = mentality
-            mentality_summer_2020_lockdown[3] = mentality
-            mentality_summer_2020_lockdown[4:6] = mentality
-            mentality_summer_2020_lockdown[7:15] = 0.75*mentality
-            mentality_summer_2020_lockdown[15:21] = mentality
-            mentality_summer_2020_lockdown[21:28] = 1
-            mentality_summer_2020_lockdown[28:32] = 1
-            mentality_summer_2020_lockdown[32:35] = 0.25*mentality
-            mentality_summer_2020_lockdown[35:40] = mentality
+
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.ones(43)
+            mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+            mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+            mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+            mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+            mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+            mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+            mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+            mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+            mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+            mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+            mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+            
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
         ################
         ## First wave ##
         ################
 
         if t <= t1:
-            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1) 
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1) 
         elif t1 < t <= t1 + l1_days:
-            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t1, l1)
         elif t1 + l1_days < t <= t2:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t2 < t <= t3:
             l = (t3 - t2)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t2, l)            
         elif t3 < t <= t4:
             l = (t4 - t3)/pd.Timedelta(days=1)
             r = (t3 - t2)/(t4 - t2)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t3, l)  
         elif t4 < t <= t5:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)                                          
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)                                     
         elif t5 < t <= t6:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)      
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)      
 
         ######################      
         ## Winter 2020-2021 ##
         ######################
 
         elif t6 < t <= t7:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)  
         elif t7 < t <= t8:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
         elif t8  < t <= t8 + l2_days:
             policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t8, l2)
         elif t8 + l2_days < t <= t9:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t9 < t <= t10:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=0.65*mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t10 < t <= t11:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1) 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1) 
         elif t11 < t <= t12:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t12 < t <= t13:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t13 < t <= t14:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)    
         elif t14 < t <= t15:
-            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.15
-            mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.40
+            mat[idx_Hainaut,:,:] *= 1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 0.7
+            mat[idx_Waals_Brabant,:,:] *= 0.5
             return mat 
         elif t15 < t <= t16:
-            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             mat[idx_F,:,:] *= 1.0
-            mat[idx_Bxl,:,:] *= 1.15
-            mat[idx_W,:,:] *= 1.10
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.15
-            mat[idx_Waals_Brabant,:,:] *= 1/1.15
+            mat[idx_Bxl,:,:] *= 1.40
+            mat[idx_Hainaut,:,:] *= 1.20
+            mat[idx_Vlaams_Brabant,:,:] *= 0.7
+            mat[idx_Waals_Brabant,:,:] *= 0.5
             return mat 
         elif t16 < t <= t17:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)                        
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                        
         elif t17 < t <= t18:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t18 < t <= t19:
             l = (t19 - t18)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t18, l)
         elif t19 < t <= t20:
             l = (t20 - t19)/pd.Timedelta(days=1)
             r = (t19 - t18)/(t20 - t18)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t19, l)
 
         ######################      
@@ -1630,49 +1689,49 @@ class make_contact_matrix_function():
         ######################        
 
         elif t20 < t <= t21:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
         elif t21 < t <= t22:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0.7)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)
         elif t22 < t <= t23:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)    
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)    
         elif t23 < t <= t24:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)  
         elif t24 < t <= t25:    
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=0)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)  
         elif t25 < t <= t26:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)  
         elif t26 < t <= t27:
             # Gradual re-introduction of mentality change during overlegcommites
             l = (t27 - t26)/pd.Timedelta(days=1)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t26, l)
         elif t27 < t <= t28:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t28 < t <= t29:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t29 < t <= t30:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t30 < t <= t31:
             l = (t31 - t30)/pd.Timedelta(days=1)
             r = (t31 - t30)/(t32 - t30)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=0)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
             return self.ramp_fun(policy_old, policy_new, t, t30, l)
         elif t31 < t <= t32:
             l = (t32 - t31)/pd.Timedelta(days=1)
             r = (t32 - t31)/(t32 - t30)
-            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality), school=1)
-            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
             return self.ramp_fun(policy_old, policy_new, t, t31, l)
         elif t32 < t <= t33:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
         elif t33 < t <= t34:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality, school=1)                                                                                                                                 
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)                                                                                                                                 
         else:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, work=0.7, transport=0.7, leisure=1, others=1, school=0)
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, work=0.7, transport=0.7, leisure=1, others=1, school=0)
 
-    def policies_all_work_only(self, t, states, param, eff_work, l1, l2, mentality):
+    def policies_all_work_only(self, t, states, param, eff_work, l1, l2, mentality, k, summer_rescaling_F, summer_rescaling_W):
             '''
             Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
             
@@ -1696,47 +1755,76 @@ class make_contact_matrix_function():
             '''
             t = pd.Timestamp(t.date())
 
+            # Behavioral change model
+            # Moving window of hospital in
+            self.I.append(np.sum(states['H_in']))
+            self.I = self.I[1:]
+            I = np.mean(self.I)
+            T=11e6
+            mentality_behavioral = 1-(1-I/T)**k
+
+            # Protection against dipping below zero
+            if mentality_behavioral > mentality:
+                mentality_behavioral = mentality
+
             # Convert compliance l to dates
             l1_days = pd.Timedelta(l1, unit='D')
             l2_days = pd.Timedelta(l2, unit='D')
 
             if self.G == 11:
+                idx_Hainaut = [6,]
                 idx_Vlaams_Brabant = [1,]
                 idx_Waals_Brabant = [2,]
                 idx_F = [0, 1, 4, 5, 8]
                 idx_Bxl = [3,]
                 idx_W = [2, 6, 7, 9, 10]
-                mentality_summer_2020_lockdown = np.array([1*mentality, 0.75*mentality, # F
-                                                        1, # W
-                                                        1, # Bxl
-                                                        0.75*mentality, 1*mentality, # F
-                                                        1, 1, # W
-                                                        1*mentality, # F
-                                                        1*mentality, 1*mentality]) # W
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                        2,              # W
+                                                        4.11,           # Bxl
+                                                        2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                        4.44, 4,        # W
+                                                        1.5,            # original: 1.11, # F
+                                                        2.22, 2.67])    # W
+
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
             elif self.G == 43:
+                idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
                 idx_Vlaams_Brabant = [4,5]
                 idx_Waals_Brabant = [6,]
-                idx_F = [0, 1, 2,                           # Antwerpen
+                idx_F = [0, 1, 2,                          # Antwerpen
                         4, 5,                              # Vlaams-Brabant
                         7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
                         15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
                         32, 33, 34]                        # Limburg      
-                idx_Bxl = [3,]                              # Brussel                    
-                idx_W = [6,                                 # Waals-Brabant
+                idx_Bxl = [3,]                             # Brussel                    
+                idx_W = [6,                                # Waals-Brabant
                         21, 22, 23, 24, 25, 26, 27,        # Henegouwen
                         28, 29, 30, 31,                    # Luik
                         35, 36, 37, 38, 39,                # Luxemburg
                         40, 41, 42]                        # Namen
-                mentality_summer_2020_lockdown = mentality*np.ones(43)
-                mentality_summer_2020_lockdown[0:3] = mentality
-                mentality_summer_2020_lockdown[3] = mentality
-                mentality_summer_2020_lockdown[4:6] = mentality
-                mentality_summer_2020_lockdown[7:15] = 0.75*mentality
-                mentality_summer_2020_lockdown[15:21] = mentality
-                mentality_summer_2020_lockdown[21:28] = 1
-                mentality_summer_2020_lockdown[28:32] = 1
-                mentality_summer_2020_lockdown[32:35] = 0.25*mentality
-                mentality_summer_2020_lockdown[35:40] = mentality
+
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.ones(43)
+                mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+                mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+                mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+                mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+                mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+                mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+                mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+                mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+                mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+                mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+                mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+                
+                # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
             ################
             ## First wave ##
@@ -1747,78 +1835,709 @@ class make_contact_matrix_function():
             t2 = pd.Timestamp('2020-05-15') # start of relaxation
             t3 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
             t4 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
-            t5 = pd.Timestamp('2020-10-19') # start of lockdown
-            t6 = pd.Timestamp('2020-11-16') # schools re-open
-            t7 = pd.Timestamp('2021-02-21') # Start contact increase children
-            t8 = pd.Timestamp('2021-03-26') # End contact increase children
-            t9 = pd.Timestamp('2021-05-15') # start of relaxations
-            t10 = pd.Timestamp('2021-08-01') # end of easing on mentality
-            t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
-            t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
-            t13 = pd.Timestamp('2022-02-01') # start easing on mentality
+            t5 = pd.Timestamp('2020-09-21') # Universities open
+
+            t6 = pd.Timestamp('2020-10-19') # start of lockdown
+            t7 = pd.Timestamp('2020-11-16') # schools re-open
+            t8 = pd.Timestamp('2021-02-21') # Start contact increase children
+            t9 = pd.Timestamp('2021-03-26') # End contact increase children
+            t10 = pd.Timestamp('2021-05-15') # start of relaxations
+            t11 = pd.Timestamp('2021-08-01') # end of easing on mentality
+            t12 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
+            t13 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
+            t14 = pd.Timestamp('2022-02-01') # start easing on mentality
 
             # Define number of contacts
             if t <= t1:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
             elif t1 < t <= t1 + l1_days:
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1, school=0) 
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t1, l1)
             elif t1 + l1_days < t <= t2:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
             elif t2 < t <= t3:
                 l = (t3 - t2)/pd.Timedelta(days=1)
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
                 return self.ramp_fun(policy_old, policy_new, t, t2, l)
             elif t3 < t <= t4:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=tuple(mentality_summer_2020_lockdown), school=0)
             elif t4 < t <= t5:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)       
 
             ######################
             ## Winter 2020-2021 ##
             ######################
 
-            elif t5  < t <= t5 + l2_days:
+            elif t5 < t <= t6:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+            elif t6  < t <= t6 + l2_days:
                 policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0)
-                return self.ramp_fun(policy_old, policy_new, t, t5, l2)
-            elif t5 + l2_days < t <= t6:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=0.65*mentality, school=0) 
-            elif t6 < t <= t7:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t6, l2)
+            elif t6 + l2_days < t <= t7:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
             elif t7 < t <= t8:
-                mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                mat[idx_F,:,:] *= 1.0
-                mat[idx_Bxl,:,:] *= 1.30
-                mat[idx_W,:,:] *= 1.10
-                mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-                mat[idx_Waals_Brabant,:,:] *= 1/1.20
-                return mat
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
             elif t8 < t <= t9:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0)
+                mat = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                mat[idx_F,:,:] *= 1.0
+                mat[idx_Bxl,:,:] *= 1.40
+                mat[idx_Hainaut,:,:] *= 1.20
+                mat[idx_Vlaams_Brabant,:,:] *= 0.7
+                mat[idx_Waals_Brabant,:,:] *= 0.5
+                return mat
             elif t9 < t <= t10:
-                l = (t10 - t9)/pd.Timedelta(days=1)
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t9, l)
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0)
             elif t10 < t <= t11:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)       
+                l = (t11 - t10)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+                return self.ramp_fun(policy_old, policy_new, t, t10, l)
+            elif t11 < t <= t12:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)       
 
             ######################      
             ## Winter 2021-2022 ##
             ######################      
 
-            elif t11 < t <= t12:
-                l = (t12 - t11)/pd.Timedelta(days=1)
-                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0) 
-                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
-                return self.ramp_fun(policy_old, policy_new, t, t11, l)
             elif t12 < t <= t13:
-                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality, school=0) 
+                l = (t13 - t12)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                return self.ramp_fun(policy_old, policy_new, t, t12, l)
+            elif t13 < t <= t14:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
             else:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)
+
+    def policies_all_manuscript(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, start_relaxation):
+        '''
+        Function that returns the time-dependant social contact matrix Nc for all COVID waves.
+
+        Input
+        -----
+        t : Timestamp
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
+        l1 : float
+            Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
+        l2 : float
+            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+        eff_{location} : float
+            "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
+        k: float
+            Parameter of the behavioral change model, linking number of infections to reduction in contacts.
+            https://www.sciencedirect.com/science/article/pii/S1755436518301063 
+        mentality: float
+
+        Returns
+        -------
+        CM : np.array (9x9)
+            Effective contact matrix (output of __call__ function)
+        '''
+
+        # Behavioral change model
+        # Moving window of hospital in
+        self.I.append(np.sum(states['H_in']))
+        self.I = self.I[1:]
+        I = np.mean(self.I)
+        T=11e6
+        mentality_behavioral = 1-(1-I/T)**k
+
+        # Assumption eff_schools = eff_work
+        eff_schools=eff_work
+
+        t = pd.Timestamp(t.date())
+        # Convert compliance l to dates
+        l1_days = pd.Timedelta(l1, unit='D')
+        l2_days = pd.Timedelta(l2, unit='D')
+
+        # Define key dates of first wave
+        t1 = pd.Timestamp('2020-03-16') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+        t6 = pd.Timestamp('2020-09-01') # end of summer holidays
+        t7 = pd.Timestamp('2020-09-21') # Opening universities
+
+        # Define key dates of winter 2020-2021
+        t8 = pd.Timestamp('2020-10-19') # lockdown (1)
+        t9 = pd.Timestamp('2020-11-02') # lockdown (2)
+        t10 = pd.Timestamp('2020-11-16') # schools re-open
+        t11 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+        t12 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+        t13 = pd.Timestamp('2021-02-15') # Spring break starts
+        t14 = pd.Timestamp('2021-02-21') # Spring break ends
+        
+        start = pd.Timestamp(start_relaxation)
+        t15 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+        t16 = pd.Timestamp('2021-04-18') # End of Easter holiday
+        t17 = pd.Timestamp('2021-07-01') # Start of Summer holidays
+
+        ################
+        ## First wave ##
+        ################
+
+        if t <= t1:
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
+        elif t1 < t <= t1 + l1_days:
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+        elif t1 + l1_days < t <= t2:
+            return self.__call__(t, eff_home=eff_home, eff_schools=eff_schools, eff_work=eff_work, eff_rest=eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t2 < t <= t3:
+            l = (t3 - t2)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+        elif t3 < t <= t4:
+            l = (t4 - t3)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality = 1-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)  
+        elif t4 < t <= t5:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                                          
+        elif t5 < t <= t6:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        ######################      
+        ## Winter 2020-2021 ##
+        ######################
+
+        elif t6 < t <= t7:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)  
+        elif t7 < t <= t8:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1) # Government proclaimed pandemic is over  
+        elif t8  < t <= t8 + l2_days:
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t8, l2)
+        elif t8 + l2_days < t <= t9:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t9 < t <= t10:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t10 < t <= t11:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1) 
+        elif t11 < t <= t12:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t12 < t <= t13:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+        elif t13 < t <= t14:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)    
+
+        if start_relaxation == '2021-03-01':
+            if t14 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= t15:
+                l = (t15 - start)/pd.Timedelta(days=1)
+                r = (t15 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)  
+            elif t15 < t <= t16:
+                l = (t16 - t15)/pd.Timedelta(days=1)
+                r1 = (t15 - start)/pd.Timedelta(days=62)
+                r2 = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r1*(1-mentality)-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r2*(1-mentality)-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t15, l)  
+            elif t16 < t <= start + pd.Timedelta(days=62):
+                l = (start+pd.Timedelta(days=62) - t16)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, t16, l)  
+            elif start + pd.Timedelta(days=62) < t <= t17:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-04-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            elif start < t <= t16:
+                l = (t16-start)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            elif t16 < t <= start + pd.Timedelta(days=62):
+                l = (start + pd.Timedelta(days=62)-t16)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, t16, l)
+            elif start + pd.Timedelta(days=62) < t <= t17:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-05-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= t16:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)  
+            elif t16 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= start + pd.Timedelta(days=62):
+                l = 62
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-06-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= t16:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)  
+            elif t16 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= t17:
+                l = (t17-start)/pd.Timedelta(days=1)
+                r = (t17 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            elif t17 < t <= start + pd.Timedelta(days=62):
+                l = (start + pd.Timedelta(days=62)-t17)/pd.Timedelta(days=1)
+                r = (t17 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t17, l)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+    def policies_all_spatial_manuscript(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W, start_relaxation):
+        '''
+        Function that returns the time-dependant social contact matrix Nc for all COVID waves.
+
+        Input
+        -----
+        t : Timestamp
+            simulation time
+        states : xarray
+            model states
+        param : dict
+            model parameter dictionary
+        l1 : float
+            Compliance parameter for social policies during first lockdown 2020 COVID-19 wave
+        l2 : float
+            Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
+        eff_{location} : float
+            "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
+        mentality : float
+            Lockdown mentality multipier
+
+        Returns
+        -------
+        CM : np.array (9x9)
+            Effective contact matrix (output of __call__ function)
+        '''
+
+        # Assumption eff_schools = eff_work
+        eff_schools=eff_work
+
+        # Behavioral change model
+        # Moving window of hospital in
+        self.I.append(np.sum(states['H_in']))
+        self.I = self.I[1:]
+        I = np.mean(self.I)
+        T=11e6
+        mentality_behavioral = 1-(1-I/T)**k
+
+        # Protection against dipping below zero
+        if mentality_behavioral > mentality:
+            mentality_behavioral = mentality
+
+        t = pd.Timestamp(t.date())
+        # Convert compliance l to dates
+        l1_days = pd.Timedelta(l1, unit='D')
+        l2_days = pd.Timedelta(l2, unit='D')
+
+        # Define key dates of first wave
+        t1 = pd.Timestamp('2020-03-16') # start of lockdown
+        t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
+        t3 = pd.Timestamp('2020-07-01') # start of summer holidays
+        t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+        t6 = pd.Timestamp('2020-09-01') # end of summer holidays
+        t7 = pd.Timestamp('2020-09-21') # Opening universities
+
+        # Define key dates of winter 2020-2021
+        t8 = pd.Timestamp('2020-10-19') # lockdown (1)
+        t9 = pd.Timestamp('2020-11-02') # lockdown (2)
+        t10 = pd.Timestamp('2020-11-16') # schools re-open
+        t11 = pd.Timestamp('2020-12-18') # Christmas holiday starts
+        t12 = pd.Timestamp('2021-01-04') # Christmas holiday ends
+        t13 = pd.Timestamp('2021-02-15') # Spring break starts
+        t14 = pd.Timestamp('2021-02-21') # Spring break ends
+        
+        start = pd.Timestamp(start_relaxation)
+        t15 = pd.Timestamp('2021-03-26') # Start of Easter holiday
+        t16 = pd.Timestamp('2021-04-18') # End of Easter holiday
+        t17 = pd.Timestamp('2021-07-01') # Start of Summer holidays
+
+
+        # Manual tweaking is unafortunately needed to make sure the second 2020 wave is correct
+        # It is better to tweak the summer of 2020, if not, the summer of 2021 needs to be tweaked..
+
+        if self.G == 11:
+            idx_Hainaut = [6,]
+            idx_Vlaams_Brabant = [1,]
+            idx_Waals_Brabant = [2,]
+            idx_F = [0, 1, 4, 5, 8]
+            idx_Bxl = [3,]
+            idx_W = [2, 6, 7, 9, 10]
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                    2,              # W
+                                                    4.11,           # Bxl
+                                                    2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                    4.44, 4,        # W
+                                                    1.5,            # original: 1.11, # F
+                                                    2.22, 2.67])    # W
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
+        elif self.G == 43:
+            idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
+            idx_Vlaams_Brabant = [4,5]
+            idx_Waals_Brabant = [6,]
+            idx_F = [0, 1, 2,                          # Antwerpen
+                    4, 5,                              # Vlaams-Brabant
+                    7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
+                    15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
+                    32, 33, 34]                        # Limburg      
+            idx_Bxl = [3,]                             # Brussel                    
+            idx_W = [6,                                # Waals-Brabant
+                    21, 22, 23, 24, 25, 26, 27,        # Henegouwen
+                    28, 29, 30, 31,                    # Luik
+                    35, 36, 37, 38, 39,                # Luxemburg
+                    40, 41, 42]                        # Namen
+
+            # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+            mentality_summer_2020_lockdown = np.ones(43)
+            mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+            mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+            mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+            mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+            mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+            mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+            mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+            mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+            mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+            mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+            mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+
+            # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+            mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
+        ################
+        ## First wave ##
+        ################
+
+        if t <= t1:
+            return self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1) 
+        elif t1 < t <= t1 + l1_days:
+            policy_old = self.__call__(t, eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, mentality=1-mentality_behavioral, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+        elif t1 + l1_days < t <= t2:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t2 < t <= t3:
+            l = (t3 - t2)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t2, l)            
+        elif t3 < t <= t4:
+            l = (t4 - t3)/pd.Timedelta(days=1)
+            r = (t3 - t2)/(t4 - t2)
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t3, l)  
+        elif t4 < t <= t5:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=tuple(mentality_summer_2020_lockdown), school=0)                                     
+        elif t5 < t <= t6:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)      
+
+        ######################      
+        ## Winter 2020-2021 ##
+        ######################
+
+        elif t6 < t <= t7:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0.7)  
+        elif t7 < t <= t8:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)  
+        elif t8  < t <= t8 + l2_days:
+            policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1, school=1)
+            policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            return self.ramp_fun(policy_old, policy_new, t, t8, l2)
+        elif t8 + l2_days < t <= t9:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t9 < t <= t10:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t10 < t <= t11:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1) 
+        elif t11 < t <= t12:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+        elif t12 < t <= t13:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+        elif t13 < t <= t14:
+            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)    
+
+        if start_relaxation == '2021-03-01':
+            if t14 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= t15:
+                l = (t15 - start)/pd.Timedelta(days=1)
+                r = (t15 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)  
+            elif t15 < t <= t16:
+                l = (t16 - t15)/pd.Timedelta(days=1)
+                r1 = (t15 - start)/pd.Timedelta(days=62)
+                r2 = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r1*(1-mentality)-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r2*(1-mentality)-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t15, l)  
+            elif t16 < t <= start + pd.Timedelta(days=62):
+                l = (start+pd.Timedelta(days=62) - t16)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, t16, l)  
+            elif start + pd.Timedelta(days=62) < t <= t17:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-04-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+            elif start < t <= t16:
+                l = (t16-start)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            elif t16 < t <= start + pd.Timedelta(days=62):
+                l = (start + pd.Timedelta(days=62)-t16)/pd.Timedelta(days=1)
+                r = (t16 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, t16, l)
+            elif start + pd.Timedelta(days=62) < t <= t17:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-05-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= t16:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)  
+            elif t16 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= start + pd.Timedelta(days=62):
+                l = 62
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+        elif start_relaxation == '2021-06-01':
+            if t14 < t <= t15:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif t15 < t <= t16:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)  
+            elif t16 < t <= start:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+            elif start < t <= t17:
+                l = (t17-start)/pd.Timedelta(days=1)
+                r = (t17 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=1)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            elif t17 < t <= start + pd.Timedelta(days=62):
+                l = (start + pd.Timedelta(days=62)-t17)/pd.Timedelta(days=1)
+                r = (t17 - start)/pd.Timedelta(days=62)
+                policy_old = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality + r*(1-mentality)-mentality_behavioral, school=0)
+                policy_new = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t17, l)
+            else:
+                return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=0)
+
+    def policies_all_work_only_manuscript(self, t, states, param, eff_work, l1, l2, mentality, k, summer_rescaling_F, summer_rescaling_W, start_relaxation):
+            '''
+            Function that returns the time-dependant social contact matrix of work contacts (Nc_work). 
+
+            Input
+            -----
+            t : Timestamp
+                simulation time
+            states : xarray
+                model states
+            param : dict
+                model parameter dictionary
+            eff_work : float
+                "Effectivity" of contacts at work. Alternatively, degree correlation between Google mobility indicator for work and SARS-CoV-2 spread at work.
+            mentality : float
+                Lockdown mentality multipier
+
+            Returns
+            -------
+            CM : np.array
+                Effective contact matrix (output of __call__ function)
+            '''
+            t = pd.Timestamp(t.date())
+
+            # Behavioral change model
+            # Moving window of hospital in
+            self.I.append(np.sum(states['H_in']))
+            self.I = self.I[1:]
+            I = np.mean(self.I)
+            T=11e6
+            mentality_behavioral = 1-(1-I/T)**k
+
+            # Protection against dipping below zero
+            if mentality_behavioral > mentality:
+                mentality_behavioral = mentality
+
+            # Convert compliance l to dates
+            l1_days = pd.Timedelta(l1, unit='D')
+            l2_days = pd.Timedelta(l2, unit='D')
+
+            if self.G == 11:
+                idx_Hainaut = [6,]
+                idx_Vlaams_Brabant = [1,]
+                idx_Waals_Brabant = [2,]
+                idx_F = [0, 1, 4, 5, 8]
+                idx_Bxl = [3,]
+                idx_W = [2, 6, 7, 9, 10]
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
+                                                        2,              # W
+                                                        4.11,           # Bxl
+                                                        2.44, 2.44,     # original: 2.89, 2.44, # F
+                                                        4.44, 4,        # W
+                                                        1.5,            # original: 1.11, # F
+                                                        2.22, 2.67])    # W
+
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
+            elif self.G == 43:
+                idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
+                idx_Vlaams_Brabant = [4,5]
+                idx_Waals_Brabant = [6,]
+                idx_F = [0, 1, 2,                          # Antwerpen
+                        4, 5,                              # Vlaams-Brabant
+                        7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
+                        15, 16, 17, 18, 19, 20,            # Oost-Vlaanderen
+                        32, 33, 34]                        # Limburg      
+                idx_Bxl = [3,]                             # Brussel                    
+                idx_W = [6,                                # Waals-Brabant
+                        21, 22, 23, 24, 25, 26, 27,        # Henegouwen
+                        28, 29, 30, 31,                    # Luik
+                        35, 36, 37, 38, 39,                # Luxemburg
+                        40, 41, 42]                        # Namen
+
+                # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
+                mentality_summer_2020_lockdown = np.ones(43)
+                mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
+                mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
+                mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
+                mentality_summer_2020_lockdown[3] = 4.11     # Brussel
+                mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
+                mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
+                mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
+                mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
+                mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
+                mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
+                mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+
+                # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
+                mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
+                mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+                mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
+
+            ################
+            ## First wave ##
+            ################
+
+            # Define key dates 
+            t1 = pd.Timestamp('2020-03-16') # start of lockdown
+            t2 = pd.Timestamp('2020-05-15') # start of relaxation
+            t3 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
+            t4 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+            t5 = pd.Timestamp('2020-09-21') # Universities open
+            t6 = pd.Timestamp('2020-10-19') # start of lockdown
+            t7 = pd.Timestamp('2020-11-16') # schools re-open
+            start = pd.Timestamp(start_relaxation)
+
+            # Define number of contacts
+            if t <= t1:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+            elif t1 < t <= t1 + l1_days:
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=1, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                return self.ramp_fun(policy_old, policy_new, t, t1, l1)
+            elif t1 + l1_days < t <= t2:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+            elif t2 < t <= t3:
+                l = (t3 - t2)/pd.Timedelta(days=1)
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0) 
+                return self.ramp_fun(policy_old, policy_new, t, t2, l)
+            elif t3 < t <= t4:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=tuple(mentality_summer_2020_lockdown), school=0)
+            elif t4 < t <= t5:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)       
+
+            ######################
+            ## Winter 2020-2021 ##
+            ######################
+
+            elif t5 < t <= t6:
                 return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+            elif t6  < t <= t6 + l2_days:
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1, school=0)
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, t6, l2)
+            elif t6 + l2_days < t <= t7:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+            elif t7 < t <= start:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0)
+            elif start < t <= start + pd.Timedelta(days=62):
+                l = 62
+                policy_old = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=mentality-mentality_behavioral, school=0) 
+                policy_new = self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)
+                return self.ramp_fun(policy_old, policy_new, t, start, l)
+            else:
+                return self.__call__(t, eff_home=0, eff_schools=0, eff_work=eff_work, eff_rest=0, mentality=1-mentality_behavioral, school=0)
 
 ##########################
 ## Seasonality function ##
