@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 
-def get_economic_parameters():
+def get_economic_model_parameters():
     """
     Extracts and returns the parameters for the economic model
 
@@ -33,7 +33,7 @@ def get_economic_parameters():
     """
 
     abs_dir = os.path.dirname(__file__)
-    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/model_parameters")
 
     # Initialize parameters dictionary
     pars_dict = {}
@@ -79,7 +79,7 @@ def get_economic_parameters():
 
     return pars_dict
 
-def get_conversion_matrix(from_to):
+def get_sectoral_conversion_matrix(from_to):
     """
     Returns conversion matrices to more easily aggregate data from different sector classifications. F.i. converting from NACE 64 to WIOD 55 classification.
 
@@ -99,7 +99,7 @@ def get_conversion_matrix(from_to):
 
     # Define path to conversion matrices
     abs_dir = os.path.dirname(__file__)
-    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/model_parameters")
 
     # Load dataframe containing matrices
     if from_to == 'NACE21_NACE10':
@@ -116,7 +116,7 @@ def get_conversion_matrix(from_to):
                         "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
                     )
 
-def read_economic_labels(classification_name):
+def get_sector_labels(classification_name):
     """
     Returns the sector labels of the desired classification.
 
@@ -136,7 +136,7 @@ def read_economic_labels(classification_name):
     
      # Define path to conversion matrices
     abs_dir = os.path.dirname(__file__)
-    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+    par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/model_parameters")
 
     # Load dataframe containing matrices
     if classification_name == 'NACE64':
@@ -152,5 +152,5 @@ def read_economic_labels(classification_name):
     else:
         raise ValueError(
                         "conversion matrix '{0}' not recognized \n"
-                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10', 'WIOD55".format(from_to)
+                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10', 'WIOD55"
                     )
