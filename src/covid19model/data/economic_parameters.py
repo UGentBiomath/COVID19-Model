@@ -43,7 +43,7 @@ def get_economic_model_parameters():
     pars_dict['IO'] = df.values/365
 
     # Others.csv
-    df = pd.read_csv(os.path.join(par_interim_path,"others.csv"), sep=',',header=[1],index_col=[0])
+    df = pd.read_csv(os.path.join(par_interim_path,"other_parameters.csv"), sep=',',header=[1],index_col=[0])
     pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
     pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
     pars_dict['l_0'] = np.array(df['Labor compensation (M€/y)'].values)/365
