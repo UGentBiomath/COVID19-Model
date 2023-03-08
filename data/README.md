@@ -188,9 +188,9 @@ All economic data from the data/raw/economical was converted using the script `n
 
 ##### Calibration data
 
-+ `ERMG_temporary_unemployment.xlsx` contains the percentage temporary unemployed during the pandemic in different sectors. Data for 'Consultancy/Engineering services' assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' assigned to NACE 80-82. 'Retail sales (food)', 'Retail sales (non-food)' and 'Wholesale' assigned to NACE 46-47.
++ `ERMG_temporary_unemployment.xlsx` contains the percentage temporary unemployed during the pandemic in different sectors. Data were converted in MS Excel from tab `Organisation of employees` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
 
-+ `ERMG_revenue.xlsx`
++ `ERMG_revenue.xlsx` contains the self-reported revenue decline during the pandemic in different sectors. Data were converted in MS Excel from tab `Revenue impact current week` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
 
 #### mobility
 
