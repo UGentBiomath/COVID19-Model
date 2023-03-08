@@ -177,13 +177,20 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 #### Economic data
 
+##### Model parameters
+
 All economic data from the data/raw/economical was converted using the script `notebooks/preprocessing/extract-economic-data.py`. Missing raw datasets are downloaded automatically, except for those of the Belgian National Bank.
 
 + `conversion_matrices.xlsx` contains conversion matrices to more easily aggregate data from different sector classifications. F.i. converting from NACE 64 to WIOD 55 classification.
-+ `census2011_NACE21.csv` contains per Belgian arrondissement (43 in total) the number of employees in every sector of the NACE 21 classification.
-+ `others.csv` contains the sectoral output during business-as-usual, household demand during business-as-usual, other final demand during business-as-usual, the desired stock, consumer demand shock, other demand shock, sectoral employees during business-as-usual and sectoral employees under lockdown. Data from various sources. NACE 64 classification.
++ `other_parameters.csv` contains the sectoral output during business-as-usual, household demand during business-as-usual, other final demand during business-as-usual, the desired stock, consumer demand shock, other demand shock, sectoral employees during business-as-usual and sectoral employees under lockdown. Data from various sources. NACE 64 classification.
 + `IO_NACE64.csv` contains the input-output table for Belgium, formatted to NACE 64 classification.
 + `IHS_critical_NACE64.csv` contains the IHS Market Analysts data, reformatted from WIOD 55 to the NACE 64 classification.
+
+##### Calibration data
+
++ `ERMG_temporary_unemployment.xlsx` contains the percentage temporary unemployed during the pandemic in different sectors. Data for 'Consultancy/Engineering services' assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' assigned to NACE 80-82. 'Retail sales (food)', 'Retail sales (non-food)' and 'Wholesale' assigned to NACE 46-47.
+
++ `ERMG_revenue.xlsx`
 
 #### mobility
 
