@@ -44,7 +44,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                                                     make_seasonality_function, \
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-    from covid19model.data import mobility, sciensano, model_parameters
+    from covid19model.data import mobility, sciensano, SARS_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
 
     #########################
@@ -52,10 +52,10 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     #########################
 
     # Interaction matricesm model parameters, samples dictionary
-    Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes)
+    Nc_dict, params, samples_dict, initN = SARS_parameters.get_model_parameters(age_classes=age_classes)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
-    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
+    VOC_params, vaccine_params, params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -194,7 +194,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                                                     make_seasonality_function, \
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-    from covid19model.data import mobility, sciensano, model_parameters
+    from covid19model.data import mobility, sciensano, SARS_parameters
     from covid19model.data.utils import convert_age_stratified_quantity
 
     #########################
@@ -202,10 +202,10 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #########################
 
     # Population size, interaction matrices and the model parameters
-    Nc_dict, params, samples_dict, initN = model_parameters.get_COVID19_SEIQRD_parameters(age_classes=age_classes, agg=agg)
+    Nc_dict, params, samples_dict, initN = SARS_parameters.get_model_parameters(age_classes=age_classes, agg=agg)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
-    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
+    VOC_params, vaccine_params, params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Using the weekly vaccination data
     df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data, agg=agg)
     # Proximus mobility data
@@ -974,7 +974,7 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1, age_stratification_si
         The initial state with 11, 43 or 581 rows and 9 columns, representing the initial age and spatial distribution of people in a particular SEIR compartment.
     """
     
-    from covid19model.data.model_parameters import construct_initN
+    from covid19model.data.SARS_parameters import construct_initN
     
     # Raise exceptions if input is wrong
     if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data', 'frac']):

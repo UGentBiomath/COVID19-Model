@@ -19,8 +19,7 @@ import pandas as pd
 import ujson as json
 import matplotlib.pyplot as plt
 from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters
-from covid19model.optimization import pso, objective_fcns
+from covid19model.data import mobility, sciensano, SARS_parameters
 from covid19model.models.time_dependant_parameter_fncs import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 
@@ -33,7 +32,7 @@ job = 'FULL'
 # ---------
 
 # Contact matrices
-initN, Nc_all = model_parameters.get_integrated_willem2012_interaction_matrices()
+initN, Nc_all = SARS_parameters.get_integrated_willem2012_interaction_matrices()
 levels = initN.size
 # Sciensano public data
 df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
@@ -65,7 +64,7 @@ def compliance_func(t, states, param, l, effectivity):
 # --------------------
 
 # Load the model parameters dictionary
-params = model_parameters.get_COVID19_SEIRD_parameters(VOC=False, vaccination=False)
+params = SARS_parameters.get_model_parameters(VOC=False, vaccination=False)
 # Add the time-dependant parameter function arguments
 params.update({'l': 15, 'effectivity' : 0.5})
 # Define initial states
@@ -73,12 +72,6 @@ initial_states = {"S": initN, "E": np.ones(9), "I": np.ones(9)}
 # Initialize model
 model = models.COVID19_SEIRD(initial_states, params,
                         time_dependent_parameters={'Nc': compliance_func})
-
-# -----------------------
-# Define helper functions
-# -----------------------
-
-from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 
 # ---------------------------
 # Define calibration settings

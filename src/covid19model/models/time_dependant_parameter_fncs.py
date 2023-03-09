@@ -1004,7 +1004,7 @@ class make_vaccination_efficacy_function():
     
     @staticmethod
     def format_vaccine_params(df):
-        """ This function format the vaccine parameters provided by the user in function `covid19model.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
+        """ This function format the vaccine parameters provided by the user in function `covid19model.data.SARS_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
 
         ###################
         ## e_s, e_i, e_h ##

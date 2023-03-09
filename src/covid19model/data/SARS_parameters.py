@@ -6,7 +6,6 @@ from scipy.optimize import minimize
 from covid19model.models.utils import load_samples_dict
 from covid19model.data.utils import construct_initN, convert_age_stratified_property
 
-
 def get_interaction_matrices(dataset='willem_2012', wave=1, intensity='all', age_path='0_12_18_25_35_45_55_65_75_85/'):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
     Extracts and returns demographic data for Belgium (2020).
@@ -197,8 +196,8 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
     return Nc_dict
 
 
-def get_COVID19_SEIQRD_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left'),
-                                  agg=None):
+def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left'),
+                         agg=None):
     """
     Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
 
