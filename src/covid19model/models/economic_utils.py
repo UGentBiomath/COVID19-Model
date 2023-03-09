@@ -45,7 +45,7 @@ def calc_input_restriction(S_t,A,C):
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
     for i in range(A.shape[0]):
-        x_t[i] = np.nanmin(S_t[np.where(C[i,:] == 1),i]/A[np.where(C[i,:] == 1),i])
+        x_t[i] = np.nanmin(S_t[np.where(C[:,i] == 1),i]/A[np.where(C[:,i] == 1),i])
         if np.isnan(x_t[i]): # Q for Koen Schoors: sectors with no input dependencies, is this realistic?
             x_t[i]=np.inf
     return x_t
