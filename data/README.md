@@ -21,6 +21,7 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 + `WoW Growths.xlsx` Contains on the datasheet `SECTORAL_WOW_GROWTHS` the week-over-week growth rate of B2B demand (or consumption) per NACE 21 sector (sectors A-U) from 2008 to 2021. Obtained by prof. Koen Schoors from an (to us) anonymuous bank.
 + `playing with shifts.xlsx` Contains the growth rate of B2B demand (or consumption) in number of weeks relative to the start of the second 2020 quarter. Here, -24 weeks means 24 weeks before the start of 2020Q2. This datasheet is a smoothed variant of the data in `WoW Growths.xlsx` using several filters. The data were made by Feliciaan De Palmenaer(feliciaan.depalmenaer@ugent.be or feliciaan.de.palmenaer@vub.be). Raw data obtained by prof. Koen Schoors from an (to us) anonymuous bank.
 + `ermg-tables.xlsx` Ecomical Risk Management Group (ERMG) business survey indicators. Series of surveys conducted by the ERMG to assess the economic impact of COVID-19. Retrieved from https://www.nbb.be/nl/ermg-enquetes 
++ `NBB_synthetic_GDP.xls` Synthetic GDP for different sectors, from 2020M2 until 2021M12. Retrieved from NBB stat.
 
 #### GIS
 
@@ -191,6 +192,8 @@ All economic data from the data/raw/economical was converted using the script `n
 + `ERMG_temporary_unemployment.xlsx` contains the percentage temporary unemployed during the pandemic in different sectors. Data were converted in MS Excel from tab `Organisation of employees` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
 
 + `ERMG_revenue.xlsx` contains the self-reported revenue decline during the pandemic in different sectors. Data were converted in MS Excel from tab `Revenue impact current week` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
+
++ `NBB_synthetic_GDP.xlsx` contains the synthetic GDP curves for some NACE 64 sectors. Data converted in MS Excel from `data/raw/economical/NBB_synthetic_GDP.xlsx`.
 
 #### mobility
 
