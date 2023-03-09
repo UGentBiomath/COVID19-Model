@@ -190,10 +190,10 @@ All economic data from the data/raw/economical was converted using the script `n
 ##### Calibration data
 
 + `ERMG_temporary_unemployment.xlsx` contains the percentage temporary unemployed during the pandemic in different sectors. Data were converted in MS Excel from tab `Organisation of employees` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
-
 + `ERMG_revenue.xlsx` contains the self-reported revenue decline during the pandemic in different sectors. Data were converted in MS Excel from tab `Revenue impact current week` in `/data/raw/economical/ermg-tables.xlsx`. Data for 'Consultancy/Engineering services' averaged and assigned to NACE 69-70. 'Liberal professions' and 'Cleaning and security services' averaged and assigned to NACE 80-82. 'Retail sales (food)'and 'Retail sales (non-food)' averaged and assigned to NACE 47.
-
 + `NBB_synthetic_GDP.xlsx` contains the synthetic GDP curves for some NACE 64 sectors. Data converted in MS Excel from `data/raw/economical/NBB_synthetic_GDP.xlsx`.
++ `WoW Growths.xlsx` Contains on the datasheet `SECTORAL_GROWTHS_ABS` the absolute B2B demand per NACE 21 sector from 2008 to 2021. Contains on the datasheet `SECTORAL_GROWTHS_REL` the relative B2B demand per NACE 21 sector from 2008 to 2021, as compared per year/week with the average B2B demand of the three previous years. Contains on the datasheet `SECTORAL_GROWTHS_REL_100` the relative B2B demand per NACE 21 sector from 2008 to 2021, as compared per year/week with the average B2B demand of the three previous years. But, all values are normalised with the average of the first three observations in `SECTORAL_GROWTHS_REL` to make sure all timeseries start around 100%. Converted in MS Excel starting from the dataset of the same name in the raw data folder.
+
 
 #### mobility
 
