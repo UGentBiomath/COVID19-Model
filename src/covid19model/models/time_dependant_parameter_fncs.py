@@ -2598,10 +2598,13 @@ def household_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t
     epsilon_D : np.array
         sectoral household demand shock
     """
+    l = 10 # days
 
     if t < t_start_lockdown:
         return param
-    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
+        return ramp_fun(np.zeros(len(c_s)), c_s, t, t_start_lockdown, l)
+    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
         return c_s
     elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
         epsilon = c_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown)/(t_end_pandemic-t_end_lockdown))
@@ -2635,9 +2638,13 @@ def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
         reduction in labor force
         
     """
+    l = 10 # days
+
     if t < t_start_lockdown:
         return param
-    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
+        return ramp_fun(np.zeros(len(l_s)), l_s, t, t_start_lockdown, l)
+    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
         return l_s
     else:
         return param
@@ -2668,12 +2675,18 @@ def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end
     epsilon_F : np.array
         exogeneous demand shock
     """
+
+    l = 10 # days
+
     if t < t_start_lockdown:
         return param
-    elif ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
+        return ramp_fun(np.zeros(len(f_s)), f_s, t, t_start_lockdown, l)
+    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
         return f_s
     else:
         return param
+
 
 def compute_income_expectations(t, states, param, t_start_lockdown, t_end_lockdown, l_0, l_start_lockdown, rho, L):
     """
