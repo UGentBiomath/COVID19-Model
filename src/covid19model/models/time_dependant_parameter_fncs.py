@@ -2598,7 +2598,7 @@ def household_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t
     epsilon_D : np.array
         sectoral household demand shock
     """
-    l = 10 # days
+    l = 7 # days
 
     if t < t_start_lockdown:
         return param
@@ -2638,14 +2638,17 @@ def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
         reduction in labor force
         
     """
-    l = 10 # days
+    l1 = 7 # days
+    l2 = 28 # days
 
     if t < t_start_lockdown:
         return param
-    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
-        return ramp_fun(np.zeros(len(l_s)), l_s, t, t_start_lockdown, l)
-    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
+    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l1))):
+        return ramp_fun(param, l_s, t, t_start_lockdown, l1)
+    elif ((t >= t_start_lockdown + pd.Timedelta(days=l1)) & (t < t_end_lockdown)):
         return l_s
+    elif ((t >= t_end_lockdown) & (t < t_end_lockdown + pd.Timedelta(days=l2))):
+        return ramp_fun(l_s, param, t, t_end_lockdown, l2)
     else:
         return param
 
@@ -2676,7 +2679,7 @@ def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end
         exogeneous demand shock
     """
 
-    l = 10 # days
+    l = 7 # days
 
     if t < t_start_lockdown:
         return param
@@ -2684,6 +2687,9 @@ def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end
         return ramp_fun(np.zeros(len(f_s)), f_s, t, t_start_lockdown, l)
     elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
         return f_s
+    elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
+        epsilon = f_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown)/(t_end_pandemic-t_end_lockdown))
+        return epsilon
     else:
         return param
 
