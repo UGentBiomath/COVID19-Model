@@ -26,13 +26,13 @@ def get_revenue_survey():
     df = df.stack()
     # Assign a name to the index levels
     df.index = df.index.rename(['NACE64', 'date'])
-    # By convention date as first index level
-    df = df.swaplevel()
     # Reconstruct multiindex
-    new_index = pd.MultiIndex.from_product([df.index.get_level_values('date').unique(), df.index.get_level_values('NACE64').unique()], names=('date','NACE64'))
+    new_index = pd.MultiIndex.from_product([df.index.get_level_values('NACE64').unique(), df.index.get_level_values('date').unique()], names=('NACE64','date'))
     df = pd.Series(df.values, index=new_index, name='revenue_decline')
     # Convert to percentage reductions
     df = (100+df)/100
+    df = df.swaplevel()
+    df = df.groupby(by=['date', 'NACE64']).sum()
 
     return df
 
