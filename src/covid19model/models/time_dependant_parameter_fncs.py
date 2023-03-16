@@ -2570,7 +2570,7 @@ class make_seasonality_function():
 ## Economic model ##
 ####################
 
-def household_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end_pandemic, c_s, on_site):
+def household_demand_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_1, t_end_relax_1, t_start_lockdown_2, t_end_lockdown_2, t_end_relax_2, c_s_1, c_s_2, on_site):
     """
     A time-dependent function to return the household demand shock.
 
@@ -2600,22 +2600,43 @@ def household_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t
     """
     l = 7 # days
 
-    if t < t_start_lockdown:
-        return param
-    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
-        return ramp_fun(np.zeros(len(c_s)), c_s, t, t_start_lockdown, l)
-    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
-        return c_s
-    elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
-        epsilon = c_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown)/(t_end_pandemic-t_end_lockdown))
+    # Before first lockdown
+    if t < t_start_lockdown_1:
+        return np.zeros(len(c_s_1))
+
+    # First lockdown    
+    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l))):
+        return ramp_fun(np.zeros(len(c_s_1)), c_s_1, t, t_start_lockdown_1, l)
+    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l)) & (t < t_end_lockdown_1)):
+        return c_s_1
+
+    # Lockdown relaxation
+    elif ((t >= t_end_lockdown_1) & (t < t_end_relax_1)):
+        epsilon = c_s_2 + (c_s_1-c_s_2)/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_relax_1-t_end_lockdown_1))
+        epsilon[np.where(on_site == 0)] = 0
+        return epsilon
+
+    # Summer 2020
+    elif ((t >= t_end_relax_1) & (t < t_start_lockdown_2)):
+        return c_s_2
+
+    # Second lockdown
+    elif ((t >= t_start_lockdown_2) & (t < t_start_lockdown_2 + pd.Timedelta(days=l))):
+        return ramp_fun(c_s_2*np.ones(len(c_s_1)), c_s_1, t, t_start_lockdown_2, l)
+    elif ((t >= t_start_lockdown_2 + pd.Timedelta(days=l)) & (t < t_end_lockdown_2)):
+        return c_s_1
+
+    # After second lockdown
+    elif ((t >= t_end_lockdown_2) & (t < t_end_relax_2)):
+        epsilon = c_s_1/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_2)/(t_end_relax_2-t_end_lockdown_2))
         epsilon[np.where(on_site == 0)] = 0
         return epsilon
     else:
-        return param
+        return np.zeros(len(c_s_1))
 
-def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
+def labor_supply_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_1, l_s):
     """
-    A function returning the labor reduction due to lockdown measures.
+    A function returning the labor reduction due to lockdown measures during the first COVID-19 lockdown.
 
     Parameters
     ----------
@@ -2641,20 +2662,20 @@ def labor_supply_shock(t, states, param, t_start_lockdown, t_end_lockdown, l_s):
     l1 = 7 # days
     l2 = 28 # days
 
-    if t < t_start_lockdown:
+    if t < t_start_lockdown_1:
         return param
-    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l1))):
-        return ramp_fun(param, l_s, t, t_start_lockdown, l1)
-    elif ((t >= t_start_lockdown + pd.Timedelta(days=l1)) & (t < t_end_lockdown)):
+    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l1))):
+        return ramp_fun(param, l_s, t, t_start_lockdown_1, l1)
+    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l1)) & (t < t_end_lockdown_1)):
         return l_s
-    elif ((t >= t_end_lockdown) & (t < t_end_lockdown + pd.Timedelta(days=l2))):
-        return ramp_fun(l_s, param, t, t_end_lockdown, l2)
+    elif ((t >= t_end_lockdown_1) & (t < t_end_lockdown_1 + pd.Timedelta(days=l2))):
+        return ramp_fun(l_s, param, t, t_end_lockdown_1, l2)
     else:
         return param
 
-def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end_pandemic, f_s):
+def other_demand_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_1, t_end_relax_1, t_start_lockdown_2, t_end_lockdown_2, t_end_relax_2, f_s_1, f_s_2):
     """
-    A time-dependent function to return the exogeneous demand shock.
+    A time-dependent function to return the exogeneous demand shock during the 2021-2021 COVID-19 pandemic.
 
     Parameters
     ----------
@@ -2681,20 +2702,33 @@ def other_demand_shock(t, states, param, t_start_lockdown, t_end_lockdown, t_end
 
     l = 7 # days
 
-    if t < t_start_lockdown:
-        return param
-    elif ((t >= t_start_lockdown) & (t < t_start_lockdown + pd.Timedelta(days=l))):
-        return ramp_fun(np.zeros(len(f_s)), f_s, t, t_start_lockdown, l)
-    elif ((t >= t_start_lockdown + pd.Timedelta(days=l)) & (t < t_end_lockdown)):
-        return f_s
-    elif ((t >= t_end_lockdown) & (t < t_end_pandemic)):
-        epsilon = f_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown)/(t_end_pandemic-t_end_lockdown))
-        return epsilon
+    # Before first lockdown
+    if t < t_start_lockdown_1:
+        return np.zeros(len(f_s_1))
+
+    # First lockdown
+    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l))):
+        return ramp_fun(np.zeros(len(f_s_1)), f_s_1, t, t_start_lockdown_1, l)
+    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l)) & (t < t_end_lockdown_1)):
+        return f_s_1
+
+    # Lockdown relaxation
+    elif ((t >= t_end_lockdown_1) & (t < t_end_relax_1)):
+        return f_s_2 + (f_s_1-f_s_2)/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_relax_1-t_end_lockdown_1))
+
+    # Summer 2020
+    elif ((t >= t_end_relax_1) & (t < t_start_lockdown_2)):
+        return f_s_2
+
+    # After second lockdown
+    elif ((t >= t_start_lockdown_2) & (t < t_end_relax_2)):
+        return f_s_2/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_2)/(t_end_relax_2-t_start_lockdown_2))
+   
     else:
-        return param
+        return np.zeros(len(f_s_2))
 
 
-def compute_income_expectations(t, states, param, t_start_lockdown, t_end_lockdown, l_0, l_start_lockdown, rho, L):
+def compute_income_expectations(t, states, param, t_start_lockdown_1, t_end_lockdown_1, l_0, l_start_lockdown, rho, L):
     """
     A function to return the expected retained income in the long term of households.
 
@@ -2725,15 +2759,15 @@ def compute_income_expectations(t, states, param, t_start_lockdown, t_end_lockdo
         fraction (0-1) of pre-pandemic income households expect to retain in the long run
     """
 
-    if t < t_start_lockdown:
+    if t < t_start_lockdown_1:
         zeta = 1
     else:
         zeta_L = 1 - 0.5*(sum(l_0)-l_start_lockdown)/sum(l_0)
-        if ((t >= t_start_lockdown) & (t < t_end_lockdown)):
+        if ((t >= t_start_lockdown_1) & (t < t_end_lockdown_1)):
             zeta = zeta_L
         else:
             # first order system
-            zeta = zeta_L + (1 - np.exp(-(1-rho)*(t-t_end_lockdown).days))*(1-zeta_L)*L
+            zeta = zeta_L + (1 - np.exp(-(1-rho)*(t-t_end_lockdown_1).days))*(1-zeta_L)*L
     return zeta
 
 def government_furloughing(t, states, param, t_start_compensation, t_end_compensation, b_s):

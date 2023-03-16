@@ -165,8 +165,10 @@ def get_model_parameters():
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.csv"), sep=',',header=[1],index_col=[0])
     pars_dict['l_s'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/demand_shock.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
-    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
+    pars_dict['c_s_1'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['c_s_2'] = -np.array(df['Consumer demand shock (%)'].values)/100/2
+    pars_dict['f_s_1'] = -np.array(df['Other demand shock (%)'].values)/100
+    pars_dict['f_s_2'] = -np.array(df['Other demand shock (%)'].values)/100/2
 
     # IHS_critical_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/IHS_critical_NACE64.csv"), sep=',',header=[0],index_col=[0])
