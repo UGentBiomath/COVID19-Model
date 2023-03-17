@@ -186,13 +186,16 @@ def get_model_parameters():
     # shock vectors
     # ~~~~~~~~~~~~~
 
-    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.csv"), sep=',',header=[1],index_col=[0])
-    pars_dict['l_s'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
+    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_1',header=[1],index_col=[0])
+    pars_dict['l_s_1'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
+    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_2',header=[1],index_col=[0])
+    pars_dict['l_s_2'] = 1-np.array((df['telework'].values+df['workplace'].values+df['sick_leave'].values)/100)
+    pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] < 0, 0, pars_dict['l_s_2'])
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/demand_shock.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['c_s_1'] = -np.array(df['Consumer demand shock (%)'].values)/100
-    pars_dict['c_s_2'] = -np.array(df['Consumer demand shock (%)'].values)/100
-    pars_dict['f_s_1'] = -np.array(df['Other demand shock (%)'].values)/100
-    pars_dict['f_s_2'] = -np.array(df['Other demand shock (%)'].values)/100
+    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['ratio_c_s'] = 0.5
+    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
+    pars_dict['ratio_f_s'] = 0.5
 
     # Critical inputs
     # ~~~~~~~~~~~~~~~
@@ -223,7 +226,7 @@ def get_model_parameters():
     pars_dict.update({'rho': 1-(1-0.60)/90,          
                       'delta_S': 0.5,                                                  
                       'L': 0.5,                                                        
-                      'l_start_lockdown': sum((1-pars_dict['l_s'])*pars_dict['l_0']),                                                    
+                      'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 10,                                                       
                       'gamma_F': 7,                                               
                       'gamma_H': 28})                     
@@ -237,12 +240,12 @@ def get_model_parameters():
     t_end_relax_1 = pd.Timestamp('2020-07-15')
     # Key dates lockdown 2
     t_start_lockdown_2 = pd.Timestamp('2020-10-19')
-    t_end_lockdown_2 = pd.Timestamp('2021-01-01')
+    t_end_lockdown_2 = pd.Timestamp('2020-12-01')
     t_end_relax_2 = pd.Timestamp('2021-06-01')
 
-    pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s'].shape[0]]),
-                      'epsilon_D': np.zeros([pars_dict['l_s'].shape[0]]),
-                      'epsilon_F': np.zeros([pars_dict['l_s'].shape[0]]),
+    pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
+                      'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
+                      'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'b': 1,
                       'b_s': 1,
                       'zeta': 1,
