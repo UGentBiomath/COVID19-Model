@@ -460,9 +460,9 @@ class Economic_Model(ODEModel):
 
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
     parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
-    parameter_stratified_names = ['epsilon_S','epsilon_D','epsilon_F']
-    dimension_names = ['NACE64']
-    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64']]
+    parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
+    dimension_names = ['NACE64', 'NACE64_star']
+    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
 
     @staticmethod
 

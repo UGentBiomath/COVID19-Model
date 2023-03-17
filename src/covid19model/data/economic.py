@@ -127,7 +127,8 @@ def get_model_parameters():
         contains the values of all economic parameters
 
         Parameters
-        ------------
+        ----------
+
         IO: input-output matrix
         x_0 : sectoral output during business-as-usual
         c_0 : household demand during business-as-usual
@@ -138,20 +139,41 @@ def get_model_parameters():
         l_0 : sectoral employees during business-as-usual
         l_s : sectoral employees during lockdown
         C : matrix of crictical inputs
+        rho: Economic recovery time (0.6 quarters); influences income expectations of households
+        delta_S: Household savings rate (delta_S = 1; households save all money they are not spending due to shock)
+        L: Fraction of population believing in L-shaped economic recovery
+        l_start_lockdown: Labor income before lockdown
+        tau: Restock rate(days)
+        gamma_F: Firing rate (days) 
+        gamma_H: Hiring rate (days)
+
+        Time-dependent parameters
+        -------------------------
+
+        zeta: Household income expectations
+        epsilon_S: Labor supply shock vector 
+        epsilon_D: Household demand shock vector
+        epsilon_F: Exogeneous demand shock vector
+        b: Fraction of compensated prepandemic labor income (actual parameter in model)
+        b_s: Fraction of compensated prepandemic labor income (value under lockdown; used in TDPF of `b`)
+        start_compensation: Start of government furloughing program
+        end_compensation: End of government furloughing program
 
     Example use
     -----------
-    parameters = get_economic_model_parameters()
+    parameters = get_model_parameters()
     """
 
     # Initialize parameters dictionary
     pars_dict = {}
 
+    # Input-Ouput matrix
+    # ~~~~~~~~~~~~~~~~~~
+
     # IO_NACE64.csv
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/IO_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['IO'] = df.values/365
-
-    # Others.csv
+    # others.csv
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[1],index_col=[0])
     pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
     pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
@@ -162,15 +184,19 @@ def get_model_parameters():
     pars_dict['on_site'] = np.array(df['On-site consumption (-)'].values)
     
     # shock vectors
+    # ~~~~~~~~~~~~~
+
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.csv"), sep=',',header=[1],index_col=[0])
     pars_dict['l_s'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/demand_shock.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['c_s_1'] = -np.array(df['Consumer demand shock (%)'].values)/100
-    pars_dict['c_s_2'] = -np.array(df['Consumer demand shock (%)'].values)/100/2
+    pars_dict['c_s_2'] = -np.array(df['Consumer demand shock (%)'].values)/100
     pars_dict['f_s_1'] = -np.array(df['Other demand shock (%)'].values)/100
-    pars_dict['f_s_2'] = -np.array(df['Other demand shock (%)'].values)/100/2
+    pars_dict['f_s_2'] = -np.array(df['Other demand shock (%)'].values)/100
 
-    # IHS_critical_NACE64.csv
+    # Critical inputs
+    # ~~~~~~~~~~~~~~~
+
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/IHS_critical_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['C'] = df.values
 
@@ -191,6 +217,44 @@ def get_model_parameters():
             S_0[i,j] = pars_dict['IO'][i,j]*pars_dict['n'][j]
     pars_dict['S_0'] = S_0
 
+    # Hardcoded model parameters
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    pars_dict.update({'rho': 1-(1-0.60)/90,          
+                      'delta_S': 0.5,                                                  
+                      'L': 0.5,                                                        
+                      'l_start_lockdown': sum((1-pars_dict['l_s'])*pars_dict['l_0']),                                                    
+                      'tau': 10,                                                       
+                      'gamma_F': 7,                                               
+                      'gamma_H': 28})                     
+
+    # Time-dependent model parameters
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # Key dates lockdown 1
+    t_start_lockdown_1 = pd.Timestamp('2020-03-15')
+    t_end_lockdown_1 = pd.Timestamp('2020-05-01')
+    t_end_relax_1 = pd.Timestamp('2020-07-15')
+    # Key dates lockdown 2
+    t_start_lockdown_2 = pd.Timestamp('2020-10-19')
+    t_end_lockdown_2 = pd.Timestamp('2021-01-01')
+    t_end_relax_2 = pd.Timestamp('2021-06-01')
+
+    pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s'].shape[0]]),
+                      'epsilon_D': np.zeros([pars_dict['l_s'].shape[0]]),
+                      'epsilon_F': np.zeros([pars_dict['l_s'].shape[0]]),
+                      'b': 1,
+                      'b_s': 1,
+                      'zeta': 1,
+                      't_start_lockdown_1': t_start_lockdown_1,
+                      't_end_lockdown_1': t_end_lockdown_1,
+                      't_end_relax_1': t_end_relax_1,
+                      't_start_lockdown_2': t_start_lockdown_2,
+                      't_end_lockdown_2': t_end_lockdown_2,
+                      't_end_relax_2': t_end_relax_2,
+                      't_start_compensation': t_start_lockdown_1,
+                      't_end_compensation': t_end_relax_2})
+   
     return pars_dict
 
 def get_sectoral_conversion_matrix(from_to):
