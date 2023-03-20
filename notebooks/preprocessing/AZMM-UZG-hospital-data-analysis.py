@@ -21,7 +21,7 @@ from datetime import timedelta
 # -------------------------------------------------
 
 abs_dir = os.getcwd()
-rel_dir = os.path.join(abs_dir, '../../data/raw/hospital/UZGent_full.xlsx')
+rel_dir = os.path.join(abs_dir, '../../data/covid19_DTM/raw/hospital/UZGent_full.xlsx')
 df = pd.read_excel(rel_dir, sheet_name="Sheet1")
 
 def isnat(your_datetime):
@@ -107,7 +107,7 @@ d_C_to_ICU = UZG_df[(UZG_df.stay_type == 'ICU')].dC.mean()
 
 import os
 abs_dir = os.getcwd()
-rel_dir = os.path.join(abs_dir, '../../data/raw/hospital/AZmariaMiddelares.xlsx')
+rel_dir = os.path.join(abs_dir, '../../data/covid19_DTM/raw/hospital/AZmariaMiddelares.xlsx')
 df = pd.read_excel(rel_dir, sheet_name="Sheet1")
 
 patients_dict={}
@@ -315,17 +315,17 @@ hospital_parameters['sample_size'] = hospital_parameters_age.sample_size.sum()
 hospital_parameters_age = pd.concat([hospital_parameters_age, hospital_parameters])
 
 # ----------------------------------------------------------------
-# Write age-stratified parameters to data/interim/model_parameters
+# Write age-stratified parameters to data/covid19_DTM/interim/model_parameters
 # ----------------------------------------------------------------
 
-hospital_parameters_age.to_csv('../../data/interim/model_parameters/COVID19_SEIRD/AZMM_UZG_hospital_parameters.csv')
+hospital_parameters_age.to_csv('../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/AZMM_UZG_hospital_parameters.csv')
 
 # ---------------------------------------------
-# Write formatted data to data/interim/hospital
+# Write formatted data to data/covid19_DTM/interim/hospital
 # ---------------------------------------------
 
 # Create a Pandas Excel writer using XlsxWriter as the engine.
-writer = pd.ExcelWriter('../../data/interim/hospital/twallema_AZMM_UZG.xlsx')
+writer = pd.ExcelWriter('../../data/covid19_DTM/interim/hospital/twallema_AZMM_UZG.xlsx')
 # Write each dataframe to a different worksheet.
 total_df.to_excel(writer,index=False)
 # Close the Pandas Excel writer and output the Excel file.

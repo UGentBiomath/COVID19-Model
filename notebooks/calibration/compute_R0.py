@@ -4,7 +4,7 @@ This script computes and visualises the R0 for WAVE1
 Arguments:
 ----------
 -f:
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
+    Filename of samples dictionary to be loaded. Default location is ~/data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 
 Example use:
 ------------
@@ -24,7 +24,7 @@ import corner
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from covid19model.data import mobility, sciensano, model_parameters
+from covid19_DTM.data import mobility, sciensano, model_parameters
 
 # -----------------------
 # Handle script arguments
@@ -38,7 +38,7 @@ args = parser.parse_args()
 # Load samples dictionary
 # -----------------------
 
-samples_dict = json.load(open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
+samples_dict = json.load(open('../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/'+str(args.filename)))
 
 # --------------------
 # Load additional data

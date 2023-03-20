@@ -94,4 +94,4 @@ plt.show()
 ## Save resulting dataframe ##
 ##############################
 
-df.to_csv('../../data/interim/sciensano/sciensano_detailed_mortality.csv')
+df.to_csv('../../data/covid19_DTM/interim/sciensano/sciensano_detailed_mortality.csv')

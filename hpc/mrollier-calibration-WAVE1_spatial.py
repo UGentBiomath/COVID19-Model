@@ -49,7 +49,7 @@ from covid19model.models import models
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.models.TDPF import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.models.utils import initial_state
@@ -185,7 +185,7 @@ proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobil
 # This directory is split up further into autocorrelation, traceplots
 fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+samples_path = f'../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
 # Path where samples backend should be stored
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
@@ -211,7 +211,7 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # ------------------------------------------------------
 
 # Load both classes
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, make_mobility_update_function
+from covid19model.models.TDPF import make_contact_matrix_function, make_mobility_update_function
 
 # Define contact matrix functions based on 4 prevention parameters (effectivity parameters)
 policies_WAVE1 = make_contact_matrix_function(df_google, Nc_all).policies_WAVE1 # with delayed-ramp function

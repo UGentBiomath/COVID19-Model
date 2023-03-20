@@ -26,9 +26,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 # COVID-19 code
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.data import sciensano
-from covid19model.visualization.optimization import plot_PSO
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.data import sciensano
+from covid19_DTM.visualization.optimization import plot_PSO
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import assign_theta, variance_analysis
@@ -90,9 +90,9 @@ if args.end_calibration:
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../../results/calibrations/COVID19_SEIQRD/national/'
+fig_path = f'../../results/covid19_DTM/calibrations/national/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = f'../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):

@@ -27,10 +27,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
-from covid19model.models import models
-from covid19model.data import mobility, sciensano, model_parameters, VOC
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
-from covid19model.visualization.output import _apply_tick_locator 
+from covid19_DTM.models import models
+from covid19_DTM.data import mobility, sciensano, model_parameters, VOC
+from covid19_DTM.models.TDPF import ramp_fun
+from covid19_DTM.visualization.output import _apply_tick_locator 
 
 # -----------------------
 # Handle script arguments
@@ -48,9 +48,9 @@ args = parser.parse_args()
 # -----------------------
 
 # Path where MCMC samples are saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
+samples_path = '../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/'
 
-from covid19model.models.utils import load_samples_dict
+from covid19_DTM.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.filename), wave=2)
 warmup = int(samples_dict['warmup'])
 
@@ -122,7 +122,7 @@ levels = initN.size
 # VOC data
 df_VOC_501Y = VOC.get_501Y_data()
 # Model initial condition on September 1st
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+with open('../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
 
 print('2) Initializing model\n')
@@ -131,14 +131,14 @@ print('2) Initializing model\n')
 # Time-dependant VOC function
 # ---------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+from covid19_DTM.models.TDPF import make_VOC_function
 VOC_function = make_VOC_function(df_VOC_501Y)
 
 # -----------------------------------
 # Time-dependant vaccination function
 # -----------------------------------
 
-from covid19model.models.time_dependant_parameter_fncs import  make_vaccination_function
+from covid19_DTM.models.TDPF import  make_vaccination_function
 vacc_strategy = make_vaccination_function(df_sciensano)
 
 # --------------------------------------
@@ -146,7 +146,7 @@ vacc_strategy = make_vaccination_function(df_sciensano)
 # --------------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, ramp_fun
+from covid19_DTM.models.TDPF import make_contact_matrix_function, ramp_fun
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 # Define policy function
@@ -365,7 +365,7 @@ def policies_RESTORE8(t, states, param, l , l_relax, prev_schools, prev_work, pr
 # Helper functions
 # ----------------
 
-from covid19model.models.utils import output_to_visuals
+from covid19_DTM.models.utils import output_to_visuals
 
 def draw_fcn(param_dict,samples_dict):
     """ 
@@ -438,7 +438,7 @@ def draw_fcn(param_dict,samples_dict):
 
 # Model initial condition on September 1st
 warmup = 0
-with open('../../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
+with open('../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)    
 # Load the model parameters dictionary
 params = model_parameters.get_COVID19_SEIRD_parameters(vaccination=True)
