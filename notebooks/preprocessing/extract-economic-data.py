@@ -480,5 +480,4 @@ economic_df.loc[idx_arrondisement,:].to_csv('../../data/interim/economical/censu
 ## Economic Risk Management Group Surveys ##
 ############################################
 
-
 print('done\n')

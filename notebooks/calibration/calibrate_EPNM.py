@@ -6,23 +6,24 @@ Calibrates the economic production network model
 ## Load required packages ##
 ############################
 
+import os
 import json
 import sys
 import datetime
 import argparse
+import numpy as np
+import pandas as pd
 import multiprocessing as mp
+import matplotlib.pyplot as plt
 # COVID-19 code
 from covid19model.visualization.optimization import plot_PSO
-from covid19model.models.ODE_models import Economic_Model
-from covid19model.data.economic import get_sector_labels, get_model_parameters
-from covid19model.models.time_dependant_parameter_fncs import *
-from covid19model.data.economic import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
+from EPNM.models.utils import initialize_model
+from EPNM.data.NBB import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
 # pySODM code
-from pySODM.optimization import pso, nelder_mead
-from pySODM.optimization.utils import assign_theta, variance_analysis
+from pySODM.optimization import pso
+from pySODM.optimization.utils import assign_theta
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
-from pySODM.optimization.objective_functions import log_posterior_probability, ll_gaussian, log_prior_uniform, ll_negative_binomial, ll_poisson
-
+from pySODM.optimization.objective_functions import log_posterior_probability, ll_gaussian
 # Suppress warnings
 import warnings
 warnings.filterwarnings("ignore")
@@ -89,37 +90,7 @@ data_B2B_demand = get_B2B_demand()
 ## Initialize the model ##
 ##########################
 
-# Load the parameters using `get_economic_parameters()`.
-params = get_model_parameters()
-
-# First COVID-19 lockdown
-t_start_lockdown_1 = params['t_start_lockdown_1']
-t_end_lockdown_1 = params['t_end_lockdown_1']
-t_end_relax_1 = params['t_end_relax_1']
-# Second COVID-19 lockdown
-t_start_lockdown_2 = params['t_start_lockdown_2']
-t_end_lockdown_2 = params['t_end_lockdown_2']
-t_end_relax_2 = params['t_end_relax_2']
-
-# Load initial states
-initial_states = {'x': params['x_0'],
-                  'c': params['c_0'],
-                  'c_desired': params['c_0'],
-                  'f': params['f_0'],
-                  'd': params['x_0'],
-                  'l': params['l_0'],
-                  'O': params['O_j'],
-                  'S': params['S_0']}
-
-coordinates = {'NACE64': get_sector_labels('NACE64'), 'NACE64_star': get_sector_labels('NACE64')}
-time_dependent_parameters = {'epsilon_S': labor_supply_shock,
-                             'epsilon_D': household_demand_shock,
-                             'epsilon_F': other_demand_shock,
-                             'b': government_furloughing,
-                             'zeta': compute_income_expectations}
-
-# Initialize the model
-model = Economic_Model(initial_states, params, coordinates=coordinates, time_dependent_parameters=time_dependent_parameters)
+parameters, model = initialize_model()
 
 if __name__ == '__main__':
 
@@ -137,8 +108,8 @@ if __name__ == '__main__':
     max_n = n_mcmc
     print_n = 2
     # Define dataset
-    d_emp = data_employment.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(params['l_0'],axis=0)
-    d_GDP = data_GDP.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(params['x_0'],axis=0)
+    d_emp = data_employment.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(parameters['l_0'],axis=0)
+    d_GDP = data_GDP.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(parameters['x_0'],axis=0)
     data = [d_GDP,d_emp]
     # States to calibrate
     states = ["x", "l"]  
@@ -164,7 +135,8 @@ if __name__ == '__main__':
     # Objective function
     objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels)
     # Optimize
-    theta = pso.optimize(objective_function, bounds, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
+    #theta = pso.optimize(objective_function, bounds, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
+    theta = [0.73005337, 0.34106887]
 
     ###################
     ## Visualize fit ##
@@ -174,7 +146,6 @@ if __name__ == '__main__':
     model.parameters = assign_theta(model.parameters, pars, theta)
     # Perform simulation
     out = model.sim([start_calibration, end_calibration])
-    print(out)
     # Visualize fit
     ax = plot_PSO(out, data, states, start_calibration, end_calibration)
     plt.show()
@@ -196,16 +167,9 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={},
+    sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={},
                                   fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                   settings_dict=settings)
-    # Sample 40*n_mcmc more
-    import emcee
-    for i in range(40):
-        backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
-        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function,
-                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
-                                    settings_dict=settings)    
 
     #####################
     ## Process results ##

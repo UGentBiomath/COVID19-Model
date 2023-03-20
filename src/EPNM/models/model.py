@@ -1,6 +1,84 @@
-import os
+# Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
+
 import numpy as np
-import pandas as pd
+from pySODM.models.base import ODEModel
+
+class Economic_Model(ODEModel):
+
+    state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
+    parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
+    dimension_names = ['NACE64', 'NACE64_star']
+    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
+
+    @staticmethod
+
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
+        """
+        BIOMATH production network model for Belgium
+        *Based on the Oxford INET implementation*
+        """
+
+        # 1. Update exogeneous demand with shock vector
+        # ---------------------------------------------
+        f_desired = (1-epsilon_F)*f_0
+
+        # 2. Compute labor income after government furloughing
+        # ----------------------------------------------------
+        l_star = l + b*(l_0-l)
+  
+        # 3. Compute productive capacity under labor constraints
+        # ------------------------------------------------------
+        x_cap = calc_labor_restriction(x_0,l_0,l)
+
+        # 4. Compute productive capacity under input constraints
+        # ------------------------------------------------------
+        x_inp = calc_input_restriction(S,A,C)
+
+        # 5. Compute total consumer demand
+ 
+        # Compute consumer preference vector
+        # --------------------------------
+        theta_0 = c_0/sum(c_0)
+        # Compute aggregate demand shock
+        theta = household_preference_shock(epsilon_D, theta_0)
+        epsilon_t = aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho)
+        # Compute expected total long term labor income (Eq. 22, 23)
+        l_p = zeta*sum(l_0)
+        # Compute total consumer demand (per sector)
+        m = sum(c_0)/sum(l_0)
+        c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
+
+        # 6. Compute B2B demand
+        # ---------------------   
+        O_desired = calc_intermediate_demand(d,S,A,S_0,tau) # 2D
+
+        # 7. Compute total demand
+        # -----------------------
+        d_new = calc_total_demand(O_desired, c_desired_new, f_desired)
+
+        # 8. Leontief production function with critical inputs
+        # ----------------------------------------------------
+        x_new = leontief(x_cap, x_inp, d_new)
+
+        # 9. Perform rationing
+        # --------------------
+        O_new, c_new, f_new = rationing(x_new,d_new,O_desired,c_desired_new,f_desired)
+
+        # 10. Update inventories
+        # ----------------------
+        S_new = inventory_updating(S,O_new,x_new,A)
+
+        # 11. Hire/fire workers
+        # ---------------------
+        l_new = hiring_firing(l, l_0, x_0, x_inp, x_cap, d_new, gamma_F, gamma_H, epsilon_S)
+
+        # 12. Convert order matrix to total order per sector (2D --> 1D)
+        # --------------------------------------------------------------
+        O_new = np.sum(O_new,axis=1)
+
+        return (x_new-x, c_new-c, c_desired_new-c_desired, f_new-f, d_new-d, l_new-l, O_new-O, S_new-S)
+
 
 def calc_labor_restriction(x_0,l_0,l_t):
     """
