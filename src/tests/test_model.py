@@ -1,8 +1,7 @@
 import numpy as np
 import pytest
 
-from covid19model.models.base import BaseModel
-
+from covid19_DTM.models.base import BaseModel
 
 class SIR(BaseModel):
 
