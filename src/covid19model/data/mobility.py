@@ -1120,11 +1120,11 @@ def complete_data_clean_new(unprocessed_data, initN):
     unprocessed_data: DataFrame
         Loaded with load_datafile_proximus()
     initN: np.array
-        Loaded with initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        Loaded with initN, _, _, _ = get_model_parameters(spatial='prov')
         
     Example use:
         unprocessed_data = load_datafile_proximus(pd.Timestamp(2021, 1, 1), data_location)
-        initN, _, _, _ = get_COVID19_SEIQRD_parameters(spatial='prov')
+        initN, _, _, _ = get_model_parameters(spatial='prov')
         mmprox_clean = complete_data_clean_new(unprocessed_data, initN)
     """
     # Takes about twenty seconds per date
