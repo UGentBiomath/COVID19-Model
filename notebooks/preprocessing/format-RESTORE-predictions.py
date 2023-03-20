@@ -17,8 +17,8 @@ import numpy as np
 
 # Path to raw data
 abs_dir = os.path.dirname(__file__)
-raw_dir = os.path.join(abs_dir,'../../data/raw/RESTORE/simulations/')
-iterim_dir = os.path.join(abs_dir,'../../data/interim/RESTORE/')
+raw_dir = os.path.join(abs_dir,'../../data/covid19_DTM/raw/RESTORE/simulations/')
+iterim_dir = os.path.join(abs_dir,'../../data/covid19_DTM/interim/RESTORE/')
 
 # Pre-allocation of results dataframe
 index = pd.date_range(start='2020-09-01', end='2021-09-01')

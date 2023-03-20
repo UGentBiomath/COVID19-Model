@@ -51,7 +51,7 @@ from covid19model.models import models
 from covid19model.optimization.objective_fcns import prior_custom, prior_uniform
 from covid19model.data import mobility, sciensano, model_parameters
 from covid19model.optimization import pso, objective_fcns
-from covid19model.models.time_dependant_parameter_fncs import ramp_fun
+from covid19model.models.TDPF import ramp_fun
 from covid19model.visualization.output import _apply_tick_locator 
 from covid19model.visualization.optimization import autocorrelation_plot, traceplot
 from covid19model.models.utils import initial_state
@@ -64,7 +64,7 @@ progress = False
 
 # User-defined initial states json file
 initial_states_date = '2020-08-27'
-initial_states_loc = '../data/interim/model_parameters/COVID19_SEIRD/calibrations/arr'
+initial_states_loc = '../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr'
 initial_states_json = f'arr_WAVE1_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02_states_{initial_states_date}.json'
 
 # -----------------------
@@ -178,7 +178,7 @@ proximus_mobility_data, proximus_mobility_data_avg = mobility.get_proximus_mobil
 # This directory is split up further into autocorrelation, traceplots
 fig_path = f'../results/calibrations/COVID19_SEIRD/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
+samples_path = f'../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/'
 # Path where samples backend should be stored
 backend_folder = f'../results/calibrations/COVID19_SEIRD/{agg}/backends/'
 
@@ -204,7 +204,7 @@ from covid19model.optimization.utils import assign_PSO, plot_PSO, perturbate_PSO
 # ------------------------------------------------------
 
 # Load both classes
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function, make_mobility_update_function
+from covid19model.models.TDPF import make_contact_matrix_function, make_mobility_update_function
 
 ### ATTENTION ###
 

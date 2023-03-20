@@ -20,7 +20,7 @@ problem_name = 'ungrouped'
 calc_second_order = True
 n_samples = 20000
 save=True
-results_folder='../../results/calibrations/COVID19_SEIQRD/national/others/sobol_sensitivity/'
+results_folder='../../results/calibrations/national/others/sobol_sensitivity/'
 results_name='sobol_'+problem_name
 
 # Model setup
@@ -50,10 +50,10 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 from SALib.sample import saltelli
 from SALib.analyze import sobol
-from covid19model.data import sciensano
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.optimization.objective_fcns import ll_negative_binomial, log_posterior_probability
-from covid19model.optimization.utils import variance_analysis
+from covid19_DTM.data import sciensano
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.optimization.objective_fcns import ll_negative_binomial, log_posterior_probability
+from covid19_DTM.optimization.utils import variance_analysis
 
 print('\n1) Setting up COVID-19 SEIQRD hybrid vacc')
 

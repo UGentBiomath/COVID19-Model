@@ -21,9 +21,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from pySODM.optimization.utils import assign_theta
-from covid19model.data import sciensano
-from covid19model.visualization.optimization import plot_PSO
-from covid19model.visualization.output import _apply_tick_locator 
+from covid19_DTM.data import sciensano
+from covid19_DTM.visualization.optimization import plot_PSO
+from covid19_DTM.visualization.output import _apply_tick_locator 
 
 ############################
 ## Parse script arguments ##
@@ -46,7 +46,7 @@ public=False
 #############################
 
 # Path where the pickle with initial conditions should be stored
-results_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+results_path = f'../../data/covid19_DTM/interim/model_parameters/initial_conditions/{args.agg}/'
 # Generate path
 if not os.path.exists(results_path):
     os.makedirs(results_path)
@@ -65,7 +65,7 @@ else:
 ## Initialize the model ##
 ##########################
 
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
 model, base_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=args.agg, stochastic=False)
 
 ##################################
@@ -211,7 +211,7 @@ for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 ##############################################
 
 # Path where the xarray should be stored
-file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+file_path = f'../../data/covid19_DTM/interim/model_parameters/initial_conditions/{args.agg}/'
 out.coords.update({'age_groups': range(len(out.coords['age_groups']))})
 out.to_netcdf(file_path+str(args.agg)+'_INITIAL-CONDITION.nc')
 

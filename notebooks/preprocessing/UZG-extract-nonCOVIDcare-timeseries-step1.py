@@ -1,5 +1,5 @@
 """
-This script converts the data on the postponement of non-COVID-19 care, provided by the Ghent University Hospital and located in the `~/data/raw/QALY_model/postponement_non_covid_care/UZG/`
+This script converts the data on the postponement of non-COVID-19 care, provided by the Ghent University Hospital and located in the `~/data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/UZG/`
 folder (confidential, contact tijs.alleman@ugent.be) into an intermediate format.
 
 The raw data provided has the following format: Major Diagnostic Group (MDC), Patient age (bins, 5 years), Type of hospitalization, Date of hospital intake, Date of hospital discharge.
@@ -27,14 +27,14 @@ print('\n(1) Loading data\n')
 
 # Names and location of datasets
 abs_dir = os.getcwd()
-rel_dir = '../../data/raw/QALY_model/postponement_non_covid_care/UZG/'
+rel_dir = '../../data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/UZG/'
 name_raw_list=['MZG_2016.xlsx', 'MZG_2017.xlsx','MZG_2018.xlsx', 'MZG_2019.xlsx', 'MZG_2020.xlsx', 'MZG_2021.xlsx']
 # Construct list of locations
 path_list=[]
 for idx,name in enumerate(name_raw_list):
     path_list.append(os.path.join(abs_dir,rel_dir,name))
 # Location of results
-result_folder='../../data/interim/QALY_model/postponement_non_covid_care/UZG/'
+result_folder='../../data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/'
 result_name='MZG_2016_2021.csv'
 result_path = os.path.join(abs_dir,result_folder,result_name)
 if not os.path.exists(os.path.join(abs_dir,result_folder)):

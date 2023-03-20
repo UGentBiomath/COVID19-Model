@@ -26,10 +26,10 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import matplotlib.pyplot as plt
-from covid19model.data import sciensano
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.visualization.output import _apply_tick_locator
-from covid19model.models.utils import output_to_visuals, load_samples_dict
+from covid19_DTM.data import sciensano
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.visualization.output import _apply_tick_locator
+from covid19_DTM.models.utils import output_to_visuals, load_samples_dict
 
 #############################
 ## Handle script arguments ##
@@ -62,9 +62,9 @@ samples_dict_names = ['BE_WINTER2122_enddate_20220121_SAMPLES_2022-06-03.json',
 ##############################
 
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIQRD/national/others/WAVE2/'
+fig_path = '../../results/calibrations/national/others/WAVE2/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):

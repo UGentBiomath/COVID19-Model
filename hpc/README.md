@@ -51,9 +51,9 @@ conda activate COVID_MODEL
 
 ### Confidential files for the spatial COVID19-Model
 
-Our spatial COVID19-Model uses confidential data from a Belgian telecommunication provider. Because these data are not available on our public git repository, they must be copied to the HPC. To copy the folder mobility (resides in `~/data/interim/`) to the HPC, go to the mobility folder on your local Linux machine and use the following command to copy the folder `mobility` from your local PC to the HPC.
+Our spatial COVID19-Model uses confidential data from a Belgian telecommunication provider. Because these data are not available on our public git repository, they must be copied to the HPC. To copy the folder mobility (resides in `~/data/covid19_DTM/interim/`) to the HPC, go to the mobility folder on your local Linux machine and use the following command to copy the folder `mobility` from your local PC to the HPC.
 ```bash
-scp -r mobility vsc12345@login.hpc.ugent.be:/data/gent/123/vsc12345/COVID19-Model/data/interim/
+scp -r mobility vsc12345@login.hpc.ugent.be:/data/gent/123/vsc12345/COVID19-Model/data/covid19_DTM/interim/
 ```
 
 ## Submitting a job to the HPC

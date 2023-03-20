@@ -20,13 +20,13 @@ import emcee
 import matplotlib.pyplot as plt
 import datetime
 
-from covid19model.optimization import objective_fcns,pso
-from covid19model.models import models
-from covid19model.models.utils import draw_sample_COVID19_SEIRD_google
-from covid19model.models.time_dependant_parameter_fncs import google_lockdown, ramp_fun, contact_matrix
-from covid19model.data import google, sciensano, model_parameters
-from covid19model.visualization.output import population_status, infected, _apply_tick_locator 
-from covid19model.visualization.optimization import plot_fit, traceplot
+from covid19_DTM.optimization import objective_fcns,pso
+from covid19_DTM.models import models
+from covid19_DTM.models.utils import draw_sample_COVID19_SEIRD_google
+from covid19_DTM.models.TDPF import google_lockdown, ramp_fun, contact_matrix
+from covid19_DTM.data import google, sciensano, model_parameters
+from covid19_DTM.visualization.output import population_status, infected, _apply_tick_locator 
+from covid19_DTM.visualization.optimization import plot_fit, traceplot
 
 ################################
 ### Simulation control panel ###
@@ -77,11 +77,11 @@ df_sciensano = sciensano.get_sciensano_COVID19_data(update=False)
 # Google Mobility data
 df_google = google.get_google_mobility_data(update=False, plot=False)
 # Model initial condition on September 1st
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
+with open('../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/google/initial_states_2020-09-01.json', 'r') as fp:
     initial_states = json.load(fp)  
 
 # Load samples dictionary of the second wave, 3 prevention parameters
-with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
+with open('../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/national/BE_4_prev_full_2021-01-05_WAVE2_GOOGLE.json', 'r') as fp:
     samples_dict = json.load(fp)
 
 # ----------------------------------
@@ -89,7 +89,7 @@ with open('../data/interim/model_parameters/COVID19_SEIRD/calibrations/national/
 # ----------------------------------
 
 # Extract build contact matrix function
-from covid19model.models.time_dependant_parameter_fncs import make_contact_matrix_function
+from covid19_DTM.models.TDPF import make_contact_matrix_function
 contact_matrix_4prev = make_contact_matrix_function(df_google, Nc_all)
 
 def report6_policy_function(t, states, param, l , tau, prev_home, prev_schools, prev_work, prev_rest,scenario='1'):
