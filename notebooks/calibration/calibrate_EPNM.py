@@ -67,7 +67,7 @@ if args.end_calibration:
 # This directory is split up further into autocorrelation, traceplots
 fig_path = f'../../results/EPNM/calibrations/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/EPNM/calibration/'
+samples_path = f'../../data/EPNM/calibrations/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
