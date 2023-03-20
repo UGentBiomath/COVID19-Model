@@ -23,7 +23,7 @@ To make sure the `data` directory does not become an unstructured set of data fi
 Since notebooks are challenging objects for version control (e.g., diffs of the json are often not human-readable and merging is near impossible), we recommended not collaborating directly with others on Jupyter notebooks. There are two steps we recommend for using notebooks effectively:
 
 - Follow a naming convention that shows the owner and the order the analysis was done in. We propose the format <step>-<ghuser>-<description>.ipynb (e.g., 0.3-twallema-model-network.ipynb).
-- Reuse the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder, e.g. visualisations inside `src/covid19model/visualization`
+- Reuse the good parts. Don't write code to do the same task in multiple notebooks. If it's a data preprocessing task, put it in the pipeline at `src/covid19model/data/make_dataset.py` and load data from `data/covid19_DTM/interim`. If it's useful utility code, refactor it and put it in the appropriate subfolder of the `src/covid19model` folder, e.g. visualisations inside `src/covid19model/visualization`
 
 As the code of the `src/covid19model` folder is a Python package itself (see the `setup.py` file). You can import your code and use it in notebooks without the need of reinstallation. Put the following at the top of your notebook:
 
@@ -72,7 +72,7 @@ __Note:__ When adding new packages makes sure to update both,
 
 As the previous sections described, each subfolder of the repository has a specific purpose and we would ask to respect the general layout. Still, this is all work in progress, so alterations to it that improve the workflow are certainly possible. Please do your suggestion by creating a [New issue](https://github.com/UGentBiomath/COVID19-Model/issues/new/choose).
 
-__Remember:__ Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/raw`!
+__Remember:__ Anyone should be able to reproduce the final products with only the `code` in `src` and the data in `data/covid19_DTM/raw`!
 
 #### data
 ```
