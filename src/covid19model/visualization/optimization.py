@@ -160,7 +160,7 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
         fig,ax = plt.subplots(nrows=1,ncols=1,figsize=(12,4))
         # Reduce dimensions
         new_xarray = output[states[idx]].copy(deep=True)
-        for dimension in output.dims:
+        for dimension in new_xarray.dims:
             if (dimension != 'date') :
                 new_xarray = new_xarray.sum(dim=dimension)
         # Plot data
@@ -175,7 +175,7 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
         for idx,ax in enumerate(axes):
             # Reduce dimensions
             new_xarray = output[states[idx]].copy(deep=True)
-            for dimension in output.dims:
+            for dimension in new_xarray.dims:
                 if (dimension != 'date') :
                     new_xarray = new_xarray.sum(dim=dimension)
             # Plot data

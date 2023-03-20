@@ -2,7 +2,7 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from covid19model.data.model_parameters import construct_initN
+from covid19model.data.SARS_parameters import construct_initN
 
 def get_mortality_data():
     """Load and return the detailed mortality data for Belgium
@@ -651,7 +651,7 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
     df_inc : pd.Series
         Multiindex Series with indices resp. date, (NIS), age, vaccination dose
     initN : pd.Series or pd.DataFrame
-        Series (if not spatial) or DataFrame (if spatial) with population per age class and (if spatial) per NIS. First output of model_parameters.get_COVID19_SEIQRD_parameters()
+        Series (if not spatial) or DataFrame (if spatial) with population per age class and (if spatial) per NIS. First output of model_parameters.get_model_parameters()
     VOC_params : dict
         dict with keys e_s, e_i, e_h (reduced effectivity due to vaccination), and initN (matrix with population per age and region)
     VOC_logistic_growth_parameters: pd.DataFrame
@@ -665,9 +665,9 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
     Example use
     ------------
     
-    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
+    initN, Nc_dict, params, CORE_samples_dict = SARS_parameters.get_model_parameters(spatial='prov')
     VOCs = ['WT', 'abc', 'delta']
-    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
+    VOC_logistic_growth_parameters, VOC_params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
     df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE']).df
     rescaling_df = get_vaccination_rescaling_values(spatial=True, update=True, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
@@ -829,7 +829,7 @@ def make_rescaling_dataframe(vacc_data, initN, VOC_func, onset_days, E_init, E_b
     vacc_data : pd.DataFrame
         Output of make_vaccination_function(df_vacc).df (non-spatial) or make_vaccination_function(vacc_data['INCIDENCE']).df (spatial) with the default age intervals. The former has daily data, the latter has weekly data at the provincial level.
     initN : pd.DataFrame
-        Output of model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov')
+        Output of SARS_parameters.get_model_parameters(spatial='prov')
     VOC_func : covid19model.models.time_dependant_parameter_fncs.make_VOC_function
         Function whose first element provides the national fraction of every VOC at a particular time
     onset_days : dict
