@@ -49,7 +49,7 @@ data_B2B_demand = get_B2B_demand()
 
 # Start- and enddate simulation
 start_sim = data_GDP.index.get_level_values('date').unique().min()
-end_sim = data_GDP.index.get_level_values('date').unique().min()
+end_sim = data_GDP.index.get_level_values('date').unique().max()
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -60,13 +60,13 @@ conf_int = 0.05
 # Path where figures and results should be stored
 fig_path = f'../../results/EPNM/calibrations/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/EPNM/interim/model_parameters/calibrations/'
+samples_path = f'../../data/EPNM/interim/calibrations/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
-
-samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
+# Load raw samples dict
+samples_dict = json.load(open(samples_path+'national_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json')) # Why national
 
 ##########################
 ## Initialize the model ##
@@ -86,3 +86,14 @@ simtime = out['date'].values
 ## Synthetic GDP ##
 ###################
 
+print(data_GDP.index.get_level_values('NACE64').unique())
+
+fig,ax=plt.subplots(figsize=(8,2.5))
+ax.plot(data_GDP.loc[slice(None), '77']*100, label='Rental and leasing (77)')
+ax.plot(data_GDP.loc[slice(None), '20']*100, label='Manufacture of Chemicals (22)')
+ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+for tick in ax.get_xticklabels():
+    tick.set_rotation(45)
+ax.set_ylabel('Change (%)') 
+ax.legend()
+ax.grid(False)
