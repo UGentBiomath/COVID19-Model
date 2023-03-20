@@ -5,7 +5,7 @@ import xarray as xr
 
 # Set path to interim data folder
 abs_dir = os.path.dirname(__file__)
-par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+par_interim_path = os.path.join(abs_dir, "../../../data/EPNM/interim/")
 
 def get_sectoral_conversion_matrix(from_to):
     """

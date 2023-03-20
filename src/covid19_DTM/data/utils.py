@@ -29,13 +29,13 @@ def construct_initN(age_classes=None, agg=None):
     abs_dir = os.path.dirname(__file__)
 
     if agg == 'mun':
-        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_mun.csv'))
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/demographic/age_structure_per_mun.csv'))
     elif agg == 'arr':
-        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_arr.csv'))
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/demographic/age_structure_per_arr.csv'))
     elif agg == 'prov':
-        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/demographic/age_structure_per_prov.csv'))
     else:
-        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/demographic/age_structure_per_prov.csv'))
+        age_struct = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/demographic/age_structure_per_prov.csv'))
 
     if age_classes is not None:
         age_struct['age_class'] = pd.cut(age_struct.age, bins=age_classes)

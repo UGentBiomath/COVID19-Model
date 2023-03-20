@@ -7,7 +7,7 @@ from __future__ import print_function
 import numpy as np
 from numba import jit
 from pySODM.models.base import ODEModel
-from covid19model.models.jit_utils import jit_matmul_2D_1D, jit_matmul_2D_2D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_2D_2D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
 from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
 
 # Ignore numba warnings

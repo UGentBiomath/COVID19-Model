@@ -25,45 +25,45 @@ print('1) Downloading data ')
 # Pichler et al. 2020
 # ~~~~~~~~~~~~~~~~~~~
 
-if not os.path.isfile('../../data/raw/economical/IHS_Markit_results_compact.csv') or not os.path.isfile('../../data/raw/economical/WIOD_shockdata.csv') or not os.path.isfile('../../data/raw/economical/IHS_Markit_results_compact.csv'):
+if not os.path.isfile('../../data/covid19_DTM/raw/economical/IHS_Markit_results_compact.csv') or not os.path.isfile('../../data/covid19_DTM/raw/economical/WIOD_shockdata.csv') or not os.path.isfile('../../data/covid19_DTM/raw/economical/IHS_Markit_results_compact.csv'):
     # Make a temporary folder
-    if not os.path.exists('../../data/raw/economical/tmp'): # if the directory does not exist
-        os.makedirs('../../data/raw/economical/tmp') # make the directory
+    if not os.path.exists('../../data/covid19_DTM/raw/economical/tmp'): # if the directory does not exist
+        os.makedirs('../../data/covid19_DTM/raw/economical/tmp') # make the directory
     # Download data
     url = 'https://zenodo.figshare.com/ndownloader/files/22754936'
     r = requests.get(url,stream=True)
-    with open('../../data/raw/economical/tmp/pichler_etal.zip', 'wb') as fd:
+    with open('../../data/covid19_DTM/raw/economical/tmp/pichler_etal.zip', 'wb') as fd:
         for chunk in r.iter_content(chunk_size=128):
                 fd.write(chunk)
     # Unzip directory
-    with zipfile.ZipFile('../../data/raw/economical/tmp/pichler_etal.zip',"r") as zip_ref:
-        zip_ref.extractall('../../data/raw/economical/tmp/pichler_etal')
+    with zipfile.ZipFile('../../data/covid19_DTM/raw/economical/tmp/pichler_etal.zip',"r") as zip_ref:
+        zip_ref.extractall('../../data/covid19_DTM/raw/economical/tmp/pichler_etal')
     # Place files we want in raw folder
-    os.system('cp ../../data/raw/economical/tmp/pichler_etal/covid19inputoutput/data/IHS_Markit_results_compact.csv ../../data/raw/economical/IHS_Markit_results_compact.csv')  
-    os.system('cp ../../data/raw/economical/tmp/pichler_etal/covid19inputoutput/data/table_ratio_inv_go.csv ../../data/raw/economical/table_ratio_inv_go.csv')
-    os.system('cp ../../data/raw/economical/tmp/pichler_etal/covid19inputoutput/data/WIOD_shockdata.csv ../../data/raw/economical/WIOD_shockdata.csv')  
+    os.system('cp ../../data/covid19_DTM/raw/economical/tmp/pichler_etal/covid19inputoutput/data/IHS_Markit_results_compact.csv ../../data/covid19_DTM/raw/economical/IHS_Markit_results_compact.csv')  
+    os.system('cp ../../data/covid19_DTM/raw/economical/tmp/pichler_etal/covid19inputoutput/data/table_ratio_inv_go.csv ../../data/covid19_DTM/raw/economical/table_ratio_inv_go.csv')
+    os.system('cp ../../data/covid19_DTM/raw/economical/tmp/pichler_etal/covid19inputoutput/data/WIOD_shockdata.csv ../../data/covid19_DTM/raw/economical/WIOD_shockdata.csv')  
     # Delete temporary folder
-    shutil.rmtree('../../data/raw/economical/tmp')
+    shutil.rmtree('../../data/covid19_DTM/raw/economical/tmp')
 
 # Federaal Planbureau
 # ~~~~~~~~~~~~~~~~~~~
-if not os.path.isfile('../../data/raw/economical/input-output.xlsx'):
+if not os.path.isfile('../../data/covid19_DTM/raw/economical/input-output.xlsx'):
     url = 'https://www.plan.be/databases/io2015/vr64_en_20181217.xlsx'
     r = requests.get(url)
-    with open('../../data/raw/economical/input-output.xlsx', 'wb') as f:
+    with open('../../data/covid19_DTM/raw/economical/input-output.xlsx', 'wb') as f:
         f.write(r.content)
 
-IO_df = pd.read_excel('../../data/raw/economical/input-output.xlsx', sheet_name='tbl_8',index_col=[0], header=[0])
+IO_df = pd.read_excel('../../data/covid19_DTM/raw/economical/input-output.xlsx', sheet_name='tbl_8',index_col=[0], header=[0])
 
 # Census 2011
 # ~~~~~~~~~~~
-if not os.path.isfile('../../data/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx'):
+if not os.path.isfile('../../data/covid19_DTM/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx'):
     url = 'https://www.census2011.be/download/census_arbeidsmarkt_nl_24oct14.xlsx'
     r = requests.get(url)
-    with open('../../data/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx', 'wb') as f:
+    with open('../../data/covid19_DTM/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx', 'wb') as f:
         f.write(r.content)
 
-census_df = pd.read_excel('../../data/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx', sheet_name="Tabel3_2011")
+census_df = pd.read_excel('../../data/covid19_DTM/raw/census_2011/census_arbeidsmarkt_nl_24oct14.xlsx', sheet_name="Tabel3_2011")
 
 print('done\n')
 
@@ -131,7 +131,7 @@ index = ['AA','BB','CA','CB','CC','CD','CE','CF','CG','CH','CI','CJ','CK','CL','
             'FF','GG','HH','II','JA','JB','JC','KK','LL','MA','MB','MC','NN','OO','PP','QA','QB',
             'RR','SS','TT']
 
-IO_df = pd.read_excel("../../data/raw/economical/input-output.xlsx", sheet_name='tbl_8',index_col=[0], header=[0])
+IO_df = pd.read_excel("../../data/covid19_DTM/raw/economical/input-output.xlsx", sheet_name='tbl_8',index_col=[0], header=[0])
 codes64 = list(IO_df.index.values[1:-19])
 codes64[-1] = '97-98'
 codes64.remove('68a')
@@ -184,7 +184,7 @@ NACE64to38.head()
 # WIOD 55 to NACE 64
 
 abs_dir = os.getcwd()
-rel_dir = os.path.join(abs_dir, '../../data/raw/economical/IHS_Markit_results_compact.csv')
+rel_dir = os.path.join(abs_dir, '../../data/covid19_DTM/raw/economical/IHS_Markit_results_compact.csv')
 IHS_df = pd.read_csv(rel_dir,header=[0],index_col=[0])
 index = IHS_df.index.values[:]
 
@@ -203,7 +203,7 @@ WIOD55toNACE64.tail()
 
 # Write all matrices to excel file
 
-with pd.ExcelWriter('../../data/interim/economical/conversion_matrices.xlsx') as writer:
+with pd.ExcelWriter('../../data/covid19_DTM/interim/economical/conversion_matrices.xlsx') as writer:
     NACE21to10.to_excel(writer, sheet_name='NACE 21 to NACE 10')
     NACE38to21.to_excel(writer, sheet_name='NACE 38 to NACE 21')
     NACE64to38.to_excel(writer, sheet_name='NACE 64 to NACE 38')
@@ -221,7 +221,7 @@ IO=np.delete(IO,45,axis=1)
 IO_new = pd.DataFrame(data=IO,columns=codes64,index=codes64)
 IO_new.head()
 # Write formatted IO table
-IO_new.to_csv('../../data/interim/economical/IO_NACE64.csv', index=True)
+IO_new.to_csv('../../data/covid19_DTM/interim/economical/IO_NACE64.csv', index=True)
 
 # Sectoral output under business-as-usual
 x_0 = IO_df.values[1:-19,-1]
@@ -245,7 +245,7 @@ f_0 = np.delete(f_0,44)
 ###################
 
 # Read
-nj_df = pd.read_csv("../../data/raw/economical/table_ratio_inv_go.csv", index_col=[0], header=[0])
+nj_df = pd.read_csv("../../data/covid19_DTM/raw/economical/table_ratio_inv_go.csv", index_col=[0], header=[0])
 nj55 = nj_df['ratio_all_inv_go_monthly'].values[:-1]*30
 # Convert to NACE64
 nj64 = np.zeros(63)
@@ -258,7 +258,7 @@ for i in range(nj55.size):
 
 # Read and format
 abs_dir = os.getcwd()
-rel_dir = os.path.join(abs_dir, '../../data/raw/economical/IHS_Markit_results_compact.csv')
+rel_dir = os.path.join(abs_dir, '../../data/covid19_DTM/raw/economical/IHS_Markit_results_compact.csv')
 IHS_df = pd.read_csv(rel_dir,header=[0],index_col=[0])
 IHS_df.fillna(0)
 IHS_mat = IHS_df.values
@@ -340,14 +340,14 @@ for i in range(orig55.size):
 columns = codes64
 index = codes64
 IHS_critical = pd.DataFrame(data = new64_mat, index=index, columns=columns)
-IHS_critical.to_csv('../../data/interim/economical/IHS_critical_NACE64.csv', index=True)
+IHS_critical.to_csv('../../data/covid19_DTM/interim/economical/IHS_critical_NACE64.csv', index=True)
 
 ###########################
 ## Consumer demand shock ##
 ###########################
 
 # Read 
-ed_df = pd.read_csv("../../data/raw/economical/WIOD_shockdata.csv", index_col=[0], header=[0])
+ed_df = pd.read_csv("../../data/covid19_DTM/raw/economical/WIOD_shockdata.csv", index_col=[0], header=[0])
 ed55 = ed_df['demand.shock.household'].values
 # Convert to NACE 64
 ed64 = np.zeros(63)
@@ -374,14 +374,14 @@ for i in range(fd55.size):
 # Business-as-usual
 # ~~~~~~~~~~~~~~~~~
 
-sectoral64_df = pd.read_excel("../../data/raw/economical/Employees_NACE64.xlsx",sheet_name = 'Binnenlands concept - A64', index_col=[0], header=[0])
+sectoral64_df = pd.read_excel("../../data/covid19_DTM/raw/economical/Employees_NACE64.xlsx",sheet_name = 'Binnenlands concept - A64', index_col=[0], header=[0])
 l0_64 = sectoral64_df.values[7:-1,-1]
 
 # Lockdown survey
 # ~~~~~~~~~~~~~~~
 
 # Read
-sectoral38_lockdown_df = pd.read_excel("../../data/raw/economical/Employees_25-04-2020_NACE38.xlsx",sheet_name = 'Formated data', index_col=[0], header=[0])
+sectoral38_lockdown_df = pd.read_excel("../../data/covid19_DTM/raw/economical/Employees_25-04-2020_NACE38.xlsx",sheet_name = 'Formated data', index_col=[0], header=[0])
 l_lockdown38 = (sectoral38_lockdown_df['telework'] + sectoral38_lockdown_df['mix telework-workplace'] + sectoral38_lockdown_df['at workplace']).values[1:]
 # Convert to NACE 64
 # Telework
@@ -442,7 +442,7 @@ data = {
 df = pd.DataFrame(data=data,columns=colnames,index=codes64)
 df.head()
 
-df.to_csv('../../data/interim/economical/others.csv', index=True)
+df.to_csv('../../data/covid19_DTM/interim/economical/others.csv', index=True)
 
 #################
 ## Census 2011 ##
@@ -474,7 +474,7 @@ for idx in economic_df.index:
     if ((str(idx)[-3:] == '000') & (len(str(idx)) != 4) & (str(idx)[-4:] != '0000') & (str(idx)[0] != '0')):
         idx_arrondisement.append(idx)
 
-economic_df.loc[idx_arrondisement,:].to_csv('../../data/interim/economical/census2011_NACE21.csv', index=True)
+economic_df.loc[idx_arrondisement,:].to_csv('../../data/covid19_DTM/interim/economical/census2011_NACE21.csv', index=True)
 
 ############################################
 ## Economic Risk Management Group Surveys ##

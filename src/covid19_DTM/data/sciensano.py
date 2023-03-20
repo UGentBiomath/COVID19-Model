@@ -2,7 +2,7 @@ import os
 import datetime
 import pandas as pd
 import numpy as np
-from covid19model.data.SARS_parameters import construct_initN
+from covid19_DTM.data.model_parameters import construct_initN
 
 def get_mortality_data():
     """Load and return the detailed mortality data for Belgium
@@ -22,7 +22,7 @@ def get_mortality_data():
     data = slice['total','cumsum']
     """
 
-    return pd.read_csv(os.path.join(os.path.dirname(__file__),'../../../data/interim/sciensano/sciensano_detailed_mortality.csv'), index_col=[0,1], header=[0,1])
+    return pd.read_csv(os.path.join(os.path.dirname(__file__),'../../../data/covid19_DTM/interim/sciensano/sciensano_detailed_mortality.csv'), index_col=[0,1], header=[0,1])
 
 def get_serological_data():
     """Load and format the available serological data for Belgium
@@ -51,7 +51,7 @@ def get_serological_data():
     # Provided age_classes don't matter, only sum is used
     initN = construct_initN(age_classes=pd.IntervalIndex.from_tuples([(0,10),(10,20),(20,30),(30,40),(40,50),(50,60),(60,70),(70,80),(80,120)]))
     # Load and format serodata of Herzog
-    data = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/sero/sero_national_overall_herzog.csv'), parse_dates=True)
+    data = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/sero/sero_national_overall_herzog.csv'), parse_dates=True)
     data.index = data['collection_midpoint']
     data.index.names = ['date']
     data.index = pd.to_datetime(data.index)
@@ -69,7 +69,7 @@ def get_serological_data():
     df_sero_herzog = df
 
     # Load and format serodata of Sciensano
-    data= pd.read_csv(os.path.join(abs_dir,'../../../data/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv'), parse_dates=True)
+    data= pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv'), parse_dates=True)
     data.index = data['Date']
     data.index = pd.to_datetime(data.index)
     data = data.drop(columns=['Date'])
@@ -93,7 +93,7 @@ def get_sciensano_COVID19_data(update=True):
 
     This function returns the publically available Sciensano data
     on COVID-19 related cases, hospitalizations, deaths and vaccinations.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    A copy of the downloaded dataset is automatically saved in the /data/covid19_DTM/raw folder.
 
     Parameters
     ----------
@@ -149,39 +149,39 @@ def get_sciensano_COVID19_data(update=True):
         # Extract case data from source
         df_cases = pd.read_excel(url, sheet_name="CASES_AGESEX")
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_CASES.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/sciensano/COVID19BE_CASES.csv')
         df_cases.to_csv(rel_dir, index=False)
 
         # Extract vaccination data from source
         df_vacc = pd.read_excel(url, sheet_name="VACC")
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/sciensano/COVID19BE_VACC.csv')
         df_vacc.to_csv(rel_dir, index=False)
 
         # Extract hospitalisation data from source
         df_hosp = pd.read_excel(url, sheet_name="HOSP")
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_HOSP.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/sciensano/COVID19BE_HOSP.csv')
         df_hosp.to_csv(rel_dir, index=False)
 
         # Extract total reported deaths per day
         df_mort = pd.read_excel(url, sheet_name='MORT', parse_dates=['DATE'])
         # save a copy in the raw folder
-        rel_dir_M = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_MORT.csv')
+        rel_dir_M = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/sciensano/COVID19BE_MORT.csv')
         df_mort.to_csv(rel_dir_M, index=False)
 
     else:
         df_cases = pd.read_csv(os.path.join(abs_dir,
-        '../../../data/raw/sciensano/COVID19BE_CASES.csv'), parse_dates=['DATE'])
+        '../../../data/covid19_DTM/raw/sciensano/COVID19BE_CASES.csv'), parse_dates=['DATE'])
 
         df_vacc = pd.read_csv(os.path.join(abs_dir,
-        '../../../data/raw/sciensano/COVID19BE_VACC.csv'), parse_dates=['DATE'])
+        '../../../data/covid19_DTM/raw/sciensano/COVID19BE_VACC.csv'), parse_dates=['DATE'])
 
         df_hosp = pd.read_csv(os.path.join(abs_dir,
-        '../../../data/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
+        '../../../data/covid19_DTM/raw/sciensano/COVID19BE_HOSP.csv'), parse_dates=['DATE'])
 
         df_mort = pd.read_csv(os.path.join(abs_dir,
-        '../../../data/raw/sciensano/COVID19BE_MORT.csv'), parse_dates=['DATE'])
+        '../../../data/covid19_DTM/raw/sciensano/COVID19BE_MORT.csv'), parse_dates=['DATE'])
 
     # --------
     # Hospital
@@ -298,8 +298,8 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
     """Download and convert public spatial vaccination data of Sciensano
 
     This function returns the spatial, publically available Sciensano vaccination data
-    A copy of the downloaded raw dataset is automatically saved in the /data/raw folder.
-    The formatted data on the municipality level (NUTS5) is automatically saved in the /data/interim folder.
+    A copy of the downloaded raw dataset is automatically saved in the /data/covid19_DTM/raw folder.
+    The formatted data on the municipality level (NUTS5) is automatically saved in the /data/covid19_DTM/interim folder.
     If update=True, the dataset is downloaded and formatted into the following format: per week, per municipality NIS code, per age group and per dose, the incidence is given. The dataset is then automatically saved.
     If update=False, the formatted dataset is loaded and an aggregation is performed to the desired spatial aggregation level.
 
@@ -354,7 +354,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         df = pd.concat([df1, df2])
 
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/sciensano/COVID19BE_VACC_MUNI_raw.csv')
         df.to_csv(rel_dir, index=False)
 
         ########################################################
@@ -431,7 +431,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         ####################################################
 
         # First convert string-based age groups to corresponding pd.IntervalIndex
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_mun.csv')
         iterables = [df.index.get_level_values('start_week').unique(), df.index.get_level_values('NUTS5').unique(), age_groups_data, df.index.get_level_values('DOSE').unique()]
         index = pd.MultiIndex.from_product(iterables, names=["date", "NIS", "age", "dose"])
         desired_formatted_df = pd.DataFrame(index=index, columns=df.columns)
@@ -503,7 +503,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
             arr_NIS = int(str(NIS)[0:2] + '000')
             arr_df.loc[slice(None), arr_NIS, slice(None), slice(None)] = arr_df.loc[slice(None), arr_NIS, slice(None), slice(None)].values + df.loc[slice(None), NIS, slice(None), slice(None)].values
         # Save result
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_arr.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_arr.csv')
         arr_df.to_csv(rel_dir, index=True)
 
         ########################
@@ -530,7 +530,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
                 prov_NIS = int(str(NIS)[0:1] + '0000')
                 prov_df.loc[slice(None), prov_NIS, slice(None), slice(None)] = prov_df.loc[slice(None), prov_NIS, slice(None), slice(None)].values + arr_df.loc[slice(None), NIS, slice(None), slice(None)].values
         # Save result
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_prov.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_prov.csv')
         prov_df.to_csv(rel_dir, index=True)
 
         ##########################
@@ -538,7 +538,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         ##########################
 
         nat_df = mun_df.groupby(by=['date', 'age', 'dose']).sum()
-        rel_dir = os.path.join(abs_dir, '../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_nat.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_nat.csv')
         nat_df.to_csv(rel_dir, index=True)
 
         #############################
@@ -560,7 +560,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
         ## Load formatted dataframe ##
         ##############################
         if agg:
-            rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
+            rel_dir = os.path.join(abs_dir, f'../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_{agg}.csv')
             df = pd.read_csv(rel_dir, index_col=[0,1,2,3], parse_dates=['date'])
             # pd.read_csv cannot read an IntervalIndex so we need to set this manually
             iterables = [df.index.get_level_values('date').unique(),
@@ -574,7 +574,7 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
                 desired_df[col_name] = df[col_name].values
             df = desired_df
         else:
-            rel_dir = os.path.join(abs_dir, f'../../../data/interim/sciensano/COVID19BE_VACC_MUNI_format_nat.csv')
+            rel_dir = os.path.join(abs_dir, f'../../../data/covid19_DTM/interim/sciensano/COVID19BE_VACC_MUNI_format_nat.csv')
             df = pd.read_csv(rel_dir, index_col=[0,1,2], parse_dates=['date'])
             # pd.read_csv cannot read an IntervalIndex so we need to set this manually
             iterables = [df.index.get_level_values('date').unique(),
@@ -594,10 +594,10 @@ def get_sciensano_COVID19_data_spatial(agg='arr', moving_avg=True):
     """
     This function returns the spatially explicit private Sciensano data
     on COVID-19 related confirmed cases, hospitalisations, or hospital deaths.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    A copy of the downloaded dataset is automatically saved in the /data/covid19_DTM/raw folder.
     
     NOTE that this raw data is NOT automatically uploaded to the Git repository, considering it is nonpublic data.
-    Instead, download the processed data from the S-drive (data/interim/sciensano) and copy it to data/interim/nonpublic_timeseries.
+    Instead, download the processed data from the S-drive (data/covid19_DTM/interim/sciensano) and copy it to data/covid19_DTM/interim/nonpublic_timeseries.
     The nonpublic_timeseries directory is added to the .gitignore, so it is not uploaded to the repository.
 
     Parameters
@@ -619,14 +619,14 @@ def get_sciensano_COVID19_data_spatial(agg='arr', moving_avg=True):
 
     # Data location
     abs_dir = os.path.dirname(__file__)
-    nonpublic_dir_rel = f"../../../data/interim/nonpublic_timeseries/all_nonpublic_timeseries_{agg}.csv"
+    nonpublic_dir_rel = f"../../../data/covid19_DTM/interim/nonpublic_timeseries/all_nonpublic_timeseries_{agg}.csv"
     nonpublic_dir_abs = os.path.join(abs_dir, nonpublic_dir_rel)
 
     # Load data with or without moving average
     df = pd.read_csv(nonpublic_dir_abs, parse_dates=['DATE']).pivot_table(index=['DATE',f'NIS_{agg}']).fillna(0)
     df.index.names = ['date', 'NIS']
     if moving_avg:
-        from covid19model.visualization.utils import moving_avg
+        from covid19_DTM.visualization.utils import moving_avg
         for value in accepted_values:
             for NIS in df[value].columns:
                 df[value][[NIS]] = moving_avg(df[value][[NIS]])
@@ -665,9 +665,9 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
     Example use
     ------------
     
-    initN, Nc_dict, params, CORE_samples_dict = SARS_parameters.get_model_parameters(spatial='prov')
+    initN, Nc_dict, params, CORE_samples_dict = model_parameters.get_model_parameters(spatial='prov')
     VOCs = ['WT', 'abc', 'delta']
-    VOC_logistic_growth_parameters, VOC_params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
+    VOC_logistic_growth_parameters, VOC_params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(initN, params['h'], VOCs=VOCs)
     public_spatial_vaccination_data = sciensano.get_public_spatial_vaccination_data(update=False,agg='prov')
     df_inc = make_vaccination_function(public_spatial_vaccination_data['INCIDENCE']).df
     rescaling_df = get_vaccination_rescaling_values(spatial=True, update=True, df_inc=df_inc, initN=initN, VOC_params=VOC_params, VOC_logistic_growth_parameters=VOC_logistic_growth_parameters)
@@ -741,7 +741,7 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
         E_waned = dict({'WT' : E_waned_WT, 'abc' : E_waned_abc, 'delta' : E_waned_delta})
         
         # Make VOC fraction function. VOC_function(date)[0] is the fraction of each variant at date
-        from covid19model.models.time_dependant_parameter_fncs import make_VOC_function
+        from covid19_DTM.models.TDPF import make_VOC_function
         VOC_function = make_VOC_function(VOC_logistic_growth_parameters)
         
         # Make new DataFrame
@@ -754,23 +754,23 @@ def get_vaccination_rescaling_values(spatial=False, update=False, df_inc=None, i
         
         # Save DataFrame as pickle (to retain intervalindex on 'age' dimension) and as csv (to have something human-readable)
         if spatial:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial"
+            dir_rel = f"../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_provincial"
         else:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national"
+            dir_rel = f"../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_national"
         df.to_csv(os.path.join(abs_dir, dir_rel+'.csv'))
         df.to_pickle(os.path.join(abs_dir, dir_rel+'.pkl'))
         
     # no update
     else:    
         if spatial==False:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_national.csv"
+            dir_rel = f"../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_national.csv"
             dir_abs = os.path.join(abs_dir, dir_rel)
 
             # Load and format data
             df = pd.read_csv(dir_abs, parse_dates=["date"]).groupby(['date', 'age', 'dose']).first()
 
         if spatial==True:
-            dir_rel = f"../../../data/interim/sciensano/vacc_rescaling_values_provincial.csv"
+            dir_rel = f"../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_provincial.csv"
             dir_abs = os.path.join(abs_dir, dir_rel)
 
             # Load and format data
@@ -829,8 +829,8 @@ def make_rescaling_dataframe(vacc_data, initN, VOC_func, onset_days, E_init, E_b
     vacc_data : pd.DataFrame
         Output of make_vaccination_function(df_vacc).df (non-spatial) or make_vaccination_function(vacc_data['INCIDENCE']).df (spatial) with the default age intervals. The former has daily data, the latter has weekly data at the provincial level.
     initN : pd.DataFrame
-        Output of SARS_parameters.get_model_parameters(spatial='prov')
-    VOC_func : covid19model.models.time_dependant_parameter_fncs.make_VOC_function
+        Output of model_parameters.get_model_parameters(spatial='prov')
+    VOC_func : covid19_DTM.models.TDPF.make_VOC_function
         Function whose first element provides the national fraction of every VOC at a particular time
     onset_days : dict
         Dict of dicts with elements onset_days[VOC_type][rescaling_type][dose], where VOC_type in {'WT', 'abc', 'delta'}, rescaling_type in {'E_susc', 'E_inf', 'E_hosp'}, and dose in {'first', 'full', 'booster'}

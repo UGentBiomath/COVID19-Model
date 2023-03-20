@@ -35,27 +35,27 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     #####################################
 
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import ODE_models, SDE_models
+    from covid19_DTM.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-    from covid19model.models.time_dependant_parameter_fncs import   make_contact_matrix_function, \
+    from covid19_DTM.models.TDPF import   make_contact_matrix_function, \
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
                                                                     make_vaccination_efficacy_function, \
                                                                     make_seasonality_function, \
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-    from covid19model.data import mobility, sciensano, SARS_parameters
-    from covid19model.data.utils import convert_age_stratified_quantity
+    from covid19_DTM.data import mobility, sciensano, model_parameters
+    from covid19_DTM.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
     #########################
 
     # Interaction matricesm model parameters, samples dictionary
-    Nc_dict, params, samples_dict, initN = SARS_parameters.get_model_parameters(age_classes=age_classes)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
-    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
-    VOC_params, vaccine_params, params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
+    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Sciensano hospital and vaccination data
     df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=update_data)
     df_hosp = df_hosp.groupby(by=['date']).sum()
@@ -75,7 +75,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     # Time-dependent seasonality function, updating season_factor
     seasonality_function = make_seasonality_function()
     # Time-dependent (first) vaccination function, updating N_vacc. Hypothetical functions administers no boosters but extends the dataframe of incidences with half a year.
-    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_national.pkl'))
+    df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/vacc_incidence_national.pkl'))
     N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, hypothetical_function=True)
     # Extract the smoothed dataframe
     df_incidences = N_vacc_function.df
@@ -107,7 +107,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                         "I": E0
                         }
     else:
-        reference_sim_path = os.path.join(abs_dir, data_path + '/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/')
+        reference_sim_path = os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/initial_conditions/national/')
         reference_sim_name = 'national_REF_SIMULATION_2022-09-13.nc'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
@@ -184,9 +184,9 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #####################################
 
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
-    from covid19model.models import ODE_models, SDE_models
+    from covid19_DTM.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-    from covid19model.models.time_dependant_parameter_fncs import   make_mobility_update_function, \
+    from covid19_DTM.models.TDPF import   make_mobility_update_function, \
                                                                     make_contact_matrix_function, \
                                                                     make_VOC_function, \
                                                                     make_N_vacc_function, \
@@ -194,18 +194,18 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                                                                     make_seasonality_function, \
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-    from covid19model.data import mobility, sciensano, SARS_parameters
-    from covid19model.data.utils import convert_age_stratified_quantity
+    from covid19_DTM.data import mobility, sciensano, model_parameters
+    from covid19_DTM.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
     #########################
 
     # Population size, interaction matrices and the model parameters
-    Nc_dict, params, samples_dict, initN = SARS_parameters.get_model_parameters(age_classes=age_classes, agg=agg)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
-    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs/vaccine_parameters.pkl'))
-    VOC_params, vaccine_params, params = SARS_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
+    vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
+    VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
     # Using the weekly vaccination data
     df_vacc = sciensano.get_public_spatial_vaccination_data(update=update_data, agg=agg)
     # Proximus mobility data
@@ -236,7 +236,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
 
     try:
         # Check if dataframe with incidences is available
-        df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
+        df_incidences_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/sciensano/vacc_incidence_'+agg+'.pkl'))
         # Time-dependent (first) vaccination function, updating N_vacc.
         N_vacc_function = make_N_vacc_function(df_vacc['INCIDENCE'], age_classes=age_classes, agg=agg, hypothetical_function=False)
         # Extract the smoothed dataframe
@@ -280,7 +280,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
                         "I": E0
                         }
     else:
-        reference_sim_path = os.path.join(abs_dir, data_path + f'/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{agg}/')
+        reference_sim_path = os.path.join(abs_dir, f'../../../data/covid19_DTM/interim/model_parameters/initial_conditions/{agg}/')
         reference_sim_name = f'{agg}_INITIAL-CONDITION.nc'
         out = xr.open_dataset(reference_sim_path+reference_sim_name)
         initial_states={}
@@ -384,125 +384,11 @@ def load_samples_dict(filepath, age_stratification_size=10):
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
-    residence_time_distributions = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    residence_time_distributions = pd.read_excel('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
     samples_dict.update({'residence_times': residence_time_distributions})
-    bootstrap_fractions = np.load('../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
+    bootstrap_fractions = np.load('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
-
-def draw_fnc_COVID19_SEIQRD_hybrid_vacc(param_dict,samples_dict):
-    """
-    A function to draw samples from the estimated posterior distributions of the model parameters.
-    Tailored for use with the national COVID-19 SEIQRD model with the hybrid vaccination implementation.
-
-    Parameters
-    ----------
-
-    samples_dict : dict
-        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 1
-
-    param_dict : dict
-        Model parameters dictionary
-
-    Returns
-    -------
-    param_dict : dict
-        Modified model parameters dictionary
-
-    """
-
-    idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work'])))  
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]
-    param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['k'] = samples_dict['k'][idx]
-    param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    #param_dict['f_h'] = samples_dict['f_h'][idx]
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(len(param_dict['c'])):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=20
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D'],
-                     samples_dict['residence_times']['dICUrec']]
-
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-    return param_dict
-
-def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
-    """
-    A function to draw samples from the estimated posterior distributions of the model parameters.
-    Tailored for use with the spatial COVID-19 SEIQRD model.
-
-    Parameters
-    ----------
-
-    samples_dict : dict
-        Dictionary containing the samples of the national COVID-19 SEIQRD model obtained through calibration of WAVE 1
-
-    param_dict : dict
-        Model parameters dictionary
-
-    Returns
-    -------
-    param_dict : dict
-        Modified model parameters dictionary
-
-    """
-
-    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]
-    param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
-    param_dict['k'] = samples_dict['k'][idx]
-    param_dict['mentality'] = samples_dict['mentality'][idx]
-    param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
-    param_dict['amplitude'] = samples_dict['amplitude'][idx]
-    param_dict['summer_rescaling_F'] = samples_dict['summer_rescaling_F'][idx]
-    param_dict['summer_rescaling_W'] = samples_dict['summer_rescaling_W'][idx]
-
-    # Hospitalization
-    # ---------------
-    # Fractions
-    names = ['c','m_C','m_ICU']
-    for idx,name in enumerate(names):
-        par=[]
-        for jdx in range(len(param_dict['c'])):
-            par.append(np.random.choice(samples_dict['samples_fractions'][idx,jdx,:]))
-        param_dict[name] = np.array(par)
-    # Residence times
-    n=20
-    distributions = [samples_dict['residence_times']['dC_R'],
-                     samples_dict['residence_times']['dC_D'],
-                     samples_dict['residence_times']['dICU_R'],
-                     samples_dict['residence_times']['dICU_D'],
-                     samples_dict['residence_times']['dICUrec']]
-
-    names = ['dc_R', 'dc_D', 'dICU_R', 'dICU_D','dICUrec']
-    for idx,dist in enumerate(distributions):
-        param_val=[]
-        for age_group in dist.index.get_level_values(0).unique().values[0:-1]:
-            draw = np.random.gamma(dist['shape'].loc[age_group],scale=dist['scale'].loc[age_group],size=n)
-            param_val.append(np.mean(draw))
-        param_dict[names[idx]] = np.array(param_val)
-    return param_dict
 
 import xarray as xr
 def aggregation_arr_prov(simulation_in):
@@ -740,7 +626,7 @@ def name2nis(name):
 
     """
     # Load the list of name-NIS couples
-    name_df=pd.read_csv(os.path.join(data_path, 'raw/GIS/NIS_name.csv'))
+    name_df=pd.read_csv(os.path.join(data_path, 'covid19_DTM/raw/GIS/NIS_name.csv'))
     pos_name = name_df['name'].values
     # Convert list of possible names to lowercase only
     pos_name_lower = [string.lower() for string in pos_name]
@@ -848,7 +734,7 @@ def stratify_beta_regional(beta_W, beta_FL, beta_Bxl, G):
 
 def read_coordinates_place(agg='arr'):
     """
-    A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
+    A function to extract from /data/covid19_DTM/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
 
     Parameter
     ---------
@@ -863,7 +749,7 @@ def read_coordinates_place(agg='arr'):
 
     """
 
-    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + agg + '.csv'), index_col=[0])
+    initN_df=pd.read_csv(os.path.join(data_path, 'covid19_DTM/interim/demographic/initN_' + agg + '.csv'), index_col=[0])
     return list(initN_df.index.values)
 
 def construct_coordinates_Nc(age_stratification_size=10):
@@ -910,7 +796,7 @@ def read_areas(agg='arr'):
         NIS codes are keys, values are population in square meters
     """
 
-    areas_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/area_' + agg + '.csv'), index_col='NIS')
+    areas_df = pd.read_csv(os.path.join(data_path, 'covid19_DTM/interim/demographic/area_' + agg + '.csv'), index_col='NIS')
     areas = areas_df['area'].to_dict()
 
     return areas
@@ -939,7 +825,7 @@ def read_pops(agg='arr',age_stratification_size=10,return_matrix=False,drop_tota
     if age_stratification_size not in [3, 9, 10]:
         raise Exception(f"Age stratification {age_stratification_size} is not allowed. Choose between either 3, 9 (default), or 10.")
     
-    pops_df = pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + agg + '.csv'), index_col='NIS')
+    pops_df = pd.read_csv(os.path.join(data_path, 'covid19_DTM/interim/demographic/initN_' + agg + '.csv'), index_col='NIS')
     if drop_total:
         pops_df.drop(columns='total', inplace=True)
     if return_matrix:
@@ -974,7 +860,7 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1, age_stratification_si
         The initial state with 11, 43 or 581 rows and 9 columns, representing the initial age and spatial distribution of people in a particular SEIR compartment.
     """
     
-    from covid19model.data.SARS_parameters import construct_initN
+    from covid19_DTM.data.model_parameters import construct_initN
     
     # Raise exceptions if input is wrong
     if not isinstance(dist, int) and (dist not in ['bxl', 'hom', 'data', 'frac']):
@@ -1059,7 +945,7 @@ def initial_state(dist='bxl', agg='arr', number=1, age=-1, age_stratification_si
     # Case for initial conditions based on fraction of hospitalisations on 20 March
     # If age < 0, the number of people is distributed over the age classes fractionally
     elif dist=='frac':
-        from covid19model.data.sciensano import get_sciensano_COVID19_data_spatial
+        from covid19_DTM.data.sciensano import get_sciensano_COVID19_data_spatial
         # Note that this gives non-natural numbers as output
         max_date = '2020-03-20' # Hard-coded and based on Arenas's convention
         values = 'hospitalised_IN' # Hard-coded and 
@@ -1119,7 +1005,7 @@ def _initial_age_dist(number, age,  pop, fractional=False, age_stratification_si
 
 def read_coordinates_nis(spatial='arr'):
     """
-    A function to extract from /data/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
+    A function to extract from /data/covid19_DTM/interim/demographic/initN_arrond.csv the list of arrondissement NIS codes
 
     Parameters
     ----------
@@ -1134,7 +1020,7 @@ def read_coordinates_nis(spatial='arr'):
 
     """
 
-    initN_df=pd.read_csv(os.path.join(data_path, 'interim/demographic/initN_' + spatial + '.csv'), index_col=[0])
+    initN_df=pd.read_csv(os.path.join(data_path, 'covid19_DTM/interim/demographic/initN_' + spatial + '.csv'), index_col=[0])
     NIS = initN_df.index.values
 
     return NIS

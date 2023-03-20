@@ -11,7 +11,7 @@ def get_apple_mobility_data(update=True):
     """Download Apple Mobility Trends
 
     This function downloads, formats and returns the available Apple Mobility Trends for the Provinces of Belgium.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    A copy of the downloaded dataset is automatically saved in the /data/covid19_DTM/raw folder.
 
     Parameters
     -----------
@@ -51,11 +51,11 @@ def get_apple_mobility_data(update=True):
         # download raw data
         df_raw = pd.read_csv(url)
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/mobility/apple/apple_mobility_trends.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/mobility/apple/apple_mobility_trends.csv')
         df_raw.to_csv(rel_dir, index=False)
     else:
         df_raw = pd.read_csv(os.path.join(abs_dir,
-            '../../../data/raw/mobility/apple/apple_mobility_trends.csv'))
+            '../../../data/covid19_DTM/raw/mobility/apple/apple_mobility_trends.csv'))
 
     # Start by extracting the overall data for Belgium
     df = df_raw[df_raw['region']=='Belgium']
@@ -87,7 +87,7 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
     """Download Google Community mobility report data
 
     This function downloads, formats and returns the available Belgian Google Community mobility report data.
-    A copy of the downloaded dataset is automatically saved in the /data/raw folder.
+    A copy of the downloaded dataset is automatically saved in the /data/covid19_DTM/raw folder.
 
     Parameters
     -----------
@@ -149,7 +149,7 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
         # download raw data
         df = pd.read_csv(url, parse_dates=['date'], dtype=dtypes)
         # save a copy in the raw folder
-        rel_dir = os.path.join(abs_dir, '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv')
+        rel_dir = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/mobility/google/google_community_mobility_data_BE.csv')
         # Extract only Belgian data: full file is over 300 Mb
         df=df[df['country_region']=='Belgium']
         # Save data
@@ -157,7 +157,7 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
 
     else:
         df = pd.read_csv(os.path.join(abs_dir,
-            '../../../data/raw/mobility/google/google_community_mobility_data_BE.csv'),
+            '../../../data/covid19_DTM/raw/mobility/google/google_community_mobility_data_BE.csv'),
             parse_dates=['date'], dtype=dtypes)
 
     # Map column names
@@ -220,8 +220,6 @@ def get_google_mobility_data(update=True, provincial=False, plot=False, filename
 
     return df
 
-
-
 ####################################
 # Proximus mobility data functions #
 ####################################
@@ -257,7 +255,7 @@ def get_proximus_mobility_data(agg):
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = f'../../../data/interim/mobility/{agg}/fractional'
+    data_location = f'../../../data/covid19_DTM/interim/mobility/{agg}/fractional'
     
     # Iterate over all available interim mobility data
     all_available_dates=[]
@@ -800,7 +798,7 @@ def missing_seconds_per_pc(datafile):
 def load_pc_to_nis():
     # Data source
     abs_dir = os.path.dirname(__file__)
-    pc_to_nis_file = os.path.join(abs_dir, '../../../data/raw/GIS/Postcode_Niscode.xlsx')
+    pc_to_nis_file = os.path.join(abs_dir, '../../../data/covid19_DTM/raw/GIS/Postcode_Niscode.xlsx')
     pc_to_nis_df = pd.read_excel(pc_to_nis_file)[['Postcode', 'NISCode']]
     return pc_to_nis_df
     

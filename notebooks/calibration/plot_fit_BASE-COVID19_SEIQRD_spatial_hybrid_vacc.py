@@ -4,7 +4,7 @@ This script can be used to plot the model fit of the virgin spatial COVID-19 SEI
 Arguments:
 ----------
 -f : string
-    Filename of samples dictionary to be loaded. Default location is ~/data/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/
+    Filename of samples dictionary to be loaded. Default location is ~/data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/{agg}/
 -a: str
     Spatial aggregation level: 'mun'/'arr'/'prov'
 -n_ag : int
@@ -39,10 +39,10 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.data import sciensano
-from covid19model.visualization.output import _apply_tick_locator 
+from covid19_DTM.data import sciensano
+from covid19_DTM.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_negative_binomial
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_negative_binomial
 #############################
 ## Handle script arguments ##
 #############################
@@ -76,9 +76,9 @@ conf_int = 0.05
 ##############################
 
 # Path where figures and results should be stored
-fig_path = '../../results/calibrations/COVID19_SEIQRD/'+agg+'/others/WAVE1/'
+fig_path = '../../results/covid19_DTM/calibrations/'+agg+'/others/WAVE1/'
 # Path where MCMC samples should be saved
-samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/'+agg+'/'
+samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/'+agg+'/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
@@ -88,7 +88,7 @@ for directory in [fig_path, samples_path]:
 ## Load samples dictionary ##
 #############################
 
-from covid19model.models.utils import load_samples_dict
+from covid19_DTM.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
 warmup = float(samples_dict['warmup'])
 dispersion = float(samples_dict['dispersion'])
@@ -121,8 +121,8 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(
 ## Sampling function/aggregation function ##
 ############################################
 
-from covid19model.models.utils import aggregation_arr_prov
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
+from covid19_DTM.models.utils import aggregation_arr_prov
+from covid19_DTM.models.draw_functions import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
 
 #########################
 ## Perform simulations ##
@@ -135,7 +135,7 @@ simtime = out['date'].values
 
 if agg == 'arr':
     # Switch to the provinicial initN
-    from covid19model.data.utils import construct_initN
+    from covid19_DTM.data.utils import construct_initN
     initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
     # Aggregate arrondissement simulation to the provincial level
     agg_H_in = aggregation_arr_prov(out['H_in'])
@@ -290,7 +290,7 @@ plt.close()
 
 print('5) Save a copy of the simulation output')
 # Path where the xarray should be stored
-file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/{args.agg}/'
+file_path = f'../../data/covid19_DTM/interim/model_parameters/initial_conditions/{args.agg}/'
 out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
 
 # Work is done

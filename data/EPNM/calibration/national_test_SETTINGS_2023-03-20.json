@@ -1,0 +1,1 @@
+{"start_calibration": "2020-03-01", "end_calibration": "2021-05-01", "n_chains": 18, "labels": ["$r_{c_s}$", "$r_{f_s}$"], "starting_estimate": [0.73005337, 0.34106887], "calibrated_parameters_shapes": {"ratio_c_s": [1], "ratio_f_s": [1]}}

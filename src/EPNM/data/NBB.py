@@ -3,11 +3,11 @@ import pandas as pd
 
 # Set path to interim data folder
 abs_dir = os.path.dirname(__file__)
-par_interim_path = os.path.join(abs_dir, "../../../data/interim/economical/")
+par_interim_path = os.path.join(abs_dir, "../../../data/EPNM/interim/")
 
 def get_revenue_survey():
     """
-    Loads the revenue survey data located in `data/interim/economical/calibration_data/ERMG_revenue_survey.xlsx`
+    Loads the revenue survey data located in `data/EPNM/interim/calibration_data/ERMG_revenue_survey.xlsx`
 
     Returns
     =======
@@ -36,7 +36,7 @@ def get_revenue_survey():
 
 def get_employment_survey():
     """
-    Loads the employment survey data located in `data/interim/economical/calibration_data/ERMG_temporary_unemployment.xlsx`
+    Loads the employment survey data located in `data/EPNM/interim/calibration_data/ERMG_temporary_unemployment.xlsx`
 
     Returns
     =======
@@ -60,7 +60,7 @@ def get_employment_survey():
 
 def get_synthetic_GDP():
     """
-    Loads the synthetic GDP data located in `data/interim/economical/calibration_data/NBB_synthetic_GDP.xlsx`
+    Loads the synthetic GDP data located in `data/EPNM/interim/calibration_data/NBB_synthetic_GDP.xlsx`
 
     Returns
     =======
@@ -84,7 +84,7 @@ def get_synthetic_GDP():
 
 def get_B2B_demand():
     """
-    Loads the B2B demand data located in `data/interim/economical/calibration_data/WoW_Growths.xlsx`
+    Loads the B2B demand data located in `data/EPNM/interim/calibration_data/WoW_Growths.xlsx`
 
     Returns
     =======

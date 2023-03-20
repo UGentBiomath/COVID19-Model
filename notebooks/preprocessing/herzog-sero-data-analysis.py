@@ -1,6 +1,6 @@
 """
 This script contains all necessary code to extract and convert the serological data from Herzog into a timeseries for model calibration.
-The raw data are located in the `~/data/raw/sero/` folder and were downloaded from https://zenodo.org/record/4665373#.YH13QHUzaV4.
+The raw data are located in the `~/data/covid19_DTM/raw/sero/` folder and were downloaded from https://zenodo.org/record/4665373#.YH13QHUzaV4.
 """
 
 __author__      = "Tijs Alleman"
@@ -22,7 +22,7 @@ from datetime import timedelta
 # -------------------------------------------------
 
 # Load data
-df = pd.read_csv('../../data/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv', parse_dates=True)
+df = pd.read_csv('../../data/covid19_DTM/raw/sero/serology_covid19_belgium_round_1_to_7_v20210406.csv', parse_dates=True)
 
 # Reindex data and drop unused columns
 df['collection_midpoint'] = (pd.to_datetime(df['collection_start']) + (pd.to_datetime(df['collection_end']) - pd.to_datetime(df['collection_start']))/2)
@@ -123,5 +123,5 @@ merged = pd.concat([new_df, total_df])
 # Save the results
 # -----------------
 
-merged.to_csv('../../data/interim/sero/sero_national_stratified_own.csv')
+merged.to_csv('../../data/covid19_DTM/interim/sero/sero_national_stratified_own.csv')
 

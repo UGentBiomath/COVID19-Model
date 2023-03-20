@@ -37,18 +37,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 # Import the SEIQRD model with VOCs, vaccinations, seasonality
-from covid19model.models import models
+from covid19_DTM.models import models
 # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, \
+from covid19_DTM.models.TDPF import make_mobility_update_function, \
                                                             make_contact_matrix_function, \
                                                             make_VOC_function, \
                                                             make_vaccination_function, \
                                                             make_seasonality_function
 # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
-from covid19model.data import mobility, sciensano, model_parameters, VOC
+from covid19_DTM.data import mobility, sciensano, model_parameters, VOC
 # Import model utilities
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
-from covid19model.data.utils import convert_age_stratified_quantity
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_vacc, output_to_visuals, add_poisson
+from covid19_DTM.data.utils import convert_age_stratified_quantity
 
 print('\n1) Setting up script')
 
@@ -110,14 +110,14 @@ for directory in [results_path,]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 # Path where MCMC samples should be saved
-samples_path_national = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/BE_WAVE2_stratified_vacc_R0_COMP_EFF_2021-11-15.json'
-samples_path_spatial = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/prov_full-pandemic_FULL_twallema_test_R0_COMP_EFF_2021-11-13.json'
+samples_path_national = '../../data/covid19_DTM/interim/model_parameters/calibrations/national/BE_WAVE2_stratified_vacc_R0_COMP_EFF_2021-11-15.json'
+samples_path_spatial = '../../data/covid19_DTM/interim/model_parameters/calibrations/prov/prov_full-pandemic_FULL_twallema_test_R0_COMP_EFF_2021-11-13.json'
 
 # --------------------------------------------
 # Load samples dictionaries and draw functions
 # --------------------------------------------
 
-from covid19model.models.utils import load_samples_dict
+from covid19_DTM.models.utils import load_samples_dict
 warmup = 0
 samples_dict = [load_samples_dict(samples_path_national, age_stratification_size=age_stratification_size),
                 load_samples_dict(samples_path_spatial, age_stratification_size=age_stratification_size)]
@@ -125,8 +125,8 @@ start_calibration = [samples_dict[0]['start_calibration'], samples_dict[1]['star
 end_calibration = [samples_dict[0]['end_calibration'], samples_dict[1]['end_calibration']]
 start_sim = start_calibration
 
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc
-from covid19model.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc
+from covid19_DTM.models.utils import draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc
+from covid19_DTM.models.utils import draw_fcn_COVID19_SEIQRD_stratified_vacc
 draw_fcn = [draw_fcn_COVID19_SEIQRD_stratified_vacc, draw_fcn_COVID19_SEIQRD_spatial_stratified_vacc]
 
 ##################
@@ -172,7 +172,7 @@ policy_function = make_contact_matrix_function(df_google, Nc_dict).policies_all_
 seasonality_function = make_seasonality_function()
 # Load initial states
 date = '2020-03-15'
-with open('../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
+with open('../../data/covid19_DTM/interim/model_parameters/initial_conditions/national/initial_states-COVID19_SEIQRD_stratified_vacc.pickle', 'rb') as handle:
     load = pickle.load(handle)
     initial_states = load[date]
 # Convert to right age groups using demographic wheiging
@@ -224,7 +224,7 @@ vaccination_function = make_vaccination_function(public_spatial_vaccination_data
 seasonality_function = make_seasonality_function()
 # Initial condition on 2020-03-17
 date = '2020-03-17'
-with open('../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/initial_states_2020-03-17.pickle', 'rb') as handle:
+with open('../../data/covid19_DTM/interim/model_parameters/calibrations/prov/initial_states_2020-03-17.pickle', 'rb') as handle:
     load = pickle.load(handle)
     initial_states = load[date]
 # Convert to right age groups using demographic wheiging

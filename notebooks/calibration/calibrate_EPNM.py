@@ -16,7 +16,7 @@ import pandas as pd
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 # COVID-19 code
-from covid19model.visualization.optimization import plot_PSO
+from covid19_DTM.visualization.optimization import plot_PSO
 from EPNM.models.utils import initialize_model
 from EPNM.data.NBB import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
 # pySODM code
@@ -37,7 +37,7 @@ parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Fo
 parser.add_argument("-e", "--end_calibration", help="Calibration enddate", default='2021-05-01')
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
-parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 100)
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 1000)
 parser.add_argument("-ID", "--identifier", help="Name in output files.")
 args = parser.parse_args()
 
@@ -65,9 +65,9 @@ if args.end_calibration:
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../../results/calibrations/economic/'
+fig_path = f'../../results/EPNM/calibrations/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/interim/economical/calibration/'
+samples_path = f'../../data/EPNM/calibration/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):

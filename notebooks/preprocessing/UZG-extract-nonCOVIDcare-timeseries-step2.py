@@ -1,5 +1,5 @@
 """
-This script converts the intermediate dataset on the postponement of non-COVID-19 care, located in `~/data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.xlsx`
+This script converts the intermediate dataset on the postponement of non-COVID-19 care, located in `~/data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.xlsx`
 folder (not on github, contact tijs.alleman@ugent.be) into the final format (postponement of care vs. prepandemic baseline)
 
 The intermediate format is a pd.DataFrame, which, for each MDC, age and type of stay contains the total number of patients on a given date (from 2016-2021).
@@ -30,9 +30,9 @@ print('\n(1) Loading intermediate dataset\n')
 
 # Name and location of intermediate dataset
 abs_dir = os.getcwd()
-rel_dir = '../../data/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.csv'
+rel_dir = '../../data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/MZG_2016_2021.csv'
 # Name and location of saved dataframe
-result_folder =  '../../data/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_normalized.csv'
+result_folder =  '../../data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/UZG/2020_2021_normalized.csv'
 # Load data
 df = pd.read_csv(os.path.join(abs_dir, rel_dir), index_col=[0,1,2,3], parse_dates=True)
 # Sum to weekly frequency to reduce noise in the dataset

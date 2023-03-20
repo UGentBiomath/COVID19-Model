@@ -11,7 +11,7 @@ def google_mobility(data):
     data : pandas.DataFrame
         DataFrame containing the columns 'retail_recreation',
         'grocery', 'parks', 'transport', 'work', 'residential'
-        as provided by the :meth:`~covid19model.data.google.get_google_mobility_data`
+        as provided by the :meth:`~covid19_DTM.data.google.get_google_mobility_data`
     """
     data_lst=[['retail_recreation', 'grocery'],
               ['parks', 'transport'],

@@ -1,7 +1,7 @@
 import os 
 import numpy as np
 import pandas as pd
-from covid19model.data.utils import convert_age_stratified_property
+from covid19_DTM.data.utils import convert_age_stratified_property
 
 class life_table_QALY_model():
 
@@ -52,7 +52,7 @@ class life_table_QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=';',index_col=0)
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=';',index_col=0)
         # Compute the vector mu_x and append to life table
         self.life_table['mu_x']= self.compute_death_rate(self.life_table['q_x'])     
         # Define mu_x explictly to enhance readability of the code
@@ -365,7 +365,7 @@ def lost_QALYs_hospital_care (reduction,granular=False):
    
     # Import hospital care cost per disease group and cost per QALY
     #cost per qauly (EUR), total spent (mill EUR) 
-    hospital_data=pd.read_excel("../../data/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data', index_col=0)
+    hospital_data=pd.read_excel("../../data/covid19_DTM/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data', index_col=0)
         
     # Average calculations
      

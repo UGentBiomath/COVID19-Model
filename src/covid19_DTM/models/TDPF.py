@@ -4,7 +4,7 @@ import pandas as pd
 import warnings
 import matplotlib.pyplot as plt
 from functools import lru_cache
-from covid19model.visualization.output import school_vacations_dict
+from covid19_DTM.visualization.output import school_vacations_dict
 
 ##########################
 ## Compliance functions ##
@@ -84,7 +84,7 @@ def load_all_mobility_data(agg, dtype='fractional', beyond_borders=False):
     # Define absolute location of this file
     abs_dir = os.path.dirname(__file__)
     # Define data location for this particular aggregation level
-    data_location = f'../../../data/interim/mobility/{agg}/{dtype}'
+    data_location = f'../../../data/covid19_DTM/interim/mobility/{agg}/{dtype}'
 
     # Iterate over all available interim mobility data
     all_available_dates=[]
@@ -250,7 +250,7 @@ class make_VOC_function():
 ## Vaccination functions ##
 ###########################
 
-from covid19model.data.utils import construct_initN
+from covid19_DTM.data.utils import construct_initN
 
 class make_N_vacc_function():
     """A time-dependent parameter function to return the vaccine incidence at each timestep of the simulation
@@ -315,9 +315,9 @@ class make_N_vacc_function():
         ######################### 
 
         if agg:
-            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_incidence_{agg}.pkl"))
+            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/covid19_DTM/interim/sciensano/vacc_incidence_{agg}.pkl"))
         else:
-            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_incidence_national.pkl"))
+            df.to_pickle(os.path.join(os.path.dirname(__file__), f"../../../data/covid19_DTM/interim/sciensano/vacc_incidence_national.pkl"))
 
         ##################################################
         ## Step 5: Assign relevant (meta)data to object ##
@@ -391,7 +391,7 @@ class make_N_vacc_function():
         ------
         df: pd.Series
             Pandas series containing the weekly vaccination incidences, indexed using a pd.Multiindex
-            Obtained using the function `covid19model.data.sciensano.get_public_spatial_vaccination_data()`
+            Obtained using the function `covid19_DTM.data.sciensano.get_public_spatial_vaccination_data()`
             Must contain 'date', 'age' and 'dose' as indices for the national model
             Must contain 'date', 'NIS', 'age', 'dose' as indices for the spatial model
         
@@ -454,7 +454,7 @@ class make_N_vacc_function():
         
          df: pd.Series
             Pandas series containing the vaccination incidences, indexed using a pd.Multiindex
-            Obtained using the function `covid19model.data.sciensano.get_public_spatial_vaccination_data()`
+            Obtained using the function `covid19_DTM.data.sciensano.get_public_spatial_vaccination_data()`
             Must contain 'date', 'age' and 'dose' as indices for the national model
             Must contain 'date', 'NIS', 'age', 'dose' as indices for the spatial model  
             
@@ -474,7 +474,7 @@ class make_N_vacc_function():
         """
         
         
-        from covid19model.data.utils import convert_age_stratified_quantity
+        from covid19_DTM.data.utils import convert_age_stratified_quantity
         print('\nConverting stored vaccine incidence from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
 
         # Define a new dataframe with the desired age groups
@@ -517,7 +517,7 @@ class make_N_vacc_function():
         
         df: pd.Series
             Pandas series containing the weekly vaccination incidences, indexed using a pd.Multiindex
-            Obtained using the function `covid19model.data.sciensano.get_public_spatial_vaccination_data()`
+            Obtained using the function `covid19_DTM.data.sciensano.get_public_spatial_vaccination_data()`
             Must contain 'date', 'age' and 'dose' as indices for the national model
         
         extend_weeks: int
@@ -624,12 +624,12 @@ class make_vaccination_efficacy_function():
     
         if update==False:
             # Simply load data
-            from covid19model.data.utils import to_pd_interval
+            from covid19_DTM.data.utils import to_pd_interval
             if agg:
-                path = os.path.join(os.path.dirname(__file__), f"../../../data/interim/sciensano/vacc_rescaling_values_{agg}.csv")
+                path = os.path.join(os.path.dirname(__file__), f"../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_{agg}.csv")
                 df_efficacies = pd.read_csv(path,  index_col=['date','NIS','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
             else:
-                path = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/vacc_rescaling_values_national.csv")
+                path = os.path.join(os.path.dirname(__file__), "../../../data/covid19_DTM/interim/sciensano/vacc_rescaling_values_national.csv")
                 df_efficacies = pd.read_csv(path,  index_col=['date','age', 'dose', 'VOC'], converters={'date': pd.to_datetime, 'age': to_pd_interval})
         else:
             # Warn user this may take some time
@@ -647,7 +647,7 @@ class make_vaccination_efficacy_function():
             # Add dummy efficacy for zero doses
             df_efficacies = self.add_efficacy_no_vaccine(df_efficacies)
             # Save result
-            dir = os.path.join(os.path.dirname(__file__), "../../../data/interim/sciensano/")
+            dir = os.path.join(os.path.dirname(__file__), "../../../data/covid19_DTM/interim/sciensano/")
             if agg:
                 df_efficacies.to_csv(os.path.join(dir, f'vacc_rescaling_values_{agg}.csv'))
                 df_efficacies.to_pickle(os.path.join(dir, f'vacc_rescaling_values_{agg}.pkl'))
@@ -891,7 +891,7 @@ class make_vaccination_efficacy_function():
         
          df: pd.Series
             Pandas series containing the vaccination incidences, indexed using a pd.Multiindex
-            Obtained using the function `covid19model.data.sciensano.get_public_spatial_vaccination_data()`
+            Obtained using the function `covid19_DTM.data.sciensano.get_public_spatial_vaccination_data()`
             Must contain 'date', 'age' and 'dose' as indices for the national model
             Must contain 'date', 'NIS', 'age', 'dose' as indices for the spatial model  
             
@@ -910,7 +910,7 @@ class make_vaccination_efficacy_function():
         
         """
 
-        from covid19model.data.utils import convert_age_stratified_property
+        from covid19_DTM.data.utils import convert_age_stratified_property
 
         print('\nConverting stored vaccine efficacies from {0} to {1} age groups, this may take some time\n'.format(len(df.index.get_level_values('age').unique()), len(desired_age_classes)))
 
@@ -1004,7 +1004,7 @@ class make_vaccination_efficacy_function():
     
     @staticmethod
     def format_vaccine_params(df):
-        """ This function format the vaccine parameters provided by the user in function `covid19model.data.SARS_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
+        """ This function format the vaccine parameters provided by the user in function `covid19_DTM.data.model_parameters.get_COVID19_SEIQRD_VOC_parameters` into a format better suited for the computation in this module."""
 
         ###################
         ## e_s, e_i, e_h ##

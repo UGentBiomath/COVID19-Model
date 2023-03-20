@@ -3,8 +3,8 @@ import json
 import pandas as pd
 import numpy as np
 from scipy.optimize import minimize
-from covid19model.models.utils import load_samples_dict
-from covid19model.data.utils import construct_initN, convert_age_stratified_property
+from covid19_DTM.models.utils import load_samples_dict
+from covid19_DTM.data.utils import construct_initN, convert_age_stratified_property
 
 def get_interaction_matrices(dataset='willem_2012', wave=1, intensity='all', age_path='0_12_18_25_35_45_55_65_75_85/'):
     """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
@@ -85,7 +85,7 @@ def get_interaction_matrices(dataset='willem_2012', wave=1, intensity='all', age
 
     if dataset == 'willem_2012':
         # Define data path
-        matrix_path = "../../../data/raw/interaction_matrices/willem_2012/"
+        matrix_path = "../../../data/covid19_DTM/raw/interaction_matrices/willem_2012/"
         path = os.path.join(abs_dir, matrix_path+age_path)
 
         # Input check on user-defined intensity
@@ -115,7 +115,7 @@ def get_interaction_matrices(dataset='willem_2012', wave=1, intensity='all', age
     elif dataset == 'comix':
         # Define data path
         matrix_path = os.path.join(
-            abs_dir, "../../../data/raw/interaction_matrices/comix")
+            abs_dir, "../../../data/covid19_DTM/raw/interaction_matrices/comix")
         # Input check on user-defined intensity
         if intensity not in pd.ExcelFile(os.path.join(matrix_path, "wave1.xlsx")).sheet_names:
             raise ValueError(
@@ -267,7 +267,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
 
     abs_dir = os.path.dirname(__file__)
     par_interim_path = os.path.join(
-        abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD")
+        abs_dir, "../../../data/covid19_DTM/interim/model_parameters/")
 
     # Initialize parameters dictionary
     pars_dict = {}
@@ -429,7 +429,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     if agg:
         # Read recurrent mobility matrix per region
         # Note: this is still 2011 census data, loaded by default. A time-dependant function should update mobility_data
-        mobility_data = '../../../data/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
+        mobility_data = '../../../data/covid19_DTM/interim/census_2011/census-2011-updated_row-commutes-to-column_' + agg + '.csv'
         mobility_df = pd.read_csv(os.path.join(
             abs_dir, mobility_data), index_col='NIS')
         # Make sure the regions are ordered according to ascending NIS values
@@ -443,7 +443,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
             NIS[i, :] = NIS[i, :]/sum(NIS[i, :])
         pars_dict['NIS'] = NIS
         # Read areas per region, ordered in ascending NIS values
-        area_data = '../../../data/interim/demographic/area_' + agg + '.csv'
+        area_data = '../../../data/covid19_DTM/interim/demographic/area_' + agg + '.csv'
         area_df = pd.read_csv(os.path.join(
             abs_dir, area_data), index_col='NIS')
         # Make sure the regions are ordered well
@@ -463,7 +463,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
-        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/'
+        samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
         base_dict_name = 'national_REF_SAMPLES_2022-09-13.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
@@ -477,7 +477,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
         })
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
-        samples_path = '../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/prov/'
+        samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
         base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-17.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
@@ -503,7 +503,7 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     abs_dir = os.path.dirname(__file__)
     save_path = os.path.join(
-        abs_dir, "../../../data/interim/model_parameters/COVID19_SEIQRD/VOCs")
+        abs_dir, "../../../data/covid19_DTM/interim/model_parameters/VOCs")
 
     ###########################################################
     ## Build a dataframe with all properties of the variants ##

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 abs_dir = os.path.dirname(__file__)
-rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/raw/VOCs/')
+rel_dir = os.path.join(os.path.dirname(__file__), '../../../data/covid19_DTM/raw/VOCs/')
 
 def get_abc_data():
     # Load and format alpha, beta and gamma VOC data
