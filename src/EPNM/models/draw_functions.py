@@ -8,13 +8,13 @@ def draw_function(param_dict, samples_dict):
     """
 
     # Hiring and Firing speed
-    param_dict['gamma_F'] = np.random.uniform(low=1, high=14)
-    param_dict['gamma_H'] = np.random.uniform(low=7, high=28)
+    param_dict['gamma_F'] = np.random.normal(loc=7, scale=1)
+    param_dict['gamma_H'] = np.random.normal(loc=14, scale=2)
     # Household savings and prospects
     param_dict['delta_S'] = np.random.uniform(low=0, high=1)
     param_dict['L'] = np.random.uniform(low=0, high=1)
     # restock rate
-    param_dict['tau'] =  np.random.uniform(low=7, high=14)
+    param_dict['tau'] =  np.random.normal(loc=10, scale=2)
     # Shocks lockdowns
     param_dict['l_s_1'] =  np.random.normal(loc=1, scale=0.05)*param_dict['l_s_1']
     param_dict['l_s_2'] =  np.random.normal(loc=1, scale=0.05)*param_dict['l_s_2']

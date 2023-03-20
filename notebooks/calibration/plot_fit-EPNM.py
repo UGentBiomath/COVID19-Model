@@ -3,6 +3,7 @@
 ############################
 
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
 import json
 import datetime
 import argparse
@@ -58,11 +59,15 @@ conf_int = 0.05
 #############################
 
 # Path where figures and results should be stored
-fig_path = f'../../results/EPNM/calibrations/'
+fig_path = f'../../results/EPNM/calibrations/fit/'
 # Path where MCMC samples should be saved
 samples_path = f'../../data/EPNM/interim/calibrations/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+# Make subdirectories for the figures
+for directory in [fig_path+"GDP/", fig_path+"labor/", fig_path+"revenue",  fig_path+"B2B"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 # Load raw samples dict
@@ -86,14 +91,60 @@ simtime = out['date'].values
 ## Synthetic GDP ##
 ###################
 
-print(data_GDP.index.get_level_values('NACE64').unique())
+for sector in data_GDP.index.get_level_values('NACE64').unique():
+    fig,ax=plt.subplots(figsize=(8,3))
+    if sector == 'BE':
+        ax.scatter(data_GDP.index.get_level_values('date').unique().values, data_GDP.loc[slice(None), 'BE']*100, label='Synthetic GDP (NBB)',color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.plot(simtime, out['x'].sum(dim='NACE64').mean(dim='draws')/out['x'].sum(dim='NACE64').mean(dim='draws').sel(date=simtime[0])*100,
+                color='black',label='Simulation (mean)')
+        ax.fill_between(simtime, out['x'].sum(dim='NACE64').quantile(dim='draws', q=0.025)/out['x'].sum(dim='NACE64').quantile(dim='draws', q=0.025).sel(date=simtime[0])*100,
+                        out['x'].sum(dim='NACE64').quantile(dim='draws', q=0.975)/out['x'].sum(dim='NACE64').quantile(dim='draws', q=0.975).sel(date=simtime[0])*100,
+                        color='black', alpha=0.15, label='Simulation (95% CI)')
+    else:
+        ax.scatter(data_GDP.index.get_level_values('date').unique().values, data_GDP.loc[slice(None), sector]*100, label='Synthetic GDP (NBB)',color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.plot(simtime, out['x'].sel(NACE64=sector).mean(dim='draws')/out['x'].sel(NACE64=sector).mean(dim='draws').sel(date=simtime[0])*100,
+                color='black',label='Simulation (mean)')
+        ax.fill_between(simtime, out['x'].sel(NACE64=sector).quantile(dim='draws', q=0.025)/out['x'].sel(NACE64=sector).quantile(dim='draws', q=0.025).sel(date=simtime[0])*100,
+                        out['x'].sel(NACE64=sector).quantile(dim='draws', q=0.975)/out['x'].sel(NACE64=sector).quantile(dim='draws', q=0.975).sel(date=simtime[0])*100,
+                        color='black', alpha=0.15, label='Simulation (95% CI)')
+    ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(30)
+    ax.set_ylabel('Change (%)') 
+    ax.set_ylim([25,125])
+    ax.legend()
+    ax.grid(False)
+    plt.tight_layout()
+    plt.savefig(fig_path+'/GDP/'+f'GDP_{sector}.jpg', dpi=600)
+    plt.close()
 
-fig,ax=plt.subplots(figsize=(8,2.5))
-ax.plot(data_GDP.loc[slice(None), '77']*100, label='Rental and leasing (77)')
-ax.plot(data_GDP.loc[slice(None), '20']*100, label='Manufacture of Chemicals (22)')
-ax.xaxis.set_major_locator(plt.MaxNLocator(5))
-for tick in ax.get_xticklabels():
-    tick.set_rotation(45)
-ax.set_ylabel('Change (%)') 
-ax.legend()
-ax.grid(False)
+##################
+## Labor market ##
+##################
+
+for sector in data_employment.index.get_level_values('NACE64').unique():
+    fig,ax=plt.subplots(figsize=(8,3))
+    if sector == 'BE':
+        ax.scatter(data_employment.index.get_level_values('date').unique().values, data_employment.loc[slice(None), 'BE']*100, label='Employment survey (NBB)',color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.plot(simtime, out['l'].sum(dim='NACE64').mean(dim='draws')/out['l'].sum(dim='NACE64').mean(dim='draws').sel(date=simtime[0])*100,
+                color='black',label='Simulation (mean)')
+        ax.fill_between(simtime, out['l'].sum(dim='NACE64').quantile(dim='draws', q=0.025)/out['l'].sum(dim='NACE64').quantile(dim='draws', q=0.025).sel(date=simtime[0])*100,
+                        out['l'].sum(dim='NACE64').quantile(dim='draws', q=0.975)/out['l'].sum(dim='NACE64').quantile(dim='draws', q=0.975).sel(date=simtime[0])*100,
+                        color='black', alpha=0.15, label='Simulation (95% CI)')
+    else:
+        ax.scatter(data_employment.index.get_level_values('date').unique().values, data_employment.loc[slice(None), sector]*100, label='Employment survey (NBB)',color='black', alpha=0.4, linestyle='None', facecolors='none', s=60, linewidth=2)
+        ax.plot(simtime, out['l'].sel(NACE64=sector).mean(dim='draws')/out['l'].sel(NACE64=sector).mean(dim='draws').sel(date=simtime[0])*100,
+                color='black',label='Simulation (mean)')
+        ax.fill_between(simtime, out['l'].sel(NACE64=sector).quantile(dim='draws', q=0.025)/out['l'].sel(NACE64=sector).quantile(dim='draws', q=0.025).sel(date=simtime[0])*100,
+                        out['l'].sel(NACE64=sector).quantile(dim='draws', q=0.975)/out['l'].sel(NACE64=sector).quantile(dim='draws', q=0.975).sel(date=simtime[0])*100,
+                        color='black', alpha=0.15, label='Simulation (95% CI)')
+    ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+    for tick in ax.get_xticklabels():
+        tick.set_rotation(30)
+    ax.set_ylabel('Change (%)') 
+    ax.set_ylim([0,105])
+    ax.legend()
+    ax.grid(False)
+    plt.tight_layout()
+    plt.savefig(fig_path+'/labor/'+f'labor_{sector}.jpg', dpi=600)
+    plt.close()

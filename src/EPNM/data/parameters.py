@@ -128,8 +128,8 @@ def get_model_parameters():
 
     # Key dates lockdown 1
     t_start_lockdown_1 = pd.Timestamp('2020-03-15')
-    t_end_lockdown_1 = pd.Timestamp('2020-05-01')
-    t_end_relax_1 = pd.Timestamp('2020-07-15')
+    t_end_lockdown_1 = pd.Timestamp('2020-05-07')
+    t_end_relax_1 = pd.Timestamp('2020-08-01')
     # Key dates lockdown 2
     t_start_lockdown_2 = pd.Timestamp('2020-10-19')
     t_end_lockdown_2 = pd.Timestamp('2020-12-01')
