@@ -4,7 +4,7 @@ You must place the super secret detailed hospitalization dataset `COVID19BE_CLIN
 Further, you must MANUALLY replace décédé and rétabli in the file `COVID19BE_CLINIC.csv` with D and R.
 
 To load the resulting .xlsx into a pandas dataframe use:
-    dataframe = pd.read_excel('../../data/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    dataframe = pd.read_excel('../../data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
 """
 
 __author__      = "Tijs Alleman"
@@ -60,7 +60,7 @@ else:
 # -----
 
 fig_path = '../../results/analysis/hospital/'+age_path
-data_path = '../../data/interim/model_parameters/COVID19_SEIQRD/hospitals/' + age_path
+data_path = '../../data/covid19_DTM/interim/model_parameters/hospitals/' + age_path
 
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, data_path]:
@@ -917,7 +917,7 @@ plt.savefig(fig_path+'SCIENSANO_violin_residence_times.pdf', dpi=600, bbox_inche
 plt.close()
 
 # ----------------------------------------------------------------
-# Write age-stratified parameters to data/interim/model_parameters
+# Write age-stratified parameters to data/covid19_DTM/interim/model_parameters
 # ----------------------------------------------------------------
 with pd.ExcelWriter(data_path+'sciensano_hospital_parameters.xlsx') as writer:  
     fractions.to_excel(writer,sheet_name='fractions')

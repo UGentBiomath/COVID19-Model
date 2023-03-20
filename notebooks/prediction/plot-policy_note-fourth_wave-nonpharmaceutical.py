@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from covid19model.visualization.output import _apply_tick_locator 
+from covid19_DTM.visualization.output import _apply_tick_locator 
 
 ######################
 ## Load simulations ##
@@ -23,7 +23,7 @@ end_calibration = '2021-11-12'
 ## Load data ##
 ###############
 
-from covid19model.data import sciensano, model_parameters
+from covid19_DTM.data import sciensano, model_parameters
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 initN, Nc_dict, params = model_parameters.get_COVID19_SEIQRD_parameters(spatial='prov', vaccination=True, VOC=True)
 

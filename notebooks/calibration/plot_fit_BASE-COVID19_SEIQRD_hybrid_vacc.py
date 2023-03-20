@@ -40,11 +40,11 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.data import sciensano
-from covid19model.visualization.output import _apply_tick_locator 
-from covid19model.models.utils import output_to_visuals
-from covid19model.models.utils import load_samples_dict
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.data import sciensano
+from covid19_DTM.visualization.output import _apply_tick_locator 
+from covid19_DTM.models.utils import output_to_visuals
+from covid19_DTM.models.utils import load_samples_dict
 
 #############################
 ## Handle script arguments ##
@@ -78,9 +78,9 @@ conf_int = 0.05
 ##############################
 
 # Path where figures and results should be stored
-fig_path = f'../../results/calibrations/COVID19_SEIQRD/{str(args.agg)}/others/WAVE2/'
+fig_path = f'../../results/covid19_DTM/calibrations/{str(args.agg)}/others/WAVE2/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{str(args.agg)}/'
+samples_path = f'../../data/covid19_DTM/interim/model_parameters/calibrations/{str(args.agg)}/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
@@ -125,7 +125,7 @@ model.parameters['beta'] = samples_dict['beta']
 ## Sampling function ##
 #######################
 
-from covid19model.models.utils import draw_fnc_COVID19_SEIQRD_hybrid_vacc as draw_fcn
+from covid19_DTM.models.draw_functions import draw_fnc_COVID19_SEIQRD_hybrid_vacc as draw_fcn
 
 #########################
 ## Perform simulations ##
@@ -274,7 +274,7 @@ if args.save:
 
 print('4) Save a copy of the simulation output')
 # Path where the xarray should be stored
-file_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/initial_conditions/national/'
+file_path = f'../../data/covid19_DTM/interim/model_parameters/initial_conditions/national/'
 out.coords.update({'Nc': range(len(out.coords['Nc']))})
 out.mean(dim='draws').to_netcdf(file_path+str(args.agg)+'_'+str(args.identifier)+'_SIMULATION_'+ str(args.date)+'.nc')
 

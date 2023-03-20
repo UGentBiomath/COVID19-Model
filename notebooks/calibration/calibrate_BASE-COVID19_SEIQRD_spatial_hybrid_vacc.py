@@ -22,9 +22,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 # COVID-19 code
-from covid19model.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
-from covid19model.data import sciensano
-from covid19model.visualization.optimization import plot_PSO, plot_PSO_spatial
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
+from covid19_DTM.data import sciensano
+from covid19_DTM.visualization.optimization import plot_PSO, plot_PSO_spatial
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import assign_theta, variance_analysis
@@ -104,11 +104,11 @@ if args.end_calibration:
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../../results/calibrations/COVID19_SEIQRD/{agg}/'
+fig_path = f'../../results/covid19_DTM/calibrations/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
+samples_path = f'../../data/covid19_DTM/interim/model_parameters/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
+backend_folder = f'../../results/covid19_DTM/calibrations/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):
@@ -142,14 +142,14 @@ tau = 0.75
 
 if agg == 'arr':
     # Switch to the provinicial initN
-    from covid19model.data.utils import construct_initN
+    from covid19_DTM.data.utils import construct_initN
     initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
 
 ####################################
 ## Define an aggregation function ##
 ####################################
 
-from covid19model.models.utils import aggregation_arr_prov
+from covid19_DTM.models.utils import aggregation_arr_prov
 
 if __name__ == '__main__':
 

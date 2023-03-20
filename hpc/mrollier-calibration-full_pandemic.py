@@ -61,7 +61,7 @@ from covid19model.models import models
 from covid19model.models.utils import initial_state
 
 # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-from covid19model.models.time_dependant_parameter_fncs import make_mobility_update_function, \
+from covid19model.models.TDPF import make_mobility_update_function, \
                                                               make_contact_matrix_function, \
                                                               make_VOC_function, \
                                                               make_vaccination_function, \
@@ -195,11 +195,11 @@ initial_time = datetime.datetime.now()
 
 # Path where traceplot and autocorrelation figures should be stored.
 # This directory is split up further into autocorrelation, traceplots
-fig_path = f'../results/calibrations/COVID19_SEIQRD/{agg}/'
+fig_path = f'../results/calibrations/{agg}/'
 # Path where MCMC samples should be saved
-samples_path = f'../data/interim/model_parameters/COVID19_SEIQRD/calibrations/{agg}/'
+samples_path = f'../data/covid19_DTM/interim/model_parameters/calibrations/{agg}/'
 # Path where samples backend should be stored
-backend_folder = f'../results/calibrations/COVID19_SEIQRD/{agg}/backends/'
+backend_folder = f'../results/calibrations/{agg}/backends/'
 # Verify that the paths exist and if not, generate them
 for directory in [fig_path, samples_path, backend_folder]:
     if not os.path.exists(directory):

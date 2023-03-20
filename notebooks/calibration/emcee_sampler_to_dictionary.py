@@ -28,7 +28,7 @@ Cornerplot of said MCMC chains.
 
 Example use:
 ------------
-python emcee_sampler_to_dictionary.py -p ../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/national/ -ID test -d 2023-02-15 -discard 60 -t 2
+python emcee_sampler_to_dictionary.py -p ../../data/covid19_DTM/interim/model_parameters/calibrations/national/ -ID test -d 2023-02-15 -discard 60 -t 2
 """
 
 __author__      = "Tijs Alleman"
@@ -52,7 +52,7 @@ import matplotlib.pyplot as plt
 #############################
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-p", "--path", help="Path to _BACKEND_ and _SETTINGS_ files", default='../../data/interim/model_parameters/COVID19_SEIQRD/calibrations/')
+parser.add_argument("-p", "--path", help="Path to _BACKEND_ and _SETTINGS_ files", default='../../data/covid19_DTM/interim/model_parameters/calibrations/')
 parser.add_argument("-a", "--agg", help="Spatial aggregation", default='national')
 parser.add_argument("-ID", "--identifier", help="Calibration identifier")
 parser.add_argument("-d", "--date", help="Calibration date")
@@ -157,7 +157,7 @@ CORNER_KWARGS = dict(
 )
 
 # Path where figures should be stored
-fig_path = f'../../results/calibrations/COVID19_SEIQRD/{args.agg}/'
+fig_path = f'../../results/calibrations/{args.agg}/'
 # Cornerplots of samples
 fig = corner.corner(flat_samples, labels=settings['labels'], **CORNER_KWARGS)
 # for control of labelsize of x,y-ticks:
