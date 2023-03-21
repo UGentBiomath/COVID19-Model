@@ -16,12 +16,14 @@ def draw_function(param_dict, samples_dict):
     # restock rate
     param_dict['tau'] =  np.random.normal(loc=10, scale=2)
     # Shocks lockdowns
-    param_dict['l_s_1'] =  np.random.normal(loc=1, scale=0.05)*param_dict['l_s_1']
-    param_dict['l_s_2'] =  np.random.normal(loc=1, scale=0.05)*param_dict['l_s_2']
-    param_dict['c_s'] =  np.random.normal(loc=1, scale=0.05)*param_dict['c_s']
-    param_dict['f_s'] =  np.random.normal(loc=1, scale=0.05)*param_dict['f_s']
+    param_dict['l_s_1'] =  np.random.normal(loc=1, scale=0.08)*param_dict['l_s_1']
+    param_dict['l_s_2'] =  np.random.normal(loc=1, scale=0.08)*param_dict['l_s_2']
+    param_dict['c_s'] =  np.random.normal(loc=1, scale=0.08)*param_dict['c_s']
+    param_dict['f_s'] =  np.random.normal(loc=1, scale=0.08)*param_dict['f_s']
     # Shocks summer 2020 (calibrated)
-    idx, param_dict['ratio_c_s'] = random.choice(list(enumerate(samples_dict['ratio_c_s'])))  
-    param_dict['ratio_f_s'] = samples_dict['ratio_f_s'][idx]
+    # idx, param_dict['ratio_c_s'] = random.choice(list(enumerate(samples_dict['ratio_c_s'])))  
+    # param_dict['ratio_f_s'] = samples_dict['ratio_f_s'][idx]
+    param_dict['ratio_c_s'] =  np.random.uniform(low=1/10, high=0.99)
+    param_dict['ratio_f_s'] =  np.random.uniform(low=1/10, high=0.99)
     
     return param_dict

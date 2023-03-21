@@ -133,7 +133,7 @@ def get_model_parameters():
     # Key dates lockdown 2
     t_start_lockdown_2 = pd.Timestamp('2020-10-19')
     t_end_lockdown_2 = pd.Timestamp('2020-12-01')
-    t_end_relax_2 = pd.Timestamp('2021-06-01')
+    t_end_relax_2 = pd.Timestamp('2021-07-01')
 
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
