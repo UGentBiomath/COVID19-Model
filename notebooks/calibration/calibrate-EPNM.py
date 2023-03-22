@@ -133,11 +133,11 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 2
+    multiplier_pso = 10
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 2
     # Define dataset
@@ -197,17 +197,20 @@ if __name__ == '__main__':
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
     pars = ['c_s', 'f_s']
-    bounds=((0,1),(0,1),)
+    bounds=((0.01,0.99),(0.01,0.99),)
     # Define labels
     labels = ['$c_s$', '$f_s$']
     # Objective function
     objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions)
     # Optimize PSO
     #theta = pso.optimize(objective_function, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
+    #theta = np.array(theta)
+    #theta = np.where(theta <= 0, 0.02, theta)
+    #theta = np.where(theta >= 1, 0.98, theta).tolist()
     # Optimize NM
     theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
-    theta = np.where(theta <= 0, 0.01, theta).tolist()
-    print(theta)
+    theta = np.where(theta <= 0, 0.02, theta)
+    theta = np.where(theta >= 1, 0.98, theta).tolist()
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
@@ -231,7 +234,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.30*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.50*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
@@ -240,7 +243,7 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={},
+    sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'method': 'RK45', 'rtol': 1e-4}},
                                   fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                   settings_dict=settings)
 
