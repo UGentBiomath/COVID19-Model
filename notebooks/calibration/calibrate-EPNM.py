@@ -19,8 +19,9 @@ import matplotlib.pyplot as plt
 from covid19_DTM.visualization.optimization import plot_PSO
 from EPNM.models.utils import initialize_model
 from EPNM.data.NBB import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
+from EPNM.data.utils import get_sector_labels, get_sectoral_conversion_matrix
 # pySODM code
-from pySODM.optimization import pso
+from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import assign_theta
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, ll_gaussian
@@ -81,16 +82,48 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/"]:
 ## Load data ##
 ###############
 
-data_employment = get_employment_survey()
-data_revenue = get_revenue_survey()
-data_GDP = get_synthetic_GDP()
-data_B2B_demand = get_B2B_demand()
+data_employment = get_employment_survey(relative=False)
+data_revenue = get_revenue_survey(relative=False)
+data_GDP = get_synthetic_GDP(relative=False)
+data_B2B_demand = get_B2B_demand(relative=False)
 
 ##########################
 ## Initialize the model ##
 ##########################
 
 parameters, model = initialize_model()
+
+################################
+## Load aggregation functions ##
+################################
+
+import xarray as xr
+
+def aggregate_NACE21(simulation_in):
+    """ A function to convert a simulation of the economic IO model on the NACE64 level to the NACE21 level
+    
+    Input
+    =====
+    simulation_in: xarray.DataArray
+        Simulation result (NACE64 level). Obtained from a pySODM xarray.Dataset simulation result by using: xarray.Dataset[state_name]
+    
+    Output
+    ======
+    simulation_out: xarray.DataArray
+        Simulation result (NACE21 level)
+    """
+
+    simulation_out = xr.DataArray(np.matmul(get_sectoral_conversion_matrix('NACE38_NACE21'), np.matmul(get_sectoral_conversion_matrix('NACE64_NACE38'), simulation_in.values)),
+                                  dims = ['NACE21', 'date'],
+                                  coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
+                                  date=simulation_in.coords['date']))
+    return simulation_out
+
+def aggregate_dummy(simulation_in):
+    """
+    Does nothing
+    """
+    return simulation_in
 
 if __name__ == '__main__':
 
@@ -104,18 +137,53 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 9
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 2
     # Define dataset
-    d_emp = data_employment.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(parameters['l_0'],axis=0)
-    d_GDP = data_GDP.loc[slice(start_calibration,end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze()*np.sum(parameters['x_0'],axis=0)
-    data = [d_GDP,d_emp]
+    data = [
+            # NACE 64 sectoral data
+            data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            # National data
+            data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            # NACE 21 B2B Demand data
+            data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)]
+            ]
+    # Assign a higher weight to the national data
+    weights = [1/len(data_employment.index.get_level_values('NACE64').unique()),
+               1/len(data_revenue.index.get_level_values('NACE64').unique()),
+               1/len(data_GDP.index.get_level_values('NACE64').unique()),
+               1,
+               1,
+               1,
+               1/len(data_B2B_demand.index.get_level_values('NACE21').unique())]
     # States to calibrate
-    states = ["x", "l"]  
-    # Log likelihood functions
-    log_likelihood_fnc = [ll_gaussian, ll_gaussian]
-    log_likelihood_fnc_args = [0.05*d_GDP,0.05*d_emp,]
+    states = ["l", "x", "x", "l", "x", "x", "O"]  
+    # Log likelihood functions and arguments
+    log_likelihood_fnc = [ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian]
+    log_likelihood_fnc_args = [
+            0.05*data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            0.05*data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            0.05*data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            0.05*data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            0.05*data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            0.05*data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            0.05*data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)]
+            ]
+    # Aggregation functions
+    aggregation_functions = [
+            aggregate_dummy,
+            aggregate_dummy,
+            aggregate_dummy,
+            aggregate_dummy,
+            aggregate_dummy,
+            aggregate_dummy,
+            aggregate_NACE21
+            ]
 
     print('\n----------------------')
     print('PERFORMING CALIBRATION')
@@ -128,28 +196,33 @@ if __name__ == '__main__':
     #############################
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
-    pars = ['ratio_c_s','ratio_f_s']
-    bounds=((0.01,0.99),(0.01,0.99))
+    pars = ['c_s', 'f_s']
+    bounds=((0,1),(0,1),)
     # Define labels
-    labels = ['$r_{c_s}$', '$r_{f_s}$']
+    labels = ['$c_s$', '$f_s$']
     # Objective function
-    objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels)
-    # Optimize
-    #theta = pso.optimize(objective_function, bounds, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
-    theta = [0.73005337, 0.34106887]
+    objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions)
+    # Optimize PSO
+    #theta = pso.optimize(objective_function, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
+    # Optimize NM
+    theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
+    theta = np.where(theta <= 0, 0.01, theta).tolist()
+    print(theta)
+    #step = len(objective_function.expanded_bounds)*[0.10,]
+    #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
-    ###################
-    ## Visualize fit ##
-    ###################
+    ############################
+    ## Visualize national fit ##
+    ############################
 
     # Assign estimate
-    model.parameters = assign_theta(model.parameters, pars, theta)
+    #model.parameters = assign_theta(model.parameters, pars, theta)
     # Perform simulation
-    out = model.sim([start_calibration, end_calibration])
+    #out = model.sim([start_calibration, end_calibration])
     # Visualize fit
-    ax = plot_PSO(out, data, states, start_calibration, end_calibration)
-    plt.show()
-    plt.close()
+    #ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
+    #plt.show()
+    #plt.close()
 
     ########################
     ## Setup MCMC sampler ##
@@ -158,7 +231,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = [0.20, 0.20], multiplier=multiplier_mcmc, bounds=bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.30*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
