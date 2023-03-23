@@ -40,6 +40,32 @@ def get_sectoral_conversion_matrix(from_to):
                         "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
                     )
 
+def get_sector_names(classification_name):
+    """
+    Returns the sector names of the desired classification.
+
+    Input
+    =====
+    classification_name : string
+        Desired classification. Valid options are: NACE64, NACE38, NACE21, NACE10, WIOD55
+
+    Output
+    ======
+    names : list
+
+    Example use
+    ===========
+    names = get_sector_names('NACE21')
+    """
+
+    if classification_name not in ['NACE64','NACE38','NACE21','NACE10','WIOD55']:
+        raise ValueError(
+                        "classification '{0}' not recognized \n"
+                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10' and 'WIOD55'"
+                    ).format(classification_name)
+    else:
+        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0])['name'].values)
+
 def get_sector_labels(classification_name):
     """
     Returns the sector labels of the desired classification.
@@ -55,25 +81,15 @@ def get_sector_labels(classification_name):
 
     Example use
     ===========
-    labels = read_economic_labels('WIOD55')
+    labels = get_sector_labels('NACE21')
     """
-    
-    # Load dataframe containing matrices
-    if classification_name == 'NACE64':
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).columns.values)
-    elif classification_name == 'NACE38':
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).index.values)
-    elif classification_name == 'NACE21':
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).columns.values)
-    elif classification_name == 'NACE10':
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 21 to NACE 10', header=[0], index_col=[0]).index.values)
-    elif classification_name == 'WIOD55':
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'WIOD 55 to NACE 64', header=[0], index_col=[0]).columns.values)
-    else:
+    if classification_name not in ['NACE64','NACE38','NACE21','NACE10','WIOD55']:
         raise ValueError(
-                        "conversion matrix '{0}' not recognized \n"
-                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10', 'WIOD55"
-                    )
+                        "classification '{0}' not recognized \n"
+                        "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10' and 'WIOD55'"
+                    ).format(classification_name)
+    else:
+        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0]).index.values)
 
 def aggregate_simulation(simulation_in, desired_agg):
     """ A function to convert a simulation of the economic IO model on the NACE64 level to another classification
