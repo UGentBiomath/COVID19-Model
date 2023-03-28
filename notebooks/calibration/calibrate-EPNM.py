@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 # COVID-19 code
 from covid19_DTM.visualization.optimization import plot_PSO
 from EPNM.models.utils import initialize_model
-from EPNM.data.NBB import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
-from EPNM.data.utils import get_sector_labels, get_sectoral_conversion_matrix
+from EPNM.data.calibration_data import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand, get_NAI_value_added
+from EPNM.data.utils import get_sector_labels, get_sector_names, get_sectoral_conversion_matrix
 # pySODM code
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import assign_theta
@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-01')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate", default='2021-05-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate", default='2020-10-01')
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 1000)
@@ -113,10 +113,10 @@ def aggregate_NACE21(simulation_in):
         Simulation result (NACE21 level)
     """
 
-    simulation_out = xr.DataArray(np.matmul(get_sectoral_conversion_matrix('NACE38_NACE21'), np.matmul(get_sectoral_conversion_matrix('NACE64_NACE38'), simulation_in.values)),
-                                  dims = ['NACE21', 'date'],
-                                  coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
-                                  date=simulation_in.coords['date']))
+    simulation_out = xr.DataArray(np.matmul(np.matmul(simulation_in.values, np.transpose(get_sectoral_conversion_matrix('NACE64_NACE38'))), np.transpose(get_sectoral_conversion_matrix('NACE38_NACE21'))),
+                                    dims = ['date', 'NACE21'],
+                                    coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
+                                    date=simulation_in.coords['date']))
     return simulation_out
 
 def aggregate_dummy(simulation_in):
@@ -137,9 +137,9 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
-    print_n = 2
+    print_n = 5
     # Define dataset
     data = [
             # NACE 64 sectoral data
@@ -151,16 +151,18 @@ if __name__ == '__main__':
             data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             # NACE 21 B2B Demand data
-            data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)]
+            data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
     # Assign a higher weight to the national data
-    weights = [1/len(data_employment.index.get_level_values('NACE64').unique()),
-               1/len(data_revenue.index.get_level_values('NACE64').unique()),
-               1/len(data_GDP.index.get_level_values('NACE64').unique()),
-               1,
-               1,
-               1,
-               1/len(data_B2B_demand.index.get_level_values('NACE21').unique())]
+    weights = [1/len(data_employment.index.get_level_values('NACE64').unique())/len(data_employment.index.get_level_values('date').unique()),
+               1/len(data_revenue.index.get_level_values('NACE64').unique())/len(data_revenue.index.get_level_values('date').unique()),
+               1/len(data_GDP.index.get_level_values('NACE64').unique())/len(data_GDP.index.get_level_values('date').unique()),
+               1/len(data_employment.index.get_level_values('date').unique()),
+               1/len(data_revenue.index.get_level_values('date').unique()),
+               1/len(data_GDP.index.get_level_values('date').unique()),
+               1/len(data_B2B_demand.index.get_level_values('NACE21').unique())/len(data_B2B_demand.index.get_level_values('date').unique()),
+               ]
+
     # States to calibrate
     states = ["l", "x", "x", "l", "x", "x", "O"]  
     # Log likelihood functions and arguments
@@ -172,7 +174,7 @@ if __name__ == '__main__':
             0.05*data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             0.05*data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             0.05*data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
-            0.05*data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)]
+            0.05*data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
     # Aggregation functions
     aggregation_functions = [
@@ -182,7 +184,7 @@ if __name__ == '__main__':
             aggregate_dummy,
             aggregate_dummy,
             aggregate_dummy,
-            aggregate_NACE21
+            aggregate_NACE21,
             ]
 
     print('\n----------------------')
@@ -197,7 +199,7 @@ if __name__ == '__main__':
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
     pars = ['c_s', 'f_s']
-    bounds=((0.01,0.99),(0.01,0.99),)
+    bounds=((0.001,0.999),(0.001,0.999),)
     # Define labels
     labels = ['$c_s$', '$f_s$']
     # Objective function
@@ -209,8 +211,8 @@ if __name__ == '__main__':
     #theta = np.where(theta >= 1, 0.98, theta).tolist()
     # Optimize NM
     theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
-    theta = np.where(theta <= 0, 0.02, theta)
-    theta = np.where(theta >= 1, 0.98, theta).tolist()
+    theta = np.where(theta <= 0, 0.01, theta)
+    theta = np.where(theta >= 1, 0.99, theta).tolist()
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
@@ -234,7 +236,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.50*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.10*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
@@ -243,9 +245,12 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
+    #import emcee
+    #for i in range(30):
+        #backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
     sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'method': 'RK45', 'rtol': 1e-4}},
-                                  fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
-                                  settings_dict=settings)
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
+                                    settings_dict=settings)
 
     #####################
     ## Process results ##
