@@ -64,7 +64,7 @@ def get_sector_names(classification_name):
                         "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10' and 'WIOD55'"
                     ).format(classification_name)
     else:
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0])['name'].values)
+        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_labels_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0])['name'].values)
 
 def get_sector_labels(classification_name):
     """
@@ -89,15 +89,15 @@ def get_sector_labels(classification_name):
                         "valid arguments are: 'NACE64', 'NACE38', 'NACE21', 'NACE10' and 'WIOD55'"
                     ).format(classification_name)
     else:
-        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0]).index.values)
+        return list(pd.read_excel(os.path.join(par_interim_path,"model_parameters/sector_labels_names.xlsx"), sheet_name = classification_name, header=[0], index_col=[0]).index.values)
 
 def aggregate_simulation(simulation_in, desired_agg):
-    """ A function to convert a simulation of the economic IO model on the NACE64 level to another classification
+    """ A function to convert a simulation of the EPNM on the NACE64 level to another economical classification
     
     Input
     =====
     simulation_in: xarray.DataArray
-        Simulation result (NACE64 level). Obtained from a pySODM xarray.Dataset simulation result by using: xarray.Dataset[state_name]
+        Simulation result (NACE64 level). Obtained from a pySODM xarray. Dataset simulation result by using: xarray.Dataset[state_name]
     
     Output
     ======
@@ -109,22 +109,21 @@ def aggregate_simulation(simulation_in, desired_agg):
     The economic IO model does not support the use of draws because xarray.concat does not support 
     a concatenation on variables with repeated dimensions (stock matrix is 2D!)
     No support was implemented here for the dimension 'draws' 
-    
     """
 
     if desired_agg == 'NACE38':
-        simulation_out = xr.DataArray(np.matmul(get_sectoral_conversion_matrix('NACE64_NACE38'), simulation_in.values),
-                                      dims = ['NACE38', 'date'],
+        simulation_out = xr.DataArray(np.matmul(simulation_in.values, np.transpose(get_sectoral_conversion_matrix('NACE64_NACE38'))),
+                                      dims = ['date', 'NACE38'],
                                       coords = dict(NACE38=(['NACE38'], get_sector_labels('NACE38')),
                                                     date=simulation_in.coords['date']))
     elif desired_agg == 'NACE21':
-        simulation_out = xr.DataArray(np.matmul(get_sectoral_conversion_matrix('NACE38_NACE21'), np.matmul(get_sectoral_conversion_matrix('NACE64_NACE38'), simulation_in.values)),
-                              dims = ['NACE21', 'date'],
+        simulation_out = xr.DataArray(np.matmul(np.matmul(simulation_in.values, np.transpose(get_sectoral_conversion_matrix('NACE64_NACE38'))), np.transpose(get_sectoral_conversion_matrix('NACE38_NACE21'))),
+                              dims = ['date', 'NACE21'],
                               coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
                                             date=simulation_in.coords['date']))
-    elif desired_agg == 'NACE10':
-        simulation_out = xr.DataArray(np.matmul(get_sectoral_conversion_matrix('NACE21_NACE10'),np.matmul(get_sectoral_conversion_matrix('NACE38_NACE21'), np.matmul(get_sectoral_conversion_matrix('NACE64_NACE38'), simulation_in.values))),
-                              dims = ['NACE10', 'date'],
+    elif desired_agg == 'NACE10': 
+        simulation_out = xr.DataArray(np.matmul(np.matmul(np.matmul(simulation_in.values, np.transpose(get_sectoral_conversion_matrix('NACE64_NACE38'))), np.transpose(get_sectoral_conversion_matrix('NACE38_NACE21'))), np.transpose(get_sectoral_conversion_matrix('NACE21_NACE10'))),
+                              dims = ['date', 'NACE10'],
                               coords = dict(NACE10=(['NACE10'], get_sector_labels('NACE10')),
                                             date=simulation_in.coords['date']))
     else:
