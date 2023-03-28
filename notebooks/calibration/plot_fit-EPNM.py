@@ -5,16 +5,14 @@
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
 import json
-import datetime
 import argparse
 import numpy as np
-import pandas as pd
 import multiprocessing as mp
 import matplotlib.pyplot as plt
 # COVID-19 code
 from EPNM.data.utils import aggregate_simulation
 from EPNM.models.utils import initialize_model
-from EPNM.data.NBB import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
+from EPNM.data.calibration_data import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
 # pySODM code
 from covid19_DTM.models.utils import load_samples_dict
 # Suppress warnings
@@ -66,12 +64,11 @@ for directory in [fig_path, samples_path]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 # Make subdirectories for the figures
-for directory in [fig_path+"GDP/", fig_path+"labor/", fig_path+"revenue",  fig_path+"B2B", fig_path+"other"]:
+for directory in [fig_path+"GDP/", fig_path+"labor/", fig_path+"revenue",  fig_path+"B2B", fig_path+"other", fig_path+"corner"]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 # Load raw samples dict
-samples_dict = {}
-#samples_dict = json.load(open(samples_path+'national_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json')) # Why national
+samples_dict = json.load(open(samples_path+'national_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json')) # Why national
 
 ##########################
 ## Initialize the model ##
@@ -79,6 +76,80 @@ samples_dict = {}
 
 parameters, model = initialize_model()
 from EPNM.models.draw_functions import draw_function
+
+##################
+## Corner plots ##
+##################
+
+CORNER_KWARGS = dict(
+        title_quantiles=False,
+        smooth=0.99,
+        label_kwargs=dict(fontsize=14),
+        title_kwargs=dict(fontsize=14),
+        quantiles=[0.05, 0.95],
+        levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
+        plot_density=True,
+        plot_datapoints=False,
+        fill_contours=True,
+        show_titles=True,
+        max_n_ticks=3,
+        title_fmt=".2F",
+)
+
+import corner
+from EPNM.data.utils import get_sector_labels, get_sector_names
+labels_NACE64 = get_sector_labels('NACE64')
+labels_NACE64_copy = labels_NACE64
+labels_NACE64 = [lab[0] for lab in labels_NACE64] # Extract first letter
+labels_NACE21 = get_sector_labels('NACE21')
+for lab_21 in labels_NACE21:
+    indices = [i for i,x in enumerate(labels_NACE64) if lab_21 == x]
+    flat_samples = np.zeros([len(samples_dict['c_s'][0]), 2*len(indices)])
+    labels = []
+    range_lst=[]
+    minimum=[]
+    maximum=[]
+    for i,j in enumerate(indices):
+        flat_samples[:, 2*i] = samples_dict['c_s'][j]
+        labels.append('$c_{s,'+ labels_NACE64_copy[j] +'}$')
+        flat_samples[:, 2*i+1] = samples_dict['f_s'][j]
+        labels.append('$f_{s,'+ labels_NACE64_copy[j] +'}$')
+        minimum.append(min(samples_dict['c_s'][j]))
+        maximum.append(max(samples_dict['f_s'][j]))
+
+    #CORNER_KWARGS.update({'range': 2*len(indices)*[(min(minimum), max(maximum)),]})
+    if lab_21 == 'C':
+        for i in range(4):
+            # Make cornerplot (C10-12 until C29)
+            fig = corner.corner(flat_samples[:,8*i:8*i+8], labels=labels[8*i:8*i+8], **CORNER_KWARGS)
+            # for control of labelsize of x,y-ticks:
+            for idx,ax in enumerate(fig.get_axes()):
+                ax.tick_params(axis='both', labelsize=12, rotation=30)
+                ax.grid(False)
+            plt.tight_layout()
+            plt.savefig(fig_path+'corner/'+f'corner_{lab_21}_{i}.jpg', dpi=400)
+            #plt.show()
+            plt.close()
+        # Make cornerplot (C29 - C33)
+        fig = corner.corner(flat_samples[:,32:], labels=labels[32:], **CORNER_KWARGS)
+        # for control of labelsize of x,y-ticks:
+        for idx,ax in enumerate(fig.get_axes()):
+            ax.tick_params(axis='both', labelsize=12, rotation=30)
+            ax.grid(False)
+        plt.tight_layout()
+        plt.savefig(fig_path+'corner/'+f'corner_{lab_21}_4.jpg', dpi=400)
+        #plt.show()
+        plt.close()       
+    else:
+        fig = corner.corner(flat_samples, labels=labels, **CORNER_KWARGS)
+        # for control of labelsize of x,y-ticks:
+        for idx,ax in enumerate(fig.get_axes()):
+            ax.tick_params(axis='both', labelsize=12, rotation=30)
+            ax.grid(False)
+        plt.tight_layout()
+        plt.savefig(fig_path+'corner/'+f'corner_{lab_21}.jpg', dpi=400)
+        #plt.show()
+        plt.close()      
 
 ########################
 ## Simulate the model ##
