@@ -6,7 +6,7 @@ import pandas as pd
 abs_dir = os.path.dirname(__file__)
 par_interim_path = os.path.join(abs_dir, "../../../data/EPNM/interim/")
 
-def get_model_parameters():
+def get_model_parameters(shocks='Alleman'):
     """
     Extracts and returns the parameters for the economic model
 
@@ -66,7 +66,7 @@ def get_model_parameters():
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/IO_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['IO'] = df.values/365
     # others.csv
-    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[1],index_col=[0])
+    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
     pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
     pars_dict['l_0'] = np.array(df['Labor compensation (M€/y)'].values)/365
@@ -77,17 +77,24 @@ def get_model_parameters():
     
     # shock vectors
     # ~~~~~~~~~~~~~
+    if shocks=='Alleman':
+        # l_s: ERMG survey; c_s: only consumer facing -95%; f_s: tweaked from Pichler
+        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_alleman.csv"),header=[0],index_col=[0])
+    elif shocks=='Pichler':
+        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_pichler.csv"),header=[0],index_col=[0])
+    elif shocks =='hybrid':
+        # l_s: ERMG survey; c_s: pichler; f_s: pichler
+        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_hybrid.csv"),header=[0],index_col=[0])
 
-    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_1',header=[1],index_col=[0])
-    pars_dict['l_s_1'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
-    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_2',header=[1],index_col=[0])
-    pars_dict['l_s_2'] = 1-np.array((df['telework'].values+df['workplace'].values+df['sick_leave'].values)/100)
-    pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] < 0, 0, pars_dict['l_s_2'])
-    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/demand_shock.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
+    pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
+    pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
+    pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
+    pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
+    pars_dict['f_s'] = -np.array(df['f_demand'].values)/100
     pars_dict['ratio_c_s'] = 0.5
-    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
     pars_dict['ratio_f_s'] = 0.5
+
 
     # Critical inputs
     # ~~~~~~~~~~~~~~~

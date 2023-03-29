@@ -91,7 +91,7 @@ data_B2B_demand = get_B2B_demand(relative=False)
 ## Initialize the model ##
 ##########################
 
-parameters, model = initialize_model()
+parameters, model = initialize_model(shocks='hybrid')
 
 ################################
 ## Load aggregation functions ##
@@ -204,6 +204,7 @@ if __name__ == '__main__':
     labels = ['$c_s$', '$f_s$']
     # Objective function
     objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions)
+    
     # Optimize PSO
     #theta = pso.optimize(objective_function, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     #theta = np.array(theta)

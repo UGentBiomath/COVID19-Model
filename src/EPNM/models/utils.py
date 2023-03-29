@@ -3,7 +3,7 @@ from EPNM.data.parameters import get_model_parameters
 from EPNM.data.utils import get_sector_labels
 from EPNM.models.TDPF import labor_supply_shock, household_demand_shock, other_demand_shock, government_furloughing, compute_income_expectations
 
-def initialize_model():
+def initialize_model(shocks='Alleman'):
     """
     A function to initialize the economic production network model
 
@@ -18,7 +18,7 @@ def initialize_model():
     """
 
     # Load parameters
-    params = get_model_parameters()
+    params = get_model_parameters(shocks=shocks)
 
     # Load initial states
     initial_states = {'x': params['x_0'],
