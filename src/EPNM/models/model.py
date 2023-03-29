@@ -193,7 +193,7 @@ def calc_household_demand(c_total_previous,l_t,l_p,epsilon_t,rho,m):
     c_t : float
         total household consumption demand at time t
     """
-    return np.exp((rho*np.log(c_total_previous) + 0.5*(1-rho)*np.log(m*sum(l_t)) + 0.5*(1-rho)*np.log(m*l_p) + epsilon_t))
+    return (1-epsilon_t)*np.exp((rho*np.log(c_total_previous) + 0.5*(1-rho)*np.log(m*sum(l_t)) + 0.5*(1-rho)*np.log(m*l_p)))
 
 def calc_intermediate_demand(d_previous,S,A,S_0,tau):
     """
