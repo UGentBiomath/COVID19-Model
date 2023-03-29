@@ -6,7 +6,7 @@ import pandas as pd
 abs_dir = os.path.dirname(__file__)
 par_interim_path = os.path.join(abs_dir, "../../../data/EPNM/interim/")
 
-def get_model_parameters(shocks='Alleman'):
+def get_model_parameters(shocks='alleman'):
     """
     Extracts and returns the parameters for the economic model
 
@@ -77,14 +77,11 @@ def get_model_parameters(shocks='Alleman'):
     
     # shock vectors
     # ~~~~~~~~~~~~~
-    if shocks=='Alleman':
-        # l_s: ERMG survey; c_s: only consumer facing -95%; f_s: tweaked from Pichler
+    if shocks=='alleman':
+        # l_s: ERMG survey; c_s/f_s: Pichler
         df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_alleman.csv"),header=[0],index_col=[0])
-    elif shocks=='Pichler':
+    elif shocks=='pichler':
         df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_pichler.csv"),header=[0],index_col=[0])
-    elif shocks =='hybrid':
-        # l_s: ERMG survey; c_s: pichler; f_s: pichler
-        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_hybrid.csv"),header=[0],index_col=[0])
 
     pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
     pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
