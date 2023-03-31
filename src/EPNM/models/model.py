@@ -33,7 +33,7 @@ class Economic_Model(ODEModel):
 
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C)
+        x_inp = calc_input_restriction(S,A,C,x_0)
 
         # 5. Compute total consumer demand
  
@@ -100,7 +100,7 @@ def calc_labor_restriction(x_0,l_0,l_t):
     """
     return (l_t/l_0)*x_0
 
-def calc_input_restriction(S_t,A,C):
+def calc_input_restriction(S_t,A,C,x_0):
     """
     A function to compute sector output under supply bottlenecks.
 
@@ -119,13 +119,42 @@ def calc_input_restriction(S_t,A,C):
         sector output at time t (in M€/d)
     """
 
+    f = 'strongly_critical'
     # Pre-allocate sector output at time t
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
-    for i in range(A.shape[0]):
-        x_t[i] = np.nanmin(S_t[np.where(C[:,i] == 1),i]/A[np.where(C[:,i] == 1),i])
-        if np.isnan(x_t[i]): # Q for Koen Schoors: sectors with no input dependencies, is this realistic?
-            x_t[i]=np.inf
+    if f == 'weakly_critical':
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            x_t[i] = np.nanmin(S_t[critical,i]/A[critical,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif f == 'half_critical':
+        cond_1 = np.zeros(A.shape[0])
+        cond_2 = np.zeros(A.shape[0])
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            important = list(np.where(C[:,i] == 0.5)[0])
+            cond_1[i] = np.nanmin(S_t[critical,i]/A[critical,i])
+            if len(important) == 0:
+                x_t[i] = cond_1[i]
+            else:
+                cond_2[i] = np.nanmin(0.5*(np.array(S_t[important,i]/A[important,i]) + x_0[i]))
+                x_t[i] = np.nanmin(np.array([cond_1[i], cond_2[i]]))
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif f == 'strongly_critical':
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            important = list(np.where(C[:,i] == 0.5)[0])
+            x_t[i] = np.nanmin(S_t[critical+important,i]/A[critical+important,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif f == 'leontief':
+        for i in range(A.shape[0]):
+            x_t[i] = np.nanmin(S_t[:,i]/A[:,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf    
     return x_t
 
 def household_preference_shock(epsilon_D, theta_0):
