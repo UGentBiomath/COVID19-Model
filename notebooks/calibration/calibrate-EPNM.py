@@ -205,6 +205,17 @@ if __name__ == '__main__':
     # Objective function
     objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions)
     
+    # Path where MCMC samples should be saved
+    #samples_path = f'../../data/EPNM/interim/calibrations/'
+    # Load raw samples dict
+    #samples_dict = json.load(open(samples_path+'national_'+'weakly_crit'+ '_SAMPLES_' + '2023-03-29' + '.json')) # Why national
+    #c_s = []
+    #f_s = []
+    #for i in range(len(samples_dict['c_s'])):
+    #    c_s.append(np.mean(samples_dict['c_s'][i]))
+    #    f_s.append(np.mean(samples_dict['f_s'][i]))
+    #print(objective_function(np.array(c_s+f_s)))
+
     # Optimize PSO
     #theta = pso.optimize(objective_function, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     #theta = np.array(theta)
@@ -214,6 +225,7 @@ if __name__ == '__main__':
     theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
     theta = np.where(theta <= 0, 0.01, theta)
     theta = np.where(theta >= 1, 0.99, theta).tolist()
+    #print(objective_function(np.array(theta)))
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
