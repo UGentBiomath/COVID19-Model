@@ -91,7 +91,7 @@ data_B2B_demand = get_B2B_demand(relative=False)
 ## Initialize the model ##
 ##########################
 
-parameters, model = initialize_model(shocks='pichler', prodfunc='strongly_critical')
+parameters, model = initialize_model(shocks='alleman', prodfunc='strongly_critical')
 
 ################################
 ## Load aggregation functions ##
@@ -234,13 +234,13 @@ if __name__ == '__main__':
     ############################
 
     # Assign estimate
-    #model.parameters = assign_theta(model.parameters, pars, theta)
+    model.parameters = assign_theta(model.parameters, pars, theta)
     # Perform simulation
-    #out = model.sim([start_calibration, end_calibration])
+    out = model.sim([start_calibration, end_calibration])
     # Visualize fit
-    #ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
-    #plt.show()
-    #plt.close()
+    ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
+    plt.show()
+    plt.close()
 
     ########################
     ## Setup MCMC sampler ##
