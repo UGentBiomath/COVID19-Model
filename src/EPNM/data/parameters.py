@@ -125,14 +125,15 @@ def get_model_parameters(shocks='alleman'):
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 10,                                                       
                       'gamma_F': 7,                                               
-                      'gamma_H': 28})                     
+                      'gamma_H': 28
+                      })                     
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # Key dates lockdown 1
     t_start_lockdown_1 = pd.Timestamp('2020-03-15')
-    t_end_lockdown_1 = pd.Timestamp('2020-05-07')
+    t_end_lockdown_1 = pd.Timestamp('2020-05-01')
     t_end_relax_1 = pd.Timestamp('2020-08-01')
     # Key dates lockdown 2
     t_start_lockdown_2 = pd.Timestamp('2020-10-19')

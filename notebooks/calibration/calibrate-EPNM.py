@@ -91,7 +91,7 @@ data_B2B_demand = get_B2B_demand(relative=False)
 ## Initialize the model ##
 ##########################
 
-parameters, model = initialize_model(shocks='alleman')
+parameters, model = initialize_model(shocks='pichler', prodfunc='strongly_critical')
 
 ################################
 ## Load aggregation functions ##

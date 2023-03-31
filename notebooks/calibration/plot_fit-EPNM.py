@@ -74,7 +74,7 @@ samples_dict = json.load(open(samples_path+'national_'+str(args.identifier) + '_
 ## Initialize the model ##
 ##########################
 
-parameters, model = initialize_model(shocks='alleman')
+parameters, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 from EPNM.models.draw_functions import draw_function
 
 ##################

@@ -3,9 +3,18 @@ from EPNM.data.parameters import get_model_parameters
 from EPNM.data.utils import get_sector_labels
 from EPNM.models.TDPF import labor_supply_shock, household_demand_shock, other_demand_shock, government_furloughing, compute_income_expectations
 
-def initialize_model(shocks='Alleman'):
+def initialize_model(shocks='alleman', prodfunc='half_critical'):
     """
     A function to initialize the economic production network model
+
+    Inputs
+    ======
+
+    shocks: str
+        Use supply and demand shocks from 'Pichler' or 'Alleman'
+
+    prodfunc: str
+        Type of Partially-Binding Leontief function (default: half critical). Options: Leontief, Strongly Critical, Half Critical, Weakly Critical
 
     Returns
     =======
@@ -19,7 +28,8 @@ def initialize_model(shocks='Alleman'):
 
     # Load parameters
     params = get_model_parameters(shocks=shocks)
-
+    params.update({'prodfunc': prodfunc})
+    
     # Load initial states
     initial_states = {'x': params['x_0'],
                     'c': params['c_0'],

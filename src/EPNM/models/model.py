@@ -6,14 +6,14 @@ from pySODM.models.base import ODEModel
 class Economic_Model(ODEModel):
 
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
     parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
     dimension_names = ['NACE64', 'NACE64_star']
     state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
 
     @staticmethod
 
-    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F, prodfunc):
         """
         BIOMATH production network model for Belgium
         *Based on the Oxford INET implementation*
@@ -33,7 +33,7 @@ class Economic_Model(ODEModel):
 
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C,x_0)
+        x_inp = calc_input_restriction(S,A,C,x_0,prodfunc)
 
         # 5. Compute total consumer demand
  
@@ -100,7 +100,7 @@ def calc_labor_restriction(x_0,l_0,l_t):
     """
     return (l_t/l_0)*x_0
 
-def calc_input_restriction(S_t,A,C,x_0):
+def calc_input_restriction(S_t,A,C,x_0,prodfunc='half_critical'):
     """
     A function to compute sector output under supply bottlenecks.
 
@@ -123,13 +123,13 @@ def calc_input_restriction(S_t,A,C,x_0):
     # Pre-allocate sector output at time t
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
-    if f == 'weakly_critical':
+    if prodfunc == 'weakly_critical':
         for i in range(A.shape[0]):
             critical = list(np.where(C[:,i] == 1)[0])
             x_t[i] = np.nanmin(S_t[critical,i]/A[critical,i])
             if np.isnan(x_t[i]):
                 x_t[i]=np.inf
-    elif f == 'half_critical':
+    elif prodfunc == 'half_critical':
         cond_1 = np.zeros(A.shape[0])
         cond_2 = np.zeros(A.shape[0])
         for i in range(A.shape[0]):
@@ -143,14 +143,14 @@ def calc_input_restriction(S_t,A,C,x_0):
                 x_t[i] = np.nanmin(np.array([cond_1[i], cond_2[i]]))
             if np.isnan(x_t[i]):
                 x_t[i]=np.inf
-    elif f == 'strongly_critical':
+    elif prodfunc == 'strongly_critical':
         for i in range(A.shape[0]):
             critical = list(np.where(C[:,i] == 1)[0])
             important = list(np.where(C[:,i] == 0.5)[0])
             x_t[i] = np.nanmin(S_t[critical+important,i]/A[critical+important,i])
             if np.isnan(x_t[i]):
                 x_t[i]=np.inf
-    elif f == 'leontief':
+    elif prodfunc == 'leontief':
         for i in range(A.shape[0]):
             x_t[i] = np.nanmin(S_t[:,i]/A[:,i])
             if np.isnan(x_t[i]):
