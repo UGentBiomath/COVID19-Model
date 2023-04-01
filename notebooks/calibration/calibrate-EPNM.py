@@ -133,7 +133,7 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 10
+    multiplier_pso = 20
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     # Path where MCMC samples should be saved
     #samples_path = f'../../data/EPNM/interim/calibrations/'
     # Load raw samples dict
-    #samples_dict = json.load(open(samples_path+'national_'+'weakly_crit'+ '_SAMPLES_' + '2023-03-29' + '.json')) # Why national
+    #samples_dict = json.load(open(samples_path+'national_'+'strongly_crit'+ '_SAMPLES_' + '2023-03-31' + '.json')) # Why national
     #c_s = []
     #f_s = []
     #for i in range(len(samples_dict['c_s'])):
@@ -226,6 +226,7 @@ if __name__ == '__main__':
     theta = np.where(theta <= 0, 0.01, theta)
     theta = np.where(theta >= 1, 0.99, theta).tolist()
     #print(objective_function(np.array(theta)))
+
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
