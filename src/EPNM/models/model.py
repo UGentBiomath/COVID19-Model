@@ -119,7 +119,6 @@ def calc_input_restriction(S_t,A,C,x_0,prodfunc='half_critical'):
         sector output at time t (in M€/d)
     """
 
-    f = 'strongly_critical'
     # Pre-allocate sector output at time t
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
