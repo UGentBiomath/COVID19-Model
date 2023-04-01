@@ -369,9 +369,9 @@ def hiring_firing(l_old, l_0, x_0, x_t_input, x_t_labor, d_t, gamma_F, gamma_H, 
     l_new=np.zeros([delta_l.shape[0]])
     for i in range(delta_l.shape[0]):
         if delta_l[i] > 0:
-            l_new[i] = l_old[i] + 1/gamma_H*delta_l[i]
+            l_new[i] = l_old[i] + 1/gamma_H[i]*delta_l[i]
         elif delta_l[i] <= 0:
-            l_new[i] = l_old[i] + 1/gamma_F*delta_l[i]
+            l_new[i] = l_old[i] + 1/gamma_F[i]*delta_l[i]
     l_new=np.expand_dims(l_new,axis=1)
     l_0=np.expand_dims(l_0,axis=1)
     epsilon_S=np.expand_dims(epsilon_S,axis=1)

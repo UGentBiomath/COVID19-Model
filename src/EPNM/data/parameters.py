@@ -81,6 +81,7 @@ def get_model_parameters(shocks='alleman'):
         # l_s: ERMG survey; c_s/f_s: Pichler
         df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_alleman.csv"),header=[0],index_col=[0])
     elif shocks=='pichler':
+        # l_s/c_s/f_s: Pichler
         df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_pichler.csv"),header=[0],index_col=[0])
 
     pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
@@ -123,10 +124,13 @@ def get_model_parameters(shocks='alleman'):
                       'delta_S': 0.5,                                                  
                       'L': 0.5,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 10,                                                       
-                      'gamma_F': 7,                                               
-                      'gamma_H': 28
-                      })                     
+                      'tau': 10,                                                                                                 
+                      'gamma_H': 28*np.ones(len(pars_dict['c_s']))
+                      })
+
+    gamma_F = 7*np.ones(len(pars_dict['c_s']))   
+    gamma_F[53:55] = 10e5
+    pars_dict.update({'gamma_F': gamma_F})        
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
