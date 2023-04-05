@@ -125,7 +125,7 @@ def get_model_parameters(shocks='alleman'):
                       'L': 0.5,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 10,                                                                                                 
-                      'gamma_H': 28*np.ones(len(pars_dict['c_s']))
+                      'gamma_H': 28*np.ones(len(pars_dict['c_s'])),
                       })
 
     gamma_F = 7*np.ones(len(pars_dict['c_s']))   
@@ -135,28 +135,24 @@ def get_model_parameters(shocks='alleman'):
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # Key dates lockdown 1
-    t_start_lockdown_1 = pd.Timestamp('2020-03-10')
-    t_end_lockdown_1 = pd.Timestamp('2020-05-01')
-    t_end_relax_1 = pd.Timestamp('2020-07-01')
-    # Key dates lockdown 2
-    t_start_lockdown_2 = pd.Timestamp('2020-10-19')
-    t_end_lockdown_2 = pd.Timestamp('2020-11-19')
-    t_end_relax_2 = pd.Timestamp('2021-05-01')
+    pars_dict.update({'l1': 10,
+                      'l2': 28,
+                      't_start_lockdown_1': pd.Timestamp('2020-03-10'),
+                      't_end_lockdown_1': pd.Timestamp('2020-05-01'),
+                      't_start_lockdown_2': pd.Timestamp('2020-10-19'),
+                      't_end_lockdown_2': pd.Timestamp('2020-11-19'),
+                      't_start_final_relax': pd.Timestamp('2021-05-01'),
+                      })
+
+    pars_dict.update({'t_start_compensation': pars_dict['t_start_lockdown_1'],
+                      't_end_compensation': pars_dict['t_start_final_relax']})
 
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'b': 1,
                       'b_s': 1,
-                      'zeta': 1,
-                      't_start_lockdown_1': t_start_lockdown_1,
-                      't_end_lockdown_1': t_end_lockdown_1,
-                      't_end_relax_1': t_end_relax_1,
-                      't_start_lockdown_2': t_start_lockdown_2,
-                      't_end_lockdown_2': t_end_lockdown_2,
-                      't_end_relax_2': t_end_relax_2,
-                      't_start_compensation': t_start_lockdown_1,
-                      't_end_compensation': t_end_relax_2})
-   
+                      'zeta': 1
+                      })
+
     return pars_dict
