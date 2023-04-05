@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from EPNM.data.utils import get_sectoral_conversion_matrix
 
 # Set path to interim data folder
 abs_dir = os.path.dirname(__file__)
@@ -142,7 +143,7 @@ def get_model_parameters(shocks='alleman'):
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
                       't_end_lockdown_2': pd.Timestamp('2020-11-19'),
                       't_start_final_relax': pd.Timestamp('2021-05-01'),
-                      })
+                    })
 
     pars_dict.update({'t_start_compensation': pars_dict['t_start_lockdown_1'],
                       't_end_compensation': pars_dict['t_start_final_relax']})
@@ -153,6 +154,17 @@ def get_model_parameters(shocks='alleman'):
                       'b': 1,
                       'b_s': 1,
                       'zeta': 1
-                      })
+                    })
+
+    pars_dict.update({'c_s_NACE21': aggregate_shock(pars_dict['c_s'], pars_dict['c_0'], get_sectoral_conversion_matrix('NACE64_NACE21')),
+                      'f_s_NACE21': np.nan_to_num(aggregate_shock(pars_dict['f_s'], pars_dict['f_0'], get_sectoral_conversion_matrix('NACE64_NACE21'))),
+                      'convmat': get_sectoral_conversion_matrix('NACE64_NACE21')
+                    })
 
     return pars_dict
+
+def aggregate_shock(shock_in, demand, convmat):
+    """
+    Translates a shock on NACE64 level to a shock on NACE21 level, weighted with demand
+    """
+    return np.matmul(convmat*demand/np.expand_dims(np.sum(convmat*demand, axis=1),axis=1), np.expand_dims(shock_in, axis=1)).squeeze()

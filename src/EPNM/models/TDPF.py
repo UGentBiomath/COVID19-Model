@@ -5,7 +5,10 @@ import pandas as pd
 ## Economic model ##
 ####################
 
-def household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2, t_start_final_relax, c_s, ratio_c_s, on_site):
+def expand_shock(shock_in, convmat):
+    return (np.transpose(convmat) @ np.expand_dims(shock_in, axis=1)).squeeze()
+
+def household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2, t_start_final_relax, c_s, c_s_NACE21, convmat, ratio_c_s, on_site):
     """
     A time-dependent function to return the household demand shock.
 
@@ -45,7 +48,7 @@ def household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_l
     """
 
     # Consumer demand shock during lockdown
-    c_s_1 = c_s
+    c_s_1 = expand_shock(c_s_NACE21, convmat)
     # Consumer demand summer 2020 / winter 2021
     c_s_2 = ratio_c_s*c_s_1
     # Some sectors did not make any recovery during the summer of 2020
@@ -151,7 +154,7 @@ def labor_supply_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
     else:
         return param
 
-def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2, t_start_final_relax, f_s, ratio_f_s):
+def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2, t_start_final_relax, f_s, f_s_NACE21, convmat, ratio_f_s):
     """
     A time-dependent function to return the exogeneous demand shock during the 2021-2021 COVID-19 pandemic.
 
@@ -188,8 +191,9 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
         exogeneous demand shock
     """
 
+
     # Consumer demand shock during lockdown
-    f_s_1 = f_s
+    f_s_1 = expand_shock(f_s_NACE21, convmat)
     # Consumer demand summer 2020 / winter 2021
     f_s_2 = ratio_f_s*f_s_1
     # Sectors that didn't recover during the summer of 2020

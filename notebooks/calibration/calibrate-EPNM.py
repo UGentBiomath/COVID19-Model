@@ -91,7 +91,7 @@ data_B2B_demand = get_B2B_demand(relative=False)
 ## Initialize the model ##
 ##########################
 
-parameters, model = initialize_model(shocks='alleman', prodfunc='strongly_critical')
+parameters, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 ################################
 ## Load aggregation functions ##
@@ -133,11 +133,11 @@ if __name__ == '__main__':
 
     # PSO settings
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    multiplier_pso = 20
+    multiplier_pso = 50
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -154,7 +154,8 @@ if __name__ == '__main__':
             data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
     # Assign a higher weight to the national data
-    weights = [1/len(data_employment.index.get_level_values('NACE64').unique())/len(data_employment.index.get_level_values('date').unique()),
+    weights = [
+               1/len(data_employment.index.get_level_values('NACE64').unique())/len(data_employment.index.get_level_values('date').unique()),
                1/len(data_revenue.index.get_level_values('NACE64').unique())/len(data_revenue.index.get_level_values('date').unique()),
                1/len(data_GDP.index.get_level_values('NACE64').unique())/len(data_GDP.index.get_level_values('date').unique()),
                1/len(data_employment.index.get_level_values('date').unique()),
@@ -162,19 +163,19 @@ if __name__ == '__main__':
                1/len(data_GDP.index.get_level_values('date').unique()),
                1/len(data_B2B_demand.index.get_level_values('NACE21').unique())/len(data_B2B_demand.index.get_level_values('date').unique()),
                ]
-
     # States to calibrate
     states = ["l", "x", "x", "l", "x", "x", "O"]  
     # Log likelihood functions and arguments
     log_likelihood_fnc = [ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian]
+    sigma = 0.05
     log_likelihood_fnc_args = [
-            0.05*data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            0.05*data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            0.05*data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            0.05*data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
-            0.05*data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
-            0.05*data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
-            0.05*data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            sigma*data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            sigma*data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
+            sigma*data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
     # Aggregation functions
     aggregation_functions = [
@@ -198,17 +199,17 @@ if __name__ == '__main__':
     #############################
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
-    pars = ['c_s', 'f_s']
+    pars = ['c_s_NACE21', 'f_s_NACE21']
     bounds=((0.001,0.999),(0.001,0.999),)
     # Define labels
     labels = ['$c_s$', '$f_s$']
     # Objective function
-    objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions)
+    objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions, weights=weights)
     
     # Path where MCMC samples should be saved
     #samples_path = f'../../data/EPNM/interim/calibrations/'
     # Load raw samples dict
-    #samples_dict = json.load(open(samples_path+'national_'+'strongly_crit'+ '_SAMPLES_' + '2023-03-31' + '.json')) # Why national
+    #samples_dict = json.load(open(samples_path+'national_'+'strongly_crit'+ '_SAMPLES_' + '2023-04-02' + '.json')) # Why national
     #c_s = []
     #f_s = []
     #for i in range(len(samples_dict['c_s'])):
@@ -219,12 +220,12 @@ if __name__ == '__main__':
     # Optimize PSO
     #theta = pso.optimize(objective_function, kwargs={}, swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     #theta = np.array(theta)
-    #theta = np.where(theta <= 0, 0.02, theta)
-    #theta = np.where(theta >= 1, 0.98, theta).tolist()
+    #theta = np.where(theta <= 0, 0.01, theta)
+    #theta = np.where(theta >= 1, 0.99, theta).tolist()
     # Optimize NM
-    theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
-    theta = np.where(theta <= 0, 0.01, theta)
-    theta = np.where(theta >= 1, 0.99, theta).tolist()
+    theta = np.array(parameters['c_s_NACE21'].tolist() + parameters['f_s_NACE21'].tolist())
+    theta = np.where(theta <= 0, 0.001, theta)
+    theta = np.where(theta >= 1, 0.999, theta).tolist()
     #print(objective_function(np.array(theta)))
 
     #step = len(objective_function.expanded_bounds)*[0.10,]
@@ -235,13 +236,13 @@ if __name__ == '__main__':
     ############################
 
     # Assign estimate
-    model.parameters = assign_theta(model.parameters, pars, theta)
+    #model.parameters = assign_theta(model.parameters, pars, theta)
     # Perform simulation
-    out = model.sim([start_calibration, end_calibration])
+    #out = model.sim([start_calibration, end_calibration])
     # Visualize fit
-    ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
-    plt.show()
-    plt.close()
+    #ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
+    #plt.show()
+    #plt.close()
 
     ########################
     ## Setup MCMC sampler ##
@@ -250,7 +251,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.10*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.30*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
