@@ -38,8 +38,10 @@ def draw_function(param_dict, samples_dict):
     # param_dict['ratio_c_s'] =  np.random.uniform(low=1/10, high=0.99)
     # param_dict['ratio_f_s'] =  np.random.uniform(low=1/10, high=0.99)
     # # Hiring and Firing speed
-    # param_dict['gamma_F'] = np.random.normal(loc=7, scale=2)
-    # param_dict['gamma_H'] = np.random.normal(loc=28, scale=7)
+    # param_dict['gamma_F'] = np.ones(len(param_dict['c_s']))*np.random.normal(loc=7, scale=2)
+    # param_dict['gamma_H'] = np.ones(len(param_dict['c_s']))*np.random.normal(loc=28, scale=7)
+    # # No firing in sectors O84/P85
+    # param_dict['gamma_F'][53:55] = 10e5
     # # Household savings and prospects
     # param_dict['delta_S'] = np.random.uniform(low=0, high=1)
     # param_dict['L'] = np.random.uniform(low=0, high=1)

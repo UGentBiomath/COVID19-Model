@@ -43,24 +43,35 @@ def household_demand_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_
     """
 
     # Ramp length
-    l = 7
+    l1 = 10
+    l2 = 28
     # Consumer demand shock during lockdown
     c_s_1 = c_s
     # Consumer demand between lockdowns
     c_s_2 = ratio_c_s*c_s_1
+    # Some sectors did not make any recovery during the summer of 2020
+    c_s_2[27] = c_s_1[27] # G45
+    c_s_2[7] = c_s_1[7] # C17
+    c_s_2[51] = c_s_1[51] # N79
+    c_s_2[57] = c_s_1[57] # R90-92
+    c_s_2[58] = c_s_1[58] # R93
 
     # Before first lockdown
     if t < t_start_lockdown_1:
         return np.zeros(len(c_s_1))
 
     # First lockdown    
-    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l))):
-        return ramp_datetime(np.zeros(len(c_s_1)), c_s_1, t, t_start_lockdown_1, l)
-    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l)) & (t < t_end_lockdown_1)):
+    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l1))):
+        return ramp_datetime(np.zeros(len(c_s_1)), c_s_1, t, t_start_lockdown_1, l1)
+    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l1)) & (t < t_end_lockdown_1)):
         return c_s_1
 
     # Lockdown relaxation
-    elif ((t >= t_end_lockdown_1) & (t < t_end_relax_1)):
+    elif ((t >= t_end_lockdown_1) & (t < t_end_lockdown_1 + pd.Timedelta(days=l2))):
+        epsilon = c_s_2 + (c_s_1-c_s_2)/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_relax_1-t_end_lockdown_1))
+        epsilon[np.where(on_site == 0)] = ramp_datetime(c_s_1, c_s_2, t, t_end_lockdown_1, l2)[np.where(on_site == 0)]
+        return epsilon
+    elif ((t >= t_end_lockdown_1 + pd.Timedelta(days=l2)) & (t < t_end_relax_1)):
         epsilon = c_s_2 + (c_s_1-c_s_2)/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_relax_1-t_end_lockdown_1))
         epsilon[np.where(on_site == 0)] = 0
         return epsilon
@@ -70,16 +81,20 @@ def household_demand_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_
         return c_s_2
 
     # Second lockdown
-    elif ((t >= t_start_lockdown_2) & (t < t_start_lockdown_2 + pd.Timedelta(days=l))):
-        return ramp_datetime(c_s_2*np.ones(len(c_s_1)), c_s_1, t, t_start_lockdown_2, l)
-    elif ((t >= t_start_lockdown_2 + pd.Timedelta(days=l)) & (t < t_end_lockdown_2)):
+    elif ((t >= t_start_lockdown_2) & (t < t_start_lockdown_2 + pd.Timedelta(days=l1))):
+        return ramp_datetime(c_s_2*np.ones(len(c_s_1)), c_s_1, t, t_start_lockdown_2, l1)
+    elif ((t >= t_start_lockdown_2 + pd.Timedelta(days=l1)) & (t < t_end_lockdown_2)):
         return c_s_1
 
     # After second lockdown
-    elif ((t >= t_end_lockdown_2) & (t < t_end_relax_2)):
+    elif ((t >= t_end_lockdown_2) & (t < t_end_lockdown_2 + pd.Timedelta(days=l2))):
+        epsilon = c_s_1/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_2)/(t_end_relax_2-t_end_lockdown_2))
+        epsilon[np.where(on_site == 0)] = ramp_datetime(c_s_1, np.zeros(len(c_s_1)), t, t_end_lockdown_2, l2)[np.where(on_site == 0)]
+        return epsilon
+    elif ((t >= t_end_lockdown_2 + pd.Timedelta(days=l2)) & (t < t_end_relax_2)):
         epsilon = c_s_1/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_2)/(t_end_relax_2-t_end_lockdown_2))
         epsilon[np.where(on_site == 0)] = 0
-        return epsilon
+        return epsilon        
     else:
         return np.zeros(len(c_s_1))
 
@@ -109,7 +124,7 @@ def labor_supply_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_1, t
         
     """
     # Ramp length
-    l1 = 7
+    l1 = 10
     l2 = 28
 
     if t < t_start_lockdown_1:
@@ -170,33 +185,44 @@ def other_demand_shock(t, states, param, t_start_lockdown_1, t_end_lockdown_1, t
     """
 
     # Ramp length
-    l = 7
+    l1 = 10
+    l2 = 28
     # Consumer demand shock during lockdown
     f_s_1 = f_s
     # Consumer demand between lockdowns
     f_s_2 = ratio_f_s*f_s_1
+    # Sectors that didn't recover during the summer of 2020
+    f_s_2[27] = f_s_1[27] # G45
+    f_s_2[7] = f_s_1[7] # C17
+    f_s_2[51] = f_s_1[51] # N79
+    f_s_2[57] = f_s_1[57] # R90-92
+    f_s_2[58] = f_s_1[58] # R93
 
     # Before first lockdown
     if t < t_start_lockdown_1:
         return np.zeros(len(f_s_1))
 
     # First lockdown
-    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l))):
-        return ramp_datetime(np.zeros(len(f_s_1)), f_s_1, t, t_start_lockdown_1, l)
-    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l)) & (t < t_end_lockdown_1)):
+    elif ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1 + pd.Timedelta(days=l1))):
+        return ramp_datetime(np.zeros(len(f_s_1)), f_s_1, t, t_start_lockdown_1, l1)
+    elif ((t >= t_start_lockdown_1 + pd.Timedelta(days=l1)) & (t < t_end_lockdown_1)):
         return f_s_1
 
     # Lockdown relaxation
     elif ((t >= t_end_lockdown_1) & (t < t_end_relax_1)):
         return f_s_2 + (f_s_1-f_s_2)/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_relax_1-t_end_lockdown_1))
-
     # Summer 2020
     elif ((t >= t_end_relax_1) & (t < t_start_lockdown_2)):
         return f_s_2
 
-    # After second lockdown
-    elif ((t >= t_start_lockdown_2) & (t < t_end_relax_2)):
-        return f_s_2/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_2)/(t_end_relax_2-t_start_lockdown_2))
+    # Second lockdown
+    elif ((t >= t_start_lockdown_2) & (t < t_start_lockdown_2 + pd.Timedelta(days=l1))):
+        return ramp_datetime(f_s_2, f_s_1, t, t_start_lockdown_2, l1)
+    elif ((t >= t_start_lockdown_2 + pd.Timedelta(days=l1)) & (t < t_end_lockdown_2)):
+        return f_s_1
+    
+    elif ((t >= t_end_lockdown_2) & (t < t_end_relax_2)):
+        return f_s_1/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_2)/(t_end_relax_2-t_start_lockdown_2))
    
     else:
         return np.zeros(len(f_s_2))
@@ -232,12 +258,15 @@ def compute_income_expectations(t, states, param, t_start_lockdown_1, t_end_lock
     zeta : float
         fraction (0-1) of pre-pandemic income households expect to retain in the long run
     """
+    l1 = 10
 
     if t < t_start_lockdown_1:
         zeta = 1
     else:
-        zeta_L = 1 - 0.5*(sum(l_0)-l_start_lockdown)/sum(l_0)
-        if ((t >= t_start_lockdown_1) & (t < t_end_lockdown_1)):
+        zeta_L = 1 - (sum(l_0)-l_start_lockdown)/sum(l_0)
+        if ((t >= t_start_lockdown_1) & (t < t_start_lockdown_1+pd.Timedelta(days=l1))):
+            zeta = ramp_datetime(1, zeta_L, t, t_start_lockdown_1, l1)
+        elif ((t >= t_start_lockdown_1+pd.Timedelta(days=l1)) & (t < t_end_lockdown_1)):
             zeta = zeta_L
         else:
             # first order system
@@ -266,9 +295,9 @@ def government_furloughing(t, states, param, t_start_compensation, t_end_compens
     b: float
         fraction of lost labor income compensated
     """
-    if t < t_start_compensation:
+    if t <= t_start_compensation:
         return param
-    elif ((t >= t_start_compensation) & (t < t_end_compensation)):
+    elif ((t > t_start_compensation) & (t <= t_end_compensation)):
         return b_s
     else:
         return param

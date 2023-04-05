@@ -136,13 +136,13 @@ def get_model_parameters(shocks='alleman'):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # Key dates lockdown 1
-    t_start_lockdown_1 = pd.Timestamp('2020-03-15')
+    t_start_lockdown_1 = pd.Timestamp('2020-03-10')
     t_end_lockdown_1 = pd.Timestamp('2020-05-01')
-    t_end_relax_1 = pd.Timestamp('2020-08-01')
+    t_end_relax_1 = pd.Timestamp('2020-07-01')
     # Key dates lockdown 2
     t_start_lockdown_2 = pd.Timestamp('2020-10-19')
-    t_end_lockdown_2 = pd.Timestamp('2020-12-01')
-    t_end_relax_2 = pd.Timestamp('2021-07-01')
+    t_end_lockdown_2 = pd.Timestamp('2020-11-19')
+    t_end_relax_2 = pd.Timestamp('2021-05-01')
 
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
