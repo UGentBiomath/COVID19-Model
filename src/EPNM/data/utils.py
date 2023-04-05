@@ -32,12 +32,14 @@ def get_sectoral_conversion_matrix(from_to):
         return np.array(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 38 to NACE 21', header=[0], index_col=[0]).values)
     elif from_to == 'NACE64_NACE38':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 38', header=[0], index_col=[0]).values)
+    elif from_to == 'NACE64_NACE21':
+        return np.array(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 64 to NACE 21', header=[0], index_col=[0]).values)
     elif from_to == 'WIOD55_NACE64':
         return np.array(pd.read_excel(os.path.join(par_interim_path,"model_parameters/conversion_matrices.xlsx"), sheet_name = 'NACE 64 to WIOD 55', header=[0], index_col=[0]).values)
     else:
         raise ValueError(
                         "conversion matrix '{0}' not recognized \n"
-                        "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'WIOD55_NACE64'".format(from_to)
+                        "valid arguments are: 'NACE21_NACE10', 'NACE38_NACE21', 'NACE64_NACE38', 'NACE64_NACE21', 'WIOD55_NACE64'".format(from_to)
                     )
 
 def get_sector_names(classification_name):
