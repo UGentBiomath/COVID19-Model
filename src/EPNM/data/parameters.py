@@ -146,7 +146,7 @@ def get_model_parameters(shocks='alleman'):
                     })
 
     pars_dict.update({'t_start_compensation': pars_dict['t_start_lockdown_1'],
-                      't_end_compensation': pars_dict['t_start_final_relax']})
+                      't_end_compensation': pd.Timestamp('2021-12-01')})
 
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
