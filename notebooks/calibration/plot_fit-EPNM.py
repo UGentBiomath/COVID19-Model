@@ -98,6 +98,7 @@ CORNER_KWARGS = dict(
 
 import corner
 from EPNM.data.utils import get_sector_labels, get_sector_names
+
 labels_NACE64 = get_sector_labels('NACE64')
 labels_NACE64_copy = labels_NACE64
 labels_NACE64 = [lab[0] for lab in labels_NACE64] # Extract first letter
@@ -150,6 +151,7 @@ for lab_21 in labels_NACE21:
         plt.savefig(fig_path+'corner/'+f'corner_{lab_21}.jpg', dpi=400)
         #plt.show()
         plt.close()      
+
 
 ########################
 ## Simulate the model ##

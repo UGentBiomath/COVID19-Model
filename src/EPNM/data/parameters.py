@@ -127,11 +127,8 @@ def get_model_parameters(shocks='alleman'):
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 10,                                                                                                 
                       'gamma_H': 28*np.ones(len(pars_dict['c_s'])),
-                      })
-
-    gamma_F = 7*np.ones(len(pars_dict['c_s']))   
-    gamma_F[53:55] = 10e5
-    pars_dict.update({'gamma_F': gamma_F})        
+                      'gamma_F': 14*np.ones(len(pars_dict['c_s'])) 
+                      })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -152,13 +149,8 @@ def get_model_parameters(shocks='alleman'):
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'b': 1,
-                      'b_s': 1,
+                      'b_s': 0.8,
                       'zeta': 1
-                    })
-
-    pars_dict.update({'c_s_NACE21': aggregate_shock(pars_dict['c_s'], pars_dict['c_0'], get_sectoral_conversion_matrix('NACE64_NACE21')),
-                      'f_s_NACE21': np.nan_to_num(aggregate_shock(pars_dict['f_s'], pars_dict['f_0'], get_sectoral_conversion_matrix('NACE64_NACE21'))),
-                      'convmat': get_sectoral_conversion_matrix('NACE64_NACE21')
                     })
 
     return pars_dict

@@ -137,7 +137,7 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 4
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -153,6 +153,7 @@ if __name__ == '__main__':
             # NACE 21 B2B Demand data
             data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
+
     # Assign a higher weight to the national data
     weights = [
                1/len(data_employment.index.get_level_values('NACE64').unique())/len(data_employment.index.get_level_values('date').unique()),
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     #############################
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
-    pars = ['c_s_NACE21', 'f_s_NACE21']
+    pars = ['c_s', 'f_s']
     bounds=((0.001,0.999),(0.001,0.999),)
     # Define labels
     labels = ['$c_s$', '$f_s$']
@@ -223,10 +224,11 @@ if __name__ == '__main__':
     #theta = np.where(theta <= 0, 0.01, theta)
     #theta = np.where(theta >= 1, 0.99, theta).tolist()
     # Optimize NM
-    theta = np.array(parameters['c_s_NACE21'].tolist() + parameters['f_s_NACE21'].tolist())
+    theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
     theta = np.where(theta <= 0, 0.001, theta)
     theta = np.where(theta >= 1, 0.999, theta).tolist()
-    #print(objective_function(np.array(theta)))
+    print(objective_function(np.array(theta)))
+    sys.exit()
 
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
@@ -251,7 +253,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.30*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.10*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
