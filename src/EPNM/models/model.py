@@ -122,7 +122,10 @@ def calc_input_restriction(S_t,A,C,x_0,prodfunc='half_critical'):
     # Pre-allocate sector output at time t
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
-    if prodfunc == 'weakly_critical':
+    if prodfunc == 'linear':
+        for i in range(A.shape[0]):
+            x_t[i] = np.sum(S_t[:,i])/np.sum(A[:,i])
+    elif prodfunc == 'weakly_critical':
         for i in range(A.shape[0]):
             critical = list(np.where(C[:,i] == 1)[0])
             x_t[i] = np.nanmin(S_t[critical,i]/A[critical,i])
