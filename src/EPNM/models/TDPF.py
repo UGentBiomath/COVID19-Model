@@ -184,7 +184,7 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
     # Consumer demand shock during lockdown
     f_s_1 = f_s
     # Consumer demand summer 2020 / winter 2021
-    f_s_2 = ratio_f_s*f_s_1d
+    f_s_2 = ratio_f_s*f_s_1
 
     # Before first lockdown
     if t < t_start_lockdown_1:
