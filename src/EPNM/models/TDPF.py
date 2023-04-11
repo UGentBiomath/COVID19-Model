@@ -51,17 +51,6 @@ def household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_l
     c_s_1 = c_s
     # Consumer demand summer 2020 / winter 2021
     c_s_2 = ratio_c_s*c_s_1
-    # Some sectors did not make any recovery during the summer of 2020
-    c_s_2[27] = c_s_1[27] # G45
-    c_s_2[7] = c_s_1[7] # C17
-    c_s_2[12] = c_s_1[12] # C22
-    c_s_2[14] = c_s_1[14] # C24
-    c_s_2[49] = c_s_1[49] # N77
-    c_s_2[51] = c_s_1[51] # N79
-    c_s_2[35] = c_s_1[35] # I55-56
-    c_s_2[57] = c_s_1[57] # R90-92
-    c_s_2[58] = c_s_1[58] # R93
-    c_s_2[61] = c_s_1[61] # S96
 
     # Before first lockdown
     if t < t_start_lockdown_1:
@@ -195,18 +184,7 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
     # Consumer demand shock during lockdown
     f_s_1 = f_s
     # Consumer demand summer 2020 / winter 2021
-    f_s_2 = ratio_f_s*f_s_1
-    # Sectors that didn't recover during the summer of 2020
-    f_s_2[27] = f_s_1[27] # G45
-    f_s_2[7] = f_s_1[7] # C17
-    f_s_2[12] = f_s_1[12] # C22
-    f_s_2[14] = f_s_1[14] # C24
-    f_s_2[49] = f_s_1[49] # N77
-    f_s_2[51] = f_s_1[51] # N79
-    f_s_2[35] = f_s_1[35] # I55-56
-    f_s_2[57] = f_s_1[57] # R90-92
-    f_s_2[58] = f_s_1[58] # R93
-    f_s_2[61] = f_s_1[61] # S96
+    f_s_2 = ratio_f_s*f_s_1d
 
     # Before first lockdown
     if t < t_start_lockdown_1:
