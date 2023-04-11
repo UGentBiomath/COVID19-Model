@@ -82,10 +82,18 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/"]:
 ## Load data ##
 ###############
 
+# As is
 data_employment = get_employment_survey(relative=False)
 data_revenue = get_revenue_survey(relative=False)
 data_GDP = get_synthetic_GDP(relative=False)
 data_B2B_demand = get_B2B_demand(relative=False)
+
+# Temporal aggregation to quarters of fine-grained data
+# This places less emphases on the exact form of the curve (which is a detail in this model), and more on the reductions under lockdown
+data_employment_quarterly = get_employment_survey(relative=False).groupby([pd.Grouper(freq='Q', level='date'),] + [data_employment.index.get_level_values('NACE64')]).mean()
+data_revenue_quarterly = get_revenue_survey(relative=False).groupby([pd.Grouper(freq='Q', level='date'),] + [data_revenue.index.get_level_values('NACE64')]).mean()
+data_GDP_quarterly = get_synthetic_GDP(relative=False).groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.index.get_level_values('NACE64')]).mean()
+data_B2B_demand = get_B2B_demand(relative=False).groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B_demand.index.get_level_values('NACE21')]).mean()
 
 ##########################
 ## Initialize the model ##
@@ -101,6 +109,7 @@ import xarray as xr
 
 def aggregate_NACE21(simulation_in):
     """ A function to convert a simulation of the economic IO model on the NACE64 level to the NACE21 level
+        Also aggregates data to quarters temporily
     
     Input
     =====
@@ -117,13 +126,25 @@ def aggregate_NACE21(simulation_in):
                                     dims = ['date', 'NACE21'],
                                     coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
                                     date=simulation_in.coords['date']))
-    return simulation_out
+    return simulation_out.resample(date='Q').mean()
 
 def aggregate_dummy(simulation_in):
     """
     Does nothing
     """
     return simulation_in
+
+def aggregate_quarterly(simulation_in):
+    """
+    Aggregates data temporily to quarters
+    """
+
+    aggregated_simulation = simulation_in.resample(date='Q').mean()
+    simulation_out = xr.DataArray(aggregated_simulation.values,
+                                    dims = ['date', 'NACE64'],
+                                    coords = dict(NACE64=(['NACE64'], get_sector_labels('NACE64')),
+                                                  date=aggregated_simulation.coords['date']))
+    return simulation_out
 
 if __name__ == '__main__':
 
@@ -137,15 +158,15 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 5
     # Define dataset
     data = [
             # NACE 64 sectoral data
-            data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            data_employment_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            data_revenue_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            data_GDP_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             # National data
             data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
@@ -153,26 +174,25 @@ if __name__ == '__main__':
             # NACE 21 B2B Demand data
             data_B2B_demand.drop('U', level='NACE21', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             ]
-
     # Assign a higher weight to the national data
     weights = [
-               1/len(data_employment.index.get_level_values('NACE64').unique())/len(data_employment.index.get_level_values('date').unique()),
-               1/len(data_revenue.index.get_level_values('NACE64').unique())/len(data_revenue.index.get_level_values('date').unique()),
-               1/len(data_GDP.index.get_level_values('NACE64').unique())/len(data_GDP.index.get_level_values('date').unique()),
-               1/len(data_employment.index.get_level_values('date').unique()),
-               1/len(data_revenue.index.get_level_values('date').unique()),
-               1/len(data_GDP.index.get_level_values('date').unique()),
-               1/len(data_B2B_demand.index.get_level_values('NACE21').unique())/len(data_B2B_demand.index.get_level_values('date').unique()),
-               ]
+            1/len(data_employment_quarterly.index.get_level_values('NACE64').unique())/len(data_employment_quarterly.index.get_level_values('date').unique()),
+            1/len(data_revenue_quarterly.index.get_level_values('NACE64').unique())/len(data_revenue_quarterly.index.get_level_values('date').unique()),
+            1/len(data_GDP_quarterly.index.get_level_values('NACE64').unique())/len(data_GDP_quarterly.index.get_level_values('date').unique()),
+            1/len(data_employment.index.get_level_values('date').unique()),
+            1/len(data_revenue.index.get_level_values('date').unique()),
+            1/len(data_GDP.index.get_level_values('date').unique()),
+            1/len(data_B2B_demand.index.get_level_values('NACE21').unique())/len(data_B2B_demand.index.get_level_values('date').unique()),
+            ]
     # States to calibrate
     states = ["l", "x", "x", "l", "x", "x", "O"]  
     # Log likelihood functions and arguments
     log_likelihood_fnc = [ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian, ll_gaussian]
     sigma = 0.05
     log_likelihood_fnc_args = [
-            sigma*data_employment.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            sigma*data_revenue.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
-            sigma*data_GDP.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_employment_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_revenue_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
+            sigma*data_GDP_quarterly.drop('BE', level='NACE64', axis=0, inplace=False).loc[slice(start_calibration, end_calibration), slice(None)],
             sigma*data_employment.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             sigma*data_revenue.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
             sigma*data_GDP.loc[slice(start_calibration, end_calibration), 'BE'].reset_index().drop('NACE64', axis=1).set_index('date').squeeze(),
@@ -180,9 +200,9 @@ if __name__ == '__main__':
             ]
     # Aggregation functions
     aggregation_functions = [
-            aggregate_dummy,
-            aggregate_dummy,
-            aggregate_dummy,
+            aggregate_quarterly,
+            aggregate_quarterly,
+            aggregate_quarterly,
             aggregate_dummy,
             aggregate_dummy,
             aggregate_dummy,
@@ -227,8 +247,7 @@ if __name__ == '__main__':
     theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
     theta = np.where(theta <= 0, 0.001, theta)
     theta = np.where(theta >= 1, 0.999, theta).tolist()
-    print(objective_function(np.array(theta)))
-    sys.exit()
+    #print(objective_function(np.array(theta)))
 
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
@@ -237,14 +256,14 @@ if __name__ == '__main__':
     ## Visualize national fit ##
     ############################
 
-    # Assign estimate
-    #model.parameters = assign_theta(model.parameters, pars, theta)
-    # Perform simulation
-    #out = model.sim([start_calibration, end_calibration])
-    # Visualize fit
-    #ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
-    #plt.show()
-    #plt.close()
+    # # Assign estimate
+    # model.parameters = assign_theta(model.parameters, pars, theta)
+    # # Perform simulation
+    # out = model.sim([start_calibration, end_calibration])
+    # # Visualize fit
+    # ax = plot_PSO(out, [data[3], data[4], data[5]], [states[3], states[4], states[5]], start_calibration, end_calibration)
+    # plt.show()
+    # plt.close()
 
     ########################
     ## Setup MCMC sampler ##
@@ -253,7 +272,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.10*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.03*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
