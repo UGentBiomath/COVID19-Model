@@ -122,10 +122,10 @@ def get_model_parameters(shocks='alleman'):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     pars_dict.update({'rho': 1-(1-0.60)/90,          
-                      'delta_S': 0.5,                                                  
-                      'L': 0.5,                                                        
+                      'delta_S': 0.75,                                                  
+                      'L': 0.75,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 10,                                                                                                 
+                      'tau': 30,                                                                                                 
                       'gamma_H': 28*np.ones(len(pars_dict['c_s'])),
                       'gamma_F': 14*np.ones(len(pars_dict['c_s'])) 
                       })  
@@ -134,7 +134,7 @@ def get_model_parameters(shocks='alleman'):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     pars_dict.update({'l1': 10,
-                      'l2': 28,
+                      'l2': 7*8,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
                       't_end_lockdown_1': pd.Timestamp('2020-05-01'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
@@ -149,7 +149,7 @@ def get_model_parameters(shocks='alleman'):
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'b': 1,
-                      'b_s': 0.8,
+                      'b_s': 0.75,
                       'zeta': 1
                     })
 
