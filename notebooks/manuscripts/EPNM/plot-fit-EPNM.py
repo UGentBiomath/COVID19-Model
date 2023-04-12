@@ -29,7 +29,7 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
+params, model = initialize_model(shocks='alleman', prodfunc='linear')
 
 # Aggregation functions
 
@@ -68,70 +68,177 @@ def aggregate_NACE21(simulation_in):
     return simulation_out
 
 # Draw function
-# TODO
+from EPNM.models.draw_functions import draw_function
+
+# samples
+import json
+samples_path = '../../../data/EPNM/interim/calibrations/'
+identifier = 'test_quarterly_NACE64_half_critical'
+date = '2023-04-11'
+samples_dict = json.load(open(samples_path+'national_'+str(identifier) + '_SAMPLES_' + str(date) + '.json')) # Why national
+
+# Do we want to use samples?
+samples=False
 
 # Simulate
-out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
+if samples:
+    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=2*18, processes=18, samples=samples_dict).mean(dim='draws')
+else:
+    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
 
 ###################
 ## Make the plot ##
 ###################
 
-# B2B demand
-dates = data_B2B.index.get_level_values('date').unique()
-sectors = data_B2B.index.get_level_values('NACE21').unique()
-out_NACE21 = aggregate_NACE21(out['O'])
-out_NACE21_quart = out_NACE21.resample(date='Q').mean()
-B2B_demand = np.matmul(params['O_j'], np.transpose(get_sectoral_conversion_matrix('NACE64_NACE21')))
-model_dates = out_NACE21_quart.coords['date']
-
 titles = ['2020Q2', '2020Q3', '2020Q4', '2021Q1']
 grouping_sectors = ['Agriculture; Mining;\nManufacturing;\nUtilities; Construction', 'Wholesale & Retail;\nTransport; Accomodation;\nRecreation; Services',
                     'Information & Communication;\nInsurance & Finance;\nPrivate administration', 'Public administration;\nEducation; Defence;\nHuman health']
 
-fig,ax=plt.subplots(ncols=4, sharey=True, figsize=(0.75*21,4))
+hyperdist_abs = []
+hyperdist = []
+
+fig,ax=plt.subplots(nrows=4, ncols=4, sharey=True, sharex=True, figsize=(11.69,8.27))
+
+################
+## B2B demand ##
+################
+
+dates = data_B2B.index.get_level_values('date').unique()
+sectors = data_B2B.index.get_level_values('NACE21').unique()
+out_NACE21 = aggregate_NACE21(out['O'])
+out_NACE21_quart = out_NACE21.resample(date='Q').mean()
+model_dates = out_NACE21_quart.coords['date']
+B2B_demand = np.matmul(params['O_j'], np.transpose(get_sectoral_conversion_matrix('NACE64_NACE21')))
+
+dist_abs=np.zeros(4)
+dist=np.zeros(4)
 for i,date in enumerate(dates):
+    dist_abs_temp=[]
+    dist_temp=[]
     for j,sector in enumerate(sectors):
         if sector!='U':
             if sector in ['A', 'B', 'C', 'D', 'E', 'F']:
                 color = 'black'
-                label = 'Agriculture; Mining; Manufacturing; Utilities; Construction'
             elif sector in ['G', 'H', 'I', 'R', 'S', 'T']:
                 color = 'red'
-                label = 'Wholesale & Retail; Transport; Accomodation; Recreation; Services'
             elif sector in ['J', 'K', 'L', 'M', 'N']:
                 color = 'blue'
-                label = 'Information & Communication; Insurance & Finance; Private administration'
             elif sector in ['O', 'P', 'Q']:
                 color = 'green'
-                label = 'Public administration; Education; Defence; Human health'
 
+            # Plot
             x=data_B2B.loc[date, sector]-100
             y=out_NACE21_quart.sel(NACE21=sector).sel(date=date)/out_NACE21.sel(NACE21=sector).isel(date=0)*100-100
-            ax[i].scatter(x, y, s=B2B_demand[j], color=color, alpha=0.5)
-
+            ax[0,i].scatter(x, y, s=B2B_demand[j]/sum(B2B_demand)*1000, color=color, alpha=0.4)
+            # Weighted euclidian distance in plane
+            dist_abs_temp.append(B2B_demand[j]/sum(B2B_demand)*abs(abs(x)-abs(y.values)) )
+            dist_temp.append(B2B_demand[j]/sum(B2B_demand)*(abs(x)-abs(y.values)) )
             # Sector label
-            if sector in ['I', 'R', 'S']:
-                ax[i].annotate(sector,  xy=(x - 1, y + 2), fontsize=9)
+            if sector in ['I', 'R', 'S','O', 'P', 'Q']:
+                ax[0,i].annotate(sector,  xy=(x - 2, y + 2), fontsize=7)
 
-    ax[i].set_title(titles[i])
-    ax[i].set_xlabel('Observed decline (%)')
-    ax[i].plot(np.linspace(start=-100, stop=10), np.linspace(start=-100, stop=10), color='black', linewidth=1, linestyle='--')
-    ax[i].set_xlim([-100,10])
-    ax[i].set_ylim([-100,10])
+    dist_abs[i] = np.sum(dist_abs_temp)
+    dist[i] = np.sum(dist_temp)
+
+    # text box with average euclidian distance in plane
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    ax[0,i].text(0.05, 0.95, f"{dist_abs[i]:.1f}; {dist[i]:.1f} %", transform=ax[0,i].transAxes, fontsize=7,
+                 verticalalignment='top', bbox=props)
+
+    ax[0,i].set_title(titles[i])
+    ax[0,i].plot(np.linspace(start=-100, stop=10), np.linspace(start=-100, stop=10), color='black', linewidth=1, linestyle='--')
+    ax[0,i].set_xlim([-100,10])
+    ax[0,i].set_ylim([-100,10])
+
+hyperdist_abs.append(np.mean(dist_abs))
+hyperdist.append(np.mean(dist))
 
 # Label y axis
-ax[0].set_ylabel('Predicted decline (%)')
+ax[0,0].set_ylabel('B2B demand\nprediction (%)')
+
+datasets = [data_GDP, data_revenue, data_employment]
+states = ['x', 'x', 'l']
+sizes = [params['x_0'], params['x_0'], params['l_0']]
+print_label = [['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92'],['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92', 'I55-56'],['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92', 'I55-56']]
+offset = [[-4,5],[-4,5],[-4,5]]
+ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
+
+#########
+## GDP ##
+#########
+
+dist_abs=np.zeros(4)
+dist=np.zeros(4)
+
+for k, data in enumerate(datasets):
+
+    dates = data.index.get_level_values('date').unique()
+    sectors = data.index.get_level_values('NACE64').unique()
+    out_quart = out[states[k]].resample(date='Q').mean()
+
+    for i,date in enumerate(dates):
+        dist_abs_temp=[]
+        dist_temp=[]
+        for j,sector in enumerate(sectors):
+            if sector != 'BE':
+                if sector[0] in ['A', 'B', 'C', 'D', 'E', 'F']:
+                    color = 'black'
+                elif sector[0] in ['G', 'H', 'I', 'R', 'S', 'T']:
+                    color = 'red'
+                elif sector[0] in ['J', 'K', 'L', 'M', 'N']:
+                    color = 'blue'
+                elif sector[0] in ['O', 'P', 'Q']:
+                    color = 'green'
+
+                # Plot
+                x=data.loc[date, sector]*100-100
+                y=out_quart.sel(NACE64=sector).sel(date=date)/out[states[k]].sel(NACE64=sector).isel(date=0)*100-100
+                ax[k+1,i].scatter(x, y, s=sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*2000, color=color, alpha=0.4)
+                # Weighted euclidian distance in plane
+                dist_abs_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*abs(abs(x)-abs(y.values)) )
+                dist_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*(abs(x)-abs(y.values)) )
+                # Sector label
+                if sector in print_label[k]:
+                    ax[k+1,i].annotate(sector,  xy=(x + offset[k][0], y + offset[k][1]), fontsize=7)
+
+        dist_abs[i] = np.sum(dist_abs_temp)
+        dist[i] = np.sum(dist_temp)
+
+        # text box with average euclidian distance in plane
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        ax[k+1,i].text(0.05, 0.95, f"{dist_abs[i]:.1f} %; {dist[i]:.1f} %", transform=ax[k+1,i].transAxes, fontsize=7,
+                        verticalalignment='top', bbox=props)
+
+        ax[k+1,i].plot(np.linspace(start=-100, stop=10), np.linspace(start=-100, stop=10), color='black', linewidth=1, linestyle='--')
+        ax[k+1,i].set_xlim([-100,10])
+        ax[k+1,i].set_ylim([-100,10])
+
+        ax[k+1,0].set_ylabel(ylabels[k])
+        ax[3,i].set_xlabel('observation (%)')
+
+    hyperdist_abs.append(np.mean(dist_abs))
+    hyperdist.append(np.mean(dist))
+
 # Custom legend
 from matplotlib.lines import Line2D
-custom_circles = [Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='black', alpha=0.5),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='red', alpha=0.5),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='blue', alpha=0.5),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='green', alpha=0.5)
-                 ]        
-ax[3].legend(custom_circles, grouping_sectors, bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=9)
-leg = ax[3].get_legend()
-leg.get_frame().set_linewidth(0.0)
+custom_circles = [Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='black', alpha=0.4),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='red', alpha=0.4),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='blue', alpha=0.4),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='green', alpha=0.4),
+                 ]   
+
+# Arrow and text on first plot
+ax[0,0].annotate('optimistic',  xytext=(-95, -20), xy=(-50,-50), fontsize=9, arrowprops=dict(arrowstyle="<-"))
+ax[0,0].annotate('pessimistic',  xytext=(-45, -85), xy=(-50,-50), fontsize=9, arrowprops=dict(arrowstyle="<-"))
+
+# To the right
+plt.legend(custom_circles, grouping_sectors, loc='upper right', bbox_to_anchor=(2.25, 1.02), ncol=1, fancybox=True, fontsize=8)
+# Below
+#plt.legend(custom_circles, grouping_sectors, loc='lower center', bbox_to_anchor=(-1.25, -0.75), ncol=4, fancybox=True, fontsize=8)
+
+print(hyperdist_abs)
+print(hyperdist)
+print(np.mean(hyperdist_abs), np.mean(hyperdist))
 
 # Show figure
 plt.tight_layout()
