@@ -125,7 +125,7 @@ def get_model_parameters(shocks='alleman'):
                       'delta_S': 0.75,                                                  
                       'L': 0.75,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 30,                                                                                                 
+                      'tau': 10,                                                                                                 
                       'gamma_H': 28*np.ones(len(pars_dict['c_s'])),
                       'gamma_F': 14*np.ones(len(pars_dict['c_s'])) 
                       })  
