@@ -29,10 +29,9 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='linear')
+params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 # Aggregation functions
-
 import xarray as xr
 def aggregate_quarterly(simulation_in):
     """
@@ -78,11 +77,11 @@ date = '2023-04-11'
 samples_dict = json.load(open(samples_path+'national_'+str(identifier) + '_SAMPLES_' + str(date) + '.json')) # Why national
 
 # Do we want to use samples?
-samples=False
+samples=True
 
 # Simulate
 if samples:
-    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=2*18, processes=18, samples=samples_dict).mean(dim='draws')
+    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=3*18, processes=18, samples=samples_dict, draw_function=draw_function).mean(dim='draws')
 else:
     out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
 
@@ -134,7 +133,7 @@ for i,date in enumerate(dates):
             dist_abs_temp.append(B2B_demand[j]/sum(B2B_demand)*abs(abs(x)-abs(y.values)) )
             dist_temp.append(B2B_demand[j]/sum(B2B_demand)*(abs(x)-abs(y.values)) )
             # Sector label
-            if sector in ['I', 'R', 'S','O', 'P', 'Q']:
+            if sector in ['I', 'R', 'S']:
                 ax[0,i].annotate(sector,  xy=(x - 2, y + 2), fontsize=7)
 
     dist_abs[i] = np.sum(dist_abs_temp)
@@ -159,7 +158,7 @@ ax[0,0].set_ylabel('B2B demand\nprediction (%)')
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
 sizes = [params['x_0'], params['x_0'], params['l_0']]
-print_label = [['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92'],['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92', 'I55-56'],['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92', 'I55-56']]
+print_label = [['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92'],['N79', 'R93', 'H49'],['N79', 'R93']]
 offset = [[-4,5],[-4,5],[-4,5]]
 ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
 
@@ -171,12 +170,12 @@ dist_abs=np.zeros(4)
 dist=np.zeros(4)
 
 for k, data in enumerate(datasets):
-
     dates = data.index.get_level_values('date').unique()
     sectors = data.index.get_level_values('NACE64').unique()
     out_quart = out[states[k]].resample(date='Q').mean()
 
     for i,date in enumerate(dates):
+        cumsize=[]
         dist_abs_temp=[]
         dist_temp=[]
         for j,sector in enumerate(sectors):
@@ -197,12 +196,19 @@ for k, data in enumerate(datasets):
                 # Weighted euclidian distance in plane
                 dist_abs_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*abs(abs(x)-abs(y.values)) )
                 dist_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*(abs(x)-abs(y.values)) )
+                cumsize.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k]))
                 # Sector label
                 if sector in print_label[k]:
                     ax[k+1,i].annotate(sector,  xy=(x + offset[k][0], y + offset[k][1]), fontsize=7)
 
-        dist_abs[i] = np.sum(dist_abs_temp)
-        dist[i] = np.sum(dist_temp)
+        # Weighted euclidian distance in plane
+        x=data.loc[date, 'BE']*100-100
+        y=out_quart.sum(dim='NACE64').sel(date=date)/out[states[k]].sum(dim='NACE64').isel(date=0)*100-100
+        dist_abs_temp.append(abs(abs(x)-abs(y.values)))
+        dist_temp.append((abs(x)-abs(y.values)))
+        # Average
+        dist_abs[i] = 1/(1+sum(cumsize))*np.sum(dist_abs_temp)
+        dist[i] = 1/(1+sum(cumsize))*np.sum(dist_temp)
 
         # text box with average euclidian distance in plane
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
@@ -236,9 +242,8 @@ plt.legend(custom_circles, grouping_sectors, loc='upper right', bbox_to_anchor=(
 # Below
 #plt.legend(custom_circles, grouping_sectors, loc='lower center', bbox_to_anchor=(-1.25, -0.75), ncol=4, fancybox=True, fontsize=8)
 
-print(hyperdist_abs)
-print(hyperdist)
 print(np.mean(hyperdist_abs), np.mean(hyperdist))
+print(np.mean(hyperdist_abs[1:]), np.mean(hyperdist[1:]))
 
 # Show figure
 plt.tight_layout()
