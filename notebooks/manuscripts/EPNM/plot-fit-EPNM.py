@@ -77,7 +77,7 @@ date = '2023-04-11'
 samples_dict = json.load(open(samples_path+'national_'+str(identifier) + '_SAMPLES_' + str(date) + '.json')) # Why national
 
 # Do we want to use samples?
-samples=True
+samples=False
 
 # Simulate
 if samples:
