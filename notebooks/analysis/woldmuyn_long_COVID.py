@@ -7,10 +7,11 @@ Visualizations are saved to results/preprocessing/QALY/long_COVID
 __author__      = "Wolf Demuynck"
 __copyright__   = "Copyright (c) 2022 by W. Demuynck, BIOMATH, Ghent University. All Rights Reserved."
 
-from covid19model.models.utils import output_to_visuals
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.visualization.output import _apply_tick_locator 
-from covid19model.models.QALY import lost_QALYs
+from covid19_DTM.models.utils import output_to_visuals
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.visualization.output import _apply_tick_locator 
+from covid19_DTM.models.QALY import lost_QALYs
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     # Number of neg. binomial draws/ simulation
     K=20
     # Number of cpu's
-    processes=4
+    processes=18
     # Number of age groups
     age_stratification_size=10
     # End of simulation
@@ -39,7 +40,7 @@ if __name__ == '__main__':
 
     print('\n1) Initialize model')
 
-    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size)
+    model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, start_date='2020-03-15')
 
     warmup = float(BASE_samples_dict['warmup'])
     dispersion = float(BASE_samples_dict['dispersion'])
@@ -49,8 +50,10 @@ if __name__ == '__main__':
     ## Perform simulations ##
     #########################
 
+    from covid19_DTM.models.draw_functions import draw_fnc_COVID19_SEIQRD_hybrid_vacc as draw_function
+
     print('\n2) Simulating COVID19_SEIQRD_hybrid_vacc '+str(N)+' times')
-    out = model.sim([start_sim,end_sim], warmup=warmup, processes=processes, N=N, samples=BASE_samples_dict)
+    out = model.sim([start_sim,end_sim], warmup=warmup, processes=processes, N=N, samples=BASE_samples_dict, draw_function=draw_function)
 
     #######################
     ## QALY calculations ##
@@ -67,19 +70,19 @@ if __name__ == '__main__':
     print('\n4) Visualise results')
 
     abs_dir = os.path.dirname(__file__)
-    result_folder = '../../../results/analysis/QALY/long_COVID'
+    result_folder = '../../results/covid19_DTM/analysis/QALY/long_COVID'
 
     states = ['QALY_NH', 'QALY_C', 'QALY_ICU','QALY_D']
     titles = ['Non-hospitalised', 'Cohort', 'ICU','Deaths']
     colors = ['green','yellow','red','black']
 
     for scenario,out in zip(['no_AD','AD'],[out_no_AD,out_AD]):
-        
+
       # With confidence interval
       df_2plot = output_to_visuals(out, states, alpha=dispersion, n_draws_per_sample=K, UL=1-conf_int*0.5, LL=conf_int*0.5)
       simtime = out['date'].values
 
-      fig,axs = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(10,10))
+      fig,axs = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(12,10))
       axs=axs.reshape(-1)
       for ax, QALYs, title, color in zip(axs, states,titles,colors):
 
@@ -101,7 +104,8 @@ if __name__ == '__main__':
       fig, axs = plt.subplots(4,figsize=(10,10),sharex=True)
       axs=axs.reshape(-1)
       for ax, QALYs, title, color in zip(axs,states,titles,colors):
-        ax.stackplot(simtime,out[QALYs].mean(dim="draws").sum(dim='doses'),linewidth=3, labels=age_group, colors=Palette, alpha=0.8)
+
+        ax.stackplot(simtime,np.transpose(out[QALYs].mean(dim="draws").sum(dim='doses').values),linewidth=3, labels=age_group, colors=Palette, alpha=0.8)
         ax.set_title(title,fontsize=20)
         ax.set_ylabel('lost QALYs')
         ax = _apply_tick_locator(ax) 
@@ -109,4 +113,4 @@ if __name__ == '__main__':
       axs[0].legend(fancybox=True, frameon=True, framealpha=1, fontsize=15,title='Age Group', loc="upper left", bbox_to_anchor=(1,1)) 
 
       plt.subplots_adjust(hspace=0.5)
-      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.png'))
+      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.png'), dpi=600)

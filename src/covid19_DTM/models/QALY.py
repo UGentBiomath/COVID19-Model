@@ -1,10 +1,10 @@
 import os 
 import numpy as np
 import pandas as pd
-from covid19model.data.utils import convert_age_stratified_property
+from covid19_DTM.data.utils import convert_age_stratified_property
 from scipy.optimize import minimize
 from scipy.integrate import quad
-from covid19model.data.utils import construct_initN
+from covid19_DTM.data.utils import construct_initN
 import xarray as xr
 
 class life_table_QALY_model():
@@ -56,7 +56,7 @@ class life_table_QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores (source: ...)
@@ -455,7 +455,6 @@ def lost_QALYs(out,AD_non_hospitalised=False):
         Out supplemented with QALY lost
     
     """
-
     # Enlarge out to contain at least 100 draws
     sim_draws = out.dims['draws']
     out_enlarged = xr.concat([out]*int(np.ceil(100/sim_draws)), dim='draws')
@@ -467,7 +466,7 @@ def lost_QALYs(out,AD_non_hospitalised=False):
 
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
-    average_QALY_losses = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/QALY_model/long_covid/average_QALY_losses.csv'),index_col=[0,1])
+    average_QALY_losses = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/QALY_model/long_COVID/average_QALY_losses.csv'),index_col=[0,1])
     ages = average_QALY_losses.index.get_level_values('age').unique()
 
     # Sample average QALY losses per age
@@ -488,7 +487,7 @@ def lost_QALYs(out,AD_non_hospitalised=False):
         mean_QALY_losses = []
         for draw in np.random.randint(QALY_draws,size=out_enlarged.dims['draws']):
             mean_QALY_losses.append(QALY_long_COVID_per_age_group.loc[(hospitalisation,slice(None),draw)])
-        mean_QALY_losses = np.array(mean_QALY_losses)[:,:,np.newaxis,np.newaxis]
+        mean_QALY_losses = np.array(mean_QALY_losses)[:,np.newaxis,:,np.newaxis]
 
         out_enlarged[f'QALY_{hospitalisation_abbreviation}'] = out_enlarged[hospitalisation_abbreviation+'_R_in'].cumsum(dim='date')*mean_QALY_losses
 
@@ -497,7 +496,7 @@ def lost_QALYs(out,AD_non_hospitalised=False):
     QALY_D_per_age = Life_table.compute_QALY_D_x()
     QALY_D_per_age_group = bin_data(QALY_D_per_age)
 
-    out_enlarged['QALY_D'] = out_enlarged['D']*np.array(QALY_D_per_age_group)[np.newaxis,:,np.newaxis,np.newaxis]
+    out_enlarged['QALY_D'] = out_enlarged['D']*np.array(QALY_D_per_age_group)[np.newaxis,np.newaxis,:,np.newaxis]
 
     return out_enlarged
 

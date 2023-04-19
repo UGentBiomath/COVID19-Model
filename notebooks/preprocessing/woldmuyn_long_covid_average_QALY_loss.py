@@ -26,15 +26,15 @@ from scipy.optimize import curve_fit
 from scipy import stats
 from scipy.optimize import minimize
 
-from covid19model.models.QALY import life_table_QALY_model
+from covid19_DTM.models.QALY import life_table_QALY_model
 Life_table = life_table_QALY_model()
 
-from covid19model.data import sciensano
-from covid19model.data.utils import construct_initN
-from covid19model.models.utils import output_to_visuals
-from covid19model.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19model.visualization.output import _apply_tick_locator 
-from covid19model.models.QALY import life_table_QALY_model, lost_QALYs_hospital_care
+from covid19_DTM.data import sciensano
+from covid19_DTM.data.utils import construct_initN
+from covid19_DTM.models.utils import output_to_visuals
+from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
+from covid19_DTM.visualization.output import _apply_tick_locator 
+from covid19_DTM.models.QALY import life_table_QALY_model, lost_QALYs_hospital_care
 
 import copy
 import emcee
@@ -47,7 +47,7 @@ from tqdm import tqdm
 print('\n(1) Loading data\n')
 
 abs_dir = os.path.dirname(__file__)
-rel_dir = '../../data/raw/QALY_model/long_COVID/'
+rel_dir = '../../data/covid19_DTM/raw/QALY_model/long_COVID/'
 
 # --------------- #
 # Prevalence data #
@@ -97,8 +97,13 @@ QoL_difference_data = pd.DataFrame(data=np.array([[mean_QoL_decrease_non_hospita
 # results #
 # ------- #
 
-data_result_folder = '../../data/interim/QALY_model/long_COVID/'
-fig_result_folder = '../../results/preprocessing/QALY_model/long_COVID/'
+data_result_folder = '../../data/covid19_DTM/interim/QALY_model/long_COVID/'
+fig_result_folder = '../../results/covid19_DTM/preprocessing/QALY_model/long_COVID/'
+
+# Verify that the paths exist and if not, generate them
+for directory in [data_result_folder, fig_result_folder]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
 ################
 ## Prevalence ##
