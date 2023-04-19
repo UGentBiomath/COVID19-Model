@@ -29,7 +29,7 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
+params, model = initialize_model(shocks='alleman', prodfunc='strongly_critical')
 
 # Aggregation functions
 import xarray as xr
@@ -126,7 +126,7 @@ for i,date in enumerate(dates):
                 color = 'green'
 
             # Plot
-            x=data_B2B.loc[date, sector]-100
+            x=data_B2B.loc[date, sector]*100-100
             y=out_NACE21_quart.sel(NACE21=sector).sel(date=date)/out_NACE21.sel(NACE21=sector).isel(date=0)*100-100
             ax[0,i].scatter(x, y, s=B2B_demand[j]/sum(B2B_demand)*1000, color=color, alpha=0.4)
             # Weighted euclidian distance in plane
@@ -153,7 +153,7 @@ hyperdist_abs.append(np.mean(dist_abs))
 hyperdist.append(np.mean(dist))
 
 # Label y axis
-ax[0,0].set_ylabel('B2B demand\nprediction (%)')
+ax[0,0].set_ylabel('B2B transactions\nprediction (%)')
 
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
@@ -173,7 +173,7 @@ for k, data in enumerate(datasets):
     dates = data.index.get_level_values('date').unique()
     sectors = data.index.get_level_values('NACE64').unique()
     out_quart = out[states[k]].resample(date='Q').mean()
-
+    print(k, sectors)
     for i,date in enumerate(dates):
         cumsize=[]
         dist_abs_temp=[]
@@ -238,7 +238,7 @@ ax[0,0].annotate('optimistic',  xytext=(-95, -20), xy=(-50,-50), fontsize=9, arr
 ax[0,0].annotate('pessimistic',  xytext=(-45, -85), xy=(-50,-50), fontsize=9, arrowprops=dict(arrowstyle="<-"))
 
 # To the right
-plt.legend(custom_circles, grouping_sectors, loc='upper right', bbox_to_anchor=(2.25, 1.02), ncol=1, fancybox=True, fontsize=8)
+plt.legend(custom_circles, grouping_sectors, loc='upper right', bbox_to_anchor=(2.25, 1.04), ncol=1, fancybox=True, fontsize=8)
 # Below
 #plt.legend(custom_circles, grouping_sectors, loc='lower center', bbox_to_anchor=(-1.25, -0.75), ncol=4, fancybox=True, fontsize=8)
 
@@ -248,4 +248,5 @@ print(np.mean(hyperdist_abs[1:]), np.mean(hyperdist[1:]))
 # Show figure
 plt.tight_layout()
 plt.show()
+fig.savefig('plot-fit-sectors.pdf')
 plt.close()

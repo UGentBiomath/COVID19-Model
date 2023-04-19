@@ -35,7 +35,7 @@ warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-01')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate", default='2020-10-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate", default='2020-09-01')
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", action="store_true")
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=100)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default = 1000)
@@ -220,10 +220,10 @@ if __name__ == '__main__':
     #############################
 
     # Consumer demand/Exogeneous demand shock during summer of 2020
-    pars = ['c_s', 'f_s']
-    bounds=((0.001,0.999),(0.001,0.999),)
+    pars = ['c_s',]
+    bounds=((0.001,0.999),)
     # Define labels
-    labels = ['$c_s$', '$f_s$']
+    labels = ['$c_s$',]
     # Objective function
     objective_function = log_posterior_probability(model, pars, bounds, data, states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels, aggregation_function=aggregation_functions, weights=weights)
     
@@ -244,11 +244,12 @@ if __name__ == '__main__':
     #theta = np.where(theta <= 0, 0.01, theta)
     #theta = np.where(theta >= 1, 0.99, theta).tolist()
     # Optimize NM
-    theta = np.array(parameters['c_s'].tolist() + parameters['f_s'].tolist())
+    theta = np.array(parameters['c_s'].tolist())
     theta = np.where(theta <= 0, 0.001, theta)
     theta = np.where(theta >= 1, 0.999, theta).tolist()
-    #print(objective_function(np.array(theta)))
-
+    print(objective_function(np.array(theta)))
+    import sys
+    sys.exit()
     #step = len(objective_function.expanded_bounds)*[0.10,]
     #theta = nelder_mead.optimize(objective_function, np.array(theta), step, processes=processes, max_iter=n_pso)[0]
 
@@ -272,7 +273,7 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate
-    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.03*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
+    ndim, nwalkers, pos = perturbate_theta(theta, pert = 0.20*np.ones(len(theta)), multiplier=multiplier_mcmc, bounds=objective_function.expanded_bounds, verbose=False)
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
               'labels': labels, 'starting_estimate': theta}
@@ -281,11 +282,12 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    #import emcee
+    import emcee
     #for i in range(30):
-        #backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
+    run_date = '2023-04-11'
+    backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
     sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'method': 'RK45', 'rtol': 1e-4}},
-                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
+                                    fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)
 
     #####################

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
-from EPNM.data.utils import get_sectoral_conversion_matrix
+from EPNM.data.utils import get_sectoral_conversion_matrix,get_sector_labels
 
 # Set path to interim data folder
 abs_dir = os.path.dirname(__file__)
@@ -90,7 +90,11 @@ def get_model_parameters(shocks='alleman'):
     pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
     pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
     pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
-    pars_dict['f_s'] = -np.array(df['f_demand'].values)/100
+    # f_s --> 7.5% optimal from sensitivity analysis
+    f_s = -np.array(df['f_demand'].values)/100
+    f_s *= 0.075/0.15
+    f_s[[get_sector_labels('NACE64').index(lab) for lab in ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96']]] = 0.99
+    pars_dict['f_s'] = f_s
     pars_dict['ratio_c_s'] = 0.5
     pars_dict['ratio_f_s'] = 0.5
 
@@ -125,16 +129,16 @@ def get_model_parameters(shocks='alleman'):
                       'delta_S': 0.75,                                                  
                       'L': 0.75,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 10,                                                                                                 
-                      'gamma_H': 28*np.ones(len(pars_dict['c_s'])),
-                      'gamma_F': 14*np.ones(len(pars_dict['c_s'])) 
+                      'tau': 21,                                                                                                 
+                      'gamma_H': 7,
+                      'gamma_F': 7 
                       })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    pars_dict.update({'l1': 10,
-                      'l2': 7*8,
+    pars_dict.update({'l1': 7,
+                      'l2': 6*8,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
                       't_end_lockdown_1': pd.Timestamp('2020-05-01'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),

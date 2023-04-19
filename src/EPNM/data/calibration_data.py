@@ -235,4 +235,4 @@ def get_B2B_demand(relative=True):
             if sector != 'U':
                 i = labels.index(sector)
                 df.loc[slice(None), sector] = df.loc[slice(None), sector].values*O_j[i]
-    return df
+    return df/100

@@ -28,11 +28,14 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 # Initialize model
 params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
-# Sector reductions
-industry = [0, 0.10, 0.20]
-consumer_facing = [0.80, 0.90, 1]
-retail = [0, 0.10]
-combinations = list(itertools.product(*[industry, consumer_facing, retail]))
+# Calibration: Sector reductions
+prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
+consumer_facing = [0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
+industry = [0, 0.10, 0.20, 0.30, 0.40]
+retail = [0, 0.20, 0.40, 0.60]
+other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
+tau = [1, 7, 14, 21, 28]
+combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau]))
 
 # Sector labels
 industry_labels = []
@@ -99,7 +102,7 @@ def compute_distance(out, weighted=True):
         dist_temp=[]
         for j,sector in enumerate(sectors):
             if sector!='U':
-                x=data_B2B.loc[date, sector]-100
+                x=data_B2B.loc[date, sector]*100-100
                 y=out_NACE21_quart.sel(NACE21=sector).sel(date=date)/out_NACE21.sel(NACE21=sector).isel(date=0)*100-100
                 # Weighted euclidian distance in plane
                 if weighted==True:
@@ -166,27 +169,39 @@ def compute_distance(out, weighted=True):
 
     return np.mean(hyperdist_abs), np.mean(hyperdist)
 
-weighted = np.zeros([len(industry), len(consumer_facing), len(retail)])
-unweighted = np.zeros([len(industry), len(consumer_facing), len(retail)])
-for i, ind in enumerate(industry):
-    for j,cons in enumerate(consumer_facing):
-        for k,ret in enumerate(retail):
-            # Construct c_s
-            c_s = params['c_s']
-            c_s[[get_sector_labels('NACE64').index(lab) for lab in industry_labels]] = ind
-            c_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons
-            c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret
-            print(i,j,k)
-            print(ind, cons, ret)
-            print(c_s)
-            print('\n')
-            # Update parameters
-            model.parameters['c_s'] = c_s
-            # Simulate model
-            out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
-            # Compute distance
-            weighted[i,j,k] = compute_distance(out, weighted=True)[0]
-            unweighted[i,j,k] = compute_distance(out, weighted=False)[0]
+def mp_run_sensitivity(combinations, model, params):
+    # Unpack arguments
+    cons, ind, ret, other, tau = combinations
+    # Construct c_s
+    c_s = params['c_s']
+    f_s = params['f_s']
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in industry_labels]] = ind
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret
+    # First rescale f_s, then afterwards update consumer facing sectors
+    f_s = (other/0.15)*f_s
+    f_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons               
+    # Update parameters
+    model.parameters['c_s'] = c_s
+    model.parameters['f_s'] = f_s
+    model.parameters['tau'] = tau
+    # Simulate model
+    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
+    # Compute distance
+    return compute_distance(out, weighted=True)[0]
 
-np.save('weighted.npy', weighted)
-np.save('unweighted.npy', unweighted)
+from functools import partial
+import multiprocessing as mp
+processes = 18
+print(f'\nTotal number of simulations per core: {len(prodfuncs)*len(combinations)/processes:.0f}')
+results = []
+for i, prodfunc in enumerate(prodfuncs):
+    print(f'\nInitializing new model: {prodfunc}\n')
+    params, model = initialize_model(shocks='alleman', prodfunc=prodfunc)
+    with mp.Pool(processes) as pool:
+        res = pool.map(partial(mp_run_sensitivity, model=model, params=params), combinations)
+    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau)]))
+weighted = np.stack(results, axis=0)
+np.save('results.npy', weighted)
+
+
