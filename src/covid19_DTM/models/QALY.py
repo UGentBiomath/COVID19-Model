@@ -1,7 +1,11 @@
 import os 
 import numpy as np
 import pandas as pd
-from covid19_DTM.data.utils import convert_age_stratified_property
+from covid19model.data.utils import convert_age_stratified_property
+from scipy.optimize import minimize
+from scipy.integrate import quad
+from covid19model.data.utils import construct_initN
+import xarray as xr
 
 class life_table_QALY_model():
 
@@ -52,37 +56,53 @@ class life_table_QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=';',index_col=0)
-        # Compute the vector mu_x and append to life table
-        self.life_table['mu_x']= self.compute_death_rate(self.life_table['q_x'])     
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores (source: ...)
-        self.QoL_Belgium = pd.Series(index=default_age_bins, data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
+        #self.QoL_Belgium = pd.Series(index=default_age_bins, data=[0.85, 0.85, 0.84, 0.83, 0.805, 0.78, 0.75, 0.72, 0.72])
+        age_bins = pd.IntervalIndex.from_tuples([(15,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,105)], closed='left')
+        self.QoL_Belgium = pd.Series(index=age_bins, data=[0.85, 0.85, 0.82, 0.78, 0.78, 0.78, 0.66])
+        self.QoL_Belgium_func = self.fit_QoL_data()
 
-    def compute_death_rate(self, q_x):
-        """ A function to compute the force of mortality (instantaneous death rate at age x)
+    def fit_QoL_data(self):
+        """ A function to fit an exponential function to the QoL data
 
         Parameters
         ----------
-        q_x : list or np.array
-            Probability of dying between age x and age x+1. 
+
+        self.QoL_Belgium: pd.DataFrame
+            Average Quality-of-Life scores of the Belgian population.
 
         Returns
         -------
-        mu_x : np.array
-            Instantaneous death rage at age x
 
+        QoL_Belgium_func : func
+            fitted exponential function
         """
+        # exponential function to smooth binned Qol scores
+        QoL_Belgium_func = lambda x,a,b:max(self.QoL_Belgium)-a*x**b
 
-        # Pre-allocate
-        mu_x = np.zeros(len(q_x))
-        # Compute first entry
-        mu_x[0] = -np.log(1-q_x[0])
-        # Loop over remaining entries
-        for age in range(1,len(q_x)):
-            mu_x[age] = -0.5*(np.log(1-q_x[age])+np.log(1-q_x[age-1]))
-        return mu_x
+        # objective function to fit exponential function
+        def SSE_of_means(theta,QoL_Belgium):
+            a,b = theta
+
+            y = QoL_Belgium.values
+            y_model = []
+            for index in QoL_Belgium.index:
+                left = index.left
+                right = index.right
+                w = right-left
+                mean = quad(QoL_Belgium_func,left,right,args=(a,b))[0]/w
+                y_model.append(mean)
+
+            return sum((y_model-y)**2)
+
+        # fit exponential function
+        sol = minimize(SSE_of_means,x0=(0.00001,2),args=(self.QoL_Belgium))
+        a,b = sol.x
+        QoL_Belgium_func = lambda x:max(self.QoL_Belgium)-a*x**b
+        return QoL_Belgium_func
 
     def survival_function(self, SMR=1):
         """ A function to compute the probability of surviving until age x
@@ -130,21 +150,53 @@ class life_table_QALY_model():
             Life expectancy at age x
         """
 
-        # Compute survival function
-        S_x = self.survival_function(SMR)
-        # First compute inner sum
-        tmp = np.zeros(len(S_x))
-        for age in range(len(S_x)-1):
-            tmp[age] = 0.5*(S_x[age]+S_x[age+1])
-        # Then sum from x to the end of the table to obtain life expectancy
-        LE_x = np.zeros(len(S_x))
-        for x in range(len(S_x)):
-            LE_x[x] = np.sum(tmp[x:])
-        # Post-allocate to pd.Series object
-        LE_x = pd.Series(index=range(len(self.mu_x)), data=LE_x)
-        LE_x.index.name = 'x'
-        return LE_x
+        #calculate q_x
+        q_x = 1- np.exp(-SMR*self.mu_x)
+        q_x[-1] = 1
 
+        l_x = np.zeros(len(q_x))
+        l_x[0] = 10^5
+        for x in range(1,len(q_x)):
+            # Compute number of survivors at age x
+            l_x[x] = l_x[x-1]-l_x[x-1]*q_x[x-1]
+
+        # Compute inner sum
+        tmp = np.zeros(len(l_x))
+        for age in range(len(l_x)-1):
+            tmp[age] = 0.5*(l_x[age]+l_x[age+1])
+        tmp[-1] = 0.5*l_x[-1]
+
+        LE_x = np.zeros(len(q_x))
+        for x in range(len(q_x)):
+            # Then normalized sum from x to the end of the table to obtain life expectancy
+            LE_x[x] = np.sum(tmp[x:])/l_x[x]
+            # Post-allocate to pd.Series object
+            LE_x = pd.Series(index=range(len(q_x)), data=LE_x)
+            LE_x.index.name = 'x'
+        return LE_x
+    
+    def compute_QALY_D_x(self):
+        """ A function to compute the QALY loss upon death at age x
+
+        Parameters
+        ----------
+
+        SMR : float
+            "Standardized mortality ratio" (SMR) is the ratio of observed deaths in a study group to expected deaths in the general population.
+            An SMR of 1 corresponds to an average life expectancy, an increase in SMR shortens the expected lifespan.
+
+        Returns
+        -------
+
+        QALY_D_x : pd.Series
+        """
+
+        LE_table = self.life_expectancy()    
+        QALY_D_x = pd.Series(index=LE_table.index.rename('age'),dtype='float')
+        for age in QALY_D_x.index:
+            QALY_D_x[age] = quad(self.QoL_Belgium_func,age,age+LE_table[age])[0]
+        return QALY_D_x
+    
     def compute_QALE_x(self, population='BE', SMR_method='convergent'):
         """ A function to compute the quality-adjusted life expectancy at age x
 
@@ -336,6 +388,119 @@ class life_table_QALY_model():
         QALY_binned.index.name = 'age_group'
         return QALY_binned
 
+def bin_data(data, age_groups=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left')):
+    """ A function to bin data according to the age groups in the COVID-19 SEIQRD
+
+        Parameters
+        ----------
+        data : pd.Series
+            data to be binned (must contain index:age)
+
+        model_bins : pd.IntervalIndex
+            Desired age bins
+
+        Returns
+        -------
+        data_binned: pd.Series
+            data for every age bin of the COVID-19 SEIQRD model
+        """
+    
+    level_names = list(data.index.names)
+    age_idx = level_names.index('age')
+    level_names[age_idx] = 'age_group'
+    multi_index = pd.MultiIndex.from_product([age_groups if level == 'age_group' else data.index.get_level_values(level).unique() for level in level_names],names=level_names)
+     # Pre-allocate new series
+    data_binned = pd.Series(index = multi_index, dtype=float)
+    # Extract demographics
+    individuals_per_age_group = construct_initN(age_groups)
+    individuals_per_age = construct_initN(None)
+    # Loop over desired intervals
+    for idx in multi_index:
+        interval = idx[age_idx]
+        result = []
+        for age in range(interval.left, interval.right):
+            temp_idx = list(idx)
+            temp_idx[age_idx] = age
+            temp_idx = tuple(temp_idx)
+
+            try:
+                result.append(individuals_per_age[age]/individuals_per_age_group[interval]*data.loc[temp_idx])
+            except:
+                result.append(0)
+        data_binned[idx] = sum(result)
+    return data_binned
+
+def lost_QALYs(out,AD_non_hospitalised=False):
+    """
+    This function calculates the expected number of QALYs lost given
+    the output of the pandemic model. 
+    
+    It add the lost QALYs to the given output.
+    QALY_D = lost QALYs due COVID-19 deaths
+    QALY_NH = lost QALYs due to long-COVID of non-hospitalised patients
+    QALY_C = lost QALYs due to long-COVID of cohort patients
+    QALY_ICU = lost QALYs due to long-COVID of ICU patients
+    
+    Parameters
+    ----------
+    out: xarray
+        Output of the pandemic model
+    
+    AD_non_hospitalised: bool
+        If False, there is assumed non-hospitalised patients does not suffer from AD
+    
+    Returns
+    -------
+    out_sup xarray
+        Out supplemented with QALY lost
+    
+    """
+
+    # Enlarge out to contain at least 100 draws
+    sim_draws = out.dims['draws']
+    out_enlarged = xr.concat([out]*int(np.ceil(100/sim_draws)), dim='draws')
+
+    if AD_non_hospitalised:
+        hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
+    else:
+        hospitalisation_groups = ['Non-hospitalised (no AD)','Cohort','ICU']
+
+    # Load average QALY losses
+    abs_dir = os.path.dirname(__file__)
+    average_QALY_losses = pd.read_csv(os.path.join(abs_dir,'../../../data/interim/QALY_model/long_covid/average_QALY_losses.csv'),index_col=[0,1])
+    ages = average_QALY_losses.index.get_level_values('age').unique()
+
+    # Sample average QALY losses per age
+    QALY_draws = 200
+    multi_index = pd.MultiIndex.from_product([hospitalisation_groups,ages,np.arange(QALY_draws)],names=['hospitalisation','age','draw'])
+    QALY_long_COVID_per_age = pd.Series(index = multi_index, dtype=float)
+    for idx,(hospitalisation,age,draw) in enumerate(QALY_long_COVID_per_age.index):
+        QALY_long_COVID_per_age[idx] = np.random.normal(average_QALY_losses['mean'][hospitalisation,age],
+                                                        average_QALY_losses['sd'][hospitalisation,age])
+        
+    # bin data
+    QALY_long_COVID_per_age_group = bin_data(QALY_long_COVID_per_age)
+
+    # Multiply average QALY loss with number of paients
+    hospitalisation_abbreviations = ['NH','C','ICU']
+    for hospitalisation,hospitalisation_abbreviation in zip(hospitalisation_groups,hospitalisation_abbreviations):
+
+        mean_QALY_losses = []
+        for draw in np.random.randint(QALY_draws,size=out_enlarged.dims['draws']):
+            mean_QALY_losses.append(QALY_long_COVID_per_age_group.loc[(hospitalisation,slice(None),draw)])
+        mean_QALY_losses = np.array(mean_QALY_losses)[:,:,np.newaxis,np.newaxis]
+
+        out_enlarged[f'QALY_{hospitalisation_abbreviation}'] = out_enlarged[hospitalisation_abbreviation+'_R_in'].cumsum(dim='date')*mean_QALY_losses
+
+    # Calculate QALY losses due COVID death
+    Life_table = life_table_QALY_model()
+    QALY_D_per_age = Life_table.compute_QALY_D_x()
+    QALY_D_per_age_group = bin_data(QALY_D_per_age)
+
+    out_enlarged['QALY_D'] = out_enlarged['D']*np.array(QALY_D_per_age_group)[np.newaxis,:,np.newaxis,np.newaxis]
+
+    return out_enlarged
+
 def lost_QALYs_hospital_care (reduction,granular=False):
     
     """
@@ -365,7 +530,7 @@ def lost_QALYs_hospital_care (reduction,granular=False):
    
     # Import hospital care cost per disease group and cost per QALY
     #cost per qauly (EUR), total spent (mill EUR) 
-    hospital_data=pd.read_excel("../../data/covid19_DTM/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data', index_col=0)
+    hospital_data=pd.read_excel("../../data/interim/QALY_model/hospital_data_qalys.xlsx", sheet_name='hospital_data', index_col=0)
         
     # Average calculations
      
