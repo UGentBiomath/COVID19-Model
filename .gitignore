@@ -147,7 +147,7 @@ notebooks/scratch/dask-worker-space/
 data/covid19_DTM/interim/nonpublic_timeseries/
 
 # Do not upload calibration backends
-results/calibrations/COVID19_SEIRD/national/backends/
+results/calibrations/national/backends/
 
 # Do not upload private Proximus data (raw and processed)
 data/covid19_DTM/raw/mobility/proximus/
@@ -156,11 +156,6 @@ data/covid19_DTM/interim/nonpublic_timeseries/all_nonpublic_timeseries_arr.csv
 data/covid19_DTM/interim/nonpublic_timeseries/all_nonpublic_timeseries_mun.csv
 data/covid19_DTM/interim/nonpublic_timeseries/all_nonpublic_timeseries_Postcode.csv
 data/covid19_DTM/interim/nonpublic_timeseries/all_nonpublic_timeseries_prov.csv
-data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-FULL_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-02.json
-data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-FULL_job-FULL_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-10.json
-data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE1-R0_job-R0_1000xPSO_20000xMCMC_arr_3-index-in-frac_2021-06-10.json
-data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE2-FULL_job-FULL_1000xPSO_20000xMCMC_arr_2021-06-08.json
-data/covid19_DTM/interim/model_parameters/COVID19_SEIRD/calibrations/arr/arr_WAVE2-FULL_job-FULL_1000xPSO_20000xMCMC_arr_2021-08-24.json
 
 # Do not upload raw data on postponenent of non-COVID-19 care 
 data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/UZG/MZG_2016.xlsx

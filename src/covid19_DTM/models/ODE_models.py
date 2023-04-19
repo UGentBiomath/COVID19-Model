@@ -97,7 +97,7 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out']
+    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out','NH_R_in','C_R_in','ICU_R_in']
     parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc']
     parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     dimension_names = ['age_groups','doses']
@@ -105,7 +105,7 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
     # ..transitions/equations
     @staticmethod
     @jit(nopython=True)
-    def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
+    def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out, NH_R_in, C_R_in, ICU_R_in,
                   beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
         """
@@ -250,6 +250,10 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
         dM_in = ((1-a)/omega)*I - M_in
         dH_in = (1/dhospital)*M_H - H_in
         dH_tot = (1/dhospital)*M_H - (1/dc_R)*C_R - (1/dc_D)*C_D - (1/dICUrec)*C_icurec - (1/dICU_D)*ICU_D
+        
+        dNH_R_in = (1-h_acc)*((1-a)/omega)*I - NH_R_in
+        dC_R_in = (1/dhospital)*c*(1-m_C)*M_H - C_R_in
+        dICU_R_in = (1/dhospital)*(1-c)*(1-m_ICU)*M_H - ICU_R_in
 
         dInf_in = IP*e_s*S_post_vacc - Inf_in
         dInf_out = (1/da)*A + (1/dm)*M_R + (1/dc_R)*C_R + (1/dc_D)*C_D + (1/dICUrec)*C_icurec + (1/dICU_D)*ICU_D - Inf_out
@@ -260,7 +264,7 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
         dS[:,0] = dS[:,0] + zeta*R_post_vacc[:,0] 
         dR[:,0] = dR[:,0] - zeta*R_post_vacc[:,0]
 
-        return (dS, dE, dI, dA, dM_R, dM_H, dC_R, dC_D, dC_icurec, dICU_star_R, dICU_star_D, dR, dD, dM_in, dH_in, dH_tot, dInf_in, dInf_out)
+        return (dS, dE, dI, dA, dM_R, dM_H, dC_R, dC_D, dC_icurec, dICU_star_R, dICU_star_D, dR, dD, dM_in, dH_in, dH_tot, dInf_in, dInf_out,dNH_R_in,dC_R_in,dICU_R_in)
 
 class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
 
