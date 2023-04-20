@@ -127,11 +127,11 @@ def get_model_parameters(shocks='alleman'):
 
     pars_dict.update({'rho': 1-(1-0.60)/90,          
                       'delta_S': 0.75,                                                  
-                      'L': 0.75,                                                        
+                      'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 21,                                                                                                 
                       'gamma_H': 7,
-                      'gamma_F': 7 
+                      'gamma_F': 14 
                       })  
 
     # Time-dependent model parameters
@@ -153,7 +153,7 @@ def get_model_parameters(shocks='alleman'):
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'b': 1,
-                      'b_s': 0.75,
+                      'b_s': 0.7,
                       'zeta': 1
                     })
 
