@@ -30,12 +30,13 @@ params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 # Calibration: Sector reductions
 prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
-consumer_facing = [0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
+consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
 industry = [0, 0.10, 0.20, 0.30, 0.40]
 retail = [0, 0.20, 0.40, 0.60]
-other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
+other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15]
 tau = [1, 7, 14, 21, 28]
-combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau]))
+hiring_firing = [1, 7, 14, 21, 28]
+combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau, hiring_firing]))
 
 # Sector labels
 industry_labels = []
@@ -171,7 +172,7 @@ def compute_distance(out, weighted=True):
 
 def mp_run_sensitivity(combinations, model, params):
     # Unpack arguments
-    cons, ind, ret, other, tau = combinations
+    cons, ind, ret, other, tau, hiring_firing = combinations
     # Construct c_s
     c_s = params['c_s']
     f_s = params['f_s']
@@ -185,6 +186,8 @@ def mp_run_sensitivity(combinations, model, params):
     model.parameters['c_s'] = c_s
     model.parameters['f_s'] = f_s
     model.parameters['tau'] = tau
+    model.parameters['gamma_F'] = hiring_firing
+    model.parameters['gamma_H'] = 2*hiring_firing
     # Simulate model
     out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
     # Compute distance
@@ -200,8 +203,8 @@ for i, prodfunc in enumerate(prodfuncs):
     params, model = initialize_model(shocks='alleman', prodfunc=prodfunc)
     with mp.Pool(processes) as pool:
         res = pool.map(partial(mp_run_sensitivity, model=model, params=params), combinations)
-    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau)]))
-weighted = np.stack(results, axis=0)
-np.save('results.npy', weighted)
+    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing)]))
+    weighted = np.stack(results, axis=0)
+    np.save('results.npy', weighted)
 
 
