@@ -29,14 +29,15 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 # Calibration: Sector reductions
-prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
+prodfuncs = ['strongly_critical', 'half_critical', 'weakly_critical', 'linear']
 consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
 industry = [0, 0.10, 0.20, 0.30, 0.40]
-retail = [0, 0.20, 0.40, 0.60]
-other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15]
-tau = [1, 7, 14, 21, 28]
-hiring_firing = [1, 7, 14, 21, 28]
-combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau, hiring_firing]))
+retail = [0,]
+other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
+tau = [1, 7, 14, 21, 28, 35]
+hiring_firing = [1, 7, 14, 21, 28, 35]
+l2 = [4*7, 5*7, 6*7, 7*7, 8*7]
+combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau, hiring_firing, l2]))
 
 # Sector labels
 industry_labels = []
@@ -172,7 +173,7 @@ def compute_distance(out, weighted=True):
 
 def mp_run_sensitivity(combinations, model, params):
     # Unpack arguments
-    cons, ind, ret, other, tau, hiring_firing = combinations
+    cons, ind, ret, other, tau, hiring_firing, l2 = combinations
     # Construct c_s
     c_s = params['c_s']
     f_s = params['f_s']
@@ -183,13 +184,14 @@ def mp_run_sensitivity(combinations, model, params):
     f_s = (other/0.15)*f_s
     f_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons               
     # Update parameters
+    model.parameters['l2'] = l2
     model.parameters['c_s'] = c_s
     model.parameters['f_s'] = f_s
     model.parameters['tau'] = tau
     model.parameters['gamma_F'] = hiring_firing
     model.parameters['gamma_H'] = 2*hiring_firing
-    # Simulate model
-    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
+    # Simulate model (discrete)
+    out = model.sim([start_sim, end_sim], tau=1)
     # Compute distance
     return compute_distance(out, weighted=True)[0]
 
@@ -203,7 +205,7 @@ for i, prodfunc in enumerate(prodfuncs):
     params, model = initialize_model(shocks='alleman', prodfunc=prodfunc)
     with mp.Pool(processes) as pool:
         res = pool.map(partial(mp_run_sensitivity, model=model, params=params), combinations)
-    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing)]))
+    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
     weighted = np.stack(results, axis=0)
     np.save('results.npy', weighted)
 
