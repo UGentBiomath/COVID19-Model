@@ -29,11 +29,11 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 # Calibration: Sector reductions
-prodfuncs = ['strongly_critical', 'half_critical', 'weakly_critical', 'linear']
+prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
 consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
-industry = [0, 0.10, 0.20, 0.30, 0.40]
+industry = [0, 0.10, 0.20, 0.30, 0.40, 0.50]
 retail = [0,]
-other_demand = [0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
+other_demand = [0, 0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
 tau = [1, 7, 14, 21, 28, 35]
 hiring_firing = [1, 7, 14, 21, 28, 35]
 l2 = [4*7, 5*7, 6*7, 7*7, 8*7]
@@ -83,7 +83,9 @@ def aggregate_NACE21(simulation_in):
                                     date=simulation_in.coords['date']))
     return simulation_out
 
-def compute_distance(out, weighted=True):
+def compute_AAD(out, weighted=True):
+    """Computes the Average Absolute Deviation between model prediction and data
+    """
 
     # Pre-allocate metric
     hyperdist_abs = []
@@ -193,20 +195,31 @@ def mp_run_sensitivity(combinations, model, params):
     # Simulate model (discrete)
     out = model.sim([start_sim, end_sim], tau=1)
     # Compute distance
-    return compute_distance(out, weighted=True)[0]
+    return compute_AAD(out, weighted=False)[0], compute_AAD(out, weighted=True)[0]
+
 
 from functools import partial
 import multiprocessing as mp
 processes = 18
 print(f'\nTotal number of simulations per core: {len(prodfuncs)*len(combinations)/processes:.0f}')
-results = []
+w_res = []
+uw_res = []
 for i, prodfunc in enumerate(prodfuncs):
     print(f'\nInitializing new model: {prodfunc}\n')
     params, model = initialize_model(shocks='alleman', prodfunc=prodfunc)
     with mp.Pool(processes) as pool:
         res = pool.map(partial(mp_run_sensitivity, model=model, params=params), combinations)
-    results.append(np.reshape(res, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
-    weighted = np.stack(results, axis=0)
-    np.save('results.npy', weighted)
+    # Extract results
+    uw=[]
+    w=[]
+    for r in res:
+        uw.append(r[0])
+        w.append(r[1])
+    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
+    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
+    unweighted = np.stack(uw_res, axis=0)
+    weighted = np.stack(w_res, axis=0)
+    np.save('unweighted.npy', unweighted)
+    np.save('weighted.npy', weighted)
 
 

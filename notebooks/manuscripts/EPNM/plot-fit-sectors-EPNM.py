@@ -10,6 +10,11 @@ from EPNM.data.utils import get_sector_labels, get_sector_names, aggregate_simul
 from EPNM.models.TDPF import household_demand_shock, compute_income_expectations
 from EPNM.models.draw_functions import draw_function as draw_function
 from EPNM.data.calibration_data import get_NAI_value_added, get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
+# Nicer colors
+colors = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
+          "green" : "#009E73", "yellow" : "#F0E442",
+          "blue" : "#0072B2", "red" : "#D55E00",
+          "pink" : "#CC79A7", "black" : "#000000"}
 
 # Start- and enddate simulation
 start_sim = '2020-03-01'
@@ -29,7 +34,7 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='strongly_critical')
+params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 # Aggregation functions
 import xarray as xr
@@ -69,21 +74,8 @@ def aggregate_NACE21(simulation_in):
 # Draw function
 from EPNM.models.draw_functions import draw_function
 
-# samples
-import json
-samples_path = '../../../data/EPNM/interim/calibrations/'
-identifier = 'test_quarterly_NACE64_half_critical'
-date = '2023-04-11'
-samples_dict = json.load(open(samples_path+'national_'+str(identifier) + '_SAMPLES_' + str(date) + '.json')) # Why national
-
-# Do we want to use samples?
-samples=False
-
 # Simulate
-if samples:
-    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=3*18, processes=18, samples=samples_dict, draw_function=draw_function).mean(dim='draws')
-else:
-    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4)
+out = model.sim([start_sim, end_sim], tau=1)
 
 ###################
 ## Make the plot ##
@@ -119,16 +111,20 @@ for i,date in enumerate(dates):
             if sector in ['A', 'B', 'C', 'D', 'E', 'F']:
                 color = 'black'
             elif sector in ['G', 'H', 'I', 'R', 'S', 'T']:
-                color = 'red'
+                color = colors['red']
             elif sector in ['J', 'K', 'L', 'M', 'N']:
-                color = 'blue'
+                color = colors['blue']
             elif sector in ['O', 'P', 'Q']:
-                color = 'green'
+                color = colors['green']
 
             # Plot
             x=data_B2B.loc[date, sector]*100-100
             y=out_NACE21_quart.sel(NACE21=sector).sel(date=date)/out_NACE21.sel(NACE21=sector).isel(date=0)*100-100
-            ax[0,i].scatter(x, y, s=B2B_demand[j]/sum(B2B_demand)*1000, color=color, alpha=0.4)
+            if color==colors['black']:
+                alpha = 0.30
+            else:
+                alpha = 0.50
+            ax[0,i].scatter(x, y, s=B2B_demand[j]/sum(B2B_demand)*1000, color=color, alpha=alpha)
             # Weighted euclidian distance in plane
             dist_abs_temp.append(B2B_demand[j]/sum(B2B_demand)*abs(abs(x)-abs(y.values)) )
             dist_temp.append(B2B_demand[j]/sum(B2B_demand)*(abs(x)-abs(y.values)) )
@@ -158,7 +154,7 @@ ax[0,0].set_ylabel('B2B transactions\nprediction (%)')
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
 sizes = [params['x_0'], params['x_0'], params['l_0']]
-print_label = [['N79', 'R93', 'H49', 'S94', 'S95', 'S96', 'R90-92'],['N79', 'R93', 'H49'],['N79', 'R93']]
+print_label = [[],['N79', 'R93', 'H49'],['N79', 'R93']]
 offset = [[-4,5],[-4,5],[-4,5]]
 ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
 
@@ -173,7 +169,6 @@ for k, data in enumerate(datasets):
     dates = data.index.get_level_values('date').unique()
     sectors = data.index.get_level_values('NACE64').unique()
     out_quart = out[states[k]].resample(date='Q').mean()
-    print(k, sectors)
     for i,date in enumerate(dates):
         cumsize=[]
         dist_abs_temp=[]
@@ -183,16 +178,20 @@ for k, data in enumerate(datasets):
                 if sector[0] in ['A', 'B', 'C', 'D', 'E', 'F']:
                     color = 'black'
                 elif sector[0] in ['G', 'H', 'I', 'R', 'S', 'T']:
-                    color = 'red'
+                    color = colors['red']
                 elif sector[0] in ['J', 'K', 'L', 'M', 'N']:
-                    color = 'blue'
+                    color = colors['blue']
                 elif sector[0] in ['O', 'P', 'Q']:
-                    color = 'green'
+                    color = colors['green']
 
                 # Plot
                 x=data.loc[date, sector]*100-100
                 y=out_quart.sel(NACE64=sector).sel(date=date)/out[states[k]].sel(NACE64=sector).isel(date=0)*100-100
-                ax[k+1,i].scatter(x, y, s=sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*2000, color=color, alpha=0.4)
+                if color==colors['black']:
+                    alpha = 0.30
+                else:
+                    alpha = 0.50
+                ax[k+1,i].scatter(x, y, s=sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*2000, color=color, alpha=alpha)
                 # Weighted euclidian distance in plane
                 dist_abs_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*abs(abs(x)-abs(y.values)) )
                 dist_temp.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k])*(abs(x)-abs(y.values)) )
@@ -228,9 +227,9 @@ for k, data in enumerate(datasets):
 # Custom legend
 from matplotlib.lines import Line2D
 custom_circles = [Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='black', alpha=0.4),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='red', alpha=0.4),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='blue', alpha=0.4),
-                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor='green', alpha=0.4),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor=colors['red'], alpha=0.5),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor=colors['blue'], alpha=0.5),
+                    Line2D([0], [0], marker='o', markersize=10, color='w', markerfacecolor=colors['green'], alpha=0.5),
                  ]   
 
 # Arrow and text on first plot

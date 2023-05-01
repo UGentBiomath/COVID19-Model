@@ -94,6 +94,7 @@ def get_model_parameters(shocks='alleman'):
     f_s = -np.array(df['f_demand'].values)/100
     f_s *= 0.075/0.15
     f_s[[get_sector_labels('NACE64').index(lab) for lab in ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96']]] = 0.99
+
     pars_dict['f_s'] = f_s
     pars_dict['ratio_c_s'] = 0.5
     pars_dict['ratio_f_s'] = 0.5
@@ -129,16 +130,16 @@ def get_model_parameters(shocks='alleman'):
                       'delta_S': 0.75,                                                  
                       'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 21,                                                                                                 
-                      'gamma_H': 7,
-                      'gamma_F': 14 
+                      'tau': 14,                                                                                                 
+                      'gamma_H': 56,
+                      'gamma_F': 28 
                       })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     pars_dict.update({'l1': 7,
-                      'l2': 6*8,
+                      'l2': 6*7,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
                       't_end_lockdown_1': pd.Timestamp('2020-05-01'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
@@ -152,7 +153,7 @@ def get_model_parameters(shocks='alleman'):
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
-                      'b': 1,
+                      'b': 0.7,
                       'b_s': 0.7,
                       'zeta': 1
                     })
