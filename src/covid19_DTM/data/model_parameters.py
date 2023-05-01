@@ -464,7 +464,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
-        base_dict_name = 'national_REF_SAMPLES_2022-09-13.json'
+        base_dict_name = 'national_REF_SAMPLES_2023-02-23.json'
         base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': 0.027,
@@ -473,6 +473,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
             'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_rest']),
             'mentality': np.mean(base_samples_dict['mentality']),
+            'k': np.mean(base_samples_dict['k']),
             'amplitude': np.mean(base_samples_dict['amplitude']),            
         })
     else:
