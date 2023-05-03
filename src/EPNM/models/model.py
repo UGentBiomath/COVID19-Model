@@ -279,6 +279,8 @@ def calc_total_demand(O,c_t,f_t):
     """
     return np.sum(O,axis=1) + c_t + f_t
 
+import random
+
 def rationing(x_t,d_t,O,c_t,f_t):
     """
     A function to ration the output if output doesn't meet demand.
@@ -306,12 +308,29 @@ def rationing(x_t,d_t,O,c_t,f_t):
     r*f_t : np.array
         fraction r of other demand met
     """
-    r = x_t/d_t
-    r[np.where(r > 1)] = 1 # Too much output --> r = 1
-    Z_t = np.zeros([O.shape[0],O.shape[0]])
-    for i in range(O.shape[0]):
-            Z_t[i,:] = O[i,:]*r[i]
-    return Z_t,r*c_t,r*f_t
+
+    scheme='proportional_strict'
+
+    if scheme == 'proportional_strict':
+        r = x_t/d_t
+        r[np.where(r > 1)] = 1
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+                Z_t[i,:] = O[i,:]*r[i]
+        return Z_t,r*c_t,r*f_t
+
+    elif scheme == 'proportional_priority':
+        # B2B priority
+        r = x_t/np.sum(O, axis=1)
+        r[np.where(r > 1)] = 1
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+                Z_t[i,:] = O[i,:]*r[i]
+        # Proportional rationing
+        l = x_t - np.sum(Z_t, axis=1)
+        l[np.where(l < 0)] = 0
+        r = l/(c_t + f_t)
+        return Z_t, r*c_t, r*f_t
 
 def inventory_updating(S_old,Z_t,x_t,A):
     """
