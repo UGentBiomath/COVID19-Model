@@ -319,7 +319,7 @@ def rationing(x_t,d_t,O,c_t,f_t):
                 Z_t[i,:] = O[i,:]*r[i]
         return Z_t,r*c_t,r*f_t
 
-    elif scheme == 'proportional_priority':
+    elif scheme == 'proportional_priority_B2B':
         # B2B priority
         r = x_t/np.sum(O, axis=1)
         r[np.where(r > 1)] = 1
@@ -330,7 +330,56 @@ def rationing(x_t,d_t,O,c_t,f_t):
         l = x_t - np.sum(Z_t, axis=1)
         l[np.where(l < 0)] = 0
         r = l/(c_t + f_t)
+        r[np.where(r > 1)] = 1
         return Z_t, r*c_t, r*f_t
+
+    elif scheme == 'random_priority_B2B':
+        # Why the f*@ck is this necessary?
+        x_t_copy = x_t.copy()
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        # Generate a random priority vector
+        priority = list(range(O.shape[0]))
+        for i in range(O.shape[0]):
+            np.random.shuffle(priority)
+            for j in range(O.shape[0]):
+                # Get sector index of current priority
+                j = priority.index(j)
+                # Check if industry i produces enough to satisfy the demand of sector j
+                r = x_t_copy[i]/O[i,j]
+                if r > 1:
+                    r=1
+                if ((np.isinf(r))|(np.isnan(r))|(r < 0)):
+                    r=0
+                Z_t[i,j] = r*O[i,j]
+                x_t_copy[i] -= Z_t[i,j]
+        # Ration rest
+        r = x_t_copy/(c_t + f_t)
+        r[np.where(r > 1)] = 1
+        return Z_t, r*c_t, r*f_t
+
+    elif scheme == 'largest_first_priority_B2B':
+        # Why the f*@ck is this necessary?
+        x_t_copy = x_t.copy()
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+            customer_value = list(O[i,:])
+            customer_value.sort(reverse=True)
+            for value in customer_value:
+                # Get sector index of current priority
+                j = list(O[i,:]).index(value)
+                # Check if industry i produces enough to satisfy the demand of sector j
+                r = x_t_copy[i]/O[i,j]
+                if r > 1:
+                    r=1
+                if ((np.isinf(r))|(np.isnan(r))|(r < 0)):
+                    r=0
+                Z_t[i,j] = r*O[i,j]
+                x_t_copy[i] = x_t_copy[i] - Z_t[i,j]
+        # Ration rest
+        r = x_t_copy/(c_t + f_t)
+        r[np.where(r > 1)] = 1
+        return Z_t, r*c_t, r*f_t
+
 
 def inventory_updating(S_old,Z_t,x_t,A):
     """
