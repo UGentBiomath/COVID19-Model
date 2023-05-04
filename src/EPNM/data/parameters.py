@@ -78,12 +78,8 @@ def get_model_parameters(shocks='alleman'):
     
     # shock vectors
     # ~~~~~~~~~~~~~
-    if shocks=='alleman':
-        # l_s: ERMG survey; c_s/f_s: Pichler
-        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_alleman.csv"),header=[0],index_col=[0])
-    elif shocks=='pichler':
-        # l_s/c_s/f_s: Pichler
-        df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/shocks/shocks_pichler.csv"),header=[0],index_col=[0])
+    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/shocks/shocks.xlsx"), sheet_name=shocks, header=[0],index_col=[0])
+    print(df)
 
     pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
     pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
