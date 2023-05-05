@@ -79,19 +79,13 @@ def get_model_parameters(shocks='alleman'):
     # shock vectors
     # ~~~~~~~~~~~~~
     df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/shocks/shocks.xlsx"), sheet_name=shocks, header=[0],index_col=[0])
-    print(df)
 
     pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
     pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
     pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
     pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
     pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
-    # f_s --> 7.5% optimal from sensitivity analysis
-    f_s = -np.array(df['f_demand'].values)/100
-    f_s *= 0.075/0.15
-    f_s[[get_sector_labels('NACE64').index(lab) for lab in ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96']]] = 0.99
-
-    pars_dict['f_s'] = f_s
+    pars_dict['f_s'] = -np.array(df['f_demand'].values)/100
     pars_dict['ratio_c_s'] = 0.5
     pars_dict['ratio_f_s'] = 0.5
 

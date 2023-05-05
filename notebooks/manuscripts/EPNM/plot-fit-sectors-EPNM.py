@@ -154,7 +154,7 @@ ax[0,0].set_ylabel('B2B transactions\nprediction (%)')
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
 sizes = [params['x_0'], params['x_0'], params['l_0']]
-print_label = [[],['N79', 'R93', 'H49'],['N79', 'R93']]
+print_label = [['G45'],['G45','N79', 'R93', 'H49'],['G45','N79', 'R93']]
 offset = [[-4,5],[-4,5],[-4,5]]
 ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
 

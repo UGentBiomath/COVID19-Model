@@ -26,7 +26,7 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
+params, model = initialize_model(shocks='alleman_exogenous', prodfunc='half_critical')
 
 # Calibration: Sector reductions
 prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
@@ -184,7 +184,7 @@ def mp_run_sensitivity(combinations, model, params):
     c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret
     # First rescale f_s, then afterwards update consumer facing sectors
     f_s = (other/0.15)*f_s
-    f_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons               
+    f_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons       
     # Update parameters
     model.parameters['l2'] = l2
     model.parameters['c_s'] = c_s
