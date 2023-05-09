@@ -127,6 +127,8 @@ if args.save:
     with open(os.path.join(abs_dir, args.path)+filename, 'w') as fp:
             json.dump(samples_dict, fp)
 
+print('done')
+
 #######################
 ## Make a cornerplot ##
 #######################

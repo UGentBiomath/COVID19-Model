@@ -9,8 +9,11 @@ colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
 
 def _apply_tick_locator(ax):
     """support function to apply default ticklocator settings"""
+    # Set a maximum number of x and y ticks
     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
     ax.yaxis.set_major_locator(plt.MaxNLocator(4))
+    # Make sure ticks are the right size
+    ax.tick_params(axis='both', which='major', labelsize=13)
     return ax
 
 

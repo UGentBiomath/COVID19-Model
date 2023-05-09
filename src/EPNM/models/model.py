@@ -3,17 +3,21 @@
 import numpy as np
 from pySODM.models.base import ODEModel
 
+# All NaN slices in np.nanmin() return a RunTimeWarning
+import warnings
+warnings.filterwarnings("ignore")
+
 class Economic_Model(ODEModel):
 
     state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
+    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
     parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
     dimension_names = ['NACE64', 'NACE64_star']
     state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
 
     @staticmethod
 
-    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
+    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F, prodfunc):
         """
         BIOMATH production network model for Belgium
         *Based on the Oxford INET implementation*
@@ -33,7 +37,7 @@ class Economic_Model(ODEModel):
 
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C)
+        x_inp = calc_input_restriction(S,A,C,x_0,prodfunc)
 
         # 5. Compute total consumer demand
  
@@ -100,7 +104,7 @@ def calc_labor_restriction(x_0,l_0,l_t):
     """
     return (l_t/l_0)*x_0
 
-def calc_input_restriction(S_t,A,C):
+def calc_input_restriction(S_t,A,C,x_0,prodfunc='half_critical'):
     """
     A function to compute sector output under supply bottlenecks.
 
@@ -122,10 +126,41 @@ def calc_input_restriction(S_t,A,C):
     # Pre-allocate sector output at time t
     x_t = np.zeros(A.shape[0])
     # Loop over all sectors
-    for i in range(A.shape[0]):
-        x_t[i] = np.nanmin(S_t[np.where(C[:,i] == 1),i]/A[np.where(C[:,i] == 1),i])
-        if np.isnan(x_t[i]): # Q for Koen Schoors: sectors with no input dependencies, is this realistic?
-            x_t[i]=np.inf
+    if prodfunc == 'linear':
+        for i in range(A.shape[0]):
+            x_t[i] = np.sum(S_t[:,i])/np.sum(A[:,i])
+    elif prodfunc == 'weakly_critical':
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            x_t[i] = np.nanmin(S_t[critical,i]/A[critical,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif prodfunc == 'half_critical':
+        cond_1 = np.zeros(A.shape[0])
+        cond_2 = np.zeros(A.shape[0])
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            important = list(np.where(C[:,i] == 0.5)[0])
+            cond_1[i] = np.nanmin(S_t[critical,i]/A[critical,i])
+            if len(important) == 0:
+                x_t[i] = cond_1[i]
+            else:
+                cond_2[i] = np.nanmin(0.5*(np.array(S_t[important,i]/A[important,i]) + x_0[i]))
+                x_t[i] = np.nanmin(np.array([cond_1[i], cond_2[i]]))
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif prodfunc == 'strongly_critical':
+        for i in range(A.shape[0]):
+            critical = list(np.where(C[:,i] == 1)[0])
+            important = list(np.where(C[:,i] == 0.5)[0])
+            x_t[i] = np.nanmin(S_t[critical+important,i]/A[critical+important,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
+    elif prodfunc == 'leontief':
+        for i in range(A.shape[0]):
+            x_t[i] = np.nanmin(S_t[:,i]/A[:,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf    
     return x_t
 
 def household_preference_shock(epsilon_D, theta_0):
@@ -193,7 +228,7 @@ def calc_household_demand(c_total_previous,l_t,l_p,epsilon_t,rho,m):
     c_t : float
         total household consumption demand at time t
     """
-    return np.exp((rho*np.log(c_total_previous) + 0.5*(1-rho)*np.log(m*sum(l_t)) + 0.5*(1-rho)*np.log(m*l_p) + epsilon_t))
+    return (1-epsilon_t)*np.exp((rho*np.log(c_total_previous) + 0.5*(1-rho)*np.log(m*sum(l_t)) + 0.5*(1-rho)*np.log(m*l_p)))
 
 def calc_intermediate_demand(d_previous,S,A,S_0,tau):
     """
@@ -244,6 +279,8 @@ def calc_total_demand(O,c_t,f_t):
     """
     return np.sum(O,axis=1) + c_t + f_t
 
+import random
+
 def rationing(x_t,d_t,O,c_t,f_t):
     """
     A function to ration the output if output doesn't meet demand.
@@ -271,12 +308,78 @@ def rationing(x_t,d_t,O,c_t,f_t):
     r*f_t : np.array
         fraction r of other demand met
     """
-    r = x_t/d_t
-    r[np.where(r > 1)] = 1 # Too much output --> r = 1
-    Z_t = np.zeros([O.shape[0],O.shape[0]])
-    for i in range(O.shape[0]):
-            Z_t[i,:] = O[i,:]*r[i]
-    return Z_t,r*c_t,r*f_t
+
+    scheme='proportional_strict'
+
+    if scheme == 'proportional_strict':
+        r = x_t/d_t
+        r[np.where(r > 1)] = 1
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+                Z_t[i,:] = O[i,:]*r[i]
+        return Z_t,r*c_t,r*f_t
+
+    elif scheme == 'proportional_priority_B2B':
+        # B2B priority
+        r = x_t/np.sum(O, axis=1)
+        r[np.where(r > 1)] = 1
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+                Z_t[i,:] = O[i,:]*r[i]
+        # Proportional rationing
+        l = x_t - np.sum(Z_t, axis=1)
+        l[np.where(l < 0)] = 0
+        r = l/(c_t + f_t)
+        r[np.where(r > 1)] = 1
+        return Z_t, r*c_t, r*f_t
+
+    elif scheme == 'random_priority_B2B':
+        # Why the f*@ck is this necessary?
+        x_t_copy = x_t.copy()
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        # Generate a random priority vector
+        priority = list(range(O.shape[0]))
+        for i in range(O.shape[0]):
+            np.random.shuffle(priority)
+            for j in range(O.shape[0]):
+                # Get sector index of current priority
+                j = priority.index(j)
+                # Check if industry i produces enough to satisfy the demand of sector j
+                r = x_t_copy[i]/O[i,j]
+                if r > 1:
+                    r=1
+                if ((np.isinf(r))|(np.isnan(r))|(r < 0)):
+                    r=0
+                Z_t[i,j] = r*O[i,j]
+                x_t_copy[i] -= Z_t[i,j]
+        # Ration rest
+        r = x_t_copy/(c_t + f_t)
+        r[np.where(r > 1)] = 1
+        return Z_t, r*c_t, r*f_t
+
+    elif scheme == 'largest_first_priority_B2B':
+        # Why the f*@ck is this necessary?
+        x_t_copy = x_t.copy()
+        Z_t = np.zeros([O.shape[0],O.shape[0]])
+        for i in range(O.shape[0]):
+            customer_value = list(O[i,:])
+            customer_value.sort(reverse=True)
+            for value in customer_value:
+                # Get sector index of current priority
+                j = list(O[i,:]).index(value)
+                # Check if industry i produces enough to satisfy the demand of sector j
+                r = x_t_copy[i]/O[i,j]
+                if r > 1:
+                    r=1
+                if ((np.isinf(r))|(np.isnan(r))|(r < 0)):
+                    r=0
+                Z_t[i,j] = r*O[i,j]
+                x_t_copy[i] = x_t_copy[i] - Z_t[i,j]
+        # Ration rest
+        r = x_t_copy/(c_t + f_t)
+        r[np.where(r > 1)] = 1
+        return Z_t, r*c_t, r*f_t
+
 
 def inventory_updating(S_old,Z_t,x_t,A):
     """

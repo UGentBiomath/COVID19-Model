@@ -1,12 +1,13 @@
 import os
 import numpy as np
 import pandas as pd
+from EPNM.data.utils import get_sectoral_conversion_matrix,get_sector_labels
 
 # Set path to interim data folder
 abs_dir = os.path.dirname(__file__)
 par_interim_path = os.path.join(abs_dir, "../../../data/EPNM/interim/")
 
-def get_model_parameters():
+def get_model_parameters(shocks='alleman'):
     """
     Extracts and returns the parameters for the economic model
 
@@ -66,7 +67,7 @@ def get_model_parameters():
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/IO_NACE64.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['IO'] = df.values/365
     # others.csv
-    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[1],index_col=[0])
+    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
     pars_dict['x_0'] = np.array(df['Sectoral output (M€/y)'].values)/365
     pars_dict['O_j'] = np.array(df['Intermediate demand (M€/y)'].values)/365
     pars_dict['l_0'] = np.array(df['Labor compensation (M€/y)'].values)/365
@@ -77,17 +78,17 @@ def get_model_parameters():
     
     # shock vectors
     # ~~~~~~~~~~~~~
+    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/shocks/shocks.xlsx"), sheet_name=shocks, header=[0],index_col=[0])
 
-    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_1',header=[1],index_col=[0])
-    pars_dict['l_s_1'] = 1-np.array((df['telework.2'].values+df['workplace.2'].values+df['sick_leave.2'].values)/100)
-    df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/labor_supply_shock.xlsx"), sheet_name='labor_supply_shock_2',header=[1],index_col=[0])
-    pars_dict['l_s_2'] = 1-np.array((df['telework'].values+df['workplace'].values+df['sick_leave'].values)/100)
-    pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] < 0, 0, pars_dict['l_s_2'])
-    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/demand_shock.csv"), sep=',',header=[0],index_col=[0])
-    pars_dict['c_s'] = -np.array(df['Consumer demand shock (%)'].values)/100
+    pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
+    pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
+    pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
+    pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
+    pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
+    pars_dict['f_s'] = -np.array(df['f_demand'].values)/100
     pars_dict['ratio_c_s'] = 0.5
-    pars_dict['f_s'] = -np.array(df['Other demand shock (%)'].values)/100
     pars_dict['ratio_f_s'] = 0.5
+
 
     # Critical inputs
     # ~~~~~~~~~~~~~~~
@@ -116,38 +117,41 @@ def get_model_parameters():
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     pars_dict.update({'rho': 1-(1-0.60)/90,          
-                      'delta_S': 0.5,                                                  
-                      'L': 0.5,                                                        
+                      'delta_S': 0.75,                                                  
+                      'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 10,                                                       
-                      'gamma_F': 7,                                               
-                      'gamma_H': 28})                     
+                      'tau': 14,                                                                                                 
+                      'gamma_H': 56,
+                      'gamma_F': 28 
+                      })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # Key dates lockdown 1
-    t_start_lockdown_1 = pd.Timestamp('2020-03-15')
-    t_end_lockdown_1 = pd.Timestamp('2020-05-01')
-    t_end_relax_1 = pd.Timestamp('2020-07-15')
-    # Key dates lockdown 2
-    t_start_lockdown_2 = pd.Timestamp('2020-10-19')
-    t_end_lockdown_2 = pd.Timestamp('2020-12-01')
-    t_end_relax_2 = pd.Timestamp('2021-06-01')
+    pars_dict.update({'l1': 7,
+                      'l2': 6*7,
+                      't_start_lockdown_1': pd.Timestamp('2020-03-10'),
+                      't_end_lockdown_1': pd.Timestamp('2020-05-01'),
+                      't_start_lockdown_2': pd.Timestamp('2020-10-19'),
+                      't_end_lockdown_2': pd.Timestamp('2020-11-19'),
+                      't_start_final_relax': pd.Timestamp('2021-05-01'),
+                    })
+
+    pars_dict.update({'t_start_compensation': pars_dict['t_start_lockdown_1'],
+                      't_end_compensation': pd.Timestamp('2021-12-01')})
 
     pars_dict.update({'epsilon_S': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_D': np.zeros([pars_dict['l_s_1'].shape[0]]),
                       'epsilon_F': np.zeros([pars_dict['l_s_1'].shape[0]]),
-                      'b': 1,
-                      'b_s': 1,
-                      'zeta': 1,
-                      't_start_lockdown_1': t_start_lockdown_1,
-                      't_end_lockdown_1': t_end_lockdown_1,
-                      't_end_relax_1': t_end_relax_1,
-                      't_start_lockdown_2': t_start_lockdown_2,
-                      't_end_lockdown_2': t_end_lockdown_2,
-                      't_end_relax_2': t_end_relax_2,
-                      't_start_compensation': t_start_lockdown_1,
-                      't_end_compensation': t_end_relax_2})
-   
+                      'b': 0.7,
+                      'b_s': 0.7,
+                      'zeta': 1
+                    })
+
     return pars_dict
+
+def aggregate_shock(shock_in, demand, convmat):
+    """
+    Translates a shock on NACE64 level to a shock on NACE21 level, weighted with demand
+    """
+    return np.matmul(convmat*demand/np.expand_dims(np.sum(convmat*demand, axis=1),axis=1), np.expand_dims(shock_in, axis=1)).squeeze()
