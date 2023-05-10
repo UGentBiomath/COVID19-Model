@@ -173,17 +173,17 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 3
+    multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 2
+    print_n = 5
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))],
           df_sero_herzog['abs','mean'],
           df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1])
-    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [[], #results.loc[(slice(None), 'negative binomial'), 'theta'].values,
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
+    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,
                                dispersion_weighted,
                                dispersion_weighted]
 
@@ -232,6 +232,9 @@ if __name__ == '__main__':
     # A good guess
     theta = [0.026, 0.024, 0.028, 0.298, 0.475, 4560, 0.67, 0.65, 0.25, 1.35, 1.7, 0.22] # Start of prov_summer_mentality_CORNER_2023-03-01.pdf
     theta = [0.0256, 0.0243, 0.0269, 0.284, 0.559, 4850, 0.644, 0.39, 0.18, 1.35, 1.57, 0.21] # End of prov_summer_mentality_CORNER_2023-03-01.pdf
+    # ---------------------------------------------------------------------------------------------
+    theta = [0.0256, 0.0243, 0.0269, 0.284, 0.559, 4850, 0.644, 0.55, 0.275, 1.35, 1.60, 0.21] # After switching to distinguishment weekday/weekendday
+    theta = [0.0256, 0.0243, 0.0269, 0.45, 0.45, 4850, 0.644, 0.48, 0.24, 1.35, 1.6, 0.21] # Start with more equal work/leisure 
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
@@ -324,7 +327,7 @@ if __name__ == '__main__':
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
     pert1=[0.05, 0.05, 0.05]
-    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality']
+    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W']
     pert2=[0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.05, 0.05]
@@ -347,15 +350,15 @@ if __name__ == '__main__':
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, 40, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0, 'tau':tau}},
+    sampler = run_EnsembleSampler(pos, 100, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0, 'tau':tau}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                     settings_dict=settings) 
 
-    # Sample 40*n_mcmc more
+    # Sample up to 40*n_mcmc more
     import emcee
     for i in range(40):
         backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
-        sampler = run_EnsembleSampler(pos, 40, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0, 'tau': tau}},
+        sampler = run_EnsembleSampler(pos, 100, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': 0, 'tau': tau}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)   
 
