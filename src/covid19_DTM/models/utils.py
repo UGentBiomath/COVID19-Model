@@ -201,8 +201,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Load necessary data ##
     #########################
 
-    # Population size, interaction matrices and the model parameters
-    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg)
+    # Model parameters and population sizes
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg, distinguish_day_type=True)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)

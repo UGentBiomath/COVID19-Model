@@ -299,8 +299,8 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         infpop_rest = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
 
         # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_work), axis=2)
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_work, infpop_rest), axis=2)
+        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc - Nc_work, infpop_work), axis=2) # All contacts minus home contacts on visited patch
+        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc_work, infpop_rest), axis=2) # Home contacts always on home patch
 
         # Multiply result with beta
         multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
