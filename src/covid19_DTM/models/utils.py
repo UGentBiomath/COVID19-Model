@@ -248,7 +248,6 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         elif update_data == True:
             rescaling_update = True
         # Construct the efficacy function subject to waning
-        rescaling_update=False
         efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
                                                 VOCs=VOCs, age_classes=age_classes)
     except:
@@ -368,6 +367,8 @@ def load_samples_dict(filepath, age_stratification_size=10):
         The natural re-susceptibility samples (parameter 'zeta'), calibrated to the first 2020 COVID-19 wave serodata are also appended to the dictionary
     """
     
+    abs_dir = os.path.dirname(__file__)
+
     # Set correct age_paths to find the hospital data
     if age_stratification_size == 3:
         age_path = '0_20_60/'
@@ -384,9 +385,9 @@ def load_samples_dict(filepath, age_stratification_size=10):
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
-    residence_time_distributions = pd.read_excel('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    residence_time_distributions = pd.read_excel(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1])
     samples_dict.update({'residence_times': residence_time_distributions})
-    bootstrap_fractions = np.load('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
+    bootstrap_fractions = np.load(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy'))
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
 
