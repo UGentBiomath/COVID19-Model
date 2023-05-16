@@ -173,7 +173,7 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -182,8 +182,8 @@ if __name__ == '__main__':
           df_sero_sciensano['abs','mean'][:23]]
     states = ["H_in", "R", "R"]
     weights = np.array([1, 1, 1])
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
-    log_likelihood_fnc_args = [results.loc[(slice(None), 'negative binomial'), 'theta'].values,
+    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
+    log_likelihood_fnc_args = [[],
                                dispersion_weighted,
                                dispersion_weighted]
 
