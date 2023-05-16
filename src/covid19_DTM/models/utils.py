@@ -10,7 +10,8 @@ import xarray as xr
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date=None, update_data=False,
+                                            vaccination=True,  stochastic=False, distinguish_day_type=True):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -52,7 +53,7 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
     #########################
 
     # Interaction matricesm model parameters, samples dictionary
-    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, distinguish_day_type=distinguish_day_type)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -157,7 +158,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     return model, samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
+def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date=None,
+                                                    vaccination=True, update_data=False, stochastic=False, distinguish_day_type=True):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -202,7 +204,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     #########################
 
     # Model parameters and population sizes
-    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg, distinguish_day_type=True)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg, distinguish_day_type=distinguish_day_type)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -224,7 +226,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_spatial
-    policy_function_work = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_work_only
+    policy_function_home = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_home_only
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
     # Time-dependent seasonality function, updating season_factor
@@ -328,7 +330,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
 
     # Define time-dependent-parameters
     time_dependent_parameters={'Nc' : policy_function,
-                               'Nc_work' : policy_function_work,
+                               'Nc_home' : policy_function_home,
                                'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
                                'seasonality' : seasonality_function,

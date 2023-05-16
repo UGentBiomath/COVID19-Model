@@ -141,7 +141,7 @@ def get_integrated_interaction_matrices(day_type='average', age_path='0_12_18_25
 
 def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left'),
                          agg=None,
-                         distinguish_day_type=False):
+                         distinguish_day_type=True):
     """
     Extracts and returns the parameters for the COVID-19 SEIQRD model
 
@@ -393,7 +393,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     Nc_dict = get_integrated_interaction_matrices(day_type='average', age_path=age_path)
     if agg:
         pars_dict['Nc'] = np.expand_dims(Nc_dict['total'],axis=0)
-        pars_dict['Nc_work'] = np.expand_dims(Nc_dict['work'],axis=0) 
+        pars_dict['Nc_home'] = np.expand_dims(Nc_dict['home'],axis=0) 
     else:
         pars_dict['Nc'] = Nc_dict['total']
 
