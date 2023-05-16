@@ -88,7 +88,7 @@ def get_serological_data():
 
     return df_sero_herzog, df_sero_sciensano
 
-def get_sciensano_COVID19_data(update=True):
+def get_sciensano_COVID19_data(update=False):
     """Download and convert public Sciensano data
 
     This function returns the publically available Sciensano data
@@ -590,22 +590,18 @@ def get_public_spatial_vaccination_data(update=False, agg=None):
     return df
 
 
-def get_sciensano_COVID19_data_spatial(agg='arr', moving_avg=True):
+def get_sciensano_COVID19_data_spatial(agg='arr', span=1):
     """
     This function returns the spatially explicit private Sciensano data
     on COVID-19 related confirmed cases, hospitalisations, or hospital deaths.
     A copy of the downloaded dataset is automatically saved in the /data/covid19_DTM/raw folder.
     
-    NOTE that this raw data is NOT automatically uploaded to the Git repository, considering it is nonpublic data.
-    Instead, download the processed data from the S-drive (data/covid19_DTM/interim/sciensano) and copy it to data/covid19_DTM/interim/nonpublic_timeseries.
-    The nonpublic_timeseries directory is added to the .gitignore, so it is not uploaded to the repository.
-
     Parameters
     ----------
     agg : str
         Aggregation level. Either 'prov', 'arr' or 'mun', for provinces, arrondissements or municipalities, respectively. Note that not all data is available on every aggregation level.
-    moving_avg : boolean
-        If True (default), the 7-day moving average of the data is taken to smooth out the weekend effect.
+    span : int
+        Span of exponentially moving average filter.
 
     Returns
     -------
@@ -625,12 +621,12 @@ def get_sciensano_COVID19_data_spatial(agg='arr', moving_avg=True):
     # Load data with or without moving average
     df = pd.read_csv(nonpublic_dir_abs, parse_dates=['DATE']).pivot_table(index=['DATE',f'NIS_{agg}']).fillna(0)
     df.index.names = ['date', 'NIS']
-    if moving_avg:
-        from covid19_DTM.visualization.utils import moving_avg
-        for value in accepted_values:
-            for NIS in df[value].columns:
-                df[value][[NIS]] = moving_avg(df[value][[NIS]])
-        df.dropna(inplace=True) # remove first and last 3 days (NA due to averaging)
+
+    # Take exponential moving average
+    for value in df.columns:
+        for NIS in df.index.get_level_values('NIS').unique():
+            df[value].loc[slice(None), NIS] = df[value].loc[slice(None), NIS].ewm(span=span).mean().values
+    df.dropna(inplace=True) # remove first and last 3 days (NA due to averaging)
 
     return df
 
