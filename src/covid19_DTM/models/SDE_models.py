@@ -242,7 +242,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
-        e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_NIS, n_age, n_doses, n_VOCS) --> (n_age, n_doses)
+        e_i = jit_matmul_klmn_n(e_i,f_VOC) # Reduces from (n_NIS, n_age, n_doses, n_VOCS) --> (n_NIS, n_age, n_doses)
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
         # Seasonality
