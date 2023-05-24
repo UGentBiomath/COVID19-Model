@@ -45,7 +45,6 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19_DTM.data import mobility, sciensano, model_parameters
-    from covid19_DTM.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
