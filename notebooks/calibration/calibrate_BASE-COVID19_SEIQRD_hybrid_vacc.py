@@ -119,6 +119,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date=start_calibration.strftime("%Y-%m-%d"),
                                                                         stochastic=True, distinguish_day_type=True)
 
+tau = 0.5
+
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
@@ -139,14 +141,14 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = 6# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 10
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 4
+    multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 2
+    print_n = 10
     # Define dataset
     data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
     # States to calibrate
@@ -173,7 +175,7 @@ if __name__ == '__main__':
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
     pars2 = ['eff_work', 'eff_rest', 'mentality','k']
-    bounds2=((0.20,0.95),(0.20,0.95),(0.20,0.80),(1e3,1e4))
+    bounds2=((0.05,0.95),(0.05,0.95),(0.01,0.99),(1e3,1e4))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
@@ -185,10 +187,10 @@ if __name__ == '__main__':
     pars5 = ['f_h',]
     bounds5 = ((0,1),)    
     # Join them together
-    pars = pars2 + pars3 + pars4 #+ pars5
-    bounds =  bounds2 + bounds3 + bounds4 #+ bounds5
+    pars = pars2 + pars3 + pars4 + pars5
+    bounds =  bounds2 + bounds3 + bounds4 + bounds5
     # Define labels
-    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$']
+    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -200,7 +202,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196] # 2023-02-24
+    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196, 0.70] # 2023-02-24
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
@@ -263,14 +265,14 @@ if __name__ == '__main__':
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.20,] 
+    pert4 = [0.05,] 
     # pars5 = ['f_h']
-    pert5 = [0.20,]     
+    pert5 = [0.05,]     
     # Setup prior functions and arguments
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
-    pert =  pert2 + pert3 + pert4 #+ pert5
+    pert =  pert2 + pert3 + pert4 + pert5
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################
@@ -279,20 +281,20 @@ if __name__ == '__main__':
 
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-              'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta}
+              'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta, 'tau': tau}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
 
     # Setup sampler
-    sampler = run_EnsembleSampler(pos, 50, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup}},
+    sampler = run_EnsembleSampler(pos, 100, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup, 'tau': tau}},
                                   fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=None, processes=processes, progress=True,
                                   settings_dict=settings)
-    # Sample 40*n_mcmc more
+    # Sample 50*n_mcmc more
     import emcee
-    for i in range(40):
+    for i in range(50):
         backend = emcee.backends.HDFBackend(os.path.join(os.getcwd(),samples_path+identifier+'_BACKEND_'+run_date+'.hdf5'))
-        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function,
+        sampler = run_EnsembleSampler(pos, n_mcmc, identifier, objective_function, objective_function_kwargs={'simulation_kwargs': {'warmup': warmup, 'tau': tau}},
                                     fig_path=fig_path, samples_path=samples_path, print_n=print_n, backend=backend, processes=processes, progress=True,
                                     settings_dict=settings)            
 

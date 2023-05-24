@@ -1254,7 +1254,7 @@ class make_contact_matrix_function():
         l2 : float
             Compliance parameter for social policies during second lockdown 2020 COVID-19 wave        
         eff_{location} : float
-            "Effectivity" of contacts at {location}. Alternatively, degree correlation between Google mobility indicator and SARS-CoV-2 spread at {location}.
+            "Effectivity" of contacts at {location}.
         k: float
             Parameter of the behavioral change model, linking number of infections to reduction in contacts.
             https://www.sciencedirect.com/science/article/pii/S1755436518301063 
@@ -1276,6 +1276,7 @@ class make_contact_matrix_function():
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
+        eff_rest=eff_work
 
         t = pd.Timestamp(t.date())
         # Convert compliance l to dates
@@ -1302,7 +1303,7 @@ class make_contact_matrix_function():
         t15 = pd.Timestamp('2021-02-28') # Contact increase in children
         t16 = pd.Timestamp('2021-03-26') # Start of Easter holiday
         t17 = pd.Timestamp('2021-04-18') # End of Easter holiday
-        t18 = pd.Timestamp('2021-06-01') # Start of lockdown relaxation
+        t18 = pd.Timestamp('2021-05-07') # Start of lockdown relaxation
         t19 = pd.Timestamp('2021-07-01') # Start of Summer holiday
 
         # Define key dates of winter 2021-2022
@@ -1381,7 +1382,7 @@ class make_contact_matrix_function():
         elif t14 < t <= t15:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t15 < t <= t16:
-            return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral,school=1)
+            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
         elif t16 < t <= t17:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=0)                           
         elif t17 < t <= t18:
@@ -1491,6 +1492,7 @@ class make_contact_matrix_function():
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
+        eff_rest=eff_work
 
         # Behavioral change model
         # Moving window of hospital in

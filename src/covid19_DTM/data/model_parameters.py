@@ -351,7 +351,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Hospprop change between WAVE 1 and WAVE 2 ##
     ###############################################
 
-    pars_dict['f_h'] = 0.70 # Calibrated: see national_testh_CORNER_2023-02-20.pdf
+    pars_dict['f_h'] = 0.60 # Calibrated: see national_REF_one_effectivity_CORNER_2023-05-17.pdf
 
     ########################
     ## Spatial parameters ##
@@ -410,14 +410,14 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
-        base_dict_name = 'national_REF_SAMPLES_2023-02-23.json'
+        base_dict_name = 'national_REF_one_effectivity_SAMPLES_2023-05-17.json'
         base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': 0.027,
             'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_schools': np.mean(base_samples_dict['eff_work']),
-            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_rest': np.mean(base_samples_dict['eff_work']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'k': np.mean(base_samples_dict['k']),
             'amplitude': np.mean(base_samples_dict['amplitude']),            
@@ -425,7 +425,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
-        base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-17.json'
+        base_dict_name = 'prov_REF_one_effectivity_SAMPLES_2023-05-19.json'
         base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
@@ -434,7 +434,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
             'eff_home': 1,
             'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
-            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_rest': np.mean(base_samples_dict['eff_work']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
@@ -514,14 +514,14 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
         0, 0.66/2, 0.66, 0.45, 0.87]
 
-    # e_h_star
-    for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
-        # e_h cannot be smaller than e_s
-        if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
-            raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
-        # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
-        vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
-            VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
+    # e_h_star --> compute total reduction of hospitalisation propensity 
+    #for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+    #    # e_h cannot be smaller than e_s
+    #    if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
+    #        raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
+    #    # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
+    #    vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
+    #        VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
 
     # e_i
     vaccine_parameters.loc[('WT', slice(None)), 'e_i'] = [

@@ -125,7 +125,7 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
 if agg == 'arr':
-    df_hosp_arr = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg, moving_avg=False)['hospitalised_IN']
+    df_hosp_arr = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg)['hospitalised_IN']
 # Set end of calibration to last datapoint if no enddate is provided by user
 if not args.end_calibration:
     end_calibration = df_hosp.index.get_level_values('date').max()
