@@ -24,7 +24,7 @@ def get_delta_data():
 def get_omicron_data():
     # Load and format omicron VOC data
     filename = 'sgtf_belgium.csv'
-    df_raw = pd.read_csv(os.path.join(rel_dir,filename), parse_dates=True).set_index('date', drop=True).drop(columns=['country','pos_tests', 'sgtf', 'comment','source'])
+    df_raw = pd.read_csv(os.path.join(rel_dir,filename), parse_dates=True).set_index('date', drop=True).drop(columns=['country','pos_tests', 'sgtf'])
     # Format dataframe
     df_VOC_omicron = pd.DataFrame(index=pd.to_datetime(df_raw.index), columns=['omicron'],data=df_raw.values)
     return df_VOC_omicron

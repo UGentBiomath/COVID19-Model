@@ -6,147 +6,92 @@ from scipy.optimize import minimize
 from covid19_DTM.models.utils import load_samples_dict
 from covid19_DTM.data.utils import construct_initN, convert_age_stratified_property
 
-def get_interaction_matrices(dataset='willem_2012', wave=1, intensity='all', age_path='0_12_18_25_35_45_55_65_75_85/'):
-    """Extracts and returns interaction matrices of the CoMiX or Willem 2012 dataset for a given contact intensity.
-    Extracts and returns demographic data for Belgium (2020).
+def get_interaction_matrices(intensity='all', day_type='average', age_path='0_12_18_25_35_45_55_65_75_85'):
+    """ 
+    Extracts and returns interaction matrices of the Belgium 2010 dataset for a given contact intensity.
 
-        Parameters
-        -----------
-    dataset : string
-        The desired interaction matrices to be extracted. These can either be the pre-pandemic matrices for Belgium ('willem_2012') or pandemic matrices for Belgium ('comix').
-        The pandemic data are 'time-dependent', i.e. associated with a date at which the survey was conducted.
-        Default dataset: pre-pandemic Willem 2012.
+    Parameters
+    -----------
 
-    wave : int
-        The wave number of the comix data.
-        Defaults to the first wave.
+    intensity : string
+        The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
+        This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
+        Valid options include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'.
 
-        intensity : string
-                The extracted interaction matrix can be altered based on the nature or duration of the social contacts.
-                This is necessary because a contact is defined as any conversation longer than 3 sentences however, an infectious disease may only spread upon more 'intense' contact.
-                Valid options for Willem 2012 include 'all' (default), 'physical_only', 'less_5_min', less_15_min', 'more_one_hour', 'more_four_hours'.
-        Valid options for CoMiX include 'all' (default) or 'physical_only'.
+    day_type : str
+        Valid options are 'average' (default), 'weekday', 'weekendday'
 
-    age_stratification_size : int
-        The the desired number of age groups in the model. Three options are programmed for use with the COVID19-SEIQRD model:
+    age_path : str
+        The path corresponding to the number of age groups in the model. Four options are programmed for use with the COVID19-SEIQRD model:
         3.  [0,20(, [20,60(, [60,120(
         9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
         10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
-
+        18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(,[85,120(,
 
     Returns
     -------
-
-    Willem 2012:
-    ------------
 
     Nc_dict : dictionary
         dictionary containing the desired interaction matrices
         the dictionary has the following keys: ['home', 'work', 'schools', 'transport', 'leisure', 'others', 'total'] and contains the following interaction matrices:
 
-        Nc_home :  np.array (9x9)
+        Nc_home :  np.array
             number of daily contacts at home of individuals in age group X with individuals in age group Y
-        Nc_work :  np.array (9x9)
+        Nc_work :  np.array
             number of daily contacts in the workplace of individuals in age group X with individuals in age group Y
-        Nc_schools :  np.array (9x9)
+        Nc_schools :  np.array
             number of daily contacts in schools of individuals in age group X with individuals in age group Y
-        Nc_transport :  np.array (9x9)
+        Nc_transport :  np.array
             number of daily contacts on public transport of individuals in age group X with individuals in age group Y
-        Nc_leisure :  np.array (9x9)
+        Nc_leisure :  np.array
             number of daily contacts during leisure activities of individuals in age group X with individuals in age group Y
-        Nc_others :  np.array (9x9)
+        Nc_others :  np.array
             number of daily contacts in other places of individuals in age group X with individuals in age group Y
-        Nc_total :  np.array (9x9)
+        Nc_total :  np.array
             total number of daily contacts of individuals in age group X with individuals in age group Y, calculated as the sum of all the above interaction
-
-    CoMiX:
-    ----------
-    Nc : np.array (9x9)
-        total number of daily contacts of individuals in age group X with individuals in age group Y
-    dates : str
-        date associated with the comix survey wave
 
     Notes
     ----------
     The interaction matrices are extracted using the SOCRATES data tool made by Lander Willem: https://lwillem.shinyapps.io/socrates_rshiny/.
     During the data extraction, reciprocity is assumed, weighing by age and weighing by week/weekend were enabled. Contacts with friends are moved from the home to the leisure interaction matrix.
-
-    Example use
-    -----------
-    Nc_dict = get_interaction_matrices()
-    Nc, dates = get_interaction_matrices(dataset='comix', wave = 3)
     """
 
-    abs_dir = os.path.dirname(__file__)
-
-    ##########################################
-    ## Extract the Willem or Comix matrices ##
-    ##########################################
-
-    if dataset == 'willem_2012':
-        # Define data path
-        matrix_path = "../../../data/covid19_DTM/raw/interaction_matrices/willem_2012/"
-        path = os.path.join(abs_dir, matrix_path+age_path)
-
-        # Input check on user-defined intensity
-        if intensity not in pd.ExcelFile(os.path.join(path, "total.xlsx"), engine='openpyxl').sheet_names:
-            raise ValueError(
-                "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
-
-        # Extract interaction matrices
-        Nc_home = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_work = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_schools = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_transport = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_leisure = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_others = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_total = np.ascontiguousarray(pd.read_excel(os.path.join(
-            path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-        Nc_dict = {'total': Nc_total, 'home': Nc_home, 'work': Nc_work, 'schools': Nc_schools,
-                   'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
-        return Nc_dict
-
-    elif dataset == 'comix':
-        # Define data path
-        matrix_path = os.path.join(
-            abs_dir, "../../../data/covid19_DTM/raw/interaction_matrices/comix")
-        # Input check on user-defined intensity
-        if intensity not in pd.ExcelFile(os.path.join(matrix_path, "wave1.xlsx")).sheet_names:
-            raise ValueError(
-                "The specified intensity '{0}' is not a valid option, check the sheet names of the data spreadsheets".format(intensity))
-        # Allow for both string or digit input for the wave number
-        if type(wave) is not int:
-            raise ValueError(
-                "The specified comix survey wave number '{0}' must be an integer number".format(wave))
-        # Extract interaction matrices
-        Nc = pd.read_excel(os.path.join(matrix_path, "wave"+str(wave)+".xlsx"),
-                           index_col=0, header=0, sheet_name=intensity).values
-        # Convert interaction matrices
-        Nc[0, :] = Nc[:, 0]  # Assume reciprocity
-        # Assume interactions of 0-10 yo are equal to interactions 10-20 yo
-        Nc[0, 0] = Nc[1, 1]
-
-        # Date list of comix waves
-        dates = ['24-04-2020', '08-05-2020', '21-05-2020', '04-06-2020',
-                 '18-06-2020', '02-07-2020', '20-07-2020', '03-08-2020']
-
-        return Nc, dates[wave-1]
-
-    else:
+    # Input checks
+    if day_type not in ['average', 'weekday', 'weekendday']:
         raise ValueError(
-            "The specified intensity '{0}' is not a valid option, check the sheet names of the raw data spreadsheets".format(intensity))
+            "The specified `day_type` '{0}' is not a valid".format(intensity))
+    # Define data path
+    abs_dir = os.path.dirname(__file__)
+    path = os.path.join(abs_dir, f"../../../data/covid19_DTM/raw/interaction_matrices/belgium_2010/{age_path}/{day_type}/")
+    # Input checks
+    if intensity not in pd.ExcelFile(os.path.join(path, "total.xlsx"), engine='openpyxl').sheet_names:
+        raise ValueError(
+            "The specified intensity '{0}' is not valid, check the sheet names of the data spreadsheets".format(intensity))
 
+    # Extract interaction matrices
+    Nc_home = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_work = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_schools = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_transport = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_leisure = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "leisure.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_others = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "otherplace.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_total = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
 
-def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55_65_75_85/'):
+    return {'total': Nc_total, 'home': Nc_home, 'work': Nc_work, 'schools': Nc_schools,
+                'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+
+def get_integrated_interaction_matrices(day_type='average', age_path='0_12_18_25_35_45_55_65_75_85'):
     """
-    Extracts and returns interaction matrices of the Willem 2012 dataset, integrated with the duration of the contact.
+    Extracts and returns interaction matrices of the Belgium 2010 dataset, integrated with the duration of the contact.
     The relative share of contacts changes as follows by integrating with the duration of the contact (absolute number vs. time integrated):
+        
         home: 12% --> 22%
         work: 35% --> 30%
         schools: 11% --> 13%
@@ -156,12 +101,15 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
 
     Parameters
     ----------
-    age_stratification_size : int
-        The the desired number of age groups in the model. Three options are programmed for use with the COVID19-SEIQRD model:
+    age_path : str
+        The path corresponding to the number of age groups in the model. Four options are programmed for use with the COVID19-SEIQRD model:
         3.  [0,20(, [20,60(, [60,120(
         9.  [0,10(,[10,20(,[20,30(,[30,40(,[40,50(,[50,60(,[60,70(,[70,80(,[80,120(,
         10. [0,12(,[12,18(,[18,25(,[25,35(,[35,45(,[45,55(,[55,65(,[65,75(,[75,85(,[85,120(
-        18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(
+        18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(,[85,120(,
+    
+    day_type : str
+        Valid options are 'average' (default), 'weekday', 'weekendday'
 
     Returns
     -------
@@ -171,10 +119,7 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
 
     """
 
-    ################################################
-    ## Extract and integrate Willem 2012 matrices ##
-    ################################################
-
+    # Define preset intensities
     intensities = ['all', 'less_5_min', 'less_15_min',
                    'more_one_hour', 'more_four_hours']
     # Define places
@@ -183,8 +128,7 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
-        Nc_dict = get_interaction_matrices(
-            dataset='willem_2012', intensity=intensity, age_path=age_path)
+        Nc_dict = get_interaction_matrices(intensity=intensity, day_type=day_type, age_path=age_path)
         matrices_raw.update({intensities[idx]: Nc_dict})
     # Integrate matrices at defined intensities
     Nc_dict = {}
@@ -195,14 +139,14 @@ def get_integrated_willem2012_interaction_matrices(age_path='0_12_18_25_35_45_55
 
     return Nc_dict
 
-
 def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85, 120)], closed='left'),
-                         agg=None):
+                         agg=None,
+                         distinguish_day_type=True):
     """
-    Extracts and returns the parameters for the age-stratified deterministic COVID-19 model (spatial or non-spatial)
+    Extracts and returns the parameters for the COVID-19 SEIQRD model
 
     This function returns all parameters needed to run the age-stratified and/or spatially stratified model.
-    This function was created to group all parameters in a centralised location.
+    This function was created to group all parameters needed in a centralised location.
 
     Parameters
     ----------
@@ -215,9 +159,10 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
         18. [0,5(,[5,10(,[10,15(,[15,20(,[20,25(,[25,30(,[30,35(,[35,40(,[40,45(,[45,50(,[50,55(,[55,60(,[60,65(,[65,70(,[70,75(,[75,80(,[80,85(
 
     agg : string
-        Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification. Note that
-        'prov' contains the arrondissement Brussels-Capital. When 'test' is chosen, the mobility matrix for the test scenario is provided:
-        mobility between Antwerp, Brussels-Capital and Ghent only (all other outgoing traffic is kept inside the home arrondissement).
+        Can be either None (default), 'mun', 'arr' or 'prov' for various levels of geographical stratification.
+
+    distinguish_day_type : Bool
+        Distinguish between weekdays and weekenddays?
 
     Returns
     -------
@@ -257,12 +202,6 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
         place : normalised mobility data. place[g][h] denotes the fraction of the population in patch g that goes to patch h
         area : area[g] is the area of patch g in square kilometers. Used for the density dependence factor f.
 
-        Other stratified parameters
-        ---------------------------
-
-    Example use
-    -----------
-    initN, Nc_dict, parameters = get_COVID19_SEIRD_parameters()
     """
 
     abs_dir = os.path.dirname(__file__)
@@ -287,27 +226,19 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     initN = construct_initN(age_classes, agg)
     age_stratification_size = len(age_classes)
     if age_stratification_size == 3:
-        age_path = '0_20_60/'
+        age_path = '0_20_60'
     elif age_stratification_size == 9:
-        age_path = '0_10_20_30_40_50_60_70_80/'
+        age_path = '0_10_20_30_40_50_60_70_80'
     elif age_stratification_size == 10:
-        age_path = '0_12_18_25_35_45_55_65_75_85/'
+        age_path = '0_12_18_25_35_45_55_65_75_85'
     elif age_stratification_size == 18:
-        age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85/' 
+        age_path = '0_5_10_15_20_25_30_35_40_45_50_55_60_65_70_75_80_85' 
     else:
         raise ValueError(
             "age_stratification_size '{0}' is not legitimate. Valid options are 3, 9, 10 or 18".format(
                 age_stratification_size)
         )
-    par_interim_path = os.path.join(par_interim_path, 'hospitals/'+age_path)
-
-    ##########################
-    ## Interaction matrices ##
-    ##########################
-
-    # Assign total Flemish interaction matrix from Lander Willem study to the parameters dictionary (integrated version)
-    Nc_dict = get_integrated_willem2012_interaction_matrices(age_path)
-    pars_dict['Nc'] = Nc_dict['total']
+    par_interim_path = os.path.join(par_interim_path, f'hospitals/{age_path}/')
 
     ##########################################################################
     ## Susceptibility, hospitalization propensity and asymptomatic fraction ##
@@ -317,7 +248,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     pars_dict['s'] = np.ones(age_stratification_size, np.float64)
 
     # https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2777314
-    # Hospitalization propensity (manually fitted to deaths in hospital per age category)
+    # Hospitalization propensity (manually fitted to deaths in hospital per age category during the first COVID-19 wave)
     hosp_prop = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 12), (12, 18), (18, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 75), (75, 85), (85,120)], closed='left'),
                           data=np.array([0.01, 0.01, 0.015, 0.025, 0.03, 0.06, 0.12, 0.45, 0.95, 0.99]))
     #rel_symptoms = pd.Series(index=pd.IntervalIndex.from_tuples([(0, 20), (20, 40), (40, 60), (60, 80), (80, 120)], closed='left'),
@@ -420,7 +351,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Hospprop change between WAVE 1 and WAVE 2 ##
     ###############################################
 
-    pars_dict['f_h'] = 0.75 # Calibrated: see national_testh_CORNER_2023-02-20.pdf
+    pars_dict['f_h'] = 0.56 # Calibrated: see national_REF_one_effectivity_CORNER_2023-05-25.pdf
 
     ########################
     ## Spatial parameters ##
@@ -453,9 +384,24 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
         # Load mobility parameter, which is regionally stratified and 1 by default (no user-defined mobility changes)
         p = np.ones(pars_dict['NIS'].shape[0])
         pars_dict['p'] = p
-        # Add Nc_work and Nc to parameters
-        pars_dict['Nc'] = np.expand_dims(Nc_dict['total'],axis=0) # dims (1, N, N) # suggestion errors in validate
-        pars_dict['Nc_work'] = np.expand_dims(Nc_dict['work'],axis=0) 
+
+    ##########################
+    ## Interaction matrices ##
+    ##########################
+
+    # Assign total integrated interaction matrix from Belgium 2010 study as dummy in the parameters dictionary
+    Nc_dict = get_integrated_interaction_matrices(day_type='average', age_path=age_path)
+    if agg:
+        pars_dict['Nc'] = np.expand_dims(Nc_dict['total'],axis=0)
+        pars_dict['Nc_home'] = np.expand_dims(Nc_dict['home'],axis=0) 
+    else:
+        pars_dict['Nc'] = Nc_dict['total']
+
+    # Assemble a different Nc_dict depending on the use of weekdays/weekenddays
+    if distinguish_day_type:
+        Nc_dict = {}
+        for day_type in ['weekday', 'weekendday']:
+            Nc_dict.update({day_type: get_integrated_interaction_matrices(day_type=day_type, age_path=age_path)})
 
     ############################
     ## BASE fitted parameters ##
@@ -463,24 +409,25 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
 
     if not agg:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
-        samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
-        base_dict_name = 'national_REF_SAMPLES_2023-02-23.json'
-        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
+        samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/national/'
+        base_dict_name = 'national_REF_one_effectivity_SAMPLES_2023-05-25.json'
+        base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta': 0.027,
             'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_schools': np.mean(base_samples_dict['eff_work']),
-            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_rest': np.mean(base_samples_dict['eff_work']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'k': np.mean(base_samples_dict['k']),
-            'amplitude': np.mean(base_samples_dict['amplitude']),            
+            'amplitude': np.mean(base_samples_dict['amplitude']),
+            'f_h': np.mean(base_samples_dict['f_h']),            
         })
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
-        samples_path = '../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
-        base_dict_name = 'prov_REF_sto_SAMPLES_2022-10-17.json'
-        base_samples_dict = load_samples_dict(samples_path+base_dict_name, age_stratification_size=age_stratification_size)
+        samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
+        base_dict_name = 'prov_REF_one_effectivity_SAMPLES_2023-05-19.json'
+        base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
             'beta_R': np.mean(base_samples_dict['beta_R']),
             'beta_U': np.mean(base_samples_dict['beta_U']),
@@ -488,7 +435,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
             'eff_home': 1,
             'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
-            'eff_rest': np.mean(base_samples_dict['eff_rest']),
+            'eff_rest': np.mean(base_samples_dict['eff_work']),
             'mentality': np.mean(base_samples_dict['mentality']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
         })
@@ -568,14 +515,14 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
     vaccine_parameters.loc[('omicron', slice(None)), 'e_h'] = [
         0, 0.66/2, 0.66, 0.45, 0.87]
 
-    # e_h_star
-    for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
-        # e_h cannot be smaller than e_s
-        if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
-            raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
-        # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
-        vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
-            VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
+    # e_h_star --> compute total reduction of hospitalisation propensity 
+    #for VOC in vaccine_parameters.index.get_level_values('VOC').unique():
+    #    # e_h cannot be smaller than e_s
+    #    if any( vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_h'].values <= vaccine_parameters.loc[(VOC, ['partial', 'full', 'waned', 'boosted']), 'e_s'].values):
+    #        raise ValueError(f"The reduction in hospitalization propensity cannot be lower than the reduction in susceptibility to a symptomatic infection for VOC '{VOC}'")
+    #    # Compute reduction in hospitalization propensity "atop" of the reduction in developping symptoms
+    #    vaccine_parameters.loc[(VOC, slice(None)), 'e_h'] = 1 - (1-vaccine_parameters.loc[(
+    #        VOC, slice(None)), 'e_h'].values)/(1-vaccine_parameters.loc[(VOC, slice(None)), 'e_s'].values)
 
     # e_i
     vaccine_parameters.loc[('WT', slice(None)), 'e_i'] = [

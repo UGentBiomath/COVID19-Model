@@ -1,7 +1,6 @@
 import os
 import json
 import warnings
-import random
 from numba import jit
 import numpy as np
 import pandas as pd
@@ -10,7 +9,8 @@ import xarray as xr
 abs_dir = os.path.dirname(__file__)
 data_path = os.path.join(abs_dir, "../../../data/")
 
-def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
+def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT', 'abc', 'delta'], start_date=None, update_data=False,
+                                            vaccination=True,  stochastic=False, distinguish_day_type=True):
 
     ###########################################################
     ## Convert age_stratification_size to desired age groups ##
@@ -45,14 +45,13 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
                                                                     h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19_DTM.data import mobility, sciensano, model_parameters
-    from covid19_DTM.data.utils import convert_age_stratified_quantity
 
     #########################
     ## Load necessary data ##
     #########################
 
     # Interaction matricesm model parameters, samples dictionary
-    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes)
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, distinguish_day_type=distinguish_day_type)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -157,7 +156,8 @@ def initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=10, VOCs=['WT'
 
     return model, samples_dict, initN
 
-def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], vaccination=True, start_date=None, update_data=False, stochastic=False):
+def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, agg='prov', VOCs=['WT', 'abc', 'delta'], start_date=None,
+                                                    vaccination=True, update_data=False, stochastic=False, distinguish_day_type=True):
     
     abs_dir = os.path.dirname(__file__)
 
@@ -201,8 +201,8 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Load necessary data ##
     #########################
 
-    # Population size, interaction matrices and the model parameters
-    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg)
+    # Model parameters and population sizes
+    Nc_dict, params, samples_dict, initN = model_parameters.get_model_parameters(age_classes=age_classes, agg=agg, distinguish_day_type=distinguish_day_type)
     # Load previous vaccine parameters and currently saved VOC/vaccine parameters
     vaccine_params_previous = pd.read_pickle(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/model_parameters/VOCs/vaccine_parameters.pkl'))
     VOC_params, vaccine_params, params = model_parameters.get_COVID19_SEIQRD_VOC_parameters(VOCs=VOCs, pars_dict=params)
@@ -224,7 +224,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     VOC_function = make_VOC_function(VOC_params['logistic_growth'])
     # Time-dependent social contact matrix over all policies, updating Nc
     policy_function = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_spatial
-    policy_function_work = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_work_only
+    policy_function_home = make_contact_matrix_function(df_google, Nc_dict, G=len(df_vacc.index.get_level_values('NIS').unique())).policies_all_home_only
     # Time-dependent mobility function, updating P (place)
     mobility_function = make_mobility_update_function(proximus_mobility_data).mobility_wrapper_func
     # Time-dependent seasonality function, updating season_factor
@@ -248,7 +248,6 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
         elif update_data == True:
             rescaling_update = True
         # Construct the efficacy function subject to waning
-        rescaling_update=False
         efficacy_function = make_vaccination_efficacy_function(update=rescaling_update, agg=agg, df_incidences=df_incidences, vaccine_params=vaccine_params,
                                                 VOCs=VOCs, age_classes=age_classes)
     except:
@@ -329,7 +328,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
 
     # Define time-dependent-parameters
     time_dependent_parameters={'Nc' : policy_function,
-                               'Nc_work' : policy_function_work,
+                               'Nc_home' : policy_function_home,
                                'NIS' : mobility_function,
                                'f_VOC' : VOC_function,
                                'seasonality' : seasonality_function,
@@ -368,6 +367,8 @@ def load_samples_dict(filepath, age_stratification_size=10):
         The natural re-susceptibility samples (parameter 'zeta'), calibrated to the first 2020 COVID-19 wave serodata are also appended to the dictionary
     """
     
+    abs_dir = os.path.dirname(__file__)
+
     # Set correct age_paths to find the hospital data
     if age_stratification_size == 3:
         age_path = '0_20_60/'
@@ -384,9 +385,9 @@ def load_samples_dict(filepath, age_stratification_size=10):
     # Load raw samples dict
     samples_dict = json.load(open(filepath))
     # Append data on hospitalizations
-    residence_time_distributions = pd.read_excel('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx', sheet_name='residence_times', index_col=0, header=[0,1])
+    residence_time_distributions = pd.read_excel(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_hospital_parameters.xlsx'), sheet_name='residence_times', index_col=0, header=[0,1])
     samples_dict.update({'residence_times': residence_time_distributions})
-    bootstrap_fractions = np.load('../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy')
+    bootstrap_fractions = np.load(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/model_parameters/hospitals/'+age_path+'sciensano_bootstrap_fractions.npy'))
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
 
@@ -1024,3 +1025,87 @@ def read_coordinates_nis(spatial='arr'):
     NIS = initN_df.index.values
 
     return NIS
+
+import datetime
+from dateutil.easter import easter
+
+def is_Belgian_school_holiday(d):
+    """
+    A function returning 'True' if a given date is a school holiday in Belgium
+    
+    Input
+    -----
+    
+    d: pd.Timestamp/pd.Datetime
+        Current date
+    
+    Returns
+    -------
+    
+    is_Belgian_school_holiday: bool
+        True: date `d` is a school holiday
+    """
+    
+    # Pre-allocate a vector containing the year's holiday weeks
+    holiday_weeks = []
+    
+    # Herfstvakantie
+    holiday_weeks.append(44)
+    
+    # Extract week of Easter
+    d_easter = easter(d.year)
+    w_easter = d_easter.isocalendar().week
+    # Default logic: Easter holiday starts first monday of April
+    # Unless: Easter falls after 04-15: Easter holiday ends with Easter
+    # Unless: Easter falls in March: Easter holiday starts with Easter
+    if pd.Timestamp(d_easter) >= pd.Timestamp(year=d.year,month=4,day=15):
+        w_easter_holiday = w_easter - 1
+    elif d_easter.month == 3:
+        w_easter_holiday = w_easter + 1
+    else:
+        w_easter_holiday = datetime.date(d.year, 4, (8 - datetime.date(d.year, 4, 1).weekday()) % 7).isocalendar().week
+    holiday_weeks.append(w_easter_holiday)
+    holiday_weeks.append(w_easter_holiday+1)
+
+    # Krokusvakantie
+    holiday_weeks.append(w_easter-6)
+
+    # Extract week of Christmas
+    # If Christmas falls on Saturday or Sunday, Christams holiday starts week after
+    w_christmas_current = pd.Timestamp(year=d.year,month=12,day=25).isocalendar().week
+    if pd.Timestamp(year=d.year,month=12,day=25).isoweekday() in [6,7]:
+        w_christmas_current += 1
+    w_christmas_previous = pd.Timestamp(year=d.year-1,month=12,day=25).isocalendar().week
+    if pd.Timestamp(year=d.year-1,month=12,day=25).isoweekday() in [6,7]:
+        w_christmas_previous += 1
+    # Christmas logic
+    if w_christmas_previous == 52:
+        if pd.Timestamp(year=d.year-1, month=12, day=31).isocalendar().week != 53:
+            holiday_weeks.append(1)   
+    if w_christmas_current == 51:
+        holiday_weeks.append(w_christmas_current)
+        holiday_weeks.append(w_christmas_current+1)
+    if w_christmas_current == 52:
+        holiday_weeks.append(w_christmas_current)
+        if pd.Timestamp(year=d.year, month=12, day=31).isocalendar().week == 53:
+            holiday_weeks.append(w_christmas_current+1)
+    
+    # Define Belgian Public holidays
+    public_holidays = [
+        pd.Timestamp(year=d.year, month=1, day=1),       # New Year
+        pd.Timestamp(d_easter + pd.Timedelta(days=1)),   # Easter monday
+        pd.Timestamp(year=d.year, month=5, day=1),       # Labor day
+        pd.Timestamp(d_easter + pd.Timedelta(days=40)),  # Acension Day
+        pd.Timestamp(year=d.year, month=7, day=21),      # National holiday
+        pd.Timestamp(year=d.year, month=8, day=15),      # Assumption Mary
+        pd.Timestamp(year=d.year, month=11, day=1),      # All Saints
+        pd.Timestamp(year=d.year, month=11, day=11),     # Armistice
+    ]
+    
+    # Logic
+    if ((d.isocalendar().week in holiday_weeks)| \
+            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=1))| \
+               (pd.Timestamp(d) in public_holidays)):
+        return True
+    else:
+        return False

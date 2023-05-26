@@ -1,12 +1,11 @@
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec # subfigure structuring
 from mpl_toolkits.axes_grid1 import make_axes_locatable # for plot aesthetics
 import matplotlib.colors as colors
 from .utils import colorscale_okabe_ito
 from .utils import _apply_tick_locator
-import datetime
-import numpy as np
 import pandas as pd
+from covid19_DTM.models.utils import is_Belgian_school_holiday
+
 
 def population_status(data, filename=None, *, ax=None, **kwargs):
     """Plot evolution of the population as function of time
@@ -735,102 +734,6 @@ def show_graphs(data, ts=['E', 'H_in', 'ICU', 'D'], nis=None, lin=True, rel=Fals
         
     # Return
     return graphs
-            
-
-def school_vacations_dict(explicit=False):
-    """
-    Returns dictionary with pd.Timestamp objects as keys and lengths of vacations as values when not explicit. When explicit==True, returns numpy array with all Timestamps
-    
-    Input
-    -----
-        explicit : boolean
-            if True, return numpy array with all holiday Timestamps. False by default.
-    """
-    # Define school vacations
-    vacation_dict=dict({})
-    sdate_krokus = pd.Timestamp(2020, 2, 24, 0, 0)
-    len_krokus = 7
-    vacation_dict[sdate_krokus]=len_krokus
-    
-    sdate_paas = pd.Timestamp(2020, 4, 6, 0, 0)
-    len_paas = 14
-    vacation_dict[sdate_paas]=len_paas
-    
-    sdate_arbeid = pd.Timestamp(2020, 5, 1, 0, 0)
-    len_arbeid = 1
-    vacation_dict[sdate_arbeid]=len_arbeid
-    
-    sdate_hemelvaart = pd.Timestamp(2020, 5, 21, 0, 0)
-    len_hemelvaart = 2
-    vacation_dict[sdate_hemelvaart]=len_hemelvaart
-    
-    sdate_pinkster = pd.Timestamp(2020, 6, 1, 0, 0)
-    len_pinkster = 1
-    vacation_dict[sdate_pinkster]=len_pinkster
-    
-    sdate_zomer = pd.Timestamp(2020, 7, 1, 0, 0)
-    len_zomer = 62
-    vacation_dict[sdate_zomer]=len_zomer
-    
-    sdate_herfst = pd.Timestamp(2020, 11, 2, 0, 0)
-    len_herfst = 7
-    vacation_dict[sdate_herfst]=len_herfst
-    
-    sdate_wapen = pd.Timestamp(2020, 11, 11, 0, 0)
-    len_wapen = 1
-    vacation_dict[sdate_wapen]=len_wapen
-    
-    # sdate_kerst = pd.Timestamp(2020, 12, 21, 0, 0)
-    sdate_kerst = pd.Timestamp(2020, 12, 19, 0, 0)
-    len_kerst = 16 #14
-    vacation_dict[sdate_kerst]=len_kerst
-    
-    sdate_krokus21 = pd.Timestamp(2021, 2, 15, 0, 0)
-    len_krokus21 = 7
-    vacation_dict[sdate_krokus21]=len_krokus21
-    
-    # sdate_paas21 = pd.Timestamp(2021, 4, 5, 0, 0)
-    sdate_paas21 = pd.Timestamp(2021, 3, 26, 0, 0)
-    len_paas21 = 23 #14
-    vacation_dict[sdate_paas21]=len_paas21
-    
-    sdate_arbeid21 = pd.Timestamp(2021, 5, 1, 0, 0)
-    len_arbeid21 = 1
-    vacation_dict[sdate_arbeid21]=len_arbeid21
-    
-    sdate_hemelvaart21 = pd.Timestamp(2021, 5, 13, 0, 0)
-    len_hemelvaart21 = 2
-    vacation_dict[sdate_hemelvaart21]=len_hemelvaart21
-    
-    sdate_pinkster21 = pd.Timestamp(2021, 5, 23, 0, 0)
-    len_pinkster21 = 1
-    vacation_dict[sdate_pinkster21]=len_pinkster21
-    
-    sdate_zomer21 = pd.Timestamp(2021, 7, 1, 0, 0)
-    len_zomer21 = 62
-    vacation_dict[sdate_zomer21]=len_zomer21
-    
-    sdate_herfst21 = pd.Timestamp(2021, 11, 1, 0, 0)
-    len_herfst21 = 7
-    vacation_dict[sdate_herfst21]=len_herfst21
-    
-    sdate_wapen21 = pd.Timestamp(2021, 11, 11, 0, 0)
-    len_wapen21 = 1
-    vacation_dict[sdate_wapen21]=len_wapen21
-    
-    sdate_kerst21 = pd.Timestamp(2021, 12, 27, 0, 0) # Actually the schools were closed one week early
-    len_kerst21 = 14
-    vacation_dict[sdate_kerst21]=len_kerst21
-    
-    if explicit:
-        all_holidays = []
-        for date, duration in vacation_dict.items():
-            for day in range(duration):
-                holiday = (date + pd.Timedelta(days=day))#.date()
-                all_holidays.append(holiday)
-        vacation_dict = np.array(all_holidays)
-    
-    return vacation_dict
     
 def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend_color='wheat', vacation_color='khaki', frametype='all'):
     """
@@ -878,41 +781,33 @@ def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend
             ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=2), facecolor=weekend_color, alpha=alpha, zorder=-1)
     
     # Overdraw vacation
-    vacation_dict = school_vacations_dict()
     for d in range(days_count):
         d_datetime = sdate + pd.Timedelta(days=d)
-        # if vacation
-        if d_datetime in vacation_dict:
-            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=vacation_dict[d_datetime]), facecolor=vacation_color, alpha=alpha, zorder=-1)
+        if is_Belgian_school_holiday(d_datetime):
+            ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=1), facecolor=vacation_color, alpha=alpha, zorder=-1)
     
     return
-    
-def check_dtype(datum):
+
+def check_dtype(date):
     """
     Check the type of the date.
     
     Input
     -----
-    datum: pd.Timestamp object
+    date: pd.Timestamp object
     
     Returns
     -------
-    datum_type: str
+    date_type: str
         'weekend', 'business' or 'vacation'
     """
-    # Load vacation information
-    vacation_dict = school_vacations_dict()
-    
-    datum_type=None
-    if datum.isoweekday() in [6,7]:
-        datum_type = 'weekend'
+
+    if is_Belgian_school_holiday(date):
+        return 'vacation'
+    elif date.isoweekday() in [6,7]:
+        return 'weekend'
     else:
-        datum_type = 'business'
-    # overwrite if sdate is a vacation day
-    for d in vacation_dict:
-        if (datum >= d) and (datum < d + pd.Timedelta(days=vacation_dict[d])):
-            datum_type = 'vacation'
-    return datum_type
+        return 'business'
 
 def draw_baseline(sdate, edate, baselines, ax=None):
     """

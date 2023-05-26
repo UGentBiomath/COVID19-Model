@@ -155,32 +155,13 @@ print('2) Visualizing regional fit')
 
 fig,ax = plt.subplots(nrows=4,ncols=1,figsize=(12,12),sharex=True)
 
-# Visualize structural uncertainty
-mean = out['H_in'].sum(dim=['age_groups', 'NIS', 'doses']).mean(dim='draws').values/np.sum(np.sum(initN,axis=0))*100000
-lower = out['H_in'].sum(dim=['age_groups', 'NIS', 'doses']).quantile(dim='draws', q=0.025).values/np.sum(np.sum(initN,axis=0))*100000
-upper = out['H_in'].sum(dim=['age_groups','NIS', 'doses']).quantile(dim='draws', q=0.975).values/np.sum(np.sum(initN,axis=0))*100000
+mean, median, lower, upper = add_negative_binomial(out['H_in'].sum(dim=['age_groups', 'NIS', 'doses']).values, dispersion, args.n_draws_per_sample, add_to_mean=False)/np.sum(np.sum(initN,axis=0))*100000
+# Visualize negative binomial uncertainty
 ax[0].plot(simtime, mean, '--', color='blue', linewidth=1)
-ax[0].fill_between(simtime, lower, upper, alpha=0.2, color='blue')
-# Visualize negative binomial uncertainty
-mean = out['H_in'].sum(dim=['age_groups', 'NIS', 'doses']).mean(dim='draws').values
-# Initialize a column vector to append to
-vector = np.zeros((len(simtime),1))
-# Loop over number of negative binomial draws
-for draw in range(args.n_draws_per_sample):
-    vector = np.append(vector, np.expand_dims(np.random.negative_binomial(1/dispersion, (1/dispersion)/(mean + (1/dispersion)), size = mean.shape), axis=1), axis=1)
-# Remove first column
-vector = np.delete(vector, 0, axis=1)
-#  Compute mean and median
-mean = np.mean(vector,axis=1)/np.sum(np.sum(initN,axis=0))*100000
-median = np.median(vector,axis=1)/np.sum(np.sum(initN,axis=0))*100000    
-# Compute quantiles
-lower = np.quantile(vector, q = 0.025, axis = 1)/np.sum(np.sum(initN,axis=0))*100000
-upper = np.quantile(vector, q = 0.975, axis = 1)/np.sum(np.sum(initN,axis=0))*100000
-# Visualize negative binomial uncertainty
-ax[0].plot(simtime, mean, '--', color='blue')
-ax[0].fill_between(simtime, lower, upper, alpha=0.1, color='blue')
+ax[0].fill_between(simtime, lower, upper, alpha=0.25, color='blue')
 # Add data
-ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp.groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+ax[0].scatter(df_hosp.index.get_level_values('date').unique().values, df_hosp.groupby(level='date').sum()/np.sum(np.sum(initN,axis=0))*100000,
+               color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
 # Set attributes
 ax[0].set_title('Belgium')
 ax[0].set_ylim([0,9])
@@ -205,12 +186,13 @@ for idx,NIS_list in enumerate(NIS_lists):
         data = data + df_hosp.loc[(slice(None), NIS)].values
         pop = pop + sum(initN.loc[NIS].values)
 
-    mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample)/pop*100000
+    mean, median, lower, upper = add_negative_binomial(mean, dispersion, args.n_draws_per_sample, add_to_mean=False)/pop*100000
     # Visualize negative binomial uncertainty
-    ax[idx+1].plot(simtime, mean,'--', color=color_list[idx])
-    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.2)
+    ax[idx+1].plot(simtime, mean,'--', color=color_list[idx], linewidth=1)
+    ax[idx+1].fill_between(simtime, lower, upper, color=color_list[idx], alpha=0.25)
     # Add data
-    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx+1].scatter(df_hosp.index.get_level_values('date').unique().values,data/pop*100000,
+                        color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
     # Set attributes
     ax[idx+1].set_title(title_list[idx])
     ax[idx+1].set_ylim([0,12])
@@ -229,10 +211,11 @@ print('3) Visualizing provincial fit')
 fig,ax = plt.subplots(nrows=int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[0:int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)]):
     pop = sum(initN.loc[NIS].values)
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').values, dispersion, args.n_draws_per_sample)/pop*100000
-    ax[idx].plot(simtime, mean,'--', color='blue')
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim='age_groups').sum(dim='doses').values, dispersion, args.n_draws_per_sample, add_to_mean=False)/pop*100000
+    ax[idx].plot(simtime, mean,'--', color='blue', linewidth=1)
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000,
+                    color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
     ax[idx].legend(['NIS: '+ str(NIS)])
     ax[idx] = _apply_tick_locator(ax[idx])
     ax[idx].grid(False)
@@ -246,10 +229,11 @@ plt.close()
 fig,ax = plt.subplots(nrows=len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1),ncols=1,figsize=(12,12), sharex=True)
 for idx,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique().values[(len(df_hosp.index.get_level_values('NIS').unique()) - int(np.floor(len(df_hosp.index.get_level_values('NIS').unique())/2)+1)+1):]):
     pop = sum(initN.loc[NIS].values)
-    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim=['age_groups', 'doses']).values, dispersion, args.n_draws_per_sample)/pop*100000
-    ax[idx].plot(simtime, mean,'--', color='blue')
+    mean, median, lower, upper = add_negative_binomial(out['H_in'].sel(NIS=NIS).sum(dim=['age_groups', 'doses']).values, dispersion, args.n_draws_per_sample, add_to_mean=False)/pop*100000
+    ax[idx].plot(simtime, mean,'--', color='blue', linewidth=1)
     ax[idx].fill_between(simtime,lower, upper, color='blue', alpha=0.2)
-    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+    ax[idx].scatter(df_hosp.index.get_level_values('date').unique().values,df_hosp.loc[(slice(None), NIS)]/pop*100000,
+                    color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
     ax[idx].legend(['NIS: '+ str(NIS)])
     ax[idx] = _apply_tick_locator(ax[idx])
     ax[idx].grid(False)
@@ -264,17 +248,17 @@ print('4) Visualize the seroprevalence fit')
 
 # Plot fraction of immunes
 
-mean, median, lower, upper = add_negative_binomial(out['R'].sum(dim=['age_groups', 'NIS', 'doses']).values, dispersion, args.n_draws_per_sample)/np.sum(np.sum(initN,axis=0))*100
+mean, median, lower, upper = add_negative_binomial(out['R'].sum(dim=['age_groups', 'NIS', 'doses']).values, dispersion, args.n_draws_per_sample, add_to_mean=False)/np.sum(np.sum(initN,axis=0))*100
 
 fig,ax = plt.subplots(figsize=(12,4))
-ax.plot(simtime,mean,'--', color='blue')
+ax.plot(simtime,mean,'--', color='blue', linewidth=1)
 yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*100, df_sero_herzog['rel','UL']*100 - df_sero_herzog['rel','mean']*100 ])
 ax.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
 yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
 ax.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
 ax = _apply_tick_locator(ax)
 ax.legend(['model mean', 'Herzog et al. 2020', 'Sciensano'], bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=13)
-ax.fill_between(simtime, lower, upper,alpha=0.20, color = 'blue')
+ax.fill_between(simtime, lower, upper,alpha=0.25, color = 'blue')
 ax.set_xlim(start_sim,end_sim)
 ax.set_ylim(0,35)
 ax.set_ylabel('Seroprelevance (%)', fontsize=12)
