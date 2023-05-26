@@ -109,6 +109,7 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/"]:
 # Sciensano hospital and vaccination data
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp.groupby(by=['date']).sum()
+df_cases = df_cases.groupby(by=['date']).sum()
 # Serological data
 df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 
@@ -132,7 +133,12 @@ if __name__ == '__main__':
     #############################################################
 
     results, ax = variance_analysis(df_hosp['H_in'], resample_frequency='W')
-    dispersion = results.loc['negative binomial', 'theta']
+    dispersion_hosp = results.loc['negative binomial', 'theta']
+    #plt.show()
+    plt.close()
+
+    results, ax = variance_analysis(df_cases, resample_frequency='W')
+    dispersion_cases = results.loc['negative binomial', 'theta']
     #plt.show()
     plt.close()
 
@@ -146,17 +152,17 @@ if __name__ == '__main__':
     maxiter = n_pso
     popsize = multiplier_pso*processes
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 10
     max_n = n_mcmc
     print_n = 10
     # Define dataset
-    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+    data=[df_hosp['H_in'][start_calibration:end_calibration], df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23], df_cases[pd.Timestamp('2020-07-01'):end_calibration]]
     # States to calibrate
-    states = ["H_in", "R", "R"]  
-    weights = np.array([1, 1, 1])
+    states = ["H_in", "R", "R", "M_in"]  
+    weights = np.array([1, 1, 1, 1])
     # Log likelihood functions
-    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial]
-    log_likelihood_fnc_args = [[], dispersion, dispersion]
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial, ll_negative_binomial]
+    log_likelihood_fnc_args = [dispersion_hosp, dispersion_hosp, dispersion_hosp, dispersion_cases]
 
     print('\n--------------------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF CONTACT EFFECTIVITY, BEHAVIORAL CHANGES, VOC INFECTIVITY AND SEASONALITY')
@@ -174,8 +180,8 @@ if __name__ == '__main__':
     #pars1 = ['beta',]
     #bounds1=((0.001,0.080),)
     # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'mentality','k']
-    bounds2=((0.05,0.95),(0.05,0.95),(0.01,0.99),(1e3,1e4))
+    pars2 = ['eff_work', 'mentality','k']
+    bounds2=((0.05,0.95),(0.01,0.99),(1e3,1e4))
     # Variants
     pars3 = ['K_inf',]
     # Must supply the bounds
@@ -190,7 +196,7 @@ if __name__ == '__main__':
     pars = pars2 + pars3 + pars4 + pars5
     bounds =  bounds2 + bounds3 + bounds4 + bounds5
     # Define labels
-    labels = ['$\Omega_{work}$', '$\Omega_{rest}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
+    labels = ['$\Omega_{work}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -202,7 +208,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.39, 0.43, 0.57, 3140, 1.44, 1.64, 0.196, 0.70] # 2023-02-24
+    theta = [0.45, 0.56, 3140, 1.50, 1.90, 0.225, 0.60] # 2023-02-24
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
@@ -261,7 +267,7 @@ if __name__ == '__main__':
     # pars1 = ['beta',]
     #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.05, 0.05, 0.05, 0.05]
+    pert2 = [0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc','K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
@@ -281,7 +287,7 @@ if __name__ == '__main__':
 
     # Settings dictionary ends up in final samples dictionary
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-              'dispersion': dispersion, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta, 'tau': tau}
+              'dispersion': dispersion_hosp, 'warmup': warmup, 'labels': labels, 'beta': model.parameters['beta'], 'starting_estimate': theta, 'tau': tau}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()
