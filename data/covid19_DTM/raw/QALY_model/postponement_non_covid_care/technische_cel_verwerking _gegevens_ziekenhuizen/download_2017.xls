@@ -1,0 +1,296 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Download</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head><body><table>
+	<thead>
+		<tr>
+            	<th><b>MDC</b></th>
+            	<th><b>Aant. Verblijven</b></th>
+            	<th><b>Verpleegdagprijs herberekend aan 100%</b></th>
+            	<th><b>Genees-middelen</b></th>
+            	<th><b>Prestaties</b></th>
+            	<th><b>Klin. Biol. (25%)</b></th>
+            	<th><b>Andere bedragen  (Inclusief forfaits)</b></th>
+            	<th><b>Totaal bedrag</b></th>
+        </tr>
+    </thead> 
+	<tbody>   
+			<tr>
+				<th class="left">-p PRE-MDC</th>
+    			<td>3.145</td>
+    			<td>80.335.352,52</td>
+    			<td>22.572.375,23</td>
+    			<td>51.937.958,56</td>
+    			<td>4.491.039,72</td>
+    			<td>18.086.143,36</td>
+    			<td>177.422.869,39</td>
+    		</tr>
+			<tr>
+				<th class="left">01 ZENUWSTELSEL</th>
+    			<td>122.281</td>
+    			<td>498.114.829,99</td>
+    			<td>39.435.587,29</td>
+    			<td>125.337.224,61</td>
+    			<td>6.707.285,11</td>
+    			<td>72.925.828,18</td>
+    			<td>742.520.755,18</td>
+    		</tr>
+			<tr>
+				<th class="left">02 OOGAANDOENINGEN</th>
+    			<td>14.462</td>
+    			<td>18.983.846,61</td>
+    			<td>860.554,90</td>
+    			<td>15.419.914,63</td>
+    			<td>165.146,55</td>
+    			<td>7.740.632,74</td>
+    			<td>43.170.095,43</td>
+    		</tr>
+			<tr>
+				<th class="left">03 NEUS, KEEL EN OREN</th>
+    			<td>123.370</td>
+    			<td>135.472.606,20</td>
+    			<td>6.602.395,30</td>
+    			<td>63.156.732,03</td>
+    			<td>1.385.108,88</td>
+    			<td>42.392.583,36</td>
+    			<td>249.009.425,77</td>
+    		</tr>
+			<tr>
+				<th class="left">04 ADEMHALINGSSTELSEL</th>
+    			<td>144.055</td>
+    			<td>599.903.242,31</td>
+    			<td>35.932.047,77</td>
+    			<td>115.694.083,63</td>
+    			<td>11.247.297,41</td>
+    			<td>66.609.162,82</td>
+    			<td>829.385.833,94</td>
+    		</tr>
+			<tr>
+				<th class="left">05 HART EN VAATSTELSEL</th>
+    			<td>204.535</td>
+    			<td>608.446.933,77</td>
+    			<td>36.373.552,07</td>
+    			<td>304.807.441,51</td>
+    			<td>14.552.741,95</td>
+    			<td>313.678.643,57</td>
+    			<td>1.277.859.312,86</td>
+    		</tr>
+			<tr>
+				<th class="left">06 SPIJSVERTERINGSSTELSEL</th>
+    			<td>188.652</td>
+    			<td>493.929.585,00</td>
+    			<td>40.700.566,41</td>
+    			<td>147.973.314,08</td>
+    			<td>8.478.416,98</td>
+    			<td>107.713.071,00</td>
+    			<td>798.794.953,47</td>
+    		</tr>
+			<tr>
+				<th class="left">07 LEVER, GAL EN PANCREAS</th>
+    			<td>55.947</td>
+    			<td>176.717.277,97</td>
+    			<td>16.896.313,94</td>
+    			<td>57.872.076,70</td>
+    			<td>4.053.734,88</td>
+    			<td>36.831.405,33</td>
+    			<td>292.370.808,82</td>
+    		</tr>
+			<tr>
+				<th class="left">08 BEWEGINGSSTELSEL EN BINDWEEFSEL</th>
+    			<td>254.694</td>
+    			<td>876.584.207,42</td>
+    			<td>39.750.896,84</td>
+    			<td>303.041.573,66</td>
+    			<td>7.605.899,20</td>
+    			<td>317.260.543,92</td>
+    			<td>1.544.243.121,03</td>
+    		</tr>
+			<tr>
+				<th class="left">09 HUID, SUBCUTIS, BORSTKLIER</th>
+    			<td>59.241</td>
+    			<td>167.781.238,20</td>
+    			<td>8.100.783,45</td>
+    			<td>53.838.909,04</td>
+    			<td>1.817.542,41</td>
+    			<td>24.095.845,17</td>
+    			<td>255.634.318,27</td>
+    		</tr>
+			<tr>
+				<th class="left">10 ENDOCRIENE, VOEDINGS- EN STOFWISSELINGSZIEKTEN</th>
+    			<td>51.135</td>
+    			<td>135.280.502,17</td>
+    			<td>8.686.499,36</td>
+    			<td>46.790.123,54</td>
+    			<td>2.414.025,42</td>
+    			<td>35.964.925,21</td>
+    			<td>229.136.075,70</td>
+    		</tr>
+			<tr>
+				<th class="left">11 NIEREN EN URINEWEGEN</th>
+    			<td>83.185</td>
+    			<td>233.969.057,89</td>
+    			<td>17.465.439,34</td>
+    			<td>63.972.377,23</td>
+    			<td>4.088.433,76</td>
+    			<td>37.782.644,01</td>
+    			<td>357.277.952,23</td>
+    		</tr>
+			<tr>
+				<th class="left">12 MANNELIJKE GESLACHTSORGANEN</th>
+    			<td>23.667</td>
+    			<td>52.955.896,14</td>
+    			<td>4.599.121,04</td>
+    			<td>24.489.822,28</td>
+    			<td>582.080,41</td>
+    			<td>14.583.741,34</td>
+    			<td>97.210.661,21</td>
+    		</tr>
+			<tr>
+				<th class="left">13 VROUWELIJKE GESLACHTSORGANEN</th>
+    			<td>31.817</td>
+    			<td>52.484.004,75</td>
+    			<td>3.673.326,58</td>
+    			<td>28.844.302,71</td>
+    			<td>493.411,21</td>
+    			<td>16.672.210,14</td>
+    			<td>102.167.255,39</td>
+    		</tr>
+			<tr>
+				<th class="left">14 ZWANGERSCHAP EN BEVALLING</th>
+    			<td>135.825</td>
+    			<td>247.584.292,61</td>
+    			<td>7.968.069,95</td>
+    			<td>97.623.122,67</td>
+    			<td>2.708.623,84</td>
+    			<td>39.762.869,55</td>
+    			<td>395.646.978,62</td>
+    		</tr>
+			<tr>
+				<th class="left">15 NEONATI - PERINATALE AANDOENINGEN</th>
+    			<td>5.983</td>
+    			<td>63.310.760,70</td>
+    			<td>2.718.283,06</td>
+    			<td>22.753.507,04</td>
+    			<td>963.315,56</td>
+    			<td>5.097.654,03</td>
+    			<td>94.843.520,39</td>
+    		</tr>
+			<tr>
+				<th class="left">16 BLOED EN BLOEDVORMENDE ORGANEN</th>
+    			<td>16.646</td>
+    			<td>58.043.738,15</td>
+    			<td>9.069.604,49</td>
+    			<td>10.932.548,12</td>
+    			<td>1.384.256,02</td>
+    			<td>12.146.650,89</td>
+    			<td>91.576.797,67</td>
+    		</tr>
+			<tr>
+				<th class="left">17 MYELOPROLIFERATIEVE EN WEINIG GEDIFF. NEOPLASMATA</th>
+    			<td>34.754</td>
+    			<td>107.282.866,11</td>
+    			<td>48.564.521,79</td>
+    			<td>23.246.428,87</td>
+    			<td>2.797.052,58</td>
+    			<td>26.237.264,07</td>
+    			<td>208.128.133,42</td>
+    		</tr>
+			<tr>
+				<th class="left">18 INFECTIE EN PARASITAIRE ZIEKTEN</th>
+    			<td>36.521</td>
+    			<td>173.407.265,44</td>
+    			<td>17.254.793,60</td>
+    			<td>33.718.273,37</td>
+    			<td>4.411.871,29</td>
+    			<td>20.887.935,83</td>
+    			<td>249.680.139,53</td>
+    		</tr>
+			<tr>
+				<th class="left">19 PSYCHISCHE STOORNISSEN</th>
+    			<td>23.283</td>
+    			<td>105.714.592,54</td>
+    			<td>1.364.820,38</td>
+    			<td>12.907.102,57</td>
+    			<td>774.135,68</td>
+    			<td>9.889.858,96</td>
+    			<td>130.650.510,13</td>
+    		</tr>
+			<tr>
+				<th class="left">20 ALCOHOL EN DRUGGEBRUIK</th>
+    			<td>12.070</td>
+    			<td>37.219.628,87</td>
+    			<td>584.772,55</td>
+    			<td>4.614.089,00</td>
+    			<td>465.138,45</td>
+    			<td>4.246.976,48</td>
+    			<td>47.130.605,35</td>
+    		</tr>
+			<tr>
+				<th class="left">21 ONGEVALLEN,VERGIFTIGINGEN,TOXISCHE EFFECTEN VAN GENEESMIDDELEN</th>
+    			<td>24.894</td>
+    			<td>67.699.215,50</td>
+    			<td>3.567.009,32</td>
+    			<td>13.079.418,38</td>
+    			<td>1.220.311,45</td>
+    			<td>10.811.134,23</td>
+    			<td>96.377.088,88</td>
+    		</tr>
+			<tr>
+				<th class="left">22 BRANDWONDEN</th>
+    			<td>947</td>
+    			<td>11.437.486,90</td>
+    			<td>476.239,38</td>
+    			<td>1.096.575,88</td>
+    			<td>163.622,04</td>
+    			<td>771.918,96</td>
+    			<td>13.945.843,16</td>
+    		</tr>
+			<tr>
+				<th class="left">23 FACTOREN DIE DE GEZONDHEID BEINVLOEDEN</th>
+    			<td>63.562</td>
+    			<td>164.746.738,63</td>
+    			<td>6.796.529,56</td>
+    			<td>33.213.425,16</td>
+    			<td>1.581.940,40</td>
+    			<td>34.895.184,63</td>
+    			<td>241.233.818,38</td>
+    		</tr>
+			<tr>
+				<th class="left">24 HIV INFECTIES</th>
+    			<td>720</td>
+    			<td>5.882.166,09</td>
+    			<td>1.038.548,32</td>
+    			<td>814.802,43</td>
+    			<td>139.315,98</td>
+    			<td>581.213,87</td>
+    			<td>8.456.046,69</td>
+    		</tr>
+			<tr>
+				<th class="left">25 MULTIPELE TRAUMATA</th>
+    			<td>2.634</td>
+    			<td>27.985.574,58</td>
+    			<td>1.703.503,97</td>
+    			<td>8.313.942,03</td>
+    			<td>599.810,51</td>
+    			<td>4.539.082,23</td>
+    			<td>43.141.913,32</td>
+    		</tr>
+			<tr>
+				<th class="left">FF RESTGROEP</th>
+    			<td>23.434</td>
+    			<td>176.062.804,59</td>
+    			<td>15.056.821,78</td>
+    			<td>43.793.806,81</td>
+    			<td>3.583.648,20</td>
+    			<td>27.071.965,28</td>
+    			<td>265.569.046,66</td>
+    		</tr>
+			<tr>
+				<th class="left">Totaal</th>
+    			<td>1.741.459</td>
+    			<td>5.377.335.711,65</td>
+    			<td>397.812.977,67</td>
+    			<td>1.709.282.896,54</td>
+    			<td>88.875.205,89</td>
+    			<td>1.309.277.089,16</td>
+    			<td>8.882.583.880,89</td>
+    		</tr>
+	</tbody>
+</table></body></html>
