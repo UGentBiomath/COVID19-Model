@@ -3,8 +3,6 @@ This script can be used to plot the model fit of the national COVID-19 SEIQRD mo
 
 Arguments:
 ----------
--agg:
-    Spatial aggregation level (national, prov or arr)
 -ID:
     Identifier + aggregation level of the samples dictionary to be loaded.
 -d:
@@ -139,6 +137,8 @@ out = model.sim([start_sim, end_sim],warmup=warmup,N=args.n_samples,draw_functio
 df_2plot = output_to_visuals(out, ['M_in','H_in', 'H_tot', 'ICU_R', 'ICU_D', 'C_icurec', 'S', 'R', 'D'], alpha=dispersion, n_draws_per_sample=args.n_draws_per_sample, UL=1-conf_int*0.5, LL=conf_int*0.5)
 simtime = out['date'].values
 
+
+
 #######################
 ## Visualize results ##
 #######################
@@ -193,7 +193,7 @@ ax5.legend(['model (mean)', 'model (95% CI)', 'Herzog et al. 2020', 'Sciensano']
 ax5.axvline(x=pd.Timestamp('2020-12-27'), linewidth=1.5, linestyle='--', color='black')
 ax5 = _apply_tick_locator(ax5)
 ax5.set_xlim(start_sim,end_sim)
-ax5.set_ylim(0,25)
+ax5.set_ylim(0,35)
 ax5.set_ylabel('Seroprelevance (%)', fontsize=13)
 ax5.get_yaxis().set_label_coords(-0.1,0.5)
 ax5.grid(False)
