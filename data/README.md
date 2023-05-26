@@ -98,11 +98,27 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 
 #### QALY model
 
+##### life_table_model
+
 + `Life_tables_Belgium.csv` contains belgiam life tables for different years and each gender. A copy containing only the necessary information for the most recent year (2019) was placed in the data/covid19_DTM/interim folder under the name: 'Life_table_Belgium_2019.csv'.  Data obtained from: https://statbel.fgov.be/nl/themas/bevolking/sterfte-en-levensverwachting/sterftetafels-en-levensverwachting .
 + `QoL_scores_Belgium_2018.csv` contains quality of life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale. The data was interpoletad to fit the main model's age bins and was placed in the data/covid19_DTM/interim under the name: 'QoL_scores_Belgium_2018_v1.cs'. Data obtained from: https://hisia.wiv-isp.be/SitePages/Home.aspx .
-+ `costs_hospital_belgium.csv` contains the reported total costs of medical treatment per disease category in Belgium for 2018. The data was corrected for inflation, combined with cost per QALY information and placed in data/covid19_DTM/interim folder under the name: 'hospital_data_qaly.xlsx'.  Data obtained from: https://tct.fgov.be/webetct/etct-web/html/fr/index.jsp .
-+ `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/covid19_DTM/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of :Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
 + `De_Wilder_QoL_scores.xlsx` contains two datasheets: 1) QoL_scores, 2) prevalence_comorbidities. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases in the Belgian population. The prevalence_comorbidities sheet contains a calculation of the chronical disease distribution of the Belgian population. Data obtained from Lisa Van Wilder.
+
+##### long_COVID
+
++ `Long_COVID_prevalence.csv` contains the dynamical fraction of individuals reporting at least one symptom, up to 12 months post-COVID-19. For three severities of COVID-19: Mild, Moderate, Severe-Critical. Data extracted from: Wynberg et al. (2022) Evolution of coronavirus disease 2019 (covid-19) symptoms during the first 12 months after illness onset. 
+
+##### postponement_non_covid_care
+
++ `hec03946-sup-0001-supplementary material.docx` contains supply-side cost-effectiveness thresholds and elasticities per disease group and age for the Netherlands. The data was used to estimate the cost per QALY gained per disease group. It was subsequently corrected for inflation, combined with costs of medical treatment and  and placed in data/covid19_DTM/interim folder under the name: 'hospital_data_qaly.xlsx'. Suplementary material of: Stadhouders, N., Koolman, X., Dijk, C., Jeurissen, P., and Adang, E. (2019). The marginal benefits of healthcare spending in the Netherlands: Estimating cost-effectiveness thresholds using a translog production function. Health Economics, 28(11):1331–1344.
+
+###### Technische Cel voor de Verwerking van de Gegevens met betrekking tot de Ziekenhuizen
+
++ `download_20xx.xls` contains, for every disease group of the Major Diagnostic Groups (MDC), the total number of hospital stays in Belgium in year 20xx, as well as the total costs. Obtained from "Technische Cel voor de verwerking van de gegevensmet betrekking tot de ziekenhuizen": https://tct.fgov.be/webetct/etct-web/html/nl/index.jsp. 
+
+###### UZG
+
+`MZG 20XX.xlsx` contains for every patient hospitalized in the Ghent University Hospital during year 20XX the 1) Type of hospitalization, 2) Age of the patient (binned per 5 years age), 3) Date of hospitalization, date of hospital discharge, 4) Pathology (MDC classification). These data were obtained from the Ghent University Hospital (ethical advice BC-11147) and are confidential.
 
 #### VOCs
 
@@ -145,16 +161,28 @@ The dataset contained, for each Belgian province, a column of 'unknowns', indica
 
 #### QALY model
 
-##### Core
+##### life_table_model
 
-+ `Life_table_Belgium_2019.csv` contains the death rate (mu_x) at a given age for the Belgian population as of 2019. Extracted from `data/covid19_DTM/raw/QALY_model/core/Life_tables_Belgium.xls`.
++ `Life_table_Belgium_2019.csv` contains the death rate (mu_x) at a given age for the Belgian population as of 2019. Extracted from `data/covid19_DTM/raw/QALY_model/life_table_model/Life_tables_Belgium.xls`.
 + `QoL_scores_Belgium_2018_v3.csv` contains age-stratified quality-of-life scores for the Belgian population calculated from the 2018 health survey under the EuroQOL 5 scale.
-+ `hospital_data_qaly.xlsx` contains the total reported costs of hospital healthcare in Belgium per disease group as well as the estimated cost per QALY gained for the same groups.
 + `De_Wilder_QoL_scores.xlsx` contains three datasheets: 1) QoL_scores, 2) prevalence_comorbidities and 3) SMR. The QoL_scores sheet contains the quality-of-life (QoL) scores per number of chronical diseases, extrapolated from `data/covid19_DTM/raw/QALY_model/core/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The prevalence_comorbidities sheet contains the chronical disease distribution of the Belgian population, extrapolated from the distribution in `data/covid19_DTM/raw/QALY_model/core/De_Wilder_QoL_scores.xlsx` into the ten nine-year age-strata of the BIOMATH COVID-19 SEIQRD model. The column `rel_risk_Charlson` comes from the following study by Charlson et. al, 1994 (https://pubmed.ncbi.nlm.nih.gov/7722560/). The column `weighted_sum` contains the weighted sums of the average comorbidity profile with the `rel_risk_Charlson`. The `SMR` sheet contains an estimate of the "Standardized Mortality Ratio" per age group and is obtained by scaling the `rel_risk_Charlson` column with the `weighted_sum` column in the `prevalence_comorbidities` sheet.
 
+##### long_COVID
+
++ `average_QALY_losses.csv` Contains the total number of QALYs lost to long-COVID upon infection at age `x in [0, 105]` for the following COVID-19 severities: 1) Non-hospitalised (with AD), 2) Non-hospitalised (no AD), 3) Cohort, 4) IC. Computed using the script `path/to/script`.
+
 ##### Postponement of non-COVID-19 care
-+ `costs_hospital_belgium.csv` I don't know where this comes from, this must be checked.
-+ `MZG 20XX.xlsx` contains for every patient hospitalized in the Ghent University Hospital during year 20XX the 1) Type of hospitalization, 2) Age of the patient (binned per 5 years age), 3) Date of hospitalization, date of hospital discharge, 4) Pathology (MDC classification). These data are confidential, contact tijs.alleman@ugent.be if their use is necessary.
+
++ `hospital_stays_costs_BE.xlsx` contains a formatted version of the files found in `data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/technische_cel_verwerking _gegevens_ziekenhuizen`. Contains two sheets: 1) The number of hospital stays in Belgium, 2) The total costs of treatment in Belgium. Data from 2017, 2018, 2019 are averaged as a baseline. Data from 2020 are compared to the baseline. The number of treatments was reduced with 9% in 2020.
+
++ `hospital_yearly_QALYs.xlsx` contains from the mean, lower and upper estimates of the Willingness-to-Pay threshold (WTP) and elasticity per disease group found in `data/covid19_DTM/raw/QALY_model/postponement_non_covid_care/hec03946-sup-0001-supplementary material.docx`. Contains the yearly costs given to hospital treatment in Belgium, averaged 2017-2019, from `data/covid19_DTM/interim/QALY_model/postponement_non_covid_care/hospital_stays_costs_BE.xlsx`. These data are used to compute the yearly number of QALYs gained in Belgium by treating these diseases: `QALYs = Cost/(-elasticity*WTP)`.
+
+###### UZG
+
+These data are confidential.
+
++ `MZG_2016_2021.csv` contains the absolute number of patients present in the Ghent University Hospital per Major Diagnostic Group from 2016 to 2021.
++ `2020_2021_normalized.csv` contains the number of treated patients per Major Diagnostic Group during the 2020-2021 COVID-19 pandemic, normalized with the prepandemic baseline.
 
 #### Sciensano
 
