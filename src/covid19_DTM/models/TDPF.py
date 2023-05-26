@@ -1286,7 +1286,7 @@ class make_contact_matrix_function():
         elif t6 + l2_days < t <= t7:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
         elif t7 < t <= t8:
-            return 1.20*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
+            return 1.10*self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
         elif t8 < t <= t9:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
         elif t9 < t <= t10:
