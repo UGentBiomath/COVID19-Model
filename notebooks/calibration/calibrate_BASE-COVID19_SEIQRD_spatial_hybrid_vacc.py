@@ -123,7 +123,10 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 ##################################################
 
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
-df_hosp = sciensano.get_sciensano_COVID19_data(update=False)[0]['H_in']
+df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
+df_hosp = df_hosp['H_in'].loc[slice(start_calibration, end_calibration), slice(None)]
+df_cases = df_cases.groupby(by=['date', 'NIS']).sum().loc[slice(pd.Timestamp('2020-07-01'), end_calibration), slice(None)]
+
 if agg == 'arr':
     df_hosp_arr = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg)['hospitalised_IN']
 # Set end of calibration to last datapoint if no enddate is provided by user
@@ -158,11 +161,21 @@ if __name__ == '__main__':
     ## Compute the overdispersion parameters for our H_in data ##
     #############################################################
 
-    results, ax = variance_analysis(df_hosp.loc[(slice(start_calibration, end_calibration), slice(None))], 'W')
-    dispersion_weighted = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
-    print(results)
-    print('\n')
-    print('spatially-weighted overdispersion: ' + str(dispersion_weighted))
+    results, ax = variance_analysis(df_hosp, 'W')
+    dispersion_hosp = results.loc[(slice(None), 'negative binomial'), 'theta']
+    dispersion_weighted_hosp = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    #print(results)
+    #print('\n')
+    print('spatially-weighted overdispersion hospital incidence: ' + str(dispersion_weighted_hosp))
+    #plt.show()
+    plt.close()
+
+    results, ax = variance_analysis(df_cases, 'W')
+    dispersion_cases = results.loc[(slice(None), 'negative binomial'), 'theta']
+    dispersion_weighted_cases = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    #print(results)
+    #print('\n')
+    print('spatially-weighted overdispersion cases: ' + str(dispersion_weighted_cases))
     #plt.show()
     plt.close()
 
@@ -180,13 +193,15 @@ if __name__ == '__main__':
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))],
           df_sero_herzog['abs','mean'],
-          df_sero_sciensano['abs','mean'][:23]]
-    states = ["H_in", "R", "R"]
-    weights = np.array([1, 1, 1])
-    log_likelihood_fnc = [ll_poisson, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
-    log_likelihood_fnc_args = [[],
-                               dispersion_weighted,
-                               dispersion_weighted]
+          df_sero_sciensano['abs','mean'][:23],
+          df_cases]
+    states = ["H_in", "R", "R", "M_in"]
+    weights = np.array([1, 1, 1, 1])
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
+    log_likelihood_fnc_args = [dispersion_hosp.values,
+                               dispersion_weighted_hosp,
+                               dispersion_weighted_hosp,
+                               dispersion_cases.values]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -255,7 +270,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim([start_calibration, pd.Timestamp(end_visualization)], tau=tau)
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23]]
+        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23], data[-1].groupby(by=['date']).sum(),]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
@@ -269,14 +284,15 @@ if __name__ == '__main__':
             plt.show() 
             plt.close()
         elif agg=='prov':
-            # Regional fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
-            plt.show()
-            plt.close()
-            # Provincial fit
-            ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
-            plt.show() 
-            plt.close()
+            for state, data in zip(['H_in', 'M_in'], [data[0], data[-1]]):
+                # Regional fit
+                ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                plt.show()
+                plt.close()
+                # Provincial fit
+                ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                plt.show() 
+                plt.close()
 
         ####################################
         ## Ask the user for manual tweaks ##
@@ -309,14 +325,15 @@ if __name__ == '__main__':
                 plt.show() 
                 plt.close()
             elif agg=='prov':
-                # Regional fit
-                ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='reg')
-                plt.show()
-                plt.close()
-                # Provincial fit
-                ax = plot_PSO_spatial(out, data[0], start_calibration, end_visualization, agg=agg, desired_agg='prov')
-                plt.show() 
-                plt.close()
+                for state, data in zip(['H_in', 'M_in'], [data[0], data[-1]]):
+                    # Regional fit
+                    ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                    plt.show()
+                    plt.close()
+                    # Provincial fit
+                    ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                    plt.show() 
+                    plt.close()
             # Satisfied?
             satisfied = not click.confirm('Would you like to make further changes?', default=False)
 
@@ -345,7 +362,7 @@ if __name__ == '__main__':
 
     # Write settings to a .txt
     settings={'start_calibration': args.start_calibration, 'end_calibration': args.end_calibration, 'n_chains': nwalkers,
-              'dispersion': dispersion_weighted, 'warmup': 0, 'labels': labels, 'starting_estimate': theta, 'tau': tau}
+              'dispersion': dispersion_weighted_hosp, 'warmup': 0, 'labels': labels, 'starting_estimate': theta, 'tau': tau}
 
     print(f'Using {processes} cores for {ndim} parameters, in {nwalkers} chains.\n')
     sys.stdout.flush()

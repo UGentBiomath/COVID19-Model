@@ -188,7 +188,7 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
     ax = _apply_tick_locator(ax)
     return ax
 
-def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, agg, desired_agg):
+def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibration, agg, desired_agg):
 
     """
     A tailored function to visualize a PSO estimate on the H_in data for the spatial model, can aggregate arrondissment/provincial simulations to provincial and regional level and visualize them.
@@ -268,14 +268,14 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                 model_vals = 0
                 data_vals= 0
                 for NIS in NIS_list:
-                    model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
+                    model_vals = model_vals + output[state].sel(NIS=NIS).values
                     data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
                 ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_reg[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
-                ax[idx].set_ylim([0, 380])
+                #ax[idx].set_ylim([0, 380])
                 ax[idx].grid(False)
                 ax[idx].set_ylabel('$H_{in}$ (-)')
                 ax[idx] = _apply_tick_locator(ax[idx])
@@ -283,11 +283,11 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
         elif desired_agg == 'prov':
             fig,ax = plt.subplots(nrows=len(title_list_prov),ncols=1,figsize=(12,16), sharex=True)
             for idx,NIS in enumerate(prov):
-                ax[idx].plot(output['date'], output['H_in'].sel(NIS=NIS),'--', color='blue')
+                ax[idx].plot(output['date'], output[state].sel(NIS=NIS),'--', color='blue')
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), NIS].values, color='black', alpha=0.6, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_xlim([start_calibration, end_calibration])
-                ax[idx].set_ylim([0, 150])
+                #ax[idx].set_ylim([0, 150])
                 ax[idx].grid(False)
                 ax[idx].set_ylabel('$H_{in}$ (-)')
                 ax[idx] = _apply_tick_locator(ax[idx])
@@ -299,14 +299,14 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                 model_vals = 0
                 data_vals= 0
                 for NIS in NIS_list:
-                    model_vals = model_vals + output['H_in'].sel(NIS=NIS).values
+                    model_vals = model_vals + output[state].sel(NIS=NIS).values
                     data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
 
                 ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
-                ax[idx].set_ylim([0, 150])
+                #ax[idx].set_ylim([0, 150])
                 ax[idx].grid(False)
                 ax[idx].set_ylabel('$H_{in}$ (-)')
                 ax[idx] = _apply_tick_locator(ax[idx])
@@ -320,7 +320,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                     model_vals = 0
                     data_vals= 0
                     for NIS in agg_arr_prov[idx][jdx]:
-                        model_vals += output['H_in'].sel(NIS=NIS).values
+                        model_vals += output[state].sel(NIS=NIS).values
                         data_vals += df_sciensano.loc[slice(None), NIS].values
                     model_vals_list.append(model_vals)
                     data_vals_list.append(data_vals)
@@ -335,7 +335,7 @@ def plot_PSO_spatial(output, df_sciensano, start_calibration, end_calibration, a
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_reg[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
-                ax[idx].set_ylim([0, 380])
+                #ax[idx].set_ylim([0, 380])
                 ax[idx].grid(False)
                 ax[idx].set_ylabel('$H_{in}$ (-)')
                 ax[idx] = _apply_tick_locator(ax[idx])
