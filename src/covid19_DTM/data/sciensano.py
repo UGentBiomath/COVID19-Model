@@ -292,6 +292,9 @@ def get_sciensano_COVID19_data(update=False):
     # Sum over regions to go to national level
     df_vacc = df_vacc.groupby(by=['date','age', 'dose']).sum()
 
+    # Give a name to df_cases
+    df_cases.name = "cases"
+
     return df_hosp, df_mort, df_cases, df_vacc
 
 def get_public_spatial_vaccination_data(update=False, agg=None):
