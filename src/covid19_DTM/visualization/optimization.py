@@ -222,11 +222,13 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
         if ((dimension != 'date') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
     
-    prov = [10000, 20001, 30000, 40000, 70000, 21000, 20002, 50000, 60000, 80000, 90000]
+    #prov = [10000, 20001, 30000, 40000, 70000, 21000, 20002, 50000, 60000, 80000, 90000]
+    prov = [10000, 30000, 40000, 70000, 21000, 50000, 60000, 80000, 90000]
+    title_list_prov = ['Antwerpen','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels + Brabant','Hainaut','Liege','Luxembourg','Namur']
 
-    agg_prov_reg = [[10000, 20001, 30000, 40000, 70000],
+    agg_prov_reg = [[10000, 30000, 40000, 70000],
                     [21000],
-                    [20002, 50000, 60000, 80000, 90000]]
+                    [50000, 60000, 80000, 90000]]
 
     agg_arr_prov_simple = [
                         [11000, 12000, 13000],
@@ -257,8 +259,7 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
                     [81000, 82000, 83000, 84000, 85000],
                     [91000, 92000, 93000]]
     ]
-    title_list_reg = ['Flanders', 'Brussels', 'Wallonia']
-    title_list_prov = ['Antwerpen','Vlaams Brabant','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels','Brabant Wallon','Hainaut','Liege','Luxembourg','Namur']
+    title_list_reg = ['Flanders', 'Brussels + Brabant', 'Wallonia']
     color_list = ['blue', 'blue', 'blue']
 
     if agg == 'prov':

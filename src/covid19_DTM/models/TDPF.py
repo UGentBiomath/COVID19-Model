@@ -1323,13 +1323,13 @@ class make_contact_matrix_function():
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
             # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
-            mentality_summer_2020_lockdown = np.array([1.78, 1,     # F
-                                                    2,              # W
-                                                    4.11,           # Bxl
-                                                    2.44, 2.44,     # original: 2.89, 2.44, # F
-                                                    4.44, 4,        # W
-                                                    1.5,            # original: 1.11, # F
-                                                    2.22, 2.67])    # W
+            mentality_summer_2020_lockdown = np.array([1, 1.12,         # F
+                                                    1.12,               # W
+                                                    1.12,               # Bxl
+                                                    1, 1.13,            # F: W-Fla: 1.45
+                                                    2.15, 1.93,         # W
+                                                    1,                  # F: Lim: 1.43
+                                                    1.16, 1.30])        # W
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
             mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_B
@@ -1484,10 +1484,7 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
         elif t7 < t <= t8:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
-            mat[idx_Bxl,:,:] *= 1.30
             mat[idx_Hainaut,:,:] *= 1.30
-            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-            mat[idx_Waals_Brabant,:,:] *= 1/1.30
             return mat 
         elif t8 < t <= t9:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
@@ -1602,10 +1599,7 @@ class make_contact_matrix_function():
                 return self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)
             elif t7 < t <= t8:
                 mat = self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)
-                mat[idx_Bxl,:,:] *= 1.30
                 mat[idx_Hainaut,:,:] *= 1.30
-                mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
-                mat[idx_Waals_Brabant,:,:] *= 1/1.30
                 return mat
             elif t8 < t <= t9:
                 return self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)

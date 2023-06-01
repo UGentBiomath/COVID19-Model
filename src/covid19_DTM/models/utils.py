@@ -444,7 +444,6 @@ def aggregation_arr_prov(simulation_in):
             som+=simulation_in.sel(NIS=arr_NIS).values
         data[i,...] = som
 
-
     # Assign to output
     if 'draws' in simulation_in.dims:
         simulation_out = xr.DataArray(data,
