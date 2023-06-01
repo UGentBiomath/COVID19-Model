@@ -191,7 +191,7 @@ def plot_PSO(output, data, states, start_calibration, end_calibration):
 def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibration, agg, desired_agg):
 
     """
-    A tailored function to visualize a PSO estimate on the H_in data for the spatial model, can aggregate arrondissment/provincial simulations to provincial and regional level and visualize them.
+    A tailored function to visualize a PSO estimate for the spatial model, can aggregate arrondissment/provincial simulations to provincial and regional level and visualize them.
 
     Parameters
     ----------
@@ -221,10 +221,11 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
     for dimension in output.dims:
         if ((dimension != 'date') & (dimension != 'NIS')):
             output = output.sum(dim=dimension)
-    
-    #prov = [10000, 20001, 30000, 40000, 70000, 21000, 20002, 50000, 60000, 80000, 90000]
-    prov = [10000, 30000, 40000, 70000, 21000, 50000, 60000, 80000, 90000]
+
     title_list_prov = ['Antwerpen','West-Vlaanderen','Oost-Vlaanderen','Limburg','Brussels + Brabant','Hainaut','Liege','Luxembourg','Namur']
+    title_list_reg = ['Flanders', 'Brussels + Brabant', 'Wallonia']
+
+    prov = [10000, 30000, 40000, 70000, 21000, 50000, 60000, 80000, 90000]
 
     agg_prov_reg = [[10000, 30000, 40000, 70000],
                     [21000],
@@ -232,12 +233,10 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
 
     agg_arr_prov_simple = [
                         [11000, 12000, 13000],
-                        [23000, 24000],
                         [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
                         [41000, 42000, 43000, 44000, 45000, 46000],
                         [71000, 72000, 73000],
-                        [21000,],
-                        [25000,],
+                        [21000, 23000, 24000, 25000],
                         [51000, 52000, 53000, 55000, 56000, 57000, 58000],
                         [61000, 62000, 63000, 64000],
                         [81000, 82000, 83000, 84000, 85000],
@@ -246,22 +245,19 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
 
     agg_arr_prov = [
                     [[11000, 12000, 13000],
-                    [23000, 24000],
+
                     [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
                     [41000, 42000, 43000, 44000, 45000, 46000],
                     [71000, 72000, 73000]],
 
-                    [[21000,],],
+                    [[21000, 23000, 24000, 25000],],
 
-                    [[25000,],
-                    [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+                    [[51000, 52000, 53000, 55000, 56000, 57000, 58000],
                     [61000, 62000, 63000, 64000],
                     [81000, 82000, 83000, 84000, 85000],
                     [91000, 92000, 93000]]
     ]
-    title_list_reg = ['Flanders', 'Brussels + Brabant', 'Wallonia']
-    color_list = ['blue', 'blue', 'blue']
-
+    
     if agg == 'prov':
         if desired_agg == 'reg':
             fig,ax=plt.subplots(nrows=len(title_list_reg),ncols=1, figsize=(12,12), sharex=True)
@@ -271,7 +267,6 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
                 for NIS in NIS_list:
                     model_vals = model_vals + output[state].sel(NIS=NIS).values
                     data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
                 ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
                 ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_reg[idx])
@@ -298,13 +293,10 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
             fig,ax=plt.subplots(nrows=len(title_list_prov),ncols=1, figsize=(12,12), sharex=True)
             for idx,NIS_list in enumerate(agg_arr_prov_simple):
                 model_vals = 0
-                data_vals= 0
                 for NIS in NIS_list:
                     model_vals = model_vals + output[state].sel(NIS=NIS).values
-                    data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
-
                 ax[idx].plot(output['date'].values, model_vals, '--', color='blue')
-                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), data_vals, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
+                ax[idx].scatter(df_sciensano.index.get_level_values('date').unique(), df_sciensano.loc[slice(None), prov[idx]].values, color='black', alpha=0.3, linestyle='None', facecolors='none', s=60, linewidth=2)
                 ax[idx].set_title(title_list_prov[idx])
                 ax[idx].set_xlim([start_calibration, end_calibration])
                 #ax[idx].set_ylim([0, 150])
@@ -315,16 +307,18 @@ def plot_PSO_spatial(output, state, df_sciensano, start_calibration, end_calibra
         elif desired_agg == 'reg':
             fig,ax=plt.subplots(nrows=len(title_list_reg),ncols=1, figsize=(12,12), sharex=True)
             for idx,NIS_list_reg in enumerate(agg_prov_reg):
+                # Aggregate model prediction
                 model_vals_list=[]
-                data_vals_list=[]
                 for jdx,NIS_prov in enumerate(NIS_list_reg):
                     model_vals = 0
-                    data_vals= 0
                     for NIS in agg_arr_prov[idx][jdx]:
                         model_vals += output[state].sel(NIS=NIS).values
-                        data_vals += df_sciensano.loc[slice(None), NIS].values
                     model_vals_list.append(model_vals)
-                    data_vals_list.append(data_vals)
+                # Aggregate data
+                for idx,NIS_list in enumerate(agg_prov_reg):
+                    data_vals= 0
+                    for NIS in NIS_list:
+                        data_vals = data_vals + df_sciensano.loc[slice(None), NIS].values
                 # Sum
                 model_vals=0
                 data_vals=0

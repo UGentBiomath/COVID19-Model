@@ -1353,24 +1353,24 @@ class make_contact_matrix_function():
 
             # Coefficients based on relative second wave peak height (as compared to NIS: 20001) 
             mentality_summer_2020_lockdown = np.ones(43)
-            mentality_summer_2020_lockdown[0:3] = 1.78      # Antwerpen
-            mentality_summer_2020_lockdown[4:6] = 1.00         # Vlaams-Brabant
-            mentality_summer_2020_lockdown[6] = 2.00       # Waals-Brabant
-            mentality_summer_2020_lockdown[3] = 4.11     # Brussel
-            mentality_summer_2020_lockdown[7:15] = 2.44    # West-Vlaanderen
-            mentality_summer_2020_lockdown[15:21] = 2.44   # Oost-Vlaanderen
-            mentality_summer_2020_lockdown[21:28] = 4.44   # Henegouwen
-            mentality_summer_2020_lockdown[28:32] = 4.00   # Luik
-            mentality_summer_2020_lockdown[32:35] = 1.5   # Limburg
-            mentality_summer_2020_lockdown[35:40] = 2.22  # Luxemburg
-            mentality_summer_2020_lockdown[40:43] = 2.67   # Namen
+            mentality_summer_2020_lockdown[0:3] = 1      # Antwerpen
+            mentality_summer_2020_lockdown[4:6] = 1.12      # Vlaams-Brabant
+            mentality_summer_2020_lockdown[6] = 1.12       # Waals-Brabant
+            mentality_summer_2020_lockdown[3] = 1.12     # Brussel
+            mentality_summer_2020_lockdown[7:15] = 1    # West-Vlaanderen
+            mentality_summer_2020_lockdown[15:21] = 1.13   # Oost-Vlaanderen
+            mentality_summer_2020_lockdown[21:28] = 2.15   # Henegouwen
+            mentality_summer_2020_lockdown[28:32] = 1.93   # Luik
+            mentality_summer_2020_lockdown[32:35] = 1   # Limburg
+            mentality_summer_2020_lockdown[35:40] = 1.16  # Luxemburg
+            mentality_summer_2020_lockdown[40:43] = 1.30   # Namen
             
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
             mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_B
             mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
-        return mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant
+        return mentality_summer_2020_lockdown, idx_Hainaut
 
     def policies_no_lockdown(self, t, states, param, nc):
         t = pd.Timestamp('2020-01-01')
@@ -1446,7 +1446,7 @@ class make_contact_matrix_function():
         t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
         t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
         # Get summer of 2020 parameters
-        mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
+        mentality_summer_2020_lockdown, idx_Hainaut = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
 
         ################
         ## First wave ##
@@ -1561,7 +1561,7 @@ class make_contact_matrix_function():
             t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
             t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
             # Get summer of 2020 parameters
-            mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
+            mentality_summer_2020_lockdown, idx_Hainaut = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
 
             ################
             ## First wave ##
