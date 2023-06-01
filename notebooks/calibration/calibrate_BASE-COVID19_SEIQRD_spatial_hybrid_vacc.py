@@ -125,7 +125,7 @@ for directory in [fig_path+"autocorrelation/", fig_path+"traceplots/", fig_path+
 # Raw local hospitalisation data used in the calibration. Moving average disabled for calibration. Using public data if public==True.
 df_hosp, df_mort, df_cases, df_vacc = sciensano.get_sciensano_COVID19_data(update=False)
 df_hosp = df_hosp['H_in'].loc[slice(start_calibration, end_calibration), slice(None)]
-df_cases = df_cases.groupby(by=['date', 'NIS']).sum().loc[slice(pd.Timestamp('2020-07-01'), end_calibration), slice(None)]
+df_cases = df_cases.groupby(by=['date']).sum().loc[slice(pd.Timestamp('2020-07-01'), end_calibration)]
 
 if agg == 'arr':
     df_hosp_arr = sciensano.get_sciensano_COVID19_data_spatial(agg=args.agg)['hospitalised_IN']
@@ -171,11 +171,12 @@ if __name__ == '__main__':
     plt.close()
 
     results, ax = variance_analysis(df_cases, 'W')
-    dispersion_cases = results.loc[(slice(None), 'negative binomial'), 'theta']
-    dispersion_weighted_cases = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    #dispersion_cases = results.loc[(slice(None), 'negative binomial'), 'theta']
+    #dispersion_weighted_cases = sum(np.array(results.loc[(slice(None), 'negative binomial'), 'theta'])*initN.sum(axis=1).values)/sum(initN.sum(axis=1).values)
+    dispersion_cases = results.loc['negative binomial', 'theta']
     #print(results)
     #print('\n')
-    print('spatially-weighted overdispersion cases: ' + str(dispersion_weighted_cases))
+    print('spatially-weighted overdispersion cases: ' + str(dispersion_cases))
     #plt.show()
     plt.close()
 
@@ -201,7 +202,7 @@ if __name__ == '__main__':
     log_likelihood_fnc_args = [dispersion_hosp.values,
                                dispersion_weighted_hosp,
                                dispersion_weighted_hosp,
-                               dispersion_cases.values]
+                               dispersion_cases]
 
     print('\n--------------------------------------------------------------------------------------')
     print('PERFORMING CALIBRATION OF INFECTIVITY, COMPLIANCE, CONTACT EFFECTIVITY AND SEASONALITY')
@@ -216,22 +217,25 @@ if __name__ == '__main__':
     #############################
 
     # transmission
-    pars1 = ['beta_R', 'beta_U', 'beta_M']
-    bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
+    #pars1 = ['beta_R', 'beta_U', 'beta_M']
+    #bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_work', 'eff_rest', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W']
-    bounds2=((0,2),(0,2),(1e2,1e4),(0,1),(0,5),(0,5))
+    pars2 = ['eff_work', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
+    bounds2=((0,2),(1e2,1e4),(0,1),(0,5),(0,5),(0,5))
     # Variants
     pars3 = ['K_inf',]
     bounds3 = ((1.20, 1.60),(1.50,2.20))
     # Seasonality
     pars4 = ['amplitude',]
     bounds4 = ((0,0.40),)
+    # Change in hospitalisation propensity
+    pars5 = ['f_h',]
+    bounds5 = ((0,1),)
     # Join them together
-    pars = pars1 + pars2 + pars3 + pars4  
-    bounds = bounds1 + bounds2 + bounds3 + bounds4 
-    labels = ['$\\beta_R$', '$\\beta_U$', '$\\beta_M$', '$\\Omega_{work}$', '$\\Omega_{rest}$', '$k$', '$M$', '$M_{summer, F}$', '$M_{summer, W}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$']
+    pars = pars2 + pars3 + pars4 + pars5
+    bounds = bounds2 + bounds3 + bounds4 + bounds5
+    labels = ['$\\Omega_{work}$', '$k$', '$M$', '$M_{summer, F}$', '$M_{summer, W}$', '$M_{summer, B}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$', '$f_h$']
     # Setup objective function with uniform priors
     if agg == 'prov':
         objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
@@ -246,11 +250,8 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.026, 0.024, 0.028, 0.298, 0.475, 4560, 0.67, 0.65, 0.25, 1.35, 1.7, 0.22] # Start of prov_summer_mentality_CORNER_2023-03-01.pdf
-    theta = [0.0256, 0.0243, 0.0269, 0.284, 0.559, 4850, 0.644, 0.39, 0.18, 1.35, 1.57, 0.21] # End of prov_summer_mentality_CORNER_2023-03-01.pdf
-    # ---------------------------------------------------------------------------------------------
-    theta = [0.0256, 0.0243, 0.0269, 0.284, 0.559, 4850, 0.644, 0.55, 0.275, 1.35, 1.60, 0.21] # After switching to distinguishment weekday/weekendday
-    theta = [0.0256, 0.0243, 0.0269, 0.45, 0.45, 4850, 0.644, 0.48, 0.24, 1.35, 1.6, 0.21] # Start with more equal work/leisure 
+    theta = [0.45, 4850, 0.644, 0.48, 0.24, 0.3, 1.35, 1.6, 0.21] # Start with more equal work/leisure 
+    theta = [0.40, 4850, 0.644, 0.38, 0.25, 0.32, 1.35, 1.6, 0.21, 0.60]
 
     # Nelder-mead
     step = len(bounds)*[0.05,]
@@ -284,13 +285,13 @@ if __name__ == '__main__':
             plt.show() 
             plt.close()
         elif agg=='prov':
-            for state, data in zip(['H_in', 'M_in'], [data[0], data[-1]]):
+            for state, d in zip(['H_in',], [data[0], ]):
                 # Regional fit
-                ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                ax = plot_PSO_spatial(out, state, d, start_calibration, end_visualization, agg=agg, desired_agg='reg')
                 plt.show()
                 plt.close()
                 # Provincial fit
-                ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                ax = plot_PSO_spatial(out, state, d, start_calibration, end_visualization, agg=agg, desired_agg='prov')
                 plt.show() 
                 plt.close()
 
@@ -325,13 +326,13 @@ if __name__ == '__main__':
                 plt.show() 
                 plt.close()
             elif agg=='prov':
-                for state, data in zip(['H_in', 'M_in'], [data[0], data[-1]]):
+                for state, d in zip(['H_in',], [data[0],]):
                     # Regional fit
-                    ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='reg')
+                    ax = plot_PSO_spatial(out, state, d, start_calibration, end_visualization, agg=agg, desired_agg='reg')
                     plt.show()
                     plt.close()
                     # Provincial fit
-                    ax = plot_PSO_spatial(out, state, data, start_calibration, end_visualization, agg=agg, desired_agg='prov')
+                    ax = plot_PSO_spatial(out, state, d, start_calibration, end_visualization, agg=agg, desired_agg='prov')
                     plt.show() 
                     plt.close()
             # Satisfied?
@@ -344,15 +345,17 @@ if __name__ == '__main__':
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
     # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    pert1=[0.05, 0.05, 0.05]
-    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W']
+    #pert1=[0.05, 0.05, 0.05]
+    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
     pert2=[0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
     # pars3 = ['K_inf_abc', 'K_inf_delta']
     pert3 = [0.05, 0.05]
     # pars4 = ['amplitude']
     pert4 = [0.20,] 
+    # pars5 = ['f_h']
+    pert5 = [0.20,]
     # Add them together
-    pert = pert1 + pert2 + pert3 + pert4 
+    pert = pert2 + pert3 + pert4 + pert5
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=bounds, verbose=False)
 

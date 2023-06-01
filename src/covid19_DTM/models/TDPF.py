@@ -1313,7 +1313,7 @@ class make_contact_matrix_function():
     ## Spatial model ##
     ###################
 
-    def get_mentality_summer_2020_lockdown(self, summer_rescaling_F, summer_rescaling_W):
+    def get_mentality_summer_2020_lockdown(self, summer_rescaling_F, summer_rescaling_W, summer_rescaling_B):
 
         if self.G == 11:
             idx_Hainaut = [6,]
@@ -1332,7 +1332,7 @@ class make_contact_matrix_function():
                                                     2.22, 2.67])    # W
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
-            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_B
             mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
         elif self.G == 43:
@@ -1367,7 +1367,7 @@ class make_contact_matrix_function():
             
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
-            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_W
+            mentality_summer_2020_lockdown[idx_Bxl] *= summer_rescaling_B
             mentality_summer_2020_lockdown[idx_W] *= summer_rescaling_W
 
         return mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant
@@ -1382,7 +1382,7 @@ class make_contact_matrix_function():
         mat = self.__call__(t, eff_home=1, eff_schools=0, eff_work=0, eff_rest=0, school=0) 
         return nc[:, np.newaxis, np.newaxis]*mat
 
-    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W):
+    def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W, summer_rescaling_B):
         '''
         Function that returns the time-dependant social contact matrix Nc for all COVID waves.
         
@@ -1434,8 +1434,8 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-16') # Start of lockdown
         t2 = pd.Timestamp('2020-05-15') # Start of lockdown relaxation
         t3 = t2 + pd.Timedelta(days=2.5*28) # End of lockdown relaxation
-        t4 = pd.Timestamp('2020-08-05') # Start of summer lockdown in Antwerp
-        t5 = pd.Timestamp('2020-08-25') # End of summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-01') # Start of summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-09-01') # End of summer lockdown in Antwerp
         # Define key dates of second wave/winter 2020-2021
         t6 = pd.Timestamp('2020-10-19') # lockdown (1) --> early schools closure
         t7 = pd.Timestamp('2021-02-15') # Contact increase in children
@@ -1446,7 +1446,7 @@ class make_contact_matrix_function():
         t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
         t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
         # Get summer of 2020 parameters
-        mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W)    
+        mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
 
         ################
         ## First wave ##
@@ -1484,10 +1484,10 @@ class make_contact_matrix_function():
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
         elif t7 < t <= t8:
             mat = self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=1)
-            mat[idx_Bxl,:,:] *= 1.40
-            mat[idx_Hainaut,:,:] *= 1.40
-            #mat[idx_Vlaams_Brabant,:,:] *= 1/1.40
-            #mat[idx_Waals_Brabant,:,:] *= 1/1.40
+            mat[idx_Bxl,:,:] *= 1.30
+            mat[idx_Hainaut,:,:] *= 1.30
+            mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
+            mat[idx_Waals_Brabant,:,:] *= 1/1.30
             return mat 
         elif t8 < t <= t9:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
@@ -1511,7 +1511,7 @@ class make_contact_matrix_function():
         elif t > t12:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=mentality-mentality_behavioral, school=None)
 
-    def policies_all_home_only(self, t, states, param, l1, l2, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W):
+    def policies_all_home_only(self, t, states, param, l1, l2, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W, summer_rescaling_B):
             '''
             Function that returns the time-dependant social contact matrix of home contacts (Nc_home). 
             
@@ -1552,8 +1552,8 @@ class make_contact_matrix_function():
             t1 = pd.Timestamp('2020-03-16') # Start of lockdown
             t2 = pd.Timestamp('2020-05-15') # Start of lockdown relaxation
             t3 = t2 + pd.Timedelta(days=2.5*28) # End of lockdown relaxation
-            t4 = pd.Timestamp('2020-08-05') # Start of summer lockdown in Antwerp
-            t5 = pd.Timestamp('2020-08-25') # End of summer lockdown in Antwerp
+            t4 = pd.Timestamp('2020-08-01') # Start of summer lockdown in Antwerp
+            t5 = pd.Timestamp('2020-09-01') # End of summer lockdown in Antwerp
             # Define key dates of second wave/winter 2020-2021
             t6 = pd.Timestamp('2020-10-19') # lockdown (1) --> early schools closure
             t7 = pd.Timestamp('2021-02-15') # Contact increase in children
@@ -1564,7 +1564,7 @@ class make_contact_matrix_function():
             t11 = pd.Timestamp('2021-11-17') # Overlegcommite 1 out of 3
             t12 = pd.Timestamp('2021-12-03') # Overlegcommite 3 out of 3
             # Get summer of 2020 parameters
-            mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W)    
+            mentality_summer_2020_lockdown, idx_F, idx_Bxl, idx_W, idx_Hainaut, idx_Vlaams_Brabant, idx_Waals_Brabant = self.get_mentality_summer_2020_lockdown(summer_rescaling_F, summer_rescaling_W, summer_rescaling_B)    
 
             ################
             ## First wave ##
@@ -1602,10 +1602,10 @@ class make_contact_matrix_function():
                 return self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)
             elif t7 < t <= t8:
                 mat = self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)
-                mat[idx_Bxl,:,:] *= 1.40
-                mat[idx_Hainaut,:,:] *= 1.40
-                #mat[idx_Vlaams_Brabant,:,:] *= 1
-                #mat[idx_Waals_Brabant,:,:] *= 1
+                mat[idx_Bxl,:,:] *= 1.30
+                mat[idx_Hainaut,:,:] *= 1.30
+                mat[idx_Vlaams_Brabant,:,:] *= 1/1.30
+                mat[idx_Waals_Brabant,:,:] *= 1/1.30
                 return mat
             elif t8 < t <= t9:
                 return self.__call__(t, eff_home=eff_home, eff_schools=0, eff_work=0, eff_rest=0, mentality=mentality-mentality_behavioral)
@@ -1679,7 +1679,7 @@ class make_contact_matrix_function():
         t2 = pd.Timestamp('2020-05-15') # gradual re-opening of schools (assume 50% of nominal scenario)
         t3 = pd.Timestamp('2020-07-01') # start of summer holidays
         t4 = pd.Timestamp('2020-08-03') # Summer lockdown in Antwerp
-        t5 = pd.Timestamp('2020-08-24') # End of summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-08-31') # End of summer lockdown in Antwerp
         t6 = pd.Timestamp('2020-09-01') # end of summer holidays
         t7 = pd.Timestamp('2020-09-21') # Opening universities
 

@@ -319,7 +319,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
-    params.update({'summer_rescaling_F': 0.39, 'summer_rescaling_W': 0.18}) # Obtained from prov_summer_mentality_CORNER_2023-03-01.pdf
+    params.update({'summer_rescaling_F': 0, 'summer_rescaling_W': 0, 'summer_rescaling_B': 0})
 
     # Define coordinates
     coordinates = {'NIS': read_coordinates_place(agg=agg),
@@ -1104,7 +1104,7 @@ def is_Belgian_school_holiday(d):
     
     # Logic
     if ((d.isocalendar().week in holiday_weeks)| \
-            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=1))| \
+            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=7))| \
                (pd.Timestamp(d) in public_holidays)):
         return True
     else:
