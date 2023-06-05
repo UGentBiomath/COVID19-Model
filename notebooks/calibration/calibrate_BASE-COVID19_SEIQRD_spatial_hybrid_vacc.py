@@ -161,8 +161,8 @@ initN = initN.reset_index()
 initN = initN[((initN['NIS'] != 20001) & (initN['NIS'] != 20002))]
 initN = initN.groupby(by=['NIS']).sum().squeeze()
 # Print maxima
-for i,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
-    print(f'{NIS}: {max(df_hosp.loc[slice(None), NIS].ewm(span=7).mean()/sum(initN.loc[NIS])*100000)}')
+#for i,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
+#    print(f'{NIS}: {max(df_hosp.loc[slice(None), NIS].ewm(span=7).mean()/sum(initN.loc[NIS])*100000)}')
 # define aggregation function    
 import xarray as xr
 if agg=='prov':
