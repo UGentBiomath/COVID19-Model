@@ -150,89 +150,12 @@ if agg == 'arr':
 ## Define an aggregation function ##
 ####################################
 
-# Aggregate Bxl and Brabant hospitalisation data
-df_hosp.loc[slice(None), 21000] = (df_hosp.loc[slice(None), 20001] + df_hosp.loc[slice(None), 20002] + df_hosp.loc[slice(None), 21000]).values
-df_hosp = df_hosp.reset_index()
-df_hosp = df_hosp[((df_hosp['NIS'] != 20001) & (df_hosp['NIS'] != 20002))]
-df_hosp = df_hosp.groupby(by=['date','NIS']).sum().squeeze()
-# Aggregate initN
-initN.loc[21000] = (initN.loc[20001] + initN.loc[20002] + initN.loc[21000]).values
-initN = initN.reset_index()
-initN = initN[((initN['NIS'] != 20001) & (initN['NIS'] != 20002))]
-initN = initN.groupby(by=['NIS']).sum().squeeze()
 # Print maxima
 #for i,NIS in enumerate(df_hosp.index.get_level_values('NIS').unique()):
 #    print(f'{NIS}: {max(df_hosp.loc[slice(None), NIS].ewm(span=7).mean()/sum(initN.loc[NIS])*100000)}')
-# define aggregation function    
-import xarray as xr
-if agg=='prov':
-    def aggregation_Brussels_Brabant(simulation_in):
 
-        # Preallocate data
-        prov_new = [10000, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
-        data = np.zeros([len(prov_new),
-                        len(simulation_in.coords['date']),
-                        len(simulation_in.coords['age_groups']),
-                        len(simulation_in.coords['doses'])
-                        ])
-        # Aggregate 20001, 20002 and 21000
-        for i,NIS in enumerate(prov_new):
-            if NIS != 21000:
-                data[i,...] = simulation_in.sel(NIS=NIS).values
-            else:
-                data[i,...] = simulation_in.sel(NIS=20001).values + simulation_in.sel(NIS=20002).values + simulation_in.sel(NIS=21000).values
-        # Swap the NIS/date axes
-        data = np.swapaxes(data,0,1)
-        # Send to simulation out
-        simulation_out = xr.DataArray(data,
-                                        dims=simulation_in.dims,
-                                        coords=dict(NIS = (['NIS'], prov_new),
-                                                    date = simulation_in.coords['date'],
-                                                    age_groups = simulation_in.coords['age_groups'],
-                                                    doses = simulation_in.coords['doses'],
-                                                    ))
-
-        return simulation_out
-
-if agg=='arr':
-    def aggregation_Brussels_Brabant(simulation_in):
-        
-        # Conversion keys: Brussels and Brabant automatically aggregated
-        prov = [10000, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
-        arr2prov = [
-                [11000, 12000, 13000],
-                [21000, 23000, 24000, 25000],
-                [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
-                [41000, 42000, 43000, 44000, 45000, 46000],
-                [51000, 52000, 53000, 55000, 56000, 57000, 58000],
-                [61000, 62000, 63000, 64000],
-                [71000, 72000, 73000],
-                [81000, 82000, 83000, 84000, 85000],
-                [91000, 92000, 93000]
-            ] 
-        # Preallocate a tensor to hold the data (with NIS as first dimension so the ... method can be used in the next step)
-        data = np.zeros([len(prov),
-                        len(simulation_in.coords['date']),
-                        len(simulation_in.coords['age_groups']),
-                        len(simulation_in.coords['doses']),
-                        ])
-        # Aggregate data
-        for i,arr_lst in enumerate(arr2prov):
-            som=0
-            for arr_NIS in arr_lst:
-                som+=simulation_in.sel(NIS=arr_NIS).values
-            data[i,...] = som
-        # Swap the NIS/date axes
-        data = np.swapaxes(data,0,1)
-        # Assign to output
-        simulation_out = xr.DataArray(data,
-                                        dims=simulation_in.dims,
-                                        coords=dict(NIS = (['NIS'], prov),
-                                                    age_groups = simulation_in.coords['age_groups'],
-                                                    doses = simulation_in.coords['doses'],
-                                                    date = simulation_in.coords['date']))
-
-        return simulation_out
+from covid19_DTM.models.utils import aggregate_Brussels_Brabant_DataArray, aggregate_Brussels_Brabant_Dataset, aggregate_Brussels_Brabant_data
+initN, df_hosp = aggregate_Brussels_Brabant_data(initN, df_hosp)
 
 if __name__ == '__main__':
 
@@ -316,7 +239,7 @@ if __name__ == '__main__':
     bounds = bounds2 + bounds3 + bounds4 + bounds5
     labels = ['$\\Omega_{work}$', '$k$', '$M$', '$M_{summer, F}$', '$M_{summer, W}$', '$M_{summer, B}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$', '$f_h$']
     # Setup objective function with uniform priors
-    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels, aggregation_function=aggregation_Brussels_Brabant)
+    objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels, aggregation_function=aggregate_Brussels_Brabant_DataArray)
 
     ##################
     ## Optimization ##
@@ -341,12 +264,7 @@ if __name__ == '__main__':
         # Perform simulation with best-fit results
         out = model.sim([start_calibration, pd.Timestamp(end_visualization)], tau=tau)
         # Aggregate Brussels and Brabant
-        output = []
-        for state in states:
-            o = aggregation_Brussels_Brabant(out[state])
-            o.name = state
-            output.append(o)
-        out = xr.merge(output)
+        out = aggregate_Brussels_Brabant_Dataset(out)
         # National fit
         data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23], data[-1].groupby(by=['date']).sum(),]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
@@ -381,12 +299,7 @@ if __name__ == '__main__':
             # Perform simulation
             out = model.sim([start_calibration, pd.Timestamp(end_visualization)], tau=tau)
             # Aggregate Brussels and Brabant
-            output = []
-            for state in states:
-                o = aggregation_Brussels_Brabant(out[state])
-                o.name = state
-                output.append(o)
-            out = xr.merge(output)
+            out = aggregate_Brussels_Brabant_Dataset(out)
             # Visualize national fit
             ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
             plt.show()
