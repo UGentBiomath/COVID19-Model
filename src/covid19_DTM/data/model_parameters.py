@@ -426,18 +426,20 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
-        base_dict_name = 'prov_REF_one_effectivity_SAMPLES_2023-05-19.json'
+        base_dict_name = 'prov_REF_one_effectivity_SAMPLES_2023-06-01.json'
         base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta_R': np.mean(base_samples_dict['beta_R']),
-            'beta_U': np.mean(base_samples_dict['beta_U']),
-            'beta_M': np.mean(base_samples_dict['beta_M']),
+            'beta_R': 0.027, 
+            'beta_U': 0.027,
+            'beta_M': 0.027,
             'eff_home': 1,
             'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_rest': np.mean(base_samples_dict['eff_work']),
             'mentality': np.mean(base_samples_dict['mentality']),
+            'k': np.mean(base_samples_dict['k']),
             'amplitude': np.mean(base_samples_dict['amplitude']),
+            'f_h': np.mean(base_samples_dict['f_h']),    
         })
 
     return Nc_dict, pars_dict, base_samples_dict, initN
