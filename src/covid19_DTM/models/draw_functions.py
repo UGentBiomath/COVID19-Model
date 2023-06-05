@@ -76,18 +76,15 @@ def draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc(param_dict,samples_dict):
         Modified model parameters dictionary
 
     """
-
-    idx, param_dict['beta_R'] = random.choice(list(enumerate(samples_dict['beta_R'])))
-    param_dict['beta_U'] = samples_dict['beta_U'][idx]  
-    param_dict['beta_M'] = samples_dict['beta_M'][idx]
-    param_dict['eff_work'] = samples_dict['eff_work'][idx]
-    #param_dict['eff_rest'] = samples_dict['eff_rest'][idx]   
+    idx, param_dict['eff_work'] = random.choice(list(enumerate(samples_dict['eff_work']))) 
     param_dict['k'] = samples_dict['k'][idx]
     param_dict['mentality'] = samples_dict['mentality'][idx]
     param_dict['K_inf'] = np.array([slice[idx] for slice in samples_dict['K_inf']], np.float64)
     param_dict['amplitude'] = samples_dict['amplitude'][idx]
     param_dict['summer_rescaling_F'] = samples_dict['summer_rescaling_F'][idx]
     param_dict['summer_rescaling_W'] = samples_dict['summer_rescaling_W'][idx]
+    param_dict['summer_rescaling_B'] = samples_dict['summer_rescaling_B'][idx]
+    param_dict['f_h'] = samples_dict['f_h'][idx]
 
     # Hospitalization
     # ---------------

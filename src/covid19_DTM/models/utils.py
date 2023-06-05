@@ -186,13 +186,13 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     # Import the SEIQRD model with VOCs, vaccinations, seasonality
     from covid19_DTM.models import ODE_models, SDE_models
     # Import time-dependent parameter functions for resp. P, Nc, alpha, N_vacc, season_factor
-    from covid19_DTM.models.TDPF import   make_mobility_update_function, \
-                                                                    make_contact_matrix_function, \
-                                                                    make_VOC_function, \
-                                                                    make_N_vacc_function, \
-                                                                    make_vaccination_efficacy_function, \
-                                                                    make_seasonality_function, \
-                                                                    h_func
+    from covid19_DTM.models.TDPF import make_mobility_update_function, \
+                                        make_contact_matrix_function, \
+                                        make_VOC_function, \
+                                        make_N_vacc_function, \
+                                        make_vaccination_efficacy_function, \
+                                        make_seasonality_function, \
+                                        h_func
     # Import packages containing functions to load in data used in the model and the time-dependent parameter functions
     from covid19_DTM.data import mobility, sciensano, model_parameters
     from covid19_DTM.data.utils import convert_age_stratified_quantity
@@ -319,7 +319,7 @@ def initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=10, ag
     ## Initialize the model ##
     ##########################
 
-    params.update({'summer_rescaling_F': 0.39, 'summer_rescaling_W': 0.18}) # Obtained from prov_summer_mentality_CORNER_2023-03-01.pdf
+    params.update({'summer_rescaling_F': 0, 'summer_rescaling_W': 0, 'summer_rescaling_B': 0})
 
     # Define coordinates
     coordinates = {'NIS': read_coordinates_place(agg=agg),
@@ -391,78 +391,124 @@ def load_samples_dict(filepath, age_stratification_size=10):
     samples_dict.update({'samples_fractions': bootstrap_fractions})
     return samples_dict
 
+def aggregate_Brussels_Brabant_data(initN, df_hosp):
+    """
+    An ugly function to aggregate the provincial hospitalisation data and demographics for Brussels (NIS: 21000), Brabant-Wallon (NIS: 20002) and Vlaams-Brabant (NIS: 20001)
+    """
+
+    # Aggregate Bxl and Brabant hospitalisation data
+    df_hosp.loc[slice(None), 21000] = (df_hosp.loc[slice(None), 20001] + df_hosp.loc[slice(None), 20002] + df_hosp.loc[slice(None), 21000]).values
+    df_hosp = df_hosp.reset_index()
+    df_hosp = df_hosp[((df_hosp['NIS'] != 20001) & (df_hosp['NIS'] != 20002))]
+    df_hosp = df_hosp.groupby(by=['date','NIS']).sum().squeeze()
+
+    # Aggregate initN
+    initN.loc[21000] = (initN.loc[20001] + initN.loc[20002] + initN.loc[21000]).values
+    initN = initN.reset_index()
+    initN = initN[((initN['NIS'] != 20001) & (initN['NIS'] != 20002))]
+    initN = initN.groupby(by=['NIS']).sum().squeeze()
+
+    return initN, df_hosp
+
 import xarray as xr
-def aggregation_arr_prov(simulation_in):
-    """ A function to convert an arrondissement simulation to the provincial level
+def aggregate_Brussels_Brabant_Dataset(simulation_in):
+    """
+    A wrapper for `aggregate_Brussels_Brabant()`, converting all model states into the aggregated format
+
+    Input
+    =====
+    
+    simulation_in: xarray.Dataset
+        Simulation result (arrondissement or provincial level)
+    
+    Output
+    ======
+    
+    simulation_out: xarray.Dataset
+        Simulation result. Provincial spatial aggregation with Bruxelles and Brabant aggregated into NIS 21000
+    """
+    output = []
+    for state in simulation_in.keys():
+        o = aggregate_Brussels_Brabant_DataArray(simulation_in[state])
+        o.name = state
+        output.append(o)
+    return xr.merge(output)
+
+def aggregate_Brussels_Brabant_DataArray(simulation_in):
+    """
+    A function to aggregate an arrondissement simulation to the provincial level.
+    A function to aggregate the provinces of Bruxelles, Brabant Wallon and Vlaams Brabant into one province.
     
     Input
     =====
     
     simulation_in: xarray.DataArray
-        Simulation result (arrondissement level). Obtained from a pySODM xarray.Dataset simulation result by using: xarray.Dataset[state_name]
+        Simulation result (arrondissement or provincial level)
     
     Output
     ======
     
     simulation_out: xarray.DataArray
-        Simulation result (provincial level)
+        Simulation result. Provincial spatial aggregation with Bruxelles and Brabant aggregated into NIS 21000
     """
-    
+
     # Conversion keys
-    prov = [10000, 20001, 20002, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
+    prov = [10000, 21000, 30000, 40000, 50000, 60000, 70000, 80000, 90000]
     arr2prov = [
-               [11000, 12000, 13000],
-               [23000, 24000],
-               [25000,],
-               [21000,],
-               [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
-               [41000, 42000, 43000, 44000, 45000, 46000],
-               [51000, 52000, 53000, 55000, 56000, 57000, 58000],
-               [61000, 62000, 63000, 64000],
-               [71000, 72000, 73000],
-               [81000, 82000, 83000, 84000, 85000],
-               [91000, 92000, 93000]
+            [11000, 12000, 13000],
+            [21000, 23000, 24000, 25000],
+            [31000, 32000, 33000, 34000, 35000, 36000, 37000, 38000],
+            [41000, 42000, 43000, 44000, 45000, 46000],
+            [51000, 52000, 53000, 55000, 56000, 57000, 58000],
+            [61000, 62000, 63000, 64000],
+            [71000, 72000, 73000],
+            [81000, 82000, 83000, 84000, 85000],
+            [91000, 92000, 93000]
         ] 
-    
-    # Preallocate a tensor to hold the data
+    # Preallocate tensor
     if 'draws' in simulation_in.dims:
         data = np.zeros([len(prov),
-                         len(simulation_in.coords['draws']),
-                         len(simulation_in.coords['age_groups']),
-                         len(simulation_in.coords['doses']),
-                         len(simulation_in.coords['date'])])
-    else: 
-        data = np.zeros([len(prov),
-                         len(simulation_in.coords['age_groups']),
-                         len(simulation_in.coords['doses']),
-                         len(simulation_in.coords['date'])])
-
-    # Aggregate data
-    for i,arr_lst in enumerate(arr2prov):
-        som=0
-        for arr_NIS in arr_lst:
-            som+=simulation_in.sel(NIS=arr_NIS).values
-        data[i,...] = som
-
-
-    # Assign to output
-    if 'draws' in simulation_in.dims:
-        simulation_out = xr.DataArray(data,
-                                      dims=['NIS', 'draws', 'age_groups', 'doses', 'date'],
-                                      coords=dict(NIS = (['NIS'], prov),
-                                                  draws = simulation_in.coords['draws'],
-                                                  age_groups = simulation_in.coords['age_groups'],
-                                                  doses = simulation_in.coords['doses'],
-                                                  date = simulation_in.coords['date']))
+                        len(simulation_in.coords['draws']),
+                        len(simulation_in.coords['date']),
+                        len(simulation_in.coords['age_groups']),
+                        len(simulation_in.coords['doses'])
+                        ])
     else:
-        simulation_out = xr.DataArray(data,
-                                      dims=simulation_in.dims,
-                                      coords=dict(NIS = (['NIS'], prov),
-                                                  age_groups = simulation_in.coords['age_groups'],
-                                                  doses = simulation_in.coords['doses'],
-                                                  date = simulation_in.coords['date']))
-    
-    return simulation_out
+        data = np.zeros([len(prov),
+                        len(simulation_in.coords['date']),
+                        len(simulation_in.coords['age_groups']),
+                        len(simulation_in.coords['doses'])
+                        ])
+    # Aggregate data
+    if 41000 in simulation_in.coords['NIS']:
+        for i,arr_lst in enumerate(arr2prov):
+            som=0
+            for arr_NIS in arr_lst:
+                som+=simulation_in.sel(NIS=arr_NIS).values
+            data[i,...] = som
+    else:
+        for i,NIS in enumerate(prov):
+            if NIS != 21000:
+                data[i,...] = simulation_in.sel(NIS=NIS).values
+            else:
+                data[i,...] = simulation_in.sel(NIS=20001).values + simulation_in.sel(NIS=20002).values + simulation_in.sel(NIS=21000).values            
+    # Send to simulation out
+    if 'draws' in simulation_in.dims:
+        data = np.swapaxes(np.swapaxes(data,0,1), 1,2)
+        coords=dict(NIS = (['NIS'], prov),
+                    draws = simulation_in.coords['draws'],
+                    date = simulation_in.coords['date'],
+                    age_groups = simulation_in.coords['age_groups'],
+                    doses = simulation_in.coords['doses'],
+                    )
+    else:
+        data = np.swapaxes(data,0,1)
+        coords=dict(NIS = (['NIS'], prov),
+            date = simulation_in.coords['date'],
+            age_groups = simulation_in.coords['age_groups'],
+            doses = simulation_in.coords['doses'],
+            )
+    return xr.DataArray(data, dims=simulation_in.dims, coords=coords)
 
 def output_to_visuals(output, states, alpha=1e-6, n_draws_per_sample=1, UL=1-0.05*0.5, LL=0.05*0.5):
     """
@@ -1104,7 +1150,7 @@ def is_Belgian_school_holiday(d):
     
     # Logic
     if ((d.isocalendar().week in holiday_weeks)| \
-            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=1))| \
+            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=7))| \
                (pd.Timestamp(d) in public_holidays)):
         return True
     else:
