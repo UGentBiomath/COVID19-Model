@@ -1060,8 +1060,8 @@ class make_contact_matrix_function():
         self.df_google_start = df_google.index.get_level_values('date')[0]
         self.df_google_end = df_google.index.get_level_values('date')[-1]
         # Make a memory of hospital load
-        lag = 14
-        self.I = list(70*np.ones(lag))
+        window_length = 28
+        self.I = list(70*np.ones(window_length))
         # Check if provincial GCMR data is provided
         self.provincial = None
         if 'NIS' in self.df_google.index.names:
@@ -1183,6 +1183,35 @@ class make_contact_matrix_function():
                 CM = mentality*CM
 
         return CM
+
+    def behavioral_model(self, I_new, T, k):
+        """
+        Computes the contact reduction due to behavioral changes out of fear for infection
+
+        Input
+        =====
+
+        I_new: float
+            The most recent datapoint
+
+        T: float
+            Total population
+
+        Output
+        ======
+
+        behavioral_mentality_change: float
+            Reduction (bounded between zero and one) 
+        """
+
+        # Update the moving window of infected
+        self.I.append(I_new)
+        self.I = self.I[1:]
+        # Take the mean over the moving window
+        # Except the final two datapoints --> data collection takes time irl!
+        I = np.mean(self.I[:-2])
+
+        return 1-(1-I/T)**k
 
     ####################
     ## National model ##
