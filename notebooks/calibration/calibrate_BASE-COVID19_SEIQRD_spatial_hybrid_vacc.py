@@ -3,7 +3,7 @@ This script contains a calibration of the spatial COVID-19 SEIQRD model to hospi
 """
 
 __author__      = " Tijs W. Alleman, Michiel Rollier"
-__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2023 by T.W. Alleman, BIOSPACE, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -218,26 +218,23 @@ if __name__ == '__main__':
     ## Global PSO optimization ##
     #############################
 
-    # transmission
-    #pars1 = ['beta_R', 'beta_U', 'beta_M']
-    #bounds1=((0.01,0.070),(0.01,0.070),(0.01,0.070))
     # Social intertia
     # Effectivity parameters
-    pars2 = ['eff_work', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
-    bounds2=((0,2),(1e2,1e4),(0,1),(0,5),(0,5),(0,5))
+    pars1 = ['eff_work', 'mentality', 'k', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
+    bounds1=((0,2),(0,1),(1e2,1e4),(0,5),(0,5),(0,5))
     # Variants
-    pars3 = ['K_inf',]
-    bounds3 = ((1.20, 1.60),(1.50,2.20))
+    pars2 = ['K_inf',]
+    bounds2 = ((1.20, 1.60),(1.50,2.20))
     # Seasonality
-    pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
+    pars3 = ['amplitude',]
+    bounds3 = ((0,0.40),)
     # Change in hospitalisation propensity
-    pars5 = ['f_h',]
-    bounds5 = ((0,1),)
+    pars4 = ['f_h',]
+    bounds4 = ((0,1),)
     # Join them together
-    pars = pars2 + pars3 + pars4 + pars5
-    bounds = bounds2 + bounds3 + bounds4 + bounds5
-    labels = ['$\\Omega_{work}$', '$k$', '$M$', '$M_{summer, F}$', '$M_{summer, W}$', '$M_{summer, B}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$', '$f_h$']
+    pars = pars1 + pars2 + pars3 + pars4
+    bounds = bounds1 + bounds2 + bounds3 + bounds4
+    labels = ['$\\Omega$', '$\Psi$', '$k$', '$\Psi_{F}$', '$\Psi_{W}$', '$\Psi_{B}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$', '$f_h$']
     # Setup objective function with uniform priors
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels, aggregation_function=aggregate_Brussels_Brabant_DataArray)
 
@@ -249,7 +246,7 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.4, 4850, 0.644, 0.70, 0.45, 1, 1.3, 1.65, 0.21, 0.7]
+    theta = [0.5, 0.56, 5000, 0.50, 0.4, 0.7, 1.4, 1.9, 0.225, 0.6]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -323,18 +320,16 @@ if __name__ == '__main__':
 
     # Perturbate PSO estimate by a certain maximal *fraction* in order to start every chain with a different initial condition
     # Generally, the less certain we are of a value, the higher the perturbation fraction
-    # pars1 = ['beta_R', 'beta_U', 'beta_M']
-    #pert1=[0.05, 0.05, 0.05]
-    # pars2 = ['eff_work', 'eff_rest', 'k', 'mentality', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
-    pert2=[0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
-    # pars3 = ['K_inf_abc', 'K_inf_delta']
-    pert3 = [0.05, 0.05]
-    # pars4 = ['amplitude']
-    pert4 = [0.20,] 
-    # pars5 = ['f_h']
-    pert5 = [0.20,]
+    #pars1=['eff_work', 'mentality', 'k', 'summer_rescaling_F', 'summer_rescaling_W', 'summer_rescaling_B']
+    pert1=[0.20, 0.20, 0.20, 0.20, 0.20, 0.20]
+    # pars2 = ['K_inf_abc', 'K_inf_delta']
+    pert2 = [0.05, 0.05]
+    # pars3 = ['amplitude']
+    pert3 = [0.20,] 
+    # pars4 = ['f_h']
+    pert4 = [0.20,]
     # Add them together
-    pert = pert2 + pert3 + pert4 + pert5
+    pert = pert1 + pert2 + pert3 + pert4
     # Use perturbation function
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=bounds, verbose=False)
 
