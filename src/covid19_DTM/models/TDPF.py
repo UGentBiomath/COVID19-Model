@@ -1250,14 +1250,9 @@ class make_contact_matrix_function():
         t = pd.Timestamp(t.date())
 
         # Behavioral change model
-        # Moving window of hospital in
-        self.I.append(np.sum(states['H_in']))
-        self.I = self.I[1:]
-        I = np.mean(self.I)
-        T=11e6
-        mentality_behavioral = 1-(1-I/T)**k
+        mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
-        # Assumption eff_schools = eff_work
+        # Assumption: all effectivities equal to eff_work
         eff_schools=eff_work
         eff_rest=eff_work
 
@@ -1346,8 +1341,6 @@ class make_contact_matrix_function():
 
         if self.G == 11:
             idx_Hainaut = [6,]
-            idx_Vlaams_Brabant = [1,]
-            idx_Waals_Brabant = [2,]
             idx_F = [0, 1, 4, 5, 8]
             idx_Bxl = [3,]
             idx_W = [2, 6, 7, 9, 10]
@@ -1366,8 +1359,6 @@ class make_contact_matrix_function():
 
         elif self.G == 43:
             idx_Hainaut = [21, 22, 23, 24, 25, 26, 27,]
-            idx_Vlaams_Brabant = [4,5]
-            idx_Waals_Brabant = [6,]
             idx_F = [0, 1, 2,                          # Antwerpen
                     4, 5,                              # Vlaams-Brabant
                     7, 8, 9, 10, 11, 12, 13, 14,       # West-Vlaanderen
@@ -1445,12 +1436,7 @@ class make_contact_matrix_function():
         eff_rest=eff_work
 
         # Behavioral change model
-        # Moving window of hospital in
-        self.I.append(np.sum(states['H_in']))
-        self.I = self.I[1:]
-        I = np.mean(self.I)
-        T=11e6
-        mentality_behavioral = 1-(1-I/T)**k
+        mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
         # Protection against dipping below zero
         if mentality_behavioral > mentality:
@@ -1524,7 +1510,7 @@ class make_contact_matrix_function():
             return ramp_fun(policy_old, policy_new, t, t9, l)
         elif t10 < t <= t11:
             return self.__call__(t, eff_home, eff_schools, eff_work, eff_rest, mentality=1-mentality_behavioral, school=None)        
-        
+
         ######################      
         ## Winter 2021-2022 ##
         ######################        
@@ -1560,12 +1546,7 @@ class make_contact_matrix_function():
             t = pd.Timestamp(t.date())
 
             # Behavioral change model
-            # Moving window of hospital in
-            self.I.append(np.sum(states['H_in']))
-            self.I = self.I[1:]
-            I = np.mean(self.I)
-            T=11e6
-            mentality_behavioral = 1-(1-I/T)**k
+            mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
             # Protection against dipping below zero
             if mentality_behavioral > mentality:
@@ -1684,12 +1665,7 @@ class make_contact_matrix_function():
         t = pd.Timestamp(t.date())
 
         # Behavioral change model
-        # Moving window of hospital in
-        self.I.append(np.sum(states['H_in']))
-        self.I = self.I[1:]
-        I = np.mean(self.I)
-        T=11e6
-        mentality_behavioral = 1-(1-I/T)**k
+        mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
@@ -1702,8 +1678,8 @@ class make_contact_matrix_function():
         t1 = pd.Timestamp('2020-03-16') # Start of lockdown
         t2 = pd.Timestamp('2020-05-15') # Start of lockdown relaxation
         t3 = t2 + pd.Timedelta(days=2.5*28) # End of lockdown relaxation
-        t4 = pd.Timestamp('2020-08-05') # Start of summer lockdown in Antwerp
-        t5 = pd.Timestamp('2020-08-25') # End of summer lockdown in Antwerp
+        t4 = pd.Timestamp('2020-08-01') # Start of summer lockdown in Antwerp
+        t5 = pd.Timestamp('2020-09-01') # End of summer lockdown in Antwerp
         # Define key dates of second wave/winter 2020-2021
         t6 = pd.Timestamp('2020-10-19') # lockdown (1) --> early schools closure
         t7 = pd.Timestamp('2021-02-15') # Contact increase in children
@@ -1797,12 +1773,7 @@ class make_contact_matrix_function():
         t = pd.Timestamp(t.date())
 
         # Behavioral change model
-        # Moving window of hospital in
-        self.I.append(np.sum(states['H_in']))
-        self.I = self.I[1:]
-        I = np.mean(self.I)
-        T=11e6
-        mentality_behavioral = 1-(1-I/T)**k
+        mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
         # Assumption eff_schools = eff_work
         eff_schools=eff_work
@@ -1910,12 +1881,7 @@ class make_contact_matrix_function():
         t = pd.Timestamp(t.date())
 
         # Behavioral change model
-        # Moving window of hospital in
-        self.I.append(np.sum(states['H_in']))
-        self.I = self.I[1:]
-        I = np.mean(self.I)
-        T=11e6
-        mentality_behavioral = 1-(1-I/T)**k
+        mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
 
         # Convert compliance l to dates
         l1_days = pd.Timedelta(l1, unit='D')
