@@ -8,7 +8,7 @@ python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-08-23 -n_ag 10 -ID t
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2023 by T.W. Alleman, BIOSPACE, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -121,7 +121,6 @@ model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stra
                                                                         stochastic=True, distinguish_day_type=True)
 
 tau = 0.5
-
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
@@ -176,27 +175,23 @@ if __name__ == '__main__':
     ## Global PSO optimization ##
     #############################
 
-    # transmission
-    #pars1 = ['beta',]
-    #bounds1=((0.001,0.080),)
-    # Effectivity parameters
-    pars2 = ['eff_work', 'mentality','k']
-    bounds2=((0.05,0.95),(0.01,0.99),(1e3,1e4))
+    # Social contact
+    pars1 = ['eff_work', 'mentality','k']
+    bounds1=((0.05,0.95),(0.01,0.99),(1e3,1e4))
     # Variants
-    pars3 = ['K_inf',]
-    # Must supply the bounds
-    bounds3 = ((1.20,1.60),(1.60,2.40))
+    pars2 = ['K_inf',]
+    bounds2 = ((1.20,1.60),(1.60,2.40))
     # Seasonality
-    pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
+    pars3 = ['amplitude',]
+    bounds3 = ((0,0.40),)
     # New hospprop
-    pars5 = ['f_h',]
-    bounds5 = ((0,1),)    
+    pars4 = ['f_h',]
+    bounds4 = ((0,1),)    
     # Join them together
-    pars = pars2 + pars3 + pars4 + pars5
-    bounds =  bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4
+    bounds =  bounds1 + bounds2 + bounds3 + bounds4
     # Define labels
-    labels = ['$\Omega_{work}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
+    labels = ['$\Omega$', '$\Psi$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -208,7 +203,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.45, 0.56, 3140, 1.50, 1.90, 0.225, 0.60] # 2023-02-24
+    theta = [0.50, 0.56, 5000, 1.40, 1.90, 0.225, 0.60]
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
@@ -264,21 +259,19 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate PSO Estimate
-    # pars1 = ['beta',]
-    #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.05, 0.05, 0.05]
+    pert1 = [0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.05, 0.05]
+    pert2 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.05,] 
+    pert3 = [0.05,] 
     # pars5 = ['f_h']
-    pert5 = [0.05,]     
+    pert4 = [0.05,]     
     # Setup prior functions and arguments
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
-    pert =  pert2 + pert3 + pert4 + pert5
+    pert =  pert1 + pert2 + pert3 + pert4
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################
