@@ -4,7 +4,7 @@ import matplotlib.colors as colors
 from .utils import colorscale_okabe_ito
 from .utils import _apply_tick_locator
 import pandas as pd
-from covid19_DTM.models.utils import is_Belgian_school_holiday
+from covid19_DTM.models.utils import is_Belgian_primary_secundary_school_holiday
 
 
 def population_status(data, filename=None, *, ax=None, **kwargs):
@@ -783,7 +783,7 @@ def color_timeframes(sdate, edate, ax=None, week_color='blanchedalmond', weekend
     # Overdraw vacation
     for d in range(days_count):
         d_datetime = sdate + pd.Timedelta(days=d)
-        if is_Belgian_school_holiday(d_datetime):
+        if is_Belgian_primary_secundary_school_holiday(d_datetime):
             ax.axvspan(d_datetime, d_datetime + pd.Timedelta(days=1), facecolor=vacation_color, alpha=alpha, zorder=-1)
     
     return
@@ -802,7 +802,7 @@ def check_dtype(date):
         'weekend', 'business' or 'vacation'
     """
 
-    if is_Belgian_school_holiday(date):
+    if is_Belgian_primary_secundary_school_holiday(date):
         return 'vacation'
     elif date.isoweekday() in [6,7]:
         return 'weekend'

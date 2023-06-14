@@ -1075,9 +1075,9 @@ def read_coordinates_nis(spatial='arr'):
 import datetime
 from dateutil.easter import easter
 
-def is_Belgian_school_holiday(d):
+def is_Belgian_primary_secundary_school_holiday(d):
     """
-    A function returning 'True' if a given date is a school holiday in Belgium
+    A function returning 'True' if a given date is a school holiday or primary and secundary schools in Belgium
     
     Input
     -----
@@ -1088,8 +1088,8 @@ def is_Belgian_school_holiday(d):
     Returns
     -------
     
-    is_Belgian_school_holiday: bool
-        True: date `d` is a school holiday
+    is_Belgian_primary_secundary_school_holiday: bool
+        True: date `d` is a school holiday for primary and secundary schools
     """
     
     # Pre-allocate a vector containing the year's holiday weeks
@@ -1149,9 +1149,7 @@ def is_Belgian_school_holiday(d):
     ]
     
     # Logic
-    if ((d.isocalendar().week in holiday_weeks)| \
-            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=7))| \
-               (pd.Timestamp(d) in public_holidays)):
+    if ((d.isocalendar().week in holiday_weeks) | (pd.Timestamp(d) in public_holidays) | (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=1))):
         return True
     else:
         return False
