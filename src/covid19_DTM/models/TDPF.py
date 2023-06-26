@@ -175,33 +175,35 @@ class make_mobility_update_function():
 
 class make_VOC_function():
     """
-    Class that returns a time-dependant parameter function for COVID-19 SEIQRD model parameter alpha (variant fraction and derivative).
-    The model parameter alpha currently consists of 2 rows and 4 columns.
-    The first row contains the VOC fractions, the second row contains the derivatives of the fractions. The derivates are needed to model immune escape.
-    The columns denote the variants: 0: Wild-Type, 1: Alpha,Beta,Gamma, 2: Delta, 3: Omicron.
+    Class that returns a time-dependant parameter function for COVID-19 SEIQRD model parameter f_VOC (variant fraction).
     Logistic parameters were manually fitted to the VOC effalence data and are hardcoded in the init function of this module
-
-    Output
-    ------
-
-    __class__ : function
-        Default variant function.
-
-
     """
+
     def __init__(self, VOC_logistic_growth_parameters):
         self.logistic_parameters=VOC_logistic_growth_parameters
     
     @staticmethod
-    def logistic_growth(t,t_sig,k):
-        return 1/(1+np.exp(-k*(t-t_sig)/pd.Timedelta(days=1)))
+    def logistic_growth(t, t_sig, k):
+        return 1/(1+np.exp(-k*(t-t_sig)/timedelta(days=1)))
 
-    # Default VOC function includes abc, delta and omicron variants
     def __call__(self, t, states, param):
-        # Convert time to timestamp
-        t = pd.Timestamp(t.date())
+        """
+
+        Input
+        -----
+
+        t: datetime.datetime
+            Current date in simulation
+
+        Output
+        ------
+
+        f_VOC: np.ndarray
+            Fraction of each VOC (sums to one)        
+        """
+
         # Pre-allocate alpha
-        alpha = np.zeros([2, len(self.logistic_parameters.index)])
+        alpha = np.zeros(len(self.logistic_parameters.index), np.float64)
         # Before introduction of first variant, return all zeros
         if t <= min(pd.to_datetime(self.logistic_parameters['t_introduction'].values)):
             return alpha
@@ -212,21 +214,18 @@ class make_VOC_function():
             except:
                 idx = len(self.logistic_parameters['t_introduction'].values) - 1
             # Perform computation of currently growing VOC fraction and its derivative
-            f = self.logistic_growth(t, pd.Timestamp(self.logistic_parameters.iloc[idx]['t_sigmoid']), self.logistic_parameters.iloc[idx]['k'])
-            df = self.logistic_parameters.iloc[idx]['k']*f*(1-f)
+            f = self.logistic_growth(t, self.logistic_parameters.iloc[idx]['t_sigmoid'], self.logistic_parameters.iloc[idx]['k'])
             # Decision logic
             if idx == 0:
-                alpha[:,idx] = [f,df]
+                alpha[idx] = f
             else:
-                alpha[:,idx-1] = [1-f,-df]
-                alpha[:,idx] = [f,df]
-            return np.array(alpha, np.float64)            
+                alpha[idx-1] = 1-f
+                alpha[idx] = f
+            return alpha    
 
 ###########################
 ## Vaccination functions ##
 ###########################
-
-from covid19_DTM.data.utils import construct_initN
 
 class make_N_vacc_function():
     """A time-dependent parameter function to return the vaccine incidence at each timestep of the simulation
