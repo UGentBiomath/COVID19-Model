@@ -117,8 +117,6 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
         ## Format inputs ##
         ###################
 
-        # Extract fraction
-        f_VOC = f_VOC[0,:]        
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
