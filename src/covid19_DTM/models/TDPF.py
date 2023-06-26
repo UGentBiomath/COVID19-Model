@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from functools import lru_cache
-from datetime import timedelta
+from datetime import datetime, timedelta
 from covid19_DTM.models.utils import is_Belgian_primary_secundary_school_holiday
 
 #########################
@@ -107,7 +107,6 @@ class make_mobility_update_function():
         self.proximus_mobility_data = proximus_mobility_data.sort_index()
 
     @lru_cache()
-    # Define mobility_update_func
     def __call__(self, t):
         """
         time-dependent function which has a mobility matrix of type dtype for every date.
@@ -123,6 +122,8 @@ class make_mobility_update_function():
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
+        print(t, type(t))
+
         t = pd.Timestamp(t.date())
         try: # simplest case: there is data available for this date (the key exists)
             place = self.proximus_mobility_data['place'][t]
@@ -166,7 +167,6 @@ class make_mobility_update_function():
         return place
 
     def mobility_wrapper_func(self, t, states, param):
-        t = pd.Timestamp(t.date())
         return self.__call__(t)
 
 ###################
@@ -319,14 +319,16 @@ class make_N_vacc_function():
         """
         Function to extract the vaccination incidence at date 't' from the pd.Dataframe of incidences and format it into the right size
         """
+
+
         if self.agg:
             try:
-                return np.array(self.df.loc[t,:,:,:].values).reshape( (self.G, self.N, self.D) )
+                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:,:].values).reshape( (self.G, self.N, self.D) )
             except:
                 return np.zeros([self.G, self.N, self.D])
         else:
             try:
-                return np.array(self.df.loc[t,:,:].values).reshape( (self.N, self.D) )
+                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:].values).reshape( (self.N, self.D) )
             except:
                 return np.zeros([self.N, self.D])
     
@@ -338,7 +340,7 @@ class make_N_vacc_function():
         Input
         -----
         
-        t : pd.Timestamp
+        t : datetime.datetime
             Current date in simulation
         
         Returns
@@ -347,9 +349,6 @@ class make_N_vacc_function():
         N_vacc : np.array
             Number of individuals to be vaccinated at simulation time "t" per [age, (space), dose]
         """
-        
-        # Convert time to suitable format
-        t = pd.Timestamp(t.date())
 
         return self.get_data(t)
     
@@ -685,9 +684,9 @@ class make_vaccination_efficacy_function():
         if t < min(self.available_dates):
             # Take unity matrix
             if self.agg:
-                E = np.zeros([self.G, self.N, self.n_doses, self.n_VOCs])
+                E = np.zeros([self.G, self.N, self.n_doses, self.n_VOCs], np.float64)
             else:
-                E = np.zeros([self.N, self.n_doses, self.n_VOCs, ])
+                E = np.zeros([self.N, self.n_doses, self.n_VOCs, ], np.float64)
 
         elif t <= max(self.available_dates):
             # Take interpolation between dates for which data is available
