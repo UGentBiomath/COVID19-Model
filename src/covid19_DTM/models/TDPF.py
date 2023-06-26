@@ -667,7 +667,7 @@ class make_vaccination_efficacy_function():
 
         Input
         -----
-        t : pd.Timestamp
+        t : datetime.datetime
             Time at which you want to know the rescaling parameter matrix
         rescaling_type : str
             Either 'e_s', 'e_i' or 'e_h'
@@ -681,8 +681,6 @@ class make_vaccination_efficacy_function():
         if efficacy not in self.df_efficacies.columns:
             raise ValueError(
                 "valid vaccine efficacies are 'e_s', 'e_i', or 'e_h'.")
-
-        t = pd.Timestamp(t)
 
         if t < min(self.available_dates):
             # Take unity matrix
