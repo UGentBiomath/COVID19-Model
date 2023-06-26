@@ -17,7 +17,7 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
         number of additional days after the time delay until full compliance is reached
     """
     
-    return Nc_old + ((Nc_new-Nc_old)/l)*((t-t_start)/timedelta(days=1))
+    return np.array(Nc_old + ((Nc_new-Nc_old)/l)*((t-t_start)/timedelta(days=1)), np.float64)
 
 ###############################
 ## Mobility update functions ##
@@ -122,9 +122,8 @@ class make_mobility_update_function():
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
-        print(t, type(t))
-
         t = pd.Timestamp(t.date())
+
         try: # simplest case: there is data available for this date (the key exists)
             place = self.proximus_mobility_data['place'][t]
         except:
@@ -323,14 +322,14 @@ class make_N_vacc_function():
 
         if self.agg:
             try:
-                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:,:].values).reshape( (self.G, self.N, self.D) )
+                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:,:].values, np.float64).reshape( (self.G, self.N, self.D) )
             except:
-                return np.zeros([self.G, self.N, self.D])
+                return np.zeros([self.G, self.N, self.D], np.float64)
         else:
             try:
-                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:].values).reshape( (self.N, self.D) )
+                return np.array(self.df.loc[pd.Timestamp(t.date()),:,:].values, np.float64).reshape( (self.N, self.D) )
             except:
-                return np.zeros([self.N, self.D])
+                return np.zeros([self.N, self.D], np.float64)
     
     def __call__(self, t, states, param):
         """
@@ -716,7 +715,7 @@ class make_vaccination_efficacy_function():
                 E_values = self.df_efficacies.loc[t_data, :, :, :][efficacy].to_numpy()
                 E = np.reshape(E_values, (self.N,self.n_doses,self.n_VOCs))
 
-        return (1-E)
+        return np.array((1-E), np.float64)
     
     def e_s(self, t, states, param):
         return self.__call__(t, 'e_s')
@@ -1197,7 +1196,7 @@ class make_contact_matrix_function():
             else:
                 CM = mentality*CM
 
-        return CM
+        return np.array(CM, np.float64)
 
     def behavioral_model(self, I_new, T, k):
         """
@@ -1984,12 +1983,10 @@ def h_func(t, states, param, f_h):
     This effect is likely caused by the ill preparation during the first COVID-19 wave (nursing homes, no PPE for hospital staff etc.)
     """
 
-    t = pd.Timestamp(t.date())
-
-    if t <= pd.Timestamp('2020-05-01'):
+    if t <= datetime(2020, 5, 1):
         return param
-    elif pd.Timestamp('2020-05-01') < t <=  pd.Timestamp('2020-09-01'):
-        return ramp_fun(param, f_h*param, t, pd.Timestamp('2020-05-01'),(pd.Timestamp('2020-09-01')-pd.Timestamp('2020-05-01'))/pd.Timedelta(days=1))
+    elif datetime(2020, 5, 1) < t <=  datetime(2020, 9, 1):
+        return ramp_fun(param, f_h*param, t, datetime(2020, 5, 1),(datetime(2020, 9, 1)-datetime(2020, 5, 1))/timedelta(days=1))
     else:
         return f_h*param
 
@@ -2005,17 +2002,17 @@ class make_seasonality_function():
         """
         Default output function. Returns a sinusoid with average value 1.
         
-        t : Timestamp
+        t : datetime.datetime
             simulation time
         amplitude : float
             maximum deviation of output with respect to the average (1)
         peak_shift : float
             phase. Number of days after January 1st after which the maximum value of the seasonality rescaling is reached 
         """
-        ref_date = pd.to_datetime('2021-01-01')
+        ref_date = datetime(2021,1,1)
         # If peak_shift = 0, the max is on the first of January
-        maxdate = ref_date + pd.Timedelta(days=peak_shift)
+        maxdate = ref_date + timedelta(days=peak_shift)
         # One period is one year long (seasonality)
-        t = (t - pd.to_datetime(maxdate))/pd.Timedelta(days=1)/365
+        t = (t - maxdate)/timedelta(days=1)/365
         rescaling = 1 + amplitude*np.cos( 2*np.pi*(t))
         return rescaling

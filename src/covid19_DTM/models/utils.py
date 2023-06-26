@@ -1113,7 +1113,7 @@ def is_Belgian_primary_secundary_school_holiday(d):
     elif d_easter.month == 3:
         w_easter_holiday = w_easter + 1
     else:
-        w_easter_holiday = datetime.date(d.year, 4, (8 - datetime.date(d.year, 4, 1).weekday()) % 7).isocalendar().week
+        w_easter_holiday = datetime(d.year, 4, (8 - datetime(d.year, 4, 1).weekday()) % 7).isocalendar().week
     holiday_weeks.append(w_easter_holiday)
     holiday_weeks.append(w_easter_holiday+1)
 
