@@ -1100,9 +1100,10 @@ class make_contact_matrix_function():
             school_primary_secundary = not is_Belgian_primary_secundary_school_holiday(t)
         
         if school_tertiary is None:
-            if ((pd.Timestamp(year=t.year, month=5, day=14) <= t < pd.Timestamp(year=t.year, month=7, day=1)) | \
-                 (pd.Timestamp(year=t.year, month=12, day=14) <= t < pd.Timestamp(year=t.year, month=2, day=1)) | \
-                    (pd.Timestamp(year=t.year, month=9, day=1) <= t < pd.Timestamp(year=t.year, month=10, day=1))):
+            if ((datetime(year=t.year, month=5, day=14) <= t <= datetime(year=t.year, month=7, day=1)) | \
+                 (datetime(year=t.year, month=12, day=14) <= t <= datetime(year=t.year, month=12, day=31)) | \
+                   (datetime(year=t.year, month=1, day=1) <= t < datetime(year=t.year, month=2, day=14)) | \
+                    (datetime(year=t.year, month=9, day=1) <= t < datetime(year=t.year, month=10, day=1))):
                 school_tertiary = False
             else:
                 school_tertiary = not is_Belgian_primary_secundary_school_holiday(t)
