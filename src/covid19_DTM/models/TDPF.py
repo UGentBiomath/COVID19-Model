@@ -1073,8 +1073,8 @@ class make_contact_matrix_function():
                        school_primary_secundary=None, school_tertiary=None, work=None, transport=None, leisure=None, others=None, home=None):
 
         """
-        t : timestamp
-            current date
+        t : datetime.datetime
+            current simulation date
         eff_... : float in [0,1]
             effectivity parameter
         mentality : float in [0,1]
@@ -1116,7 +1116,7 @@ class make_contact_matrix_function():
                 row = -self.df_google.loc[slice(self.df_google.index.get_level_values('date')[0],self.df_google.index.get_level_values('date')[7]), slice(None)].groupby(by='NIS').mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
-                row = -self.df_google.loc[(t, slice(None)),:]/100
+                row = -self.df_google.loc[(pd.Timestamp(t.date()), slice(None)),:]/100
             else:
                 # Extract last 7 days and take the mean
                 row = -self.df_google.loc[(self.df_google_end - pd.Timedelta(days=7)): self.df_google_end, slice(None)].groupby(level='NIS').mean()/100
@@ -1166,7 +1166,7 @@ class make_contact_matrix_function():
                 row = -self.df_google[0:7].mean()/100
             elif self.df_google_start <= t <= self.df_google_end:
                 # Extract row at timestep t
-                row = -self.df_google.loc[t]/100
+                row = -self.df_google.loc[pd.Timestamp(t.date())]/100
             else:
                 # Extract last 7 days and take the mean
                 row = -self.df_google[-7:-1].mean()/100
@@ -1238,7 +1238,7 @@ class make_contact_matrix_function():
         
         Input
         -----
-        t : Timestamp
+        t : datetime
             simulation time
         states : xarray
             model states
@@ -1261,8 +1261,6 @@ class make_contact_matrix_function():
         CM : np.array (9x9)
             Effective contact matrix (output of __call__ function)
         '''
-
-        t = pd.Timestamp(t.date())
 
         # Behavioral change model
         mentality_behavioral = self.behavioral_model(np.sum(states['H_in']), 11e6, k)
