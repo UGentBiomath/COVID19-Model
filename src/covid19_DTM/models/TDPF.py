@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 from functools import lru_cache
+from datetime import timedelta
 from covid19_DTM.models.utils import is_Belgian_primary_secundary_school_holiday
 
 #########################
@@ -15,7 +16,8 @@ def ramp_fun(Nc_old, Nc_new, t, t_start, l):
     l : int
         number of additional days after the time delay until full compliance is reached
     """
-    return Nc_old + (Nc_new-Nc_old)/l * (t-t_start)/pd.Timedelta('1D')
+    
+    return Nc_old + ((Nc_new-Nc_old)/l)*((t-t_start)/timedelta(days=1))
 
 ###############################
 ## Mobility update functions ##
