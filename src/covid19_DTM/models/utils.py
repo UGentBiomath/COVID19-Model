@@ -1072,7 +1072,7 @@ def read_coordinates_nis(spatial='arr'):
 
     return NIS
 
-import datetime
+from datetime import datetime, timedelta
 from dateutil.easter import easter
 
 def is_Belgian_primary_secundary_school_holiday(d):
