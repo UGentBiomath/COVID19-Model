@@ -1,7 +1,7 @@
 import os
-import json
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from scipy.optimize import minimize
 from covid19_DTM.models.utils import load_samples_dict
 from covid19_DTM.data.utils import construct_initN, convert_age_stratified_property
@@ -337,7 +337,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Dummy VOC ##
     ###############
 
-    pars_dict['f_VOC'] = [[1, 0],]
+    pars_dict['f_VOC'] = np.array([1, 0], np.float64)
     pars_dict['K_inf'] = []
     pars_dict['K_hosp'] = []
 
@@ -468,17 +468,17 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # Define logistic growth properties
     VOC_parameters.loc['WT']['logistic_growth'] = [
-        '2019-01-01', '2019-02-01', 0.20]
+        datetime(2019, 1, 1), datetime(2019, 2, 1), 0.20]
     VOC_parameters.loc['abc']['logistic_growth'] = [
-        '2020-12-01', '2021-02-14', 0.07]
+        datetime(2020, 12, 1), datetime(2021, 2, 14), 0.07]
     VOC_parameters.loc['delta']['logistic_growth'] = [
-        '2021-05-01', '2021-06-25', 0.11]
+        datetime(2021, 5, 1), datetime(2021, 6, 25), 0.11]
     VOC_parameters.loc['omicron']['logistic_growth'] = [
-        '2021-11-26', '2021-12-24', 0.19]
+        datetime(2021, 11, 26), datetime(2021, 12, 24), 0.19]
 
     # Define variant properties
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
-    VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
+    VOC_parameters['variant_properties', 'f_VOC'] = [1,0,0,0]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.34, 1.34, 1] #alpha variant: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9121661/ 
     VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1, 1, 1]

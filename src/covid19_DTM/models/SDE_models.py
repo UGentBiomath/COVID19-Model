@@ -35,9 +35,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ###################
         ## Format inputs ##
         ###################
-
-        # Extract fraction
-        f_VOC = f_VOC[0,:]        
+  
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
@@ -48,7 +46,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
 
         # Hospitalization propensity (OR --> probability)
         h = (np.sum(f_VOC*K_hosp)*(h/(1-h)))/(1+ np.sum(f_VOC*K_hosp)*(h/(1-h)))
-
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
@@ -78,7 +75,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ## calculate total population ##
         ################################
 
-        T = np.expand_dims(np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=1),axis=1) # sum over doses
+        T = np.expand_dims(np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=1), axis=1) # sum over doses
 
         ################################
         ## Compute the transitionings ##
@@ -88,12 +85,11 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
-        
 
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        size_dummy = np.ones(S.shape)
+        size_dummy = np.ones(S.shape, np.float64)
 
         rates = {
             'S': [IP*e_s,],
@@ -227,8 +223,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         ###################
         ## Format inputs ##
         ###################
-
-        f_VOC = f_VOC[0,:]        
+    
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   

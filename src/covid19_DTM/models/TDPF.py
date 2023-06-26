@@ -122,6 +122,7 @@ class make_mobility_update_function():
         place : np.array
             square matrix with mobility of type dtype (fractional, staytime or visits), dimension depending on agg
         """
+        
         t = pd.Timestamp(t.date())
 
         try: # simplest case: there is data available for this date (the key exists)
