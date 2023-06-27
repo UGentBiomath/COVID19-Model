@@ -3,7 +3,6 @@
 import numpy as np
 from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
 from pySODM.models.base import SDEModel
-from .utils import stratify_beta_density, stratify_beta_regional
 
 class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
     """"""
@@ -200,13 +199,13 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
 
     # ...state variables and parameters
     state_names = ['S', 'S_work', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
     parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     dimension_names = ['NIS','age_groups','doses']
 
     @staticmethod
     def compute_rates(t, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
 
@@ -231,9 +230,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
         # Seasonality
-        beta_R *= seasonality
-        beta_U *= seasonality
-        beta_M *= seasonality
+        beta *= seasonality
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -270,7 +267,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
+        beta *= np.sum(f_VOC*K_inf)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
@@ -284,12 +281,9 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         infpop_home = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
 
         # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc - Nc_home, infpop_work), axis=2) # All contacts minus home contacts on visited patch
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_home), axis=2) # Home contacts always on home patch
+        multip_work = beta*np.expand_dims(jit_matmul_3D_2D(Nc - Nc_home, infpop_work), axis=2) # All contacts minus home contacts on visited patch
+        multip_rest = beta*np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_home), axis=2) # Home contacts always on home patch
 
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
 
         ################################
         ## Compute the transitionings ##
@@ -322,7 +316,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
     
     @staticmethod
     def apply_transitionings(t, tau, transitionings, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
-                             beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
+                             beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                              area, p, # spatially stratified parameters. 
                              s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
 

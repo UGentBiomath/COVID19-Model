@@ -3,7 +3,6 @@
 import numpy as np
 from pySODM.models.base import ODEModel
 from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
-from .utils import stratify_beta_density, stratify_beta_regional
 
 class simple_multivariant_SIR(ODEModel):
     """
@@ -256,22 +255,20 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
 
     # ...state variables and parameters
     state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
+    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
     parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     dimension_names = ['NIS','age_groups','doses']
 
     @staticmethod
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D): 
         
         ###################
         ## Format inputs ##
         ###################
-
-        # Extract fraction
-        f_VOC = f_VOC[0,:]        
+       
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
@@ -289,9 +286,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
         # Seasonality
-        beta_R *= seasonality
-        beta_U *= seasonality
-        beta_M *= seasonality
+        beta *= seasonality
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -385,9 +380,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
         # Define effective mobility matrix place_eff from user-defined parameter p[patch]
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
-        # Expand beta to size G
-        beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
-
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
         S_work = matmul_q_2D(np.transpose(place_eff), S_post_vacc)
@@ -401,12 +393,8 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
         infpop_home = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
 
         # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_work), axis=2)
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc-Nc_home, infpop_home), axis=2)
-
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
+        multip_work = beta*np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_work), axis=2)
+        multip_rest = beta*np.expand_dims(jit_matmul_3D_2D(Nc-Nc_home, infpop_home), axis=2)
 
         # Compute rates of change
         dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*e_s
