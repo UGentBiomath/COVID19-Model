@@ -188,21 +188,23 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = 9# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 5
+    multiplier_mcmc = 9
     max_n = n_mcmc
     print_n = 5
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))],
+          df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))].groupby(by=['date']).sum(),
           df_sero_herzog['abs','mean'],
           df_sero_sciensano['abs','mean'][:23],
           df_cases]
-    states = ["H_in", "R", "R", "M_in"]
-    weights = np.array([1, 1, 1, 1])
-    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
+    states = ["H_in", "H_in", "R", "R", "M_in"]
+    weights = np.array([1, 1, 1, 1, 1])
+    log_likelihood_fnc = [ll_negative_binomial, ll_negative_binomial, ll_negative_binomial, ll_negative_binomial, ll_negative_binomial] # For arr calibration --> use poisson
     log_likelihood_fnc_args = [dispersion_hosp.values,
+                               dispersion_weighted_hosp,
                                dispersion_weighted_hosp,
                                dispersion_weighted_hosp,
                                dispersion_cases]
@@ -247,7 +249,7 @@ if __name__ == '__main__':
     # out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': 0}},
     #                   swarmsize=multiplier_pso*processes, maxiter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.5, 0.56, 5000, 0.50, 0.4, 0.7, 1.4, 1.9, 0.225, 0.6]
+    theta = [0.5, 0.56, 5000, 0.45, 0.40, 0.70, 1.4, 1.9, 0.225, 0.6]
 
     #######################################
     ## Visualize fits on multiple levels ##
@@ -264,7 +266,7 @@ if __name__ == '__main__':
         # Aggregate Brussels and Brabant
         out = aggregate_Brussels_Brabant_Dataset(out)
         # National fit
-        data_star=[data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23], data[-1].groupby(by=['date']).sum(),]
+        data_star=[data[0].groupby(by=['date']).sum(), data[0].groupby(by=['date']).sum(), df_sero_herzog['abs','mean'], df_sero_sciensano['abs','mean'][:23], data[-1].groupby(by=['date']).sum(),]
         ax = plot_PSO(out, data_star, states, start_calibration, end_visualization)
         plt.show()
         plt.close()
