@@ -1,19 +1,9 @@
-# Copyright (c) 2022 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from numba import jit
-from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_2D_2D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
 from pySODM.models.base import SDEModel
-from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
-
-# Ignore numba warnings
-from numba.core.errors import NumbaPendingDeprecationWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+from .utils import stratify_beta_density, stratify_beta_regional
 
 class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
     """"""
