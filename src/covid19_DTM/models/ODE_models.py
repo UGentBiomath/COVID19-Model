@@ -1,19 +1,9 @@
-# Copyright (c) 2022 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from numba import jit
 from pySODM.models.base import ODEModel
-from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_2D_2D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
-from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
-
-# Ignore numba warnings
-from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from .utils import stratify_beta_density, stratify_beta_regional
 
 class simple_multivariant_SIR(ODEModel):
     """
@@ -102,9 +92,7 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
     parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
     dimension_names = ['age_groups','doses']
 
-    # ..transitions/equations
     @staticmethod
-    @jit(nopython=True)
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out, NH_R_in, C_R_in, ICU_R_in,
                   beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm,  dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc,
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
@@ -273,7 +261,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
     dimension_names = ['NIS','age_groups','doses']
 
     @staticmethod
-    @jit(nopython=True)
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
                   beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
@@ -455,82 +442,5 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
         dR[:,:,0] = dR[:,:,0] - zeta*R_post_vacc[:,:,0]      
 
         return (dS, dE, dI, dA, dM_R, dM_H, dC_R, dC_D, dC_icurec, dICU_star_R, dICU_star_D, dR, dD, dM_in, dH_in, dH_tot)
-
-class Economic_Model(ODEModel):
-
-    state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A']
-    parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
-    dimension_names = ['NACE64', 'NACE64_star']
-    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
-
-    @staticmethod
-
-    def integrate(t, x, c, c_desired, f, d, l, O, S, x_0, c_0, f_0, l_0, IO, O_j, n, on_site, C, S_0, b, rho, delta_S, zeta, tau, gamma_F, gamma_H, A, epsilon_S, epsilon_D, epsilon_F):
-        """
-        BIOMATH production network model for Belgium
-        *Based on the Oxford INET implementation*
-        """
-
-        # 1. Update exogeneous demand with shock vector
-        # ---------------------------------------------
-        f_desired = (1-epsilon_F)*f_0
-
-        # 2. Compute labor income after government furloughing
-        # ----------------------------------------------------
-        l_star = l + b*(l_0-l)
-  
-        # 3. Compute productive capacity under labor constraints
-        # ------------------------------------------------------
-        x_cap = calc_labor_restriction(x_0,l_0,l)
-
-        # 4. Compute productive capacity under input constraints
-        # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C)
-
-        # 5. Compute total consumer demand
- 
-        # Compute consumer preference vector
-        # --------------------------------
-        theta_0 = c_0/sum(c_0)
-        # Compute aggregate demand shock
-        theta = household_preference_shock(epsilon_D, theta_0)
-        epsilon_t = aggregate_demand_shock(epsilon_D,theta_0,delta_S,rho)
-        # Compute expected total long term labor income (Eq. 22, 23)
-        l_p = zeta*sum(l_0)
-        # Compute total consumer demand (per sector)
-        m = sum(c_0)/sum(l_0)
-        c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
-
-        # 6. Compute B2B demand
-        # ---------------------   
-        O_desired = calc_intermediate_demand(d,S,A,S_0,tau) # 2D
-
-        # 7. Compute total demand
-        # -----------------------
-        d_new = calc_total_demand(O_desired, c_desired_new, f_desired)
-
-        # 8. Leontief production function with critical inputs
-        # ----------------------------------------------------
-        x_new = leontief(x_cap, x_inp, d_new)
-
-        # 9. Perform rationing
-        # --------------------
-        O_new, c_new, f_new = rationing(x_new,d_new,O_desired,c_desired_new,f_desired)
-
-        # 10. Update inventories
-        # ----------------------
-        S_new = inventory_updating(S,O_new,x_new,A)
-
-        # 11. Hire/fire workers
-        # ---------------------
-        l_new = hiring_firing(l, l_0, x_0, x_inp, x_cap, d_new, gamma_F, gamma_H, epsilon_S)
-
-        # 12. Convert order matrix to total order per sector (2D --> 1D)
-        # --------------------------------------------------------------
-        O_new = np.sum(O_new,axis=1)
-
-        return (x_new-x, c_new-c, c_desired_new-c_desired, f_new-f, d_new-d, l_new-l, O_new-O, S_new-S)
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
