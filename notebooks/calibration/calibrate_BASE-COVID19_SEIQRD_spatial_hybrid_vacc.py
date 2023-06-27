@@ -1,5 +1,5 @@
 """
-This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium during the period 2020-03-15 until 2021-10-07.
+This script contains a calibration of the spatial COVID-19 SEIQRD model to hospitalization data in Belgium during the period 2020-03-15 until 2021-11-01.
 """
 
 __author__      = " Tijs W. Alleman, Michiel Rollier"
@@ -21,6 +21,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from datetime import date, datetime, timedelta
 # COVID-19 code
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc
 from covid19_DTM.data import sciensano
@@ -88,15 +89,17 @@ n_mcmc = int(args.n_mcmc)
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 # Date at which script is started
-run_date = str(datetime.date.today())
+run_date = str(date.today())
 # Keep track of runtime
-initial_time = datetime.datetime.now()
+initial_time = datetime.now()
 # Show progress
 progress=True
 # Start and end of calibration
-start_calibration = pd.to_datetime(args.start_calibration)
+start_calibration = datetime.strptime(args.start_calibration,"%Y-%m-%d")
 if args.end_calibration:
-    end_calibration = pd.to_datetime(args.end_calibration)
+    end_calibration = datetime.strptime(args.end_calibration,"%Y-%m-%d")
+# Leap size
+tau = 0.50
 
 ##############################
 ## Define results locations ##
@@ -136,10 +139,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,
-                                                                                start_date=start_calibration.strftime("%Y-%m-%d"), stochastic=True,
-                                                                                distinguish_day_type=True)
-tau = 0.50
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg,start_date=start_calibration,
+                                                                                stochastic=True, distinguish_day_type=True)
 
 if agg == 'arr':
     # Switch to the provinicial initN
@@ -187,10 +188,10 @@ if __name__ == '__main__':
     ##########################
 
     # PSO settings
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+    processes = 9# int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 10
+    multiplier_mcmc = 5
     max_n = n_mcmc
     print_n = 5
     # Define dataset
@@ -257,9 +258,9 @@ if __name__ == '__main__':
         print(theta)
         pars_PSO = assign_theta(model.parameters, pars, theta)
         model.parameters = pars_PSO
-        end_visualization = '2022-01-01'
+        end_visualization = datetime(2022, 1, 1)
         # Perform simulation with best-fit results
-        out = model.sim([start_calibration, pd.Timestamp(end_visualization)], tau=tau)
+        out = model.sim([start_calibration, end_visualization], tau=tau)
         # Aggregate Brussels and Brabant
         out = aggregate_Brussels_Brabant_Dataset(out)
         # National fit
@@ -294,7 +295,7 @@ if __name__ == '__main__':
             pars_PSO = assign_theta(model.parameters, pars, theta)
             model.parameters = pars_PSO
             # Perform simulation
-            out = model.sim([start_calibration, pd.Timestamp(end_visualization)], tau=tau)
+            out = model.sim([start_calibration, end_visualization], tau=tau)
             # Aggregate Brussels and Brabant
             out = aggregate_Brussels_Brabant_Dataset(out)
             # Visualize national fit
