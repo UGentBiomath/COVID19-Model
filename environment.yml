@@ -1,19 +1,17 @@
 name: COVID_MODEL
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
-  - python=3.11
-  - jupyter
+  - python=3.11.4
+  - pandas  
+  - numpy  
+  - scipy  
+  - numba  
+  - xarray  
   - matplotlib
-  - numpy
-  - scipy
-  - xarray
-  - pandas
   - emcee
+  - h5py 
   - corner
-  - geopandas
-  - zarr
-  - SAlib
-  - numba
-  - h5py
+  - tqdm
+  - click
