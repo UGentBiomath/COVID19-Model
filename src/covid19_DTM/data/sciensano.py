@@ -53,8 +53,12 @@ def get_serological_data():
     # Load and format serodata of Herzog
     data = pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/interim/sero/sero_national_overall_herzog.csv'), parse_dates=True)
     data.index = data['collection_midpoint']
+    # Convert dates to datetime.datetime
+    result=[]
+    for date in data.index:
+        result.append(datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S"))
+    data.index = result
     data.index.names = ['date']
-    data.index = pd.to_datetime(data.index)
     data = data.drop(columns=['collection_midpoint','age_cat'])
     columns = [[],[]]
     tuples = list(zip(*columns))
@@ -71,6 +75,11 @@ def get_serological_data():
     # Load and format serodata of Sciensano
     data= pd.read_csv(os.path.join(abs_dir,'../../../data/covid19_DTM/raw/sero/Belgium COVID-19 Studies - Sciensano_Blood Donors_Tijdreeks.csv'), parse_dates=True)
     data.index = data['Date']
+    # Convert dates to datetime.datetime
+    result=[]
+    for date in data.index:
+        result.append(datetime.datetime.strptime(date, "%d %b %Y"))
+    data.index = result
     data.index = pd.to_datetime(data.index)
     data = data.drop(columns=['Date'])
     data.index.names = ['date']
