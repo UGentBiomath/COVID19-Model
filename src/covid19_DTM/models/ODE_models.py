@@ -1,10 +1,10 @@
 # Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from pySODM.models.base import ODEModel
+from pySODM.models.base import ODE
 from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
 
-class simple_multivariant_SIR(ODEModel):
+class simple_multivariant_SIR(ODE):
     """
     A minimal example of a SIR compartmental disease model with an implementation of transient multivariant dynamics
     Can be reduced to a single-variant SIR model by setting injection_ratio to zero.
@@ -41,9 +41,9 @@ class simple_multivariant_SIR(ODEModel):
     """
 
     # state variables and parameters
-    state_names = ['S', 'I', 'R', 'alpha']
-    parameter_names = ['beta', 'gamma', 'injection_day', 'injection_ratio', 'Nc']
-    dimension_names = ['age_groups']
+    states = ['S', 'I', 'R', 'alpha']
+    parameters = ['beta', 'gamma', 'injection_day', 'injection_ratio', 'Nc']
+    dimensions = ['age_groups']
 
     @staticmethod
     def integrate(t, S, I, R, alpha, beta, gamma, injection_day, injection_ratio, K_inf, Nc):
@@ -80,16 +80,16 @@ class simple_multivariant_SIR(ODEModel):
 
         return dS, dI, dR, dalpha
 
-class COVID19_SEIQRD_hybrid_vacc(ODEModel):
+class COVID19_SEIQRD_hybrid_vacc(ODE):
     """
     The docstring will go here
     """
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out','NH_R_in','C_R_in','ICU_R_in']
-    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc']
-    parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    dimension_names = ['age_groups','doses']
+    states = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec', 'ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot','Inf_in','Inf_out','NH_R_in','C_R_in','ICU_R_in']
+    parameters = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc']
+    stratified_parameters = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimensions = ['age_groups','doses']
 
     @staticmethod
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out, NH_R_in, C_R_in, ICU_R_in,
@@ -251,13 +251,13 @@ class COVID19_SEIQRD_hybrid_vacc(ODEModel):
 
         return (dS, dE, dI, dA, dM_R, dM_H, dC_R, dC_D, dC_icurec, dICU_star_R, dICU_star_D, dR, dD, dM_in, dH_in, dH_tot, dInf_in, dInf_out,dNH_R_in,dC_R_in,dICU_R_in)
 
-class COVID19_SEIQRD_spatial_hybrid_vacc(ODEModel):
+class COVID19_SEIQRD_spatial_hybrid_vacc(ODE):
 
     # ...state variables and parameters
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
-    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
-    parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    dimension_names = ['NIS','age_groups','doses']
+    states = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
+    parameters = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
+    stratified_parameters = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimensions = ['NIS','age_groups','doses']
 
     @staticmethod
     def integrate(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes

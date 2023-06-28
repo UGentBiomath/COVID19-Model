@@ -1,19 +1,19 @@
 # Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from pySODM.models.base import ODEModel
+from pySODM.models.base import ODE
 
 # All NaN slices in np.nanmin() return a RunTimeWarning
 import warnings
 warnings.filterwarnings("ignore")
 
-class Economic_Model(ODEModel):
+class Economic_Model(ODE):
 
-    state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
-    parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
-    dimension_names = ['NACE64', 'NACE64_star']
-    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
+    states = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
+    parameters = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
+    stratified_parameters = [['epsilon_S','epsilon_D','epsilon_F'],[]]
+    dimensions = ['NACE64', 'NACE64_star']
+    dimensions_per_state = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
 
     @staticmethod
 
