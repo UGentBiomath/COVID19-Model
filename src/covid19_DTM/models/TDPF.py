@@ -1363,7 +1363,7 @@ class make_contact_matrix_function():
                                                     1.12,               # Bxl
                                                     1, 1.13,            # F: W-Fla: 1.45
                                                     2.15, 1.93,         # W
-                                                    1,                  # F: Lim: 1.43
+                                                    0.9,                  # F: Lim: 1.43
                                                     1.16, 1.30])        # W
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
@@ -1394,7 +1394,7 @@ class make_contact_matrix_function():
             mentality_summer_2020_lockdown[15:21] = 1.13   # Oost-Vlaanderen
             mentality_summer_2020_lockdown[21:28] = 2.15   # Henegouwen
             mentality_summer_2020_lockdown[28:32] = 1.93   # Luik
-            mentality_summer_2020_lockdown[32:35] = 1   # Limburg
+            mentality_summer_2020_lockdown[32:35] = 0.9   # Limburg
             mentality_summer_2020_lockdown[35:40] = 1.16  # Luxemburg
             mentality_summer_2020_lockdown[40:43] = 1.30   # Namen
             
