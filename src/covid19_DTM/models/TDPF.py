@@ -1101,8 +1101,8 @@ class make_contact_matrix_function():
         if school_tertiary is None:
             if ((datetime(year=t.year, month=5, day=14) <= t <= datetime(year=t.year, month=7, day=1)) | \
                  (datetime(year=t.year, month=12, day=14) <= t <= datetime(year=t.year, month=12, day=31)) | \
-                   (datetime(year=t.year, month=1, day=1) <= t < datetime(year=t.year, month=2, day=14)) | \
-                    (datetime(year=t.year, month=9, day=1) <= t < datetime(year=t.year, month=10, day=1))):
+                   (datetime(year=t.year, month=1, day=1) <= t <= datetime(year=t.year, month=2, day=14)) | \
+                    (datetime(year=t.year, month=9, day=1) <= t <= datetime(year=t.year, month=10, day=1))):
                 school_tertiary = False
             else:
                 school_tertiary = not is_Belgian_primary_secundary_school_holiday(t)
