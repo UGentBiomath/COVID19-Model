@@ -191,9 +191,9 @@ if __name__ == '__main__':
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
     multiplier_pso = 3
     # MCMC settings
-    multiplier_mcmc = 9
+    multiplier_mcmc = 5
     max_n = n_mcmc
-    print_n = 5
+    print_n = 10
     # Define dataset
     data=[df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))],
           df_hosp.loc[(slice(start_calibration,end_calibration), slice(None))].groupby(by=['date']).sum(),
