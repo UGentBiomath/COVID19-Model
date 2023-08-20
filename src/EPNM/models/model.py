@@ -33,11 +33,11 @@ class Economic_Model(ODE):
   
         # 3. Compute productive capacity under labor constraints
         # ------------------------------------------------------
-        x_cap = calc_labor_restriction(x_0,l_0,l)
+        x_cap = calc_labor_restriction(x_0, l_0, l)
 
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C,x_0,prodfunc)
+        x_inp = calc_input_restriction(S, A, C, x_0, prodfunc)
 
         # 5. Compute total consumer demand
  
@@ -51,7 +51,7 @@ class Economic_Model(ODE):
         l_p = zeta*sum(l_0)
         # Compute total consumer demand (per sector)
         m = sum(c_0)/sum(l_0)
-        c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
+        c_desired_new = theta*calc_household_demand(sum(c_desired), l_star, l_p, epsilon_t, rho, m)
 
         # 6. Compute B2B demand
         # ---------------------   
