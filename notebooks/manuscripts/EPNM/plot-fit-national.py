@@ -2,8 +2,6 @@
 ## Packages ##
 ##############
 
-import os
-import multiprocessing as mp
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,7 +25,7 @@ colors = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
 
 # Start- and enddate simulation
 start_sim = '2020-03-01'
-end_sim = '2021-12-31'
+end_sim = '2020-05-31'
 
 ####################
 ## Simulate model ##
@@ -55,7 +53,7 @@ data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=1).mean()
 from EPNM.models.draw_functions import draw_function
 
 # Simulate model
-out = model.sim([start_sim, end_sim], tau=1, N=2*18, processes=18, samples={}, draw_function=draw_function)
+out = model.sim([start_sim, end_sim], tau=1, N=2, processes=1, samples={}, draw_function=draw_function)
 simtime = out['date'].values
 
 ###############
@@ -83,12 +81,12 @@ for i, (data, state, ylabel, dim) in enumerate(zip(datasets, states, ylabels, di
                                 color=colors['blue'], alpha=0.2)
     # Formatting
     ax[i].set_ylabel(ylabel)
-    ax[i].set_ylim([-100,20])
+    ax[i].set_ylim([-45,5])
     ax[i].grid(False)
-    
-ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')], rotation=30, ha='right')
-plt.xticks(rotation = 30) 
+    ax[i].set_xlim([start_sim, end_sim])
+    ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')], rotation=30, ha='right')
 
+plt.xticks(rotation = 30) 
 # Show figure
 plt.tight_layout()
 plt.show()

@@ -92,11 +92,11 @@ def get_model_parameters(shocks='alleman'):
 
     ## timing
     pars_dict['t_end_inv_shock'] = pars_dict['t_end_goods_shock'] = datetime(2020, 9, 1) # End of Q2: see `COMEXT_17082023124307665.csv`
-    #pars_dict['t_end_services_shock'] = datetime(2021, 7, 1)
+    pars_dict['t_end_services_shock'] = datetime(2021, 7, 1)
     ## magnitude
     pars_dict['f_s_inv'] = 0.16
     pars_dict['f_s_exp_goods'] = 0.25
-    #pars_dict['f_s_exp_services'] = 0.21
+    pars_dict['f_s_exp_services'] = 0.21
     ## components of demand
     # retrieve data
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
@@ -108,8 +108,8 @@ def get_model_parameters(shocks='alleman'):
     f_exp_goods.loc[slice('A01', 'F41-43')] = f_exp.loc[slice('A01', 'F41-43')].values
     f_exp_services = pd.Series(0, index=f_exp.index, name='exports_goods')
     f_exp_services.loc[slice('G45', None)] = f_exp.loc[slice('G45', None)].values
-    pars_dict['f_exp_goods'] = f_exp_goods
-    pars_dict['f_exp_services'] = f_exp_services
+    pars_dict['f_exp_goods'] = np.array(f_exp_goods.values)
+    pars_dict['f_exp_services'] = np.array(f_exp_services.values)
     # compute relative fraction of total demand of each component
     pars_dict['f_gov'] = pars_dict['f_gov']/pars_dict['f_0']
     pars_dict['f_inv'] = pars_dict['f_inv']/pars_dict['f_0']
