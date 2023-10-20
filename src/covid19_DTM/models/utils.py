@@ -1072,24 +1072,24 @@ def read_coordinates_nis(spatial='arr'):
 
     return NIS
 
-import datetime
+from datetime import datetime, timedelta
 from dateutil.easter import easter
 
-def is_Belgian_school_holiday(d):
+def is_Belgian_primary_secundary_school_holiday(d):
     """
-    A function returning 'True' if a given date is a school holiday in Belgium
+    A function returning 'True' if a given date is a school holiday or primary and secundary schools in Belgium
     
     Input
     -----
     
-    d: pd.Timestamp/pd.Datetime
-        Current date
+    d: datetime.datetime
+        Current simulation date
     
     Returns
     -------
     
-    is_Belgian_school_holiday: bool
-        True: date `d` is a school holiday
+    is_Belgian_primary_secundary_school_holiday: bool
+        True: date `d` is a school holiday for primary and secundary schools
     """
     
     # Pre-allocate a vector containing the year's holiday weeks
@@ -1098,18 +1098,22 @@ def is_Belgian_school_holiday(d):
     # Herfstvakantie
     holiday_weeks.append(44)
     
-    # Extract week of Easter
+    # Extract date of easter
     d_easter = easter(d.year)
+    # Convert from datetime.date to datetime.datetime
+    d_easter = datetime(d_easter.year, d_easter.month, d_easter.day)
+    # Get week of easter
     w_easter = d_easter.isocalendar().week
+
     # Default logic: Easter holiday starts first monday of April
     # Unless: Easter falls after 04-15: Easter holiday ends with Easter
     # Unless: Easter falls in March: Easter holiday starts with Easter
-    if pd.Timestamp(d_easter) >= pd.Timestamp(year=d.year,month=4,day=15):
+    if d_easter >= datetime(year=d.year,month=4,day=15):
         w_easter_holiday = w_easter - 1
     elif d_easter.month == 3:
         w_easter_holiday = w_easter + 1
     else:
-        w_easter_holiday = datetime.date(d.year, 4, (8 - datetime.date(d.year, 4, 1).weekday()) % 7).isocalendar().week
+        w_easter_holiday = datetime(d.year, 4, (8 - datetime(d.year, 4, 1).weekday()) % 7).isocalendar().week
     holiday_weeks.append(w_easter_holiday)
     holiday_weeks.append(w_easter_holiday+1)
 
@@ -1118,40 +1122,41 @@ def is_Belgian_school_holiday(d):
 
     # Extract week of Christmas
     # If Christmas falls on Saturday or Sunday, Christams holiday starts week after
-    w_christmas_current = pd.Timestamp(year=d.year,month=12,day=25).isocalendar().week
-    if pd.Timestamp(year=d.year,month=12,day=25).isoweekday() in [6,7]:
+    w_christmas_current = datetime(year=d.year,month=12,day=25).isocalendar().week
+    if datetime(year=d.year,month=12,day=25).isoweekday() in [6,7]:
         w_christmas_current += 1
-    w_christmas_previous = pd.Timestamp(year=d.year-1,month=12,day=25).isocalendar().week
-    if pd.Timestamp(year=d.year-1,month=12,day=25).isoweekday() in [6,7]:
+    w_christmas_previous = datetime(year=d.year-1,month=12,day=25).isocalendar().week
+    if datetime(year=d.year-1,month=12,day=25).isoweekday() in [6,7]:
         w_christmas_previous += 1
     # Christmas logic
     if w_christmas_previous == 52:
-        if pd.Timestamp(year=d.year-1, month=12, day=31).isocalendar().week != 53:
+        if datetime(year=d.year-1, month=12, day=31).isocalendar().week != 53:
             holiday_weeks.append(1)   
     if w_christmas_current == 51:
         holiday_weeks.append(w_christmas_current)
         holiday_weeks.append(w_christmas_current+1)
     if w_christmas_current == 52:
         holiday_weeks.append(w_christmas_current)
-        if pd.Timestamp(year=d.year, month=12, day=31).isocalendar().week == 53:
+        if datetime(year=d.year, month=12, day=31).isocalendar().week == 53:
             holiday_weeks.append(w_christmas_current+1)
-    
+
     # Define Belgian Public holidays
     public_holidays = [
-        pd.Timestamp(year=d.year, month=1, day=1),       # New Year
-        pd.Timestamp(d_easter + pd.Timedelta(days=1)),   # Easter monday
-        pd.Timestamp(year=d.year, month=5, day=1),       # Labor day
-        pd.Timestamp(d_easter + pd.Timedelta(days=40)),  # Acension Day
-        pd.Timestamp(year=d.year, month=7, day=21),      # National holiday
-        pd.Timestamp(year=d.year, month=8, day=15),      # Assumption Mary
-        pd.Timestamp(year=d.year, month=11, day=1),      # All Saints
-        pd.Timestamp(year=d.year, month=11, day=11),     # Armistice
+        datetime(year=d.year, month=1, day=1),       # New Year
+        d_easter + timedelta(days=1),                # Easter monday
+        datetime(year=d.year, month=5, day=1),       # Labor day
+        d_easter + timedelta(days=40),               # Acension Day
+        datetime(year=d.year, month=7, day=21),      # National holiday
+        datetime(year=d.year, month=8, day=15),      # Assumption Mary
+        datetime(year=d.year, month=11, day=1),      # All Saints
+        datetime(year=d.year, month=11, day=11),     # Armistice
+        datetime(year=d.year, month=12, day=25),     # Christmas
     ]
     
     # Logic
-    if ((d.isocalendar().week in holiday_weeks)| \
-            (pd.Timestamp(year=d.year, month=7, day=1) <= d < pd.Timestamp(year=d.year, month=9, day=7))| \
-               (pd.Timestamp(d) in public_holidays)):
+    if ((d.isocalendar().week in holiday_weeks) | \
+            (d in public_holidays)) | \
+                ((datetime(year=d.year, month=7, day=1) <= d < datetime(year=d.year, month=9, day=1))):
         return True
     else:
         return False

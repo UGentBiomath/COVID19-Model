@@ -1,19 +1,19 @@
 # Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from pySODM.models.base import ODEModel
+from pySODM.models.base import ODE
 
 # All NaN slices in np.nanmin() return a RunTimeWarning
 import warnings
 warnings.filterwarnings("ignore")
 
-class Economic_Model(ODEModel):
+class Economic_Model(ODE):
 
-    state_names = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
-    parameter_names = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
-    parameter_stratified_names = [['epsilon_S','epsilon_D','epsilon_F'],[]]
-    dimension_names = ['NACE64', 'NACE64_star']
-    state_dimensions = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
+    states = ['x', 'c', 'c_desired','f', 'd', 'l','O', 'S']
+    parameters = ['x_0', 'c_0', 'f_0', 'l_0', 'IO', 'O_j', 'n', 'on_site', 'C', 'S_0','b','rho','delta_S','zeta','tau','gamma_F','gamma_H','A', 'prodfunc']
+    stratified_parameters = [['epsilon_S','epsilon_D','epsilon_F'],[]]
+    dimensions = ['NACE64', 'NACE64_star']
+    dimensions_per_state = [['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64'],['NACE64','NACE64_star']]
 
     @staticmethod
 
@@ -33,11 +33,11 @@ class Economic_Model(ODEModel):
   
         # 3. Compute productive capacity under labor constraints
         # ------------------------------------------------------
-        x_cap = calc_labor_restriction(x_0,l_0,l)
+        x_cap = calc_labor_restriction(x_0, l_0, l)
 
         # 4. Compute productive capacity under input constraints
         # ------------------------------------------------------
-        x_inp = calc_input_restriction(S,A,C,x_0,prodfunc)
+        x_inp = calc_input_restriction(S, A, C, x_0, prodfunc)
 
         # 5. Compute total consumer demand
  
@@ -51,7 +51,7 @@ class Economic_Model(ODEModel):
         l_p = zeta*sum(l_0)
         # Compute total consumer demand (per sector)
         m = sum(c_0)/sum(l_0)
-        c_desired_new = theta*calc_household_demand(sum(c_desired),l_star,l_p,epsilon_t,rho,m)
+        c_desired_new = theta*calc_household_demand(sum(c_desired), l_star, l_p, epsilon_t, rho, m)
 
         # 6. Compute B2B demand
         # ---------------------   
