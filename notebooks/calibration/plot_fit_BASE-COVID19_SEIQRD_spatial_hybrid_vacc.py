@@ -39,10 +39,12 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 from covid19_DTM.data import sciensano
 from covid19_DTM.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_negative_binomial
+
 #############################
 ## Handle script arguments ##
 #############################
@@ -66,8 +68,7 @@ agg = args.agg
 ################################
 
 # Start and end of simulation
-start_sim = '2020-09-01'
-end_sim = '2022-01-01'
+end_sim = datetime(2022,1,1)
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -92,11 +93,12 @@ from covid19_DTM.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
 warmup = float(samples_dict['warmup'])
 dispersion = float(samples_dict['dispersion'])
-tau = float(samples_dict['dispersion'])
+tau = float(samples_dict['tau'])
 # Start of calibration warmup and beta
-start_calibration = samples_dict['start_calibration']
+start_calibration = datetime.strptime(samples_dict['start_calibration'], '%Y-%m-%d')
+start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
-end_calibration = samples_dict['end_calibration']
+end_calibration = datetime.strptime(samples_dict['end_calibration'], '%Y-%m-%d')
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -138,7 +140,7 @@ initN, df_hosp = aggregate_Brussels_Brabant_data(initN, df_hosp)
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes), tau=0.75)
+out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes), tau=tau)
 # Aggregate Brussels and Brabant
 out = aggregate_Brussels_Brabant_Dataset(out)
 simtime = out['date'].values

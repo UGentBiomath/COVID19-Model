@@ -1,10 +1,10 @@
 """
 This script contains a calibration of national COVID-19 SEIQRD model to hospitalization data in Belgium.
 
-Example function call
----------------------
+Example
+-------
 
-python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-08-23 -n_ag 10 -ID test
+python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-11-01 -n_ag 10 -ID test
 """
 
 __author__      = "Tijs Alleman"
@@ -19,12 +19,12 @@ import sys
 import ast
 import click
 import json
-import datetime
 import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from datetime import date, datetime, timedelta
 # COVID-19 code
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19_DTM.data import sciensano
@@ -76,13 +76,15 @@ n_mcmc = int(args.n_mcmc)
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 # Date at which script is started
-run_date = str(datetime.date.today())
+run_date = str(date.today())
 # Keep track of runtime
-initial_time = datetime.datetime.now()
+initial_time = datetime.now()
 # Start and end of calibration
-start_calibration = pd.to_datetime(args.start_calibration)
+start_calibration = datetime.strptime(args.start_calibration,"%Y-%m-%d")
 if args.end_calibration:
-    end_calibration = pd.to_datetime(args.end_calibration)
+    end_calibration = datetime.strptime(args.end_calibration,"%Y-%m-%d")
+# Leap size
+tau = 0.50
 
 ##############################
 ## Define results locations ##
@@ -117,10 +119,9 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date=start_calibration.strftime("%Y-%m-%d"),
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date=start_calibration,
                                                                         stochastic=True, distinguish_day_type=True)
 
-tau = 0.5
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
 warmup = 0# 39 # Start 5 Feb. 2020: day of first detected COVID-19 infectee in Belgium
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.50, 0.56, 5000, 1.40, 1.90, 0.225, 0.60]
+    theta = [0.50, 0.56, 5000, 1.45, 1.80, 0.225, 0.60]
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
@@ -220,10 +221,10 @@ if __name__ == '__main__':
         # Assign estimate
         model.parameters = assign_theta(model.parameters, pars, theta)
         # Perform simulation
-        end_visualization = '2022-07-01'
-        out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
+        end_visualization = datetime(2022, 7, 1)
+        out = model.sim([start_calibration, end_visualization], warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration-timedelta(days=warmup), end_visualization)
         plt.show()
         plt.close()
 

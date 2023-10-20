@@ -152,7 +152,7 @@ CORNER_KWARGS = dict(
     smooth=1,
     label_kwargs=dict(fontsize=24),
     title_kwargs=dict(fontsize=14),
-    quantiles=[0.05, 0.95],
+    title_quantiles=[0.05, 0.50, 0.95],
     levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
     plot_density=True,
     plot_datapoints=False,

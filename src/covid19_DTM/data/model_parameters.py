@@ -1,7 +1,7 @@
 import os
-import json
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from scipy.optimize import minimize
 from covid19_DTM.models.utils import load_samples_dict
 from covid19_DTM.data.utils import construct_initN, convert_age_stratified_property
@@ -73,8 +73,10 @@ def get_interaction_matrices(intensity='all', day_type='average', age_path='0_12
         path, "home.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
     Nc_work = np.ascontiguousarray(pd.read_excel(os.path.join(
         path, "work.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
-    Nc_schools = np.ascontiguousarray(pd.read_excel(os.path.join(
-        path, "school.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_school_primary_secundary = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "school_primary_secundary.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
+    Nc_school_tertiary = np.ascontiguousarray(pd.read_excel(os.path.join(
+        path, "school_tertiary.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)    
     Nc_transport = np.ascontiguousarray(pd.read_excel(os.path.join(
         path, "transport.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
     Nc_leisure = np.ascontiguousarray(pd.read_excel(os.path.join(
@@ -84,8 +86,8 @@ def get_interaction_matrices(intensity='all', day_type='average', age_path='0_12
     Nc_total = np.ascontiguousarray(pd.read_excel(os.path.join(
         path, "total.xlsx"), index_col=0, header=0, sheet_name=intensity, engine='openpyxl').values)
 
-    return {'total': Nc_total, 'home': Nc_home, 'work': Nc_work, 'schools': Nc_schools,
-                'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
+    return {'total': Nc_total, 'home': Nc_home, 'work': Nc_work, 'school_primary_secundary': Nc_school_primary_secundary,
+                'school_tertiary': Nc_school_tertiary, 'transport': Nc_transport, 'leisure': Nc_leisure, 'others': Nc_others}
 
 def get_integrated_interaction_matrices(day_type='average', age_path='0_12_18_25_35_45_55_65_75_85'):
     """
@@ -122,14 +124,12 @@ def get_integrated_interaction_matrices(day_type='average', age_path='0_12_18_25
     # Define preset intensities
     intensities = ['all', 'less_5_min', 'less_15_min',
                    'more_one_hour', 'more_four_hours']
-    # Define places
-    places = ['home', 'work', 'schools',
-              'transport', 'leisure', 'others', 'total']
     # Get matrices at defined intensities
     matrices_raw = {}
     for idx, intensity in enumerate(intensities):
         Nc_dict = get_interaction_matrices(intensity=intensity, day_type=day_type, age_path=age_path)
         matrices_raw.update({intensities[idx]: Nc_dict})
+    places = Nc_dict.keys()
     # Integrate matrices at defined intensities
     Nc_dict = {}
     for idx, place in enumerate(places):
@@ -315,6 +315,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Non-age-stratified parameters ##
     ###################################
 
+    pars_dict['beta'] = 0.027
     pars_dict['l1'] = 7
     pars_dict['l2'] = 7
     pars_dict['da'] = 5
@@ -337,7 +338,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Dummy VOC ##
     ###############
 
-    pars_dict['f_VOC'] = [[1, 0],]
+    pars_dict['f_VOC'] = np.array([1, 0], np.float64)
     pars_dict['K_inf'] = []
     pars_dict['K_hosp'] = []
 
@@ -351,7 +352,7 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     ## Hospprop change between WAVE 1 and WAVE 2 ##
     ###############################################
 
-    pars_dict['f_h'] = 0.56 # Calibrated: see national_REF_one_effectivity_CORNER_2023-05-25.pdf
+    pars_dict['f_h'] = 0.60 # Calibrated
 
     ########################
     ## Spatial parameters ##
@@ -413,7 +414,6 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
         base_dict_name = 'national_REF_SAMPLES_2023-06-09.json'
         base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta': 0.027,
             'eff_home': 1,
             'eff_work': np.mean(base_samples_dict['eff_work']),
             'eff_schools': np.mean(base_samples_dict['eff_work']),
@@ -426,12 +426,9 @@ def get_model_parameters(age_classes=pd.IntervalIndex.from_tuples([(0, 12), (12,
     else:
         # Set the average values for beta, seasonality, contact effectivities and mentality according to 'BASE' calibration dictionary
         samples_path = '../../../data/covid19_DTM/interim/model_parameters/calibrations/prov/'
-        base_dict_name = 'prov_REF_SAMPLES_2023-06-09.json'
+        base_dict_name = 'prov_REF_SAMPLES_2023-06-29.json'
         base_samples_dict = load_samples_dict(os.path.join(abs_dir, samples_path+base_dict_name), age_stratification_size=age_stratification_size)
         pars_dict.update({
-            'beta_R': 0.027, 
-            'beta_U': 0.027,
-            'beta_M': 0.027,
             'eff_home': 1,
             'eff_schools': np.mean(base_samples_dict['eff_work']),
             'eff_work': np.mean(base_samples_dict['eff_work']),
@@ -468,17 +465,17 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
 
     # Define logistic growth properties
     VOC_parameters.loc['WT']['logistic_growth'] = [
-        '2019-01-01', '2019-02-01', 0.20]
+        datetime(2019, 1, 1), datetime(2019, 2, 1), 0.20]
     VOC_parameters.loc['abc']['logistic_growth'] = [
-        '2020-12-01', '2021-02-14', 0.07]
+        datetime(2020, 12, 1), datetime(2021, 2, 14), 0.07]
     VOC_parameters.loc['delta']['logistic_growth'] = [
-        '2021-05-01', '2021-06-25', 0.11]
+        datetime(2021, 5, 1), datetime(2021, 6, 25), 0.11]
     VOC_parameters.loc['omicron']['logistic_growth'] = [
-        '2021-11-26', '2021-12-24', 0.19]
+        datetime(2021, 11, 26), datetime(2021, 12, 24), 0.19]
 
     # Define variant properties
     VOC_parameters['variant_properties', 'sigma'] = [4.54, 4.54, 4.54, 2.34]
-    VOC_parameters['variant_properties', 'f_VOC'] = [[1, 0], [0, 0], [0, 0], [0, 0]]
+    VOC_parameters['variant_properties', 'f_VOC'] = [1,0,0,0]
     VOC_parameters['variant_properties', 'f_immune_escape'] = [0, 0, 0, 1.5]
     VOC_parameters.loc[('abc', 'delta', 'omicron'), ('variant_properties', 'K_hosp')] = [1.34, 1.34, 1] #alpha variant: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9121661/ 
     VOC_parameters.loc[('abc', 'delta', 'omicron'),('variant_properties', 'K_inf')] = [1, 1, 1]

@@ -1,27 +1,16 @@
-# Copyright (c) 2022 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from numba import jit
-from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_2D_2D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
-from pySODM.models.base import SDEModel
-from .utils import stratify_beta_density, stratify_beta_regional, read_coordinates_place, construct_coordinates_Nc
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from pySODM.models.base import JumpProcess
 
-# Ignore numba warnings
-from numba.core.errors import NumbaPendingDeprecationWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
-
-class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
+class COVID19_SEIQRD_hybrid_vacc_sto(JumpProcess):
     """"""
 
-    state_names = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot', 'Inf_in', 'Inf_out']
-    parameter_names = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h','Nc']
-    parameter_stratified_names = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    dimension_names = ['age_groups','doses']
+    states = ['S', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot', 'Inf_in', 'Inf_out']
+    parameters = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h','Nc']
+    stratified_parameters = [['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimensions = ['age_groups','doses']
 
     @staticmethod
     def compute_rates(t, S, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, Inf_in, Inf_out,
@@ -35,9 +24,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ###################
         ## Format inputs ##
         ###################
-
-        # Extract fraction
-        f_VOC = f_VOC[0,:]        
+  
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
@@ -48,7 +35,6 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
 
         # Hospitalization propensity (OR --> probability)
         h = (np.sum(f_VOC*K_hosp)*(h/(1-h)))/(1+ np.sum(f_VOC*K_hosp)*(h/(1-h)))
-
         # Latent period
         sigma = np.sum(f_VOC*sigma)
         # Vaccination
@@ -78,7 +64,7 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         ## calculate total population ##
         ################################
 
-        T = np.expand_dims(np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=1),axis=1) # sum over doses
+        T = np.expand_dims(np.sum(S + E + I + A + M_R + M_H + C_R + C_D + C_icurec + ICU_R + ICU_D + R, axis=1), axis=1) # sum over doses
 
         ################################
         ## Compute the transitionings ##
@@ -88,12 +74,11 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         IP = np.expand_dims( np.sum( np.outer(beta*s*jit_matmul_2D_1D(Nc,np.sum(((I+A)/T)*e_i, axis=1)), f_VOC*K_inf), axis=1), axis=1)
-        
 
         # Define the rates of the transitionings
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        size_dummy = np.ones(S.shape)
+        size_dummy = np.ones(S.shape, np.float64)
 
         rates = {
             'S': [IP*e_s,],
@@ -210,25 +195,24 @@ class COVID19_SEIQRD_hybrid_vacc_sto(SDEModel):
 
         return (S_new, E_new, I_new, A_new, M_R_new, M_H_new, C_R_new, C_D_new, C_icurec_new, ICU_R_new, ICU_D_new, R_new, D_new, M_in_new, H_in_new, H_tot_new, Inf_in_new, Inf_out_new)
 
-class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
+class COVID19_SEIQRD_spatial_hybrid_vacc_sto(JumpProcess):
 
     # ...state variables and parameters
-    state_names = ['S', 'S_work', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
-    parameter_names = ['beta_R', 'beta_U', 'beta_M', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
-    parameter_stratified_names = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
-    dimension_names = ['NIS','age_groups','doses']
+    states = ['S', 'S_work', 'E', 'I', 'A', 'M_R', 'M_H', 'C_R', 'C_D', 'C_icurec','ICU_R', 'ICU_D', 'R', 'D', 'M_in', 'H_in','H_tot']
+    parameters = ['beta', 'f_VOC', 'K_inf', 'K_hosp', 'sigma', 'omega', 'zeta','da', 'dm','dICUrec','dhospital', 'seasonality', 'N_vacc', 'e_i', 'e_s', 'e_h', 'Nc', 'Nc_home', 'NIS']
+    stratified_parameters = [['area', 'p'],['s','a','h', 'c', 'm_C','m_ICU', 'dc_R', 'dc_D','dICU_R','dICU_D'],[]]
+    dimensions = ['NIS','age_groups','doses']
 
     @staticmethod
     def compute_rates(t, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
-                  beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
+                  beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                   area, p, # spatially stratified parameters. 
                   s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
 
         ###################
         ## Format inputs ##
         ###################
-
-        f_VOC = f_VOC[0,:]        
+    
         # Prepend a 'one' in front of K_inf and K_hosp (cannot use np.insert with jit compilation)
         K_inf = np.array( ([1,] + list(K_inf)), np.float64)
         K_hosp = np.array( ([1,] + list(K_hosp)), np.float64)   
@@ -246,9 +230,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         e_s = jit_matmul_klmn_n(e_s,f_VOC)
         e_h = jit_matmul_klmn_n(e_h,f_VOC)
         # Seasonality
-        beta_R *= seasonality
-        beta_U *= seasonality
-        beta_M *= seasonality
+        beta *= seasonality
 
         ####################################################
         ## Expand dims on first stratification axis (age) ##
@@ -285,7 +267,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         place_eff = np.outer(p, p)*NIS + np.identity(G)*(NIS @ (1-np.outer(p,p)))
         
         # Expand beta to size G
-        beta = stratify_beta_regional(beta_R, beta_U, beta_M, G)*np.sum(f_VOC*K_inf)
+        beta *= np.sum(f_VOC*K_inf)
 
         # Compute populations after application of 'place' to obtain the S, I and A populations
         T_work = np.expand_dims(np.transpose(place_eff) @ T, axis=2)
@@ -299,12 +281,9 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
         infpop_home = np.sum( (I + A)/np.expand_dims(T, axis=2)*e_i, axis=2)
 
         # Multiply with number of contacts
-        multip_work = np.expand_dims(jit_matmul_3D_2D(Nc - Nc_home, infpop_work), axis=2) # All contacts minus home contacts on visited patch
-        multip_rest = np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_home), axis=2) # Home contacts always on home patch
+        multip_work = beta*np.expand_dims(jit_matmul_3D_2D(Nc - Nc_home, infpop_work), axis=2) # All contacts minus home contacts on visited patch
+        multip_rest = beta*np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_home), axis=2) # Home contacts always on home patch
 
-        # Multiply result with beta
-        multip_work *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
-        multip_rest *= np.expand_dims(np.expand_dims(beta, axis=1), axis=2)
 
         ################################
         ## Compute the transitionings ##
@@ -337,7 +316,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(SDEModel):
     
     @staticmethod
     def apply_transitionings(t, tau, transitionings, S, S_work, E, I, A, M_R, M_H, C_R, C_D, C_icurec, ICU_R, ICU_D, R, D, M_in, H_in, H_tot, # time + SEIRD classes
-                             beta_R, beta_U, beta_M, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
+                             beta, f_VOC, K_inf, K_hosp, sigma, omega, zeta, da, dm, dICUrec, dhospital, seasonality, N_vacc, e_i, e_s, e_h, Nc, Nc_home, NIS, # SEIRD parameters
                              area, p, # spatially stratified parameters. 
                              s, a, h, c, m_C, m_ICU, dc_R, dc_D, dICU_R, dICU_D):
 
