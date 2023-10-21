@@ -145,9 +145,8 @@ def labor_supply_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
         return param
 
 def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2, t_start_final_relax, ratio_c_s, on_site,
-                        t_end_inv_shock, t_end_goods_shock, t_end_services_shock,    # timing
-                        f_gov, f_inv, f_exp_goods, f_exp_services,                  # fraction of total demand 
-                        c_s, f_s_inv, f_s_exp_goods, f_s_exp_services):             # maximum shocks to other demand
+                        f_gov, f_inv, f_exp_goods, f_exp_services,                     # fraction of total demand 
+                        c_s, f_s):                                                     # maximum shocks to other demand
     """
     A time-dependent function to return the exogeneous demand shock during the 2021-2021 COVID-19 pandemic.
 
@@ -177,10 +176,6 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
         relative size of consumer demand shock vectors between lockdowns 
     on_site : np.array
         vector containing 1 if sector output is consumed on-site and 0 if sector output is not consumed on-site
-    t_end_inv_shock: datetime
-        end of shocks to investments
-    t_end_goods_shock: datetime 
-        end of shocks to goods
     f_gov: np.ndarray
         fraction of other demand by government and non-profits (for every sector i)
     f_inv: np.ndarray
@@ -191,43 +186,34 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
         fraction of other demand attributable to exports of services (for every sector i)
     c_s: np.array
         consumer demand shock vector during COVID-19 lockdowns
-    f_s_inv: float
-        maximum shock to investment
-    f_s_exp_goods: float
-        maximum shock to exports of goods
+    f_s : float
+        maximum shock to investments and the exports of goods
 
     Returns
     -------
     epsilon_F : np.array
         exogeneous demand shock
     """
-    t_end_goods_shock = t_end_inv_shock = t_end_lockdown_1 + timedelta(days=l2)
+
+    t_end_invexp_shock = t_end_lockdown_1 + timedelta(days=l2)
 
     if  t < t_start_lockdown_1:
         return np.zeros(len(f_gov))
     else:
-        # Compute investment shock
-        if t < t_end_inv_shock:
-            f_s_inv = f_s_inv/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_1)/(t_end_inv_shock-t_start_lockdown_1))
+        # Compute shock to investment and exports of goods
+        if t_start_lockdown_1 <= t <= t_start_lockdown_1 + timedelta(days=l1):
+            f_s = ramp_datetime(np.zeros(len(f_gov)), f_s, t, t_start_lockdown_1, l1)
+        elif t_start_lockdown_1 + timedelta(days=l1) < t <= t_end_lockdown_1:
+            f_s = f_s
+        elif t_end_lockdown_1 < t <= t_end_invexp_shock:
+            f_s = f_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_invexp_shock-t_end_lockdown_1))
         else:
-            f_s_inv = np.zeros(len(f_gov))
-        # Compute shock to exports of goods
-        if t_start_lockdown_1 < t <= t_end_lockdown_1:
-            f_s_exp_goods = f_s_exp_goods
-        elif t_end_lockdown_1 < t <= t_end_goods_shock:
-            f_s_exp_goods = f_s_exp_goods/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_goods_shock-t_end_lockdown_1))
-        else:
-            f_s_exp_goods = np.zeros(len(f_gov))
-        # Compute shock to exports of services
-        if t_start_lockdown_1 < t <= t_end_services_shock:
-            f_s_exp_services = f_s_exp_services/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_1)/(t_end_services_shock-t_start_lockdown_1))
-        else:
-            f_s_exp_services = np.zeros(len(f_gov))
+            f_s = np.zeros(len(f_gov))
         # Compute the magnitude of the household demand shock
         c_s = household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2,
                                         t_start_final_relax, c_s, ratio_c_s, on_site)
         # Compute total shock
-        return f_gov*c_s + f_inv*f_s_inv + f_exp_goods*f_s_exp_goods + f_exp_services*c_s
+        return f_gov*c_s + f_exp_services*c_s + f_inv*f_s + f_exp_goods*f_s
 
 def compute_income_expectations(t, states, param, l1, t_start_lockdown_1, t_end_lockdown_1, l_0, l_start_lockdown, rho, L):
     """

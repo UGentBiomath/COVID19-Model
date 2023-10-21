@@ -90,13 +90,8 @@ def get_model_parameters(shocks='alleman'):
     # shock to other demand
     # ~~~~~~~~~~~~~~~~~~~~~
 
-    ## timing
-    pars_dict['t_end_inv_shock'] = pars_dict['t_end_goods_shock'] = datetime(2020, 9, 1) # End of Q2: see `COMEXT_17082023124307665.csv`
-    pars_dict['t_end_services_shock'] = datetime(2021, 7, 1)
     ## magnitude
-    pars_dict['f_s_inv'] = 0.16
-    pars_dict['f_s_exp_goods'] = 0.25
-    pars_dict['f_s_exp_services'] = 0.21
+    pars_dict['f_s'] = 0.15
     ## components of demand
     # retrieve data
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
@@ -156,7 +151,7 @@ def get_model_parameters(shocks='alleman'):
 
     pars_dict.update({'l1': 7,
                       'l2': 6*7,
-                      't_start_lockdown_1': pd.Timestamp('2020-03-10'),
+                      't_start_lockdown_1': pd.Timestamp('2020-03-15'),
                       't_end_lockdown_1': pd.Timestamp('2020-05-01'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
                       't_end_lockdown_2': pd.Timestamp('2020-11-19'),
