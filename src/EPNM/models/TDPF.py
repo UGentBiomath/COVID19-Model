@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from datetime import timedelta
 
 ####################
 ## Economic model ##
@@ -200,6 +201,7 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
     epsilon_F : np.array
         exogeneous demand shock
     """
+    t_end_goods_shock = t_end_inv_shock = t_end_lockdown_1 + timedelta(days=l2)
 
     if  t < t_start_lockdown_1:
         return np.zeros(len(f_gov))
@@ -216,18 +218,16 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
             f_s_exp_goods = f_s_exp_goods/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_goods_shock-t_end_lockdown_1))
         else:
             f_s_exp_goods = np.zeros(len(f_gov))
-        # Compute shock to exports of goods
-        if t_start_lockdown_1 < t <= t_end_lockdown_1:
-            f_s_exp_services = f_s_exp_services
-        elif t_end_lockdown_1 < t <= t_end_services_shock:
-            f_s_exp_services = f_s_exp_services/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_services_shock-t_end_lockdown_1))
+        # Compute shock to exports of services
+        if t_start_lockdown_1 < t <= t_end_services_shock:
+            f_s_exp_services = f_s_exp_services/np.log(100)*np.log(100 - 99*(t-t_start_lockdown_1)/(t_end_services_shock-t_start_lockdown_1))
         else:
             f_s_exp_services = np.zeros(len(f_gov))
         # Compute the magnitude of the household demand shock
         c_s = household_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockdown_1, t_start_lockdown_2, t_end_lockdown_2,
                                         t_start_final_relax, c_s, ratio_c_s, on_site)
         # Compute total shock
-        return f_gov*c_s + f_inv*f_s_inv + f_exp_goods*f_s_exp_goods + f_exp_services*f_s_exp_services
+        return f_gov*c_s + f_inv*f_s_inv + f_exp_goods*f_s_exp_goods + f_exp_services*c_s
 
 def compute_income_expectations(t, states, param, l1, t_start_lockdown_1, t_end_lockdown_1, l_0, l_start_lockdown, rho, L):
     """
