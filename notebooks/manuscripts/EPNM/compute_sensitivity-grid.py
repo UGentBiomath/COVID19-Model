@@ -28,16 +28,29 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 # Initialize model
 params, model = initialize_model(shocks='alleman_exogenous', prodfunc='half_critical')
 
-# Calibration: Sector reductions
+## Calibration: Sector reductions
+# # shocks
+# prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
+# consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
+# industry = [0, 0.10, 0.20, 0.30, 0.40, 0.50]
+# f_s = [0.10, 0.15, 0.20, 0.25]
+# ratio_c_s = [0, 0.20, 0.40, 0.60, 0.80, 1]
+# # parameters
+# tau = [1, 7, 14, 21, 28, 35]
+# hiring_firing = [1, 7, 14, 21, 28, 35]
+# shocks
 prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
-consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
-industry = [0, 0.10, 0.20, 0.30, 0.40, 0.50]
+consumer_facing = [0.80, 0.90, 0.99]
+industry = [0, 0.10, 0.20,]
+f_s = [0.15, 0.20, 0.25]
+ratio_c_s = [0.20, 0.40, 0.60, 0.80]
+# parameters
+tau = [1, 7, 14,]
+hiring_firing = [7, 14, 21,]
+# excluded
+l2 = [8*7,]
 retail = [0,]
-other_demand = [0, 0.025, 0.05, 0.075, 0.10, 0.125, 0.15, 0.175]
-tau = [1, 7, 14, 21, 28, 35]
-hiring_firing = [1, 7, 14, 21, 28, 35]
-l2 = [4*7, 5*7, 6*7, 7*7, 8*7]
-combinations = list(itertools.product(*[consumer_facing, industry, retail, other_demand, tau, hiring_firing, l2]))
+combinations = list(itertools.product(*[consumer_facing, industry, f_s, ratio_c_s, tau, hiring_firing, l2, retail]))
 
 # Sector labels
 industry_labels = []
@@ -175,17 +188,14 @@ def compute_AAD(out, weighted=True):
 
 def mp_run_sensitivity(combinations, model, params):
     # Unpack arguments
-    cons, ind, ret, other, tau, hiring_firing, l2 = combinations
+    cons, ind, f_s, ratio_c_s, tau, hiring_firing, l2, ret = combinations
     # Construct c_s
     c_s = params['c_s']
-    f_s = params['f_s']
     c_s[[get_sector_labels('NACE64').index(lab) for lab in industry_labels]] = ind
     c_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons
-    c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret
-    # First rescale f_s, then afterwards update consumer facing sectors
-    f_s = (other/0.15)*f_s
-    f_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons       
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret    
     # Update parameters
+    model.parameters['ratio_c_s'] = ratio_c_s
     model.parameters['l2'] = l2
     model.parameters['c_s'] = c_s
     model.parameters['f_s'] = f_s
@@ -200,7 +210,7 @@ def mp_run_sensitivity(combinations, model, params):
 
 from functools import partial
 import multiprocessing as mp
-processes = 18
+processes = 36
 print(f'\nTotal number of simulations per core: {len(prodfuncs)*len(combinations)/processes:.0f}')
 w_res = []
 uw_res = []
