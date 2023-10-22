@@ -91,6 +91,7 @@ def get_model_parameters(shocks='alleman'):
     # ~~~~~~~~~~~~~~~~~~~~~ 
 
     ## magnitude
+    pars_dict['shocks'] = shocks
     pars_dict['f_s_inv'] = 0.16
     pars_dict['f_s_exp_goods'] = 0.25
     ## components of demand
@@ -138,20 +139,20 @@ def get_model_parameters(shocks='alleman'):
     # Hardcoded model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    pars_dict.update({'rho': 1-(1-0.60)/90,          
+    pars_dict.update({'rho': 1-(1-0.75)/90,          
                       'delta_S': 0.75,                                                  
                       'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 14,                                                                                                 
-                      'gamma_H': 56,
-                      'gamma_F': 28 
+                      'tau': 21,                                                                                                 
+                      'gamma_H': 28,
+                      'gamma_F': 14, 
                       })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     pars_dict.update({'l1': 14,
-                      'l2': 6*7,
+                      'l2': 8*7,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
                       't_end_lockdown_1': pd.Timestamp('2020-04-19'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
