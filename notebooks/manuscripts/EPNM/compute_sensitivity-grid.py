@@ -230,6 +230,3 @@ weighted = np.stack(w_res, axis=0)
 # save results to dataframe
 df = pd.concat([pd.Series(unweighted.flatten(), index=index, name='unweighted'),pd.Series(weighted.flatten(), index=index, name='weighted')], axis=1)
 df.to_csv('sensitivity-grid.csv')
-
-
-

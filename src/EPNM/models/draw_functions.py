@@ -1,4 +1,3 @@
-import random
 import numpy as np
 
 def draw_function(param_dict, samples_dict):
