@@ -129,6 +129,8 @@ def calc_input_restriction(S_t,A,C,x_0,prodfunc='half_critical'):
     if prodfunc == 'linear':
         for i in range(A.shape[0]):
             x_t[i] = np.sum(S_t[:,i])/np.sum(A[:,i])
+            if np.isnan(x_t[i]):
+                x_t[i]=np.inf
     elif prodfunc == 'weakly_critical':
         for i in range(A.shape[0]):
             critical = list(np.where(C[:,i] == 1)[0])
