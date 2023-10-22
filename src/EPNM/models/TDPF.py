@@ -203,10 +203,8 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
         # Compute shock to investment and exports of goods
         if t_start_lockdown_1 <= t <= t_start_lockdown_1 + timedelta(days=l1):
             f_s = ramp_datetime(np.zeros(len(f_gov)), f_s, t, t_start_lockdown_1, l1)
-        elif t_start_lockdown_1 + timedelta(days=l1) < t <= t_end_lockdown_1:
-            f_s = f_s
-        elif t_end_lockdown_1 < t <= t_end_invexp_shock:
-            f_s = f_s/np.log(100)*np.log(100 - 99*(t-t_end_lockdown_1)/(t_end_invexp_shock-t_end_lockdown_1))
+        elif t_start_lockdown_1 + timedelta(days=l1) < t <= t_end_invexp_shock:
+            f_s = f_s/np.log(100)*np.log(100 - 99*(t-(t_start_lockdown_1+timedelta(days=l1)))/(t_end_invexp_shock-(t_start_lockdown_1+timedelta(days=l1))))
         else:
             f_s = np.zeros(len(f_gov))
         # Compute the magnitude of the household demand shock

@@ -149,9 +149,9 @@ def get_model_parameters(shocks='alleman'):
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    pars_dict.update({'l1': 7,
+    pars_dict.update({'l1': 14,
                       'l2': 6*7,
-                      't_start_lockdown_1': pd.Timestamp('2020-03-15'),
+                      't_start_lockdown_1': pd.Timestamp('2020-03-10'),
                       't_end_lockdown_1': pd.Timestamp('2020-05-01'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
                       't_end_lockdown_2': pd.Timestamp('2020-11-19'),
