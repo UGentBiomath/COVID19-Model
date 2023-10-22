@@ -47,13 +47,13 @@ data_B2B['weighted']=0
 for date in data_B2B.index.get_level_values('date').unique():
     v = data_B2B.loc[date, slice(None)]['B2B demand']*B2B_demand
     data_B2B.loc[(date,slice(None)), 'weighted'] = v.values
-data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=1).mean()
+data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=4).mean()
 
 # Draw function
 from EPNM.models.draw_functions import draw_function
 
 # Simulate model
-out = model.sim([start_sim, end_sim], tau=1, N=18, processes=18, samples={}, draw_function=draw_function)
+out = model.sim([start_sim, end_sim], tau=1, N=72, processes=18, samples={}, draw_function=draw_function)
 simtime = out['date'].values
 
 ###############

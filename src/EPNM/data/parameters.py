@@ -88,10 +88,11 @@ def get_model_parameters(shocks='alleman'):
     pars_dict['ratio_c_s'] = 0.75
 
     # shock to other demand
-    # ~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~ 
 
     ## magnitude
-    pars_dict['f_s'] = 0.20
+    pars_dict['f_s_inv'] = 0.16
+    pars_dict['f_s_exp_goods'] = 0.25
     ## components of demand
     # retrieve data
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
@@ -152,7 +153,7 @@ def get_model_parameters(shocks='alleman'):
     pars_dict.update({'l1': 14,
                       'l2': 6*7,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
-                      't_end_lockdown_1': pd.Timestamp('2020-05-01'),
+                      't_end_lockdown_1': pd.Timestamp('2020-04-19'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
                       't_end_lockdown_2': pd.Timestamp('2020-11-19'),
                       't_start_final_relax': pd.Timestamp('2021-05-01'),
