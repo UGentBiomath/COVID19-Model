@@ -91,7 +91,7 @@ def get_model_parameters(shocks='alleman'):
     # ~~~~~~~~~~~~~~~~~~~~~
 
     ## magnitude
-    pars_dict['f_s'] = 0.15
+    pars_dict['f_s'] = 0.20
     ## components of demand
     # retrieve data
     df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
@@ -106,10 +106,10 @@ def get_model_parameters(shocks='alleman'):
     pars_dict['f_exp_goods'] = np.array(f_exp_goods.values)
     pars_dict['f_exp_services'] = np.array(f_exp_services.values)
     # compute relative fraction of total demand of each component
-    pars_dict['f_gov'] = pars_dict['f_gov']/pars_dict['f_0']
-    pars_dict['f_inv'] = pars_dict['f_inv']/pars_dict['f_0']
-    pars_dict['f_exp_goods'] = pars_dict['f_exp_goods']/pars_dict['f_0']
-    pars_dict['f_exp_services'] = pars_dict['f_exp_services']/pars_dict['f_0']
+    pars_dict['f_gov'] = np.nan_to_num(pars_dict['f_gov']/pars_dict['f_0'])
+    pars_dict['f_inv'] = np.nan_to_num(pars_dict['f_inv']/pars_dict['f_0'])
+    pars_dict['f_exp_goods'] = np.nan_to_num(pars_dict['f_exp_goods']/pars_dict['f_0'])
+    pars_dict['f_exp_services'] = np.nan_to_num(pars_dict['f_exp_services']/pars_dict['f_0'])
 
     # Critical inputs
     # ~~~~~~~~~~~~~~~

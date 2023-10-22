@@ -1,5 +1,6 @@
 # General packages
 import itertools
+from math import comb
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ from EPNM.data.calibration_data import get_NAI_value_added, get_revenue_survey, 
 
 # Start- and enddate simulation
 start_sim = '2020-03-01'
-end_sim = '2021-04-01'
+end_sim = '2021-03-31'
 # Load (relative) data
 data_employment = get_employment_survey().loc[slice('2020-04-01',end_sim), slice(None)]
 data_revenue = get_revenue_survey().loc[slice('2020-04-01',end_sim), slice(None)]
@@ -29,28 +30,25 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 params, model = initialize_model(shocks='alleman_exogenous', prodfunc='half_critical')
 
 ## Calibration: Sector reductions
-# # shocks
-# prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
-# consumer_facing = [0.75, 0.80, 0.85, 0.90, 0.95, 0.99]
-# industry = [0, 0.10, 0.20, 0.30, 0.40, 0.50]
-# f_s = [0.10, 0.15, 0.20, 0.25]
-# ratio_c_s = [0, 0.20, 0.40, 0.60, 0.80, 1]
-# # parameters
-# tau = [1, 7, 14, 21, 28, 35]
-# hiring_firing = [1, 7, 14, 21, 28, 35]
+# production functions
+prodfuncs = ['leontief','strongly_critical','half_critical','weakly_critical','linear']
 # shocks
-prodfuncs = ['leontief', 'strongly_critical', 'half_critical', 'weakly_critical', 'linear']
-consumer_facing = [0.80, 0.90, 0.99]
-industry = [0, 0.10, 0.20,]
-f_s = [0.15, 0.20, 0.25]
+consumer_facing = [0.70,0.80,0.90,0.99,]
+industry = [0.10, 0.20, 0.30, 0.40]
+f_s = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
 ratio_c_s = [0.20, 0.40, 0.60, 0.80]
 # parameters
-tau = [1, 7, 14,]
-hiring_firing = [7, 14, 21,]
+tau = [7, 14, 21, 28]
+hiring_firing = [7, 14, 21, 28, 35]
 # excluded
-l2 = [8*7,]
+l2 = [6*7,]
 retail = [0,]
 combinations = list(itertools.product(*[consumer_facing, industry, f_s, ratio_c_s, tau, hiring_firing, l2, retail]))
+
+# make an output dataframe
+iterables = [prodfuncs, consumer_facing, industry, f_s, ratio_c_s, tau, hiring_firing, l2, retail]
+index = pd.MultiIndex.from_product(iterables, names=["production_function", "consumer_facing", "industry", "f_s", "ratio_c_s", "tau", "hiring_firing", "l2", "retail"])
+df = pd.DataFrame(0, index=index, columns=['weighted', 'unweighted'])
 
 # Sector labels
 industry_labels = []
@@ -204,7 +202,6 @@ def mp_run_sensitivity(combinations, model, params):
     model.parameters['gamma_H'] = 2*hiring_firing
     # Simulate model (discrete)
     out = model.sim([start_sim, end_sim], tau=1)
-    # Compute distance
     return compute_AAD(out, weighted=False)[0], compute_AAD(out, weighted=True)[0]
 
 
@@ -225,11 +222,14 @@ for i, prodfunc in enumerate(prodfuncs):
     for r in res:
         uw.append(r[0])
         w.append(r[1])
-    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
-    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(retail), len(other_demand), len(tau), len(hiring_firing), len(l2)]))
-    unweighted = np.stack(uw_res, axis=0)
-    weighted = np.stack(w_res, axis=0)
-    np.save('unweighted.npy', unweighted)
-    np.save('weighted.npy', weighted)
+    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(f_s), len(ratio_c_s), len(tau), len(hiring_firing), len(l2), len(retail)]))
+    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(f_s), len(ratio_c_s), len(tau), len(hiring_firing), len(l2), len(retail)]))
+# stack production functions
+unweighted = np.stack(uw_res, axis=0)
+weighted = np.stack(w_res, axis=0)
+# save results to dataframe
+df = pd.concat([pd.Series(unweighted.flatten(), index=index, name='unweighted'),pd.Series(weighted.flatten(), index=index, name='weighted')], axis=1)
+df.to_csv('sensitivity-grid.csv')
+
 
 
