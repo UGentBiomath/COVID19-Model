@@ -85,7 +85,7 @@ def get_model_parameters(shocks='alleman'):
     pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
     pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
     pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
-    pars_dict['ratio_c_s'] = 0.75
+    pars_dict['ratio_c_s'] = 0.50
 
     # shock to other demand
     # ~~~~~~~~~~~~~~~~~~~~~ 
@@ -143,7 +143,7 @@ def get_model_parameters(shocks='alleman'):
                       'delta_S': 0.75,                                                  
                       'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 21,                                                                                                 
+                      'tau': 1,                                                                                                 
                       'gamma_H': 28,
                       'gamma_F': 14, 
                       })  

@@ -1,9 +1,7 @@
 # General packages
 import itertools
-from math import comb
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 # EPNM functions
 from EPNM.models.utils import initialize_model
 from EPNM.data.parameters import get_model_parameters
@@ -27,35 +25,33 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman_exogenous', prodfunc='half_critical')
+params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 
 ## Calibration: Sector reductions
 # production functions
 prodfuncs = ['leontief','strongly_critical','half_critical','weakly_critical','linear']
 # shocks
-consumer_facing = [0.70,0.80,0.90,0.99,]
-industry = [0.10, 0.20, 0.30, 0.40]
-f_s = [0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
-ratio_c_s = [0.20, 0.40, 0.60, 0.80]
+consumer_facing = [0.70, 0.80, 0.90, 0.99,]
+industry = [0, 0.15, 0.30, 0.45, 0.60]
+retail = [0, 0.20, 0.40, 0.60, 0.80]
+ratio_c_s = [0, 0.25, 0.50, 0.75, 1]
 # parameters
-tau = [7, 14, 21, 28]
-hiring_firing = [7, 14, 21, 28, 35]
-# excluded
-l2 = [6*7,]
-retail = [0,]
-combinations = list(itertools.product(*[consumer_facing, industry, f_s, ratio_c_s, tau, hiring_firing, l2, retail]))
+tau = [1, 7, 14, 21, 28]
+hiring_firing = [1, 7, 14, 21, 28,]
+# make all possible combinations
+combinations = list(itertools.product(*[consumer_facing, industry, retail, ratio_c_s, tau, hiring_firing,]))
 
 # make an output dataframe
-iterables = [prodfuncs, consumer_facing, industry, f_s, ratio_c_s, tau, hiring_firing, l2, retail]
-index = pd.MultiIndex.from_product(iterables, names=["production_function", "consumer_facing", "industry", "f_s", "ratio_c_s", "tau", "hiring_firing", "l2", "retail"])
+iterables = [prodfuncs, consumer_facing, industry, retail, ratio_c_s, tau, hiring_firing,]
+index = pd.MultiIndex.from_product(iterables, names=["production_function", "consumer_facing", "industry", "retail", "ratio_c_s", "tau", "hiring_firing",])
 df = pd.DataFrame(0, index=index, columns=['weighted', 'unweighted'])
 
 # Sector labels
 industry_labels = []
 for sector in get_sector_labels('NACE64'):
-    if sector[0] in ['A', 'B', 'C', 'D', 'E', 'F']:
+    if sector[0] in ['C', 'F']:
         industry_labels.append(sector)
-consumer_facing_labels = ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96']
+consumer_facing_labels = ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96', 'T97-98']
 retail_labels = ['G46', 'G47', 'S95']
 labels = [industry_labels, consumer_facing_labels, retail_labels]
 
@@ -186,7 +182,7 @@ def compute_AAD(out, weighted=True):
 
 def mp_run_sensitivity(combinations, model, params):
     # Unpack arguments
-    cons, ind, f_s, ratio_c_s, tau, hiring_firing, l2, ret = combinations
+    cons, ind, ret, ratio_c_s, tau, hiring_firing = combinations
     # Construct c_s
     c_s = params['c_s']
     c_s[[get_sector_labels('NACE64').index(lab) for lab in industry_labels]] = ind
@@ -194,9 +190,7 @@ def mp_run_sensitivity(combinations, model, params):
     c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret    
     # Update parameters
     model.parameters['ratio_c_s'] = ratio_c_s
-    model.parameters['l2'] = l2
     model.parameters['c_s'] = c_s
-    model.parameters['f_s'] = f_s
     model.parameters['tau'] = tau
     model.parameters['gamma_F'] = hiring_firing
     model.parameters['gamma_H'] = 2*hiring_firing
@@ -222,8 +216,8 @@ for i, prodfunc in enumerate(prodfuncs):
     for r in res:
         uw.append(r[0])
         w.append(r[1])
-    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(f_s), len(ratio_c_s), len(tau), len(hiring_firing), len(l2), len(retail)]))
-    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(f_s), len(ratio_c_s), len(tau), len(hiring_firing), len(l2), len(retail)]))
+    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(retail), len(ratio_c_s), len(tau), len(hiring_firing),]))
+    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(retail), len(ratio_c_s), len(tau), len(hiring_firing),]))
 # stack production functions
 unweighted = np.stack(uw_res, axis=0)
 weighted = np.stack(w_res, axis=0)
