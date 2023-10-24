@@ -31,19 +31,20 @@ params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
 # production functions
 prodfuncs = ['leontief','strongly_critical','half_critical','weakly_critical','linear']
 # shocks
-consumer_facing = [0.70, 0.80, 0.90, 0.99,]
 industry = [0, 0.15, 0.30, 0.45, 0.60]
-retail = [0, 0.20, 0.40, 0.60, 0.80]
+retail = [0, 0.10, 0.20, 0.30, 0.40]
+transport = [0, 0.20, 0.40, 0.60, 0.80, 1]
+consumer_facing = [0.95, 0.99,]
 ratio_c_s = [0, 0.25, 0.50, 0.75, 1]
 # parameters
 tau = [1, 7, 14, 21, 28]
 hiring_firing = [1, 7, 14, 21, 28,]
 # make all possible combinations
-combinations = list(itertools.product(*[consumer_facing, industry, retail, ratio_c_s, tau, hiring_firing,]))
+combinations = list(itertools.product(*[industry, retail, transport, consumer_facing, ratio_c_s, tau, hiring_firing,]))
 
 # make an output dataframe
-iterables = [prodfuncs, consumer_facing, industry, retail, ratio_c_s, tau, hiring_firing,]
-index = pd.MultiIndex.from_product(iterables, names=["production_function", "consumer_facing", "industry", "retail", "ratio_c_s", "tau", "hiring_firing",])
+iterables = [prodfuncs, industry, retail, transport, consumer_facing, ratio_c_s, tau, hiring_firing,]
+index = pd.MultiIndex.from_product(iterables, names=["production_function", "industry", "retail", "transport", "consumer-facing", "ratio_c_s", "tau", "hiring_firing",])
 df = pd.DataFrame(0, index=index, columns=['weighted', 'unweighted'])
 
 # Sector labels
@@ -53,7 +54,8 @@ for sector in get_sector_labels('NACE64'):
         industry_labels.append(sector)
 consumer_facing_labels = ['I55-56', 'N77', 'N79', 'R90-92', 'R93', 'S94', 'S96', 'T97-98']
 retail_labels = ['G46', 'G47', 'S95']
-labels = [industry_labels, consumer_facing_labels, retail_labels]
+transport_labels = ['H49', 'H50', 'H51']
+labels = [industry_labels, retail_labels, transport_labels, consumer_facing_labels]
 
 # Aggregation functions
 import xarray as xr
@@ -182,10 +184,12 @@ def compute_AAD(out, weighted=True):
 
 def mp_run_sensitivity(combinations, model, params):
     # Unpack arguments
-    cons, ind, ret, ratio_c_s, tau, hiring_firing = combinations
+    ind, ret, tran, cons, ratio_c_s, tau, hiring_firing = combinations
     # Construct c_s
     c_s = params['c_s']
     c_s[[get_sector_labels('NACE64').index(lab) for lab in industry_labels]] = ind
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret    
+    c_s[[get_sector_labels('NACE64').index(lab) for lab in transport_labels]] = tran
     c_s[[get_sector_labels('NACE64').index(lab) for lab in consumer_facing_labels]] = cons
     c_s[[get_sector_labels('NACE64').index(lab) for lab in retail_labels]] = ret    
     # Update parameters
@@ -197,7 +201,6 @@ def mp_run_sensitivity(combinations, model, params):
     # Simulate model (discrete)
     out = model.sim([start_sim, end_sim], tau=1)
     return compute_AAD(out, weighted=False)[0], compute_AAD(out, weighted=True)[0]
-
 
 from functools import partial
 import multiprocessing as mp
@@ -216,8 +219,8 @@ for i, prodfunc in enumerate(prodfuncs):
     for r in res:
         uw.append(r[0])
         w.append(r[1])
-    uw_res.append(np.reshape(uw, [len(consumer_facing), len(industry), len(retail), len(ratio_c_s), len(tau), len(hiring_firing),]))
-    w_res.append(np.reshape(w, [len(consumer_facing), len(industry), len(retail), len(ratio_c_s), len(tau), len(hiring_firing),]))
+    uw_res.append(np.reshape(uw, [len(industry), len(retail), len(transport), len(consumer_facing), len(ratio_c_s), len(tau), len(hiring_firing),]))
+    w_res.append(np.reshape(w, [len(industry), len(retail), len(transport), len(consumer_facing), len(ratio_c_s), len(tau), len(hiring_firing),]))
 # stack production functions
 unweighted = np.stack(uw_res, axis=0)
 weighted = np.stack(w_res, axis=0)

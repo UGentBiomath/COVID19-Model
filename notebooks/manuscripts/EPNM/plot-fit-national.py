@@ -53,7 +53,7 @@ data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=4).mean()
 from EPNM.models.draw_functions import draw_function
 
 # Simulate model
-out = model.sim([start_sim, end_sim], tau=1, N=72, processes=18, samples={}, draw_function=draw_function)
+out = model.sim([start_sim, end_sim], tau=1, N=180, processes=18, samples={}, draw_function=draw_function)
 simtime = out['date'].values
 
 ###############

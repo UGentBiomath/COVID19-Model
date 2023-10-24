@@ -209,7 +209,7 @@ def other_demand_shock(t, states, param, l1, l2, t_start_lockdown_1, t_end_lockd
     else:
         if shocks == 'alleman':
             # Compute shock to investment and exports of goods
-            if t_start_lockdown_1 <= t <= t_start_lockdown_1 + timedelta(days=l1):
+            if t_start_lockdown_1 < t <= t_start_lockdown_1 + timedelta(days=l1):
                 f_s_inv *= ramp_datetime(0, 1, t, t_start_lockdown_1, l1)
                 f_s_exp_goods *= ramp_datetime(0, 1, t, t_start_lockdown_1, l1)
             elif t_start_lockdown_1 + timedelta(days=l1) < t <= t_end_invexp_shock:

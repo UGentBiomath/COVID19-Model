@@ -27,6 +27,6 @@ def draw_function(param_dict, samples_dict):
     param_dict['c_s'] =  np.random.normal(loc=1, scale=0.075)*param_dict['c_s']
     param_dict['c_s'] = np.where(param_dict['c_s'] > 1, 1, param_dict['c_s'])
     # shocks summer 2020 
-    param_dict['ratio_c_s'] =  np.random.uniform(low=0.25, high=0.75)
+    param_dict['ratio_c_s'] =  np.random.uniform(low=0.50, high=1)
 
     return param_dict
