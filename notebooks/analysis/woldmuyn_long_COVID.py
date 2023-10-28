@@ -27,6 +27,12 @@ args = parser.parse_args()
 SMR = float(args.SMR)
 N = int(args.N)
 
+# From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
+colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
+                        "green" : "#009E73", "yellow" : "#F0E442",
+                        "blue" : "#0072B2", "red" : "#D55E00",
+                        "pink" : "#CC79A7", "black" : "#000000"}
+
 if __name__ == '__main__':
     ################################
     ## Define simulation settings ##
@@ -82,7 +88,44 @@ if __name__ == '__main__':
 
     abs_dir = os.path.dirname(__file__)
     result_folder = os.path.join(abs_dir,'../../results/QALY_model/direct_QALYs/analysis/')
+    
+    # Barplot (addition TWA)
+    states = ['QALY_NH', 'QALY_C', 'QALY_ICU','QALY_D']
+    titles = ['Non-hospitalised', 'Non-hospitalised (no IC)', 'Non-hospitalised (IC)','Deaths']
+    colors = ['green','yellow','red','black']
 
+    age_groups=['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
+
+    fig,axes=plt.subplots(nrows=1, ncols=2, figsize=(8.3,0.25*11.7))
+    for ax,scenario,out in zip(axes, ['no_AD','AD'], [out_no_AD,out_AD]):
+      # group data
+      data = [out['QALY_D'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_NH'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_C'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_ICU'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000
+              ]
+      # settings
+      colors = ['grey', colorscale_okabe_ito['green'], colorscale_okabe_ito['orange'], colorscale_okabe_ito['red']]
+      hatches = ['....','////','\\\\\\','||||']
+      labels = ['Deaths', 'Non-hospitalised', 'Hospitalised (no IC)', 'Hospitalised (IC)']
+      # plot data
+      bottom=np.zeros(len(age_groups))
+      for d, color, hatch, label in zip(data, colors, hatches, labels):
+        p = ax.bar(age_groups, d, color=color, hatch=hatch, label=label, bottom=bottom, linewidth=0.25, alpha=0.7)
+        bottom += d
+      ax.grid(False)
+      ax.tick_params(axis='both', which='major', labelsize=10)
+      ax.tick_params(axis='x', which='major', rotation=30)
+      ax.set_ylim([0,7000])
+    axes[0].legend(loc=2, framealpha=1, fontsize=10)
+    axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig('QALY_losses_per_age_group.pdf')
+    plt.close()
+
+    # Wolf's code starts here
     label_font = font_manager.FontProperties(family='CMU Sans Serif',
                                     style='normal', 
                                     size=10)
@@ -102,27 +145,9 @@ if __name__ == '__main__':
     palette = cm.get_cmap('tab10').colors
     palette_colors = {'black':palette[7],'green':palette[2],'orange':palette[1],'red':palette[3]}
 
+    # These twolines may have come from the master branch
     age_groups = out_AD.coords['age_groups'].values
     age_group_labels = ['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
-
-    # make figure
-    for scenario,out in zip(['no_AD','AD'],[out_no_AD,out_AD]):
-        bottom = np.zeros(len(age_groups))
-        fig, ax = plt.subplots(figsize=(5,3))
-        for state, color, pattern, label in zip(states,colors, ["////","....","++++","xxxx"], titles):
-
-            y = out[state].mean('draws').sum('doses')[-1].values
-            ax.bar(age_group_labels,y,color=palette_colors[color], alpha=0.6,bottom=bottom,label=label, edgecolor=palette_colors[color], hatch=pattern)
-            ax.grid(False)
-            bottom += y
-
-        ax.legend(prop=legend_font) 
-        ax.set_ylabel('QALYs lost',font=label_font)
-        ax.set_xlabel('age groups',font=label_font)
-        ax.set_ylim([0,180000])
-        ax.tick_params(axis='both', which='major', labelsize=8)
-        fig.tight_layout()
-        fig.savefig(os.path.join(result_folder,f'QALY_losses_per_age_group_{scenario}.png'), dpi=600,bbox_inches='tight')
 
     # summarise results in table
     index = pd.Index(age_group_labels+['Total'])

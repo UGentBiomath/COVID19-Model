@@ -56,7 +56,7 @@ class life_table_QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/life_table_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores (source: ...)
@@ -460,9 +460,9 @@ def lost_QALYs(out,AD_non_hospitalised=False):
     out_enlarged = xr.concat([out]*int(np.ceil(100/sim_draws)), dim='draws')
 
     if AD_non_hospitalised:
-        hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
+        hospitalisation_groups = ['Non-hospitalised','Hospitalised (no IC)','Hospitalised (IC)']
     else:
-        hospitalisation_groups = ['Non-hospitalised (no AD)','Cohort','ICU']
+        hospitalisation_groups = ['Non-hospitalised (no AD)','Hospitalised (no IC)','Hospitalised (IC)']
 
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
@@ -474,7 +474,7 @@ def lost_QALYs(out,AD_non_hospitalised=False):
     multi_index = pd.MultiIndex.from_product([hospitalisation_groups,ages,np.arange(QALY_draws)],names=['hospitalisation','age','draw'])
     QALY_long_COVID_per_age = pd.Series(index = multi_index, dtype=float)
     for idx,(hospitalisation,age,draw) in enumerate(QALY_long_COVID_per_age.index):
-        QALY_long_COVID_per_age[idx] = np.random.normal(average_QALY_losses['mean'][hospitalisation,age],
+        QALY_long_COVID_per_age.iloc[idx] = np.random.normal(average_QALY_losses['mean'][hospitalisation,age],
                                                         average_QALY_losses['sd'][hospitalisation,age])
         
     # bin data
