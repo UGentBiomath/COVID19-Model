@@ -39,10 +39,12 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 from covid19_DTM.data import sciensano
 from covid19_DTM.visualization.output import _apply_tick_locator 
 # Import the function to initialize the model
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_spatial_hybrid_vacc,  output_to_visuals, add_negative_binomial
+
 #############################
 ## Handle script arguments ##
 #############################
@@ -66,8 +68,7 @@ agg = args.agg
 ################################
 
 # Start and end of simulation
-start_sim = '2020-09-01'
-end_sim = '2022-01-01'
+end_sim = datetime(2022,1,1)
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -92,10 +93,12 @@ from covid19_DTM.models.utils import load_samples_dict
 samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
 warmup = float(samples_dict['warmup'])
 dispersion = float(samples_dict['dispersion'])
+tau = float(samples_dict['tau'])
 # Start of calibration warmup and beta
-start_calibration = samples_dict['start_calibration']
+start_calibration = datetime.strptime(samples_dict['start_calibration'], '%Y-%m-%d')
+start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
-end_calibration = samples_dict['end_calibration']
+end_calibration = datetime.strptime(samples_dict['end_calibration'], '%Y-%m-%d')
 
 ##################################################
 ## Load data not needed to initialize the model ##
@@ -117,12 +120,19 @@ deaths_hospital = df_sciensano_mortality.xs(key='all', level="age_class", drop_l
 model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_spatial_hybrid_vacc(age_stratification_size=age_stratification_size, agg=agg, update_data=False,
                                                                                 start_date=start_calibration, stochastic=True)
 
+if agg == 'arr':
+    # Switch to the provinicial initN
+    from covid19_DTM.data.utils import construct_initN
+    initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
+
 ############################################
 ## Sampling function/aggregation function ##
 ############################################
 
-from covid19_DTM.models.utils import aggregation_arr_prov
+from covid19_DTM.models.utils import aggregate_Brussels_Brabant_Dataset, aggregate_Brussels_Brabant_data
 from covid19_DTM.models.draw_functions import draw_fnc_COVID19_SEIQRD_spatial_hybrid_vacc as draw_fnc
+
+initN, df_hosp = aggregate_Brussels_Brabant_data(initN, df_hosp)
 
 #########################
 ## Perform simulations ##
@@ -130,18 +140,10 @@ from covid19_DTM.models.draw_functions import draw_fnc_COVID19_SEIQRD_spatial_hy
 
 print('\n1) Simulating spatial COVID-19 SEIRD '+str(args.n_samples)+' times')
 start_sim = start_calibration
-out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes), tau=0.75)
+out = model.sim([start_sim,end_sim], warmup=warmup, N=args.n_samples, draw_function=draw_fnc, samples=samples_dict, processes=int(args.processes), tau=tau)
+# Aggregate Brussels and Brabant
+out = aggregate_Brussels_Brabant_Dataset(out)
 simtime = out['date'].values
-
-if agg == 'arr':
-    # Switch to the provinicial initN
-    from covid19_DTM.data.utils import construct_initN
-    initN = construct_initN(pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,25),(25,35),(35,45),(45,55),(55,65),(65,75),(75,85),(85,120)], closed='left'), 'prov')
-    # Aggregate arrondissement simulation to the provincial level
-    agg_H_in = aggregation_arr_prov(out['H_in'])
-    agg_R = aggregation_arr_prov(out['R'])
-    out = agg_H_in.to_dataset(name='H_in')
-    out['R'] = agg_R
 
 #######################
 ## Visualize results ##
@@ -173,8 +175,8 @@ ax[0] = _apply_tick_locator(ax[0])
 ## Regional ##
 ##############
 
-NIS_lists = [[21000], [10000,70000,40000,20001,30000], [50000, 60000, 80000, 90000, 20002]]
-title_list = ['Brussels', 'Flanders', 'Wallonia']
+NIS_lists = [[21000], [10000,70000,40000,30000], [50000, 60000, 80000, 90000]]
+title_list = ['Brussels + Brabant', 'Flanders', 'Wallonia']
 color_list = ['blue', 'blue', 'blue']
 
 for idx,NIS_list in enumerate(NIS_lists):

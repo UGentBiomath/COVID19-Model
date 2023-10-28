@@ -1,14 +1,14 @@
 """
 This script contains a calibration of national COVID-19 SEIQRD model to hospitalization data in Belgium.
 
-Example function call
----------------------
+Example
+-------
 
-python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-08-23 -n_ag 10 -ID test
+python calibrate_BASE-COVID19_SEIQRD_hybrid_vacc.py -e 2021-11-01 -n_ag 10 -ID test
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2021 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2023 by T.W. Alleman, BIOSPACE, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -19,12 +19,12 @@ import sys
 import ast
 import click
 import json
-import datetime
 import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp
+from datetime import date, datetime, timedelta
 # COVID-19 code
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19_DTM.data import sciensano
@@ -76,13 +76,15 @@ n_mcmc = int(args.n_mcmc)
 # Number of age groups used in the model
 age_stratification_size=int(args.n_age_groups)
 # Date at which script is started
-run_date = str(datetime.date.today())
+run_date = str(date.today())
 # Keep track of runtime
-initial_time = datetime.datetime.now()
+initial_time = datetime.now()
 # Start and end of calibration
-start_calibration = pd.to_datetime(args.start_calibration)
+start_calibration = datetime.strptime(args.start_calibration,"%Y-%m-%d")
 if args.end_calibration:
-    end_calibration = pd.to_datetime(args.end_calibration)
+    end_calibration = datetime.strptime(args.end_calibration,"%Y-%m-%d")
+# Leap size
+tau = 0.50
 
 ##############################
 ## Define results locations ##
@@ -117,10 +119,8 @@ df_sero_herzog, df_sero_sciensano = sciensano.get_serological_data()
 ## Initialize the model ##
 ##########################
 
-model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date=start_calibration.strftime("%Y-%m-%d"),
+model, BASE_samples_dict, initN = initialize_COVID19_SEIQRD_hybrid_vacc(age_stratification_size=age_stratification_size, update_data=False, start_date=start_calibration,
                                                                         stochastic=True, distinguish_day_type=True)
-
-tau = 0.5
 
 # Deterministic
 model.parameters['beta'] = 0.027 # R0 = 3.31 --> https://pubmed.ncbi.nlm.nih.gov/32498136/
@@ -176,27 +176,23 @@ if __name__ == '__main__':
     ## Global PSO optimization ##
     #############################
 
-    # transmission
-    #pars1 = ['beta',]
-    #bounds1=((0.001,0.080),)
-    # Effectivity parameters
-    pars2 = ['eff_work', 'mentality','k']
-    bounds2=((0.05,0.95),(0.01,0.99),(1e3,1e4))
+    # Social contact
+    pars1 = ['eff_work', 'mentality','k']
+    bounds1=((0.05,0.95),(0.01,0.99),(1e3,1e4))
     # Variants
-    pars3 = ['K_inf',]
-    # Must supply the bounds
-    bounds3 = ((1.20,1.60),(1.60,2.40))
+    pars2 = ['K_inf',]
+    bounds2 = ((1.20,1.60),(1.60,2.40))
     # Seasonality
-    pars4 = ['amplitude',]
-    bounds4 = ((0,0.40),)
+    pars3 = ['amplitude',]
+    bounds3 = ((0,0.40),)
     # New hospprop
-    pars5 = ['f_h',]
-    bounds5 = ((0,1),)    
+    pars4 = ['f_h',]
+    bounds4 = ((0,1),)    
     # Join them together
-    pars = pars2 + pars3 + pars4 + pars5
-    bounds =  bounds2 + bounds3 + bounds4 + bounds5
+    pars = pars1 + pars2 + pars3 + pars4
+    bounds =  bounds1 + bounds2 + bounds3 + bounds4
     # Define labels
-    labels = ['$\Omega_{work}$', '$M$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
+    labels = ['$\Omega$', '$\Psi$', 'k', '$K_{inf, abc}$', '$K_{inf, \\delta}$', '$A$', '$f_h$']
     # Setup objective function without priors and with negative weights 
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
 
@@ -208,7 +204,7 @@ if __name__ == '__main__':
     #out = pso.optimize(objective_function, bounds, kwargs={'simulation_kwargs':{'warmup': warmup}},
     #                   swarmsize=multiplier_pso*processes, max_iter=n_pso, processes=processes, debug=True)[0]
     # A good guess
-    theta = [0.45, 0.56, 3140, 1.50, 1.90, 0.225, 0.60] # 2023-02-24
+    theta = [0.50, 0.56, 5000, 1.45, 1.80, 0.225, 0.60]
 
     # Nelder-mead
     #step = len(bounds)*[0.05,]
@@ -225,10 +221,10 @@ if __name__ == '__main__':
         # Assign estimate
         model.parameters = assign_theta(model.parameters, pars, theta)
         # Perform simulation
-        end_visualization = '2022-07-01'
-        out = model.sim([start_calibration, pd.Timestamp(end_visualization)], warmup=warmup)
+        end_visualization = datetime(2022, 7, 1)
+        out = model.sim([start_calibration, end_visualization], warmup=warmup)
         # Visualize fit
-        ax = plot_PSO(out, data, states, start_calibration-pd.Timedelta(days=warmup), end_visualization)
+        ax = plot_PSO(out, data, states, start_calibration-timedelta(days=warmup), end_visualization)
         plt.show()
         plt.close()
 
@@ -264,21 +260,19 @@ if __name__ == '__main__':
     print('\n2) Markov Chain Monte Carlo sampling\n')
 
     # Perturbate PSO Estimate
-    # pars1 = ['beta',]
-    #pert1 = [0.01,]
     # pars2 = ['eff_schools', 'eff_work', 'eff_rest', 'mentality', 'eff_home']
-    pert2 = [0.05, 0.05, 0.05]
+    pert1 = [0.05, 0.05, 0.05]
     # pars3 = ['K_inf_abc','K_inf_delta']
-    pert3 = [0.05, 0.05]
+    pert2 = [0.05, 0.05]
     # pars4 = ['amplitude']
-    pert4 = [0.05,] 
+    pert3 = [0.05,] 
     # pars5 = ['f_h']
-    pert5 = [0.05,]     
+    pert4 = [0.05,]     
     # Setup prior functions and arguments
     log_prior_prob_fnc = len(bounds)*[log_prior_uniform,]
     log_prior_prob_fnc_args = bounds
     # Add them together and perturbate
-    pert =  pert2 + pert3 + pert4 + pert5
+    pert =  pert1 + pert2 + pert3 + pert4
     ndim, nwalkers, pos = perturbate_theta(theta, pert, multiplier=multiplier_mcmc, bounds=log_prior_prob_fnc_args, verbose=False)
 
     ######################

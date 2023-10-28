@@ -25,7 +25,7 @@ python plot_fit_BASE-COVID19_SEIQRD_hybrid_vacc.py -ID test -d 2023-02-15 -n_ag 
 """
 
 __author__      = "Tijs Alleman"
-__copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
+__copyright__   = "Copyright (c) 2023 by T.W. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 ############################
 ## Load required packages ##
@@ -37,6 +37,7 @@ import datetime
 import argparse
 import numpy as np
 import pandas as pd
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19_DTM.data import sciensano
@@ -67,7 +68,7 @@ age_stratification_size=int(args.n_age_groups)
 ################################
 
 # Start and end of simulation
-end_sim = '2022-01-01'
+end_sim = datetime(2022,1,1)
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -91,10 +92,10 @@ for directory in [fig_path, samples_path]:
 samples_dict = load_samples_dict(samples_path+str(args.agg)+'_'+str(args.identifier) + '_SAMPLES_' + str(args.date) + '.json', age_stratification_size=age_stratification_size)
 warmup = samples_dict['warmup']
 # Start of calibration warmup and beta
-start_calibration = samples_dict['start_calibration']
+start_calibration = datetime.strptime(samples_dict['start_calibration'], '%Y-%m-%d')
 start_sim = start_calibration
 # Last datapoint used to calibrate warmup and beta
-end_calibration = samples_dict['end_calibration']
+end_calibration = datetime.strptime(samples_dict['end_calibration'], '%Y-%m-%d')
 # Overdispersion data
 dispersion = float(samples_dict['dispersion'])
 
@@ -160,7 +161,7 @@ ax1.grid(False)
 ax2.plot(df_2plot['H_in','mean'], color='blue', linewidth=1.5)
 ax2.fill_between(simtime, df_2plot['H_in','lower'], df_2plot['H_in','upper'],alpha=0.20, color = 'blue')
 ax2.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][start_calibration:end_calibration], color='red', alpha=0.2, linestyle='None', facecolors='red', s=10)
-ax2.scatter(df_hosp[pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+datetime.timedelta(days=1):end_sim], color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
+ax2.scatter(df_hosp[pd.to_datetime(end_calibration)+timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+timedelta(days=1):end_sim], color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_xlim(start_sim,end_sim)
 ax2.set_ylabel('Incidence\nHospital (-)', fontsize=13)

@@ -113,6 +113,13 @@ for name,value in settings['calibrated_parameters_shapes'].items():
 
 # Remove calibrated parameters from the settings
 del settings['calibrated_parameters_shapes']
+# Print values
+# for k,v in samples_dict.items():
+#     if k != 'K_inf':
+#         print(f'{k}: mean: {np.mean(v)}, CI: {np.quantile(v, 0.025)}-{np.quantile(v, 0.975)}')
+#     else:
+#         for K_inf in v:
+#             print(f'{k}: mean: {np.mean(K_inf)}, CI: {np.quantile(K_inf, 0.025)}-{np.quantile(K_inf, 0.975)}')
 # Append settings to samples dictionary
 samples_dict.update(settings)
 # Remove settings .json
@@ -142,17 +149,17 @@ else:
 
 
 CORNER_KWARGS = dict(
-    smooth=0.90,
+    smooth=1,
     label_kwargs=dict(fontsize=24),
-    title_kwargs=dict(fontsize=24),
-    quantiles=[0.05, 0.95],
+    title_kwargs=dict(fontsize=14),
+    title_quantiles=[0.05, 0.50, 0.95],
     levels=(1 - np.exp(-0.5), 1 - np.exp(-2), 1 - np.exp(-9 / 2.)),
     plot_density=True,
     plot_datapoints=False,
     fill_contours=True,
     show_titles=True,
     max_n_ticks=3,
-    title_fmt=".2E",
+    title_fmt=".2F",
     range=range_lst
 )
 

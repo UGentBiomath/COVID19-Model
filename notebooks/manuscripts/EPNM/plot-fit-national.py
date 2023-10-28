@@ -2,8 +2,6 @@
 ## Packages ##
 ##############
 
-import os
-import multiprocessing as mp
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,7 +25,7 @@ colors = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
 
 # Start- and enddate simulation
 start_sim = '2020-03-01'
-end_sim = '2021-12-31'
+end_sim = '2021-03-31'
 
 ####################
 ## Simulate model ##
@@ -49,13 +47,13 @@ data_B2B['weighted']=0
 for date in data_B2B.index.get_level_values('date').unique():
     v = data_B2B.loc[date, slice(None)]['B2B demand']*B2B_demand
     data_B2B.loc[(date,slice(None)), 'weighted'] = v.values
-data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=1).mean()
+data_B2B = data_B2B['weighted'].groupby(by='date').sum().ewm(span=4).mean()
 
 # Draw function
 from EPNM.models.draw_functions import draw_function
 
 # Simulate model
-out = model.sim([start_sim, end_sim], tau=1, N=2*18, processes=18, samples={}, draw_function=draw_function)
+out = model.sim([start_sim, end_sim], tau=1, N=180, processes=18, samples={}, draw_function=draw_function)
 simtime = out['date'].values
 
 ###############
@@ -71,7 +69,7 @@ ylabels = ['B2B transactions\nreduction (%)', 'Synthetic GDP\nreduction (%)', 'R
 # Sectoral dimension name
 dims = ['NACE21', 'NACE64', 'NACE64', 'NACE64']
 # Initialize figure
-fig,ax=plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8.27,8.27))
+fig,ax=plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8.27,0.5*11.7))
 
 for i, (data, state, ylabel, dim) in enumerate(zip(datasets, states, ylabels, dims)):
     # Data
@@ -82,12 +80,11 @@ for i, (data, state, ylabel, dim) in enumerate(zip(datasets, states, ylabels, di
                                 out[state].sum(dim='NACE64').quantile(dim='draws', q=0.975)/out[state].sum(dim='NACE64').mean(dim='draws').isel(date=0)*100-100,
                                 color=colors['blue'], alpha=0.2)
     # Formatting
-    ax[i].set_ylabel(ylabel)
-    ax[i].set_ylim([-100,20])
+    ax[i].set_ylabel(ylabel,size=10)
+    ax[i].set_ylim([-50,5])
     ax[i].grid(False)
-    
-ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')], rotation=30, ha='right')
-plt.xticks(rotation = 30) 
+    ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')])
+    ax[i].tick_params(axis='both', which='major', labelsize=10)
 
 # Show figure
 plt.tight_layout()
