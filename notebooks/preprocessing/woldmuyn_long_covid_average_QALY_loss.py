@@ -317,7 +317,7 @@ def QALY_loss_func(t,tau,p_AD,age,QoL_after):
     beta = QoL_Belgium_func(age+t/12)-QoL_after
     return prevalence_func(t,tau,p_AD) * max(0,beta)
 
-draws = 300
+draws = 500
 
 # Pre-allocate new multi index series with index=hospitalisation,age,draw
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],np.arange(draws),LE_table.index.values],names=['hospitalisation','draw','age'])
@@ -346,7 +346,7 @@ for idx,(hospitalisation,draw,age) in enumerate(tqdm(multi_index)):
     # integrate QALY_loss_func from 0 to LE (OPM: kan ook discreet) 
     QALY_loss = quad(QALY_loss_func,0,LE,args=(tau,p_AD,age,QoL_after))[0]/12 
     average_QALY_losses_per_age.iloc[idx] = QALY_loss
-    
+
 print('\n(4.2) Bin average QALY loss per age to age groups\n')
 
 # bin data

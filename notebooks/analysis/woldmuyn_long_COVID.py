@@ -202,6 +202,6 @@ if __name__ == '__main__':
         lower = np.quantile(total,0.025)
         upper = np.quantile(total,0.975)
         
-        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f}; {upper:.0f})'
 
     QALY_table.to_csv(os.path.join(result_folder,f'Long_COVID_summary_SMR{SMR*100:.0f}.csv'))
