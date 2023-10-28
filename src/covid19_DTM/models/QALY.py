@@ -56,7 +56,7 @@ class life_table_QALY_model():
         # Define absolute path
         abs_dir = os.path.dirname(__file__)
         # Import life table (q_x)
-        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
+        self.life_table = pd.read_csv(os.path.join(abs_dir, '../../../data/covid19_DTM/interim/QALY_model/life_table_model/Life_table_Belgium_2019.csv'),sep=',',index_col=0)
         # Define mu_x explictly to enhance readability of the code
         self.mu_x = self.life_table['mu_x']
         # Define overall Belgian QoL scores (source: ...)
