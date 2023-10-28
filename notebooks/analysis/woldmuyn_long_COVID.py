@@ -7,14 +7,25 @@ Visualizations are saved to results/preprocessing/QALY/long_COVID
 __author__      = "Wolf Demuynck"
 __copyright__   = "Copyright (c) 2022 by W. Demuynck, BIOMATH, Ghent University. All Rights Reserved."
 
-from covid19_DTM.models.utils import output_to_visuals
+import argparse
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
-from covid19_DTM.visualization.output import _apply_tick_locator 
-from covid19_DTM.models.QALY import lost_QALYs
+from QALY_model.direct_QALYs import lost_QALYs, life_table_QALY_model
+life_table = life_table_QALY_model()
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib import font_manager
 import os
+import multiprocessing as mp
+import pandas as pd
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--SMR", help="SMR", default=1)
+parser.add_argument("-n", "--N", help="DTM simulations", default=50)
+args = parser.parse_args()
+
+SMR = float(args.SMR)
+N = int(args.N)
 
 # From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
 colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
@@ -28,15 +39,15 @@ if __name__ == '__main__':
     ################################
 
     # Number of simulations
-    N=10
+    #N=50
     # Number of neg. binomial draws/ simulation
-    K=20
+    K=10
     # Number of cpu's
-    processes=18
+    processes=int(mp.cpu_count()/2)
     # Number of age groups
     age_stratification_size=10
     # End of simulation
-    end_sim='2021-07-01'
+    end_sim='2021-12-31'
     # Confidence level used to visualise model fit
     conf_int=0.05
 
@@ -66,8 +77,8 @@ if __name__ == '__main__':
     #######################
 
     print('\n3) Calculating QALYs')
-    out_AD = lost_QALYs(out,AD_non_hospitalised=True)
-    out_no_AD = lost_QALYs(out,AD_non_hospitalised=False)
+    out_AD = lost_QALYs(out,AD_non_hospitalised=True,SMR=SMR)
+    out_no_AD = lost_QALYs(out,AD_non_hospitalised=False,SMR=SMR)
 
     ####################
     ## Visualisations ##
@@ -76,8 +87,9 @@ if __name__ == '__main__':
     print('\n4) Visualise results')
 
     abs_dir = os.path.dirname(__file__)
-    result_folder = '../../results/covid19_DTM/analysis/QALY/long_COVID'
-
+    result_folder = os.path.join(abs_dir,'../../results/QALY_model/direct_QALYs/analysis/')
+    
+    # Barplot (addition TWA)
     states = ['QALY_NH', 'QALY_C', 'QALY_ICU','QALY_D']
     titles = ['Non-hospitalised', 'Non-hospitalised (no IC)', 'Non-hospitalised (IC)','Deaths']
     colors = ['green','yellow','red','black']
@@ -113,41 +125,87 @@ if __name__ == '__main__':
     fig.savefig('QALY_losses_per_age_group.pdf')
     plt.close()
 
-    for scenario,out in zip(['no_AD','AD'],[out_no_AD,out_AD]):
+    # Wolf's code starts here
+    label_font = font_manager.FontProperties(family='CMU Sans Serif',
+                                    style='normal', 
+                                    size=10)
+    legend_font = font_manager.FontProperties(family='CMU Sans Serif',
+                                    style='normal', 
+                                    size=8)
 
-      # With confidence interval
-      df_2plot = output_to_visuals(out, states, alpha=dispersion, n_draws_per_sample=K, UL=1-conf_int*0.5, LL=conf_int*0.5)
-      simtime = out['date'].values
+    # Verify that the paths exist and if not, generate them
+    if not os.path.exists(os.path.join(abs_dir,result_folder)):
+        os.makedirs(os.path.join(abs_dir,result_folder))
 
-      fig,axs = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(12,10))
-      axs=axs.reshape(-1)
-      for ax, QALYs, title, color in zip(axs, states,titles,colors):
+    states = ['QALY_D','QALY_NH', 'QALY_C', 'QALY_ICU']
+    titles = ['Deaths','Non-hospitalised', 'Cohort', 'ICU']
+    QALYs = {'Non-hospitalised (no AD)':'QALY_NH','Non-hospitalised (AD)':'QALY_NH','Cohort':'QALY_C','ICU':'QALY_ICU','Deaths':'QALY_D'}
 
-          ax.plot(df_2plot[QALYs,'mean'],'--', color=color)
-          ax.fill_between(simtime, df_2plot[QALYs,'lower'], df_2plot[QALYs,'upper'],alpha=0.20, color = color)
+    colors = ['black','green','orange','red']
+    palette = cm.get_cmap('tab10').colors
+    palette_colors = {'black':palette[7],'green':palette[2],'orange':palette[1],'red':palette[3]}
 
-          ax = _apply_tick_locator(ax)
-          ax.set_title(title,fontsize=20)
-          ax.set_ylabel('lost QALYs')
-          ax.grid(False)
+    # These twolines may have come from the master branch
+    age_groups = out_AD.coords['age_groups'].values
+    age_group_labels = ['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
 
-      plt.subplots_adjust(hspace=0.5)
-      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_{scenario}.pdf'))
+    # summarise results in table
+    index = pd.Index(age_group_labels+['Total'])
+    columns = ['Non-hospitalised (no AD)', 'Non-hospitalised (AD)', 'Cohort', 'ICU', 'Deaths','Total (no AD)', 'Total (AD)']
+    QALY_table = pd.DataFrame(index=index,columns=columns)
 
-      # QALYS per age group
-      Palette=cm.get_cmap('tab10_r', initN.size).colors
-      age_group=['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
+    # QALY per age group per hospitalisation group
+    for age_group,age_group_label in zip(age_groups,age_group_labels):
+        for column in ['Non-hospitalised (no AD)', 'Non-hospitalised (AD)', 'Cohort', 'ICU', 'Deaths']:
+            if column == 'Non-hospitalised (AD)':
+                out = out_AD
+            else:
+                out = out_no_AD
 
-      fig, axs = plt.subplots(4,figsize=(10,10),sharex=True)
-      axs=axs.reshape(-1)
-      for ax, QALYs, title, color in zip(axs,states,titles,colors):
+            out_slice = out[QALYs[column]].sel({'age_groups':age_group}).sum('doses')[slice(None),-1].values
+            mean = out_slice.mean()
+            sd = np.std(out_slice)
+            lower = np.quantile(out_slice,0.025)
+            upper = np.quantile(out_slice,0.975)
 
-        ax.stackplot(simtime,np.transpose(out[QALYs].mean(dim="draws").sum(dim='doses').values),linewidth=3, labels=age_group, colors=Palette, alpha=0.8)
-        ax.set_title(title,fontsize=20)
-        ax.set_ylabel('lost QALYs')
-        ax = _apply_tick_locator(ax) 
-        ax.grid(False)
-      axs[0].legend(fancybox=True, frameon=True, framealpha=1, fontsize=15,title='Age Group', loc="upper left", bbox_to_anchor=(1,1)) 
+            QALY_table[column][age_group_label] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+            
+    # Total QALY per hospitalisation group        
+    for column in ['Non-hospitalised (no AD)', 'Non-hospitalised (AD)', 'Cohort', 'ICU', 'Deaths']:
+        if column == 'Non-hospitalised (AD)':
+            out = out_AD
+        else:
+            out = out_no_AD
+        
+        out_slice = out[QALYs[column]].sum('age_groups').sum('doses')[slice(None),-1].values
+        mean = out_slice.mean()
+        sd = np.std(out_slice)
+        lower = np.quantile(out_slice,0.025)
+        upper = np.quantile(out_slice,0.975)
 
-      plt.subplots_adjust(hspace=0.5)
-      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.pdf'))
+        QALY_table[column]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+
+    # Total QALY per age group
+    for total_label,out in zip(['Total (no AD)', 'Total (AD)'],[out_no_AD,out_AD]):
+        total = np.zeros(out.dims['draws'])
+        for age_group,age_group_label in zip(age_groups,age_group_labels):
+            total_per_age_group = np.zeros(out.dims['draws'])
+            for state in states:
+                total_per_age_group+=out[state].sel({'age_groups':age_group}).sum('doses')[slice(None),-1].values
+            total += total_per_age_group
+
+            mean = total_per_age_group.mean()
+            sd = np.std(total_per_age_group)
+            lower = np.quantile(total_per_age_group,0.025)
+            upper = np.quantile(total_per_age_group,0.975)
+
+            QALY_table[total_label][age_group_label] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+        
+        mean = total.mean()
+        sd = np.std(total)
+        lower = np.quantile(total,0.025)
+        upper = np.quantile(total,0.975)
+        
+        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+
+    QALY_table.to_csv(os.path.join(result_folder,f'Long_COVID_summary_SMR{SMR*100:.0f}.csv'))
