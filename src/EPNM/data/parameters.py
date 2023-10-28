@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from EPNM.data.utils import get_sectoral_conversion_matrix,get_sector_labels
 
 # Set path to interim data folder
@@ -76,19 +77,41 @@ def get_model_parameters(shocks='alleman'):
     pars_dict['n'] = np.expand_dims(np.array(df['Desired stock (days)'].values), axis=1)
     pars_dict['on_site'] = np.array(df['On-site consumption (-)'].values)
     
-    # shock vectors
-    # ~~~~~~~~~~~~~
+    # shock to labor supply and househol demand
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     df = pd.read_excel(os.path.join(par_interim_path,"model_parameters/shocks/shocks.xlsx"), sheet_name=shocks, header=[0],index_col=[0])
-
     pars_dict['l_s_1'] = -np.array(df['labor_supply_1'].values)/100
     pars_dict['l_s_2'] = -np.array(df['labor_supply_2'].values)/100
     pars_dict['l_s_1'] = np.where(pars_dict['l_s_1'] <= 0, 0, pars_dict['l_s_1'])
     pars_dict['l_s_2'] = np.where(pars_dict['l_s_2'] <= 0, 0, pars_dict['l_s_2'])
     pars_dict['c_s'] = -np.array(df['c_demand'].values)/100
-    pars_dict['f_s'] = -np.array(df['f_demand'].values)/100
-    pars_dict['ratio_c_s'] = 0.5
-    pars_dict['ratio_f_s'] = 0.5
+    pars_dict['ratio_c_s'] = 0.50
 
+    # shock to other demand
+    # ~~~~~~~~~~~~~~~~~~~~~ 
+
+    ## magnitude
+    pars_dict['shocks'] = shocks
+    pars_dict['f_s_inv'] = 0.16
+    pars_dict['f_s_exp_goods'] = 0.25
+    ## components of demand
+    # retrieve data
+    df = pd.read_csv(os.path.join(par_interim_path,"model_parameters/other_parameters.csv"), sep=',',header=[0],index_col=[0])
+    pars_dict['f_gov'] = (np.array(df['Other consumption - government (M€/y)'].values) + np.array(df['Other consumption - IZW (M€/y)'].values))/365
+    pars_dict['f_inv'] = np.array(df['Other consumption - investments (M€/y)'].values)/365
+    f_exp=df['Other consumption - exports (M€/y)']/365
+    # split exports of goods (A-F) and services (G-T) as these recover differently
+    f_exp_goods = pd.Series(0, index=f_exp.index, name='exports_goods')
+    f_exp_goods.loc[slice('A01', 'F41-43')] = f_exp.loc[slice('A01', 'F41-43')].values
+    f_exp_services = pd.Series(0, index=f_exp.index, name='exports_goods')
+    f_exp_services.loc[slice('G45', None)] = f_exp.loc[slice('G45', None)].values
+    pars_dict['f_exp_goods'] = np.array(f_exp_goods.values)
+    pars_dict['f_exp_services'] = np.array(f_exp_services.values)
+    # compute relative fraction of total demand of each component
+    pars_dict['f_gov'] = np.nan_to_num(pars_dict['f_gov']/pars_dict['f_0'])
+    pars_dict['f_inv'] = np.nan_to_num(pars_dict['f_inv']/pars_dict['f_0'])
+    pars_dict['f_exp_goods'] = np.nan_to_num(pars_dict['f_exp_goods']/pars_dict['f_0'])
+    pars_dict['f_exp_services'] = np.nan_to_num(pars_dict['f_exp_services']/pars_dict['f_0'])
 
     # Critical inputs
     # ~~~~~~~~~~~~~~~
@@ -116,22 +139,22 @@ def get_model_parameters(shocks='alleman'):
     # Hardcoded model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    pars_dict.update({'rho': 1-(1-0.60)/90,          
+    pars_dict.update({'rho': 1-(1-0.75)/90,          
                       'delta_S': 0.75,                                                  
                       'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
-                      'tau': 14,                                                                                                 
-                      'gamma_H': 56,
-                      'gamma_F': 28 
+                      'tau': 1,                                                                                                 
+                      'gamma_H': 2*28,
+                      'gamma_F': 28, 
                       })  
 
     # Time-dependent model parameters
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    pars_dict.update({'l1': 7,
-                      'l2': 6*7,
+    pars_dict.update({'l1': 14,
+                      'l2': 8*7,
                       't_start_lockdown_1': pd.Timestamp('2020-03-10'),
-                      't_end_lockdown_1': pd.Timestamp('2020-05-01'),
+                      't_end_lockdown_1': pd.Timestamp('2020-04-19'),
                       't_start_lockdown_2': pd.Timestamp('2020-10-19'),
                       't_end_lockdown_2': pd.Timestamp('2020-11-19'),
                       't_start_final_relax': pd.Timestamp('2021-05-01'),

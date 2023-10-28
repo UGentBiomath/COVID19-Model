@@ -12,7 +12,7 @@ A folder containing all raw simulations used for the RESTORE reports, the report
 
 #### Economic data
 
-+ `input-output.xlsx` contains sectoral input-ouput tables for Belgium. Belgian data, NACE 64 classification. Retrieved from https://www.plan.be/databases/data-63-en-input_output_tables_2015
++ `vR64_nl_20191213.xlsx`: Input-ouput tables for Belgium. NACE 64 classification. 2015. Retrieved from https://www.plan.be/databases/data-63-en-input_output_tables_2015
 + `Employees_NACE38.xlsx` contains the number of employees per sector from 2014 to 2018. Belgian data, NACE 38 classification. Retrieved from http://stat.nbb.be/?lang=nl, 'Bevolking en arbeidsmarkt' > 'Werkgelegenheid' > 'Binnenlands concept A38'.
 + `Employees_NACE64.xlsx` contains the number of employees per sector from 2014 to 2018. Belgian data, NACE 38 classification. Retrieved from http://stat.nbb.be/?lang=nl, 'Bevolking en arbeidsmarkt' > 'Werkgelegenheid' > 'Binnenlands concept A64'.
 + `table_ratio_inv_go.csv` contains, for every sector in the WIOD 55 classification, the number of days production can continue when no inputs are delivered (= stock). Retrieved from https://zenodo.figshare.com/articles/software/Production_networks_and_epidemic_spreading_How_to_restart_the_UK_economy_/12345527/1
