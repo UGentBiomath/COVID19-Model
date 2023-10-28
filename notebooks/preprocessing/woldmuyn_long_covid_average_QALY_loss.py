@@ -383,11 +383,3 @@ for ax,hospitalisation in zip(axes,hospitalisation_groups):
 axes[0].set_ylabel('Average QALY loss', size=10)
 plt.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'average_QALY_losses_per_age.pdf'))
-
-# QALY losses due COVID death
-QALY_D_per_age = Life_table.compute_QALY_D_x()
-fig,ax = plt.subplots(figsize=(12,4))
-ax.plot(QALY_D_per_age,'b')
-ax.set(xlabel='age', ylabel=r'$QALY_D$')
-ax.grid(False)
-fig.savefig(os.path.join(abs_dir,fig_result_folder,'QALY_D.pdf'))
