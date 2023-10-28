@@ -69,7 +69,7 @@ ylabels = ['B2B transactions\nreduction (%)', 'Synthetic GDP\nreduction (%)', 'R
 # Sectoral dimension name
 dims = ['NACE21', 'NACE64', 'NACE64', 'NACE64']
 # Initialize figure
-fig,ax=plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8.27,8.27))
+fig,ax=plt.subplots(nrows=4, ncols=1, sharex=True, figsize=(8.27,0.5*11.7))
 
 for i, (data, state, ylabel, dim) in enumerate(zip(datasets, states, ylabels, dims)):
     # Data
@@ -80,13 +80,12 @@ for i, (data, state, ylabel, dim) in enumerate(zip(datasets, states, ylabels, di
                                 out[state].sum(dim='NACE64').quantile(dim='draws', q=0.975)/out[state].sum(dim='NACE64').mean(dim='draws').isel(date=0)*100-100,
                                 color=colors['blue'], alpha=0.2)
     # Formatting
-    ax[i].set_ylabel(ylabel)
+    ax[i].set_ylabel(ylabel,size=10)
     ax[i].set_ylim([-50,5])
     ax[i].grid(False)
-    #ax[i].set_xlim([start_sim, end_sim])
-    #ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')])
+    ax[i].set_xticks([pd.to_datetime('2020-03-31'), pd.to_datetime('2020-06-30'), pd.to_datetime('2020-09-30'),pd.to_datetime('2020-12-31'),pd.to_datetime('2021-03-31')])
+    ax[i].tick_params(axis='both', which='major', labelsize=10)
 
-plt.xticks(rotation = 30) 
 # Show figure
 plt.tight_layout()
 plt.show()
