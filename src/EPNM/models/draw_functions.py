@@ -20,13 +20,13 @@ def draw_function(param_dict, samples_dict):
     # restitution 
     param_dict['rho'] = np.random.uniform(low=1-(1-0.50)/90, high=1-(1-1)/90)
     # restock rate
-    param_dict['tau'] =  np.random.normal(loc=1, scale=0.2*1)
+    param_dict['tau'] =  np.random.normal(loc=7, scale=0.2*7)
     # shocks lockdowns
     param_dict['l_s_1'] =  np.random.normal(loc=1, scale=0.075)*param_dict['l_s_1']
     param_dict['l_s_2'] =  np.random.normal(loc=1, scale=0.075)*param_dict['l_s_2']
     param_dict['c_s'] =  np.random.normal(loc=1, scale=0.075)*param_dict['c_s']
     param_dict['c_s'] = np.where(param_dict['c_s'] > 1, 1, param_dict['c_s'])
     # shocks summer 2020 
-    param_dict['ratio_c_s'] =  np.random.uniform(low=0.50, high=1)
+    param_dict['ratio_c_s'] =  np.random.uniform(low=0.25, high=0.75)
 
     return param_dict

@@ -144,8 +144,8 @@ def get_model_parameters(shocks='alleman'):
                       'L': 1,                                                        
                       'l_start_lockdown': sum((1-pars_dict['l_s_1'])*pars_dict['l_0']),                                                    
                       'tau': 1,                                                                                                 
-                      'gamma_H': 28,
-                      'gamma_F': 14, 
+                      'gamma_H': 2*28,
+                      'gamma_F': 28, 
                       })  
 
     # Time-dependent model parameters
