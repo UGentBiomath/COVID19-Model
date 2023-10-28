@@ -38,8 +38,6 @@ if __name__ == '__main__':
     ## Define simulation settings ##
     ################################
 
-    # Number of simulations
-    #N=50
     # Number of neg. binomial draws/ simulation
     K=10
     # Number of cpu's
@@ -47,7 +45,7 @@ if __name__ == '__main__':
     # Number of age groups
     age_stratification_size=10
     # End of simulation
-    end_sim='2021-12-31'
+    end_sim='2021-07-01'
     # Confidence level used to visualise model fit
     conf_int=0.05
 
@@ -116,14 +114,12 @@ if __name__ == '__main__':
       ax.grid(False)
       ax.tick_params(axis='both', which='major', labelsize=10)
       ax.tick_params(axis='x', which='major', rotation=30)
-      ax.set_ylim([0,7000])
+      ax.set_ylim([0,6600])
     axes[0].legend(loc=2, framealpha=1, fontsize=10)
     axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
 
     plt.tight_layout()
-    plt.show()
-    fig.savefig('QALY_losses_per_age_group.pdf')
-    plt.close()
+    fig.savefig(result_folder+'QALY_losses_per_age_group.pdf')
 
     # Wolf's code starts here
     label_font = font_manager.FontProperties(family='CMU Sans Serif',
@@ -206,6 +202,6 @@ if __name__ == '__main__':
         lower = np.quantile(total,0.025)
         upper = np.quantile(total,0.975)
         
-        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f};{upper:.0f})'
+        QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f}; {upper:.0f})'
 
     QALY_table.to_csv(os.path.join(result_folder,f'Long_COVID_summary_SMR{SMR*100:.0f}.csv'))
