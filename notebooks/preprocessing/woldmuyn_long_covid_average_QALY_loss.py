@@ -36,9 +36,10 @@ from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
 from covid19_DTM.visualization.output import _apply_tick_locator 
 from covid19_DTM.models.QALY import life_table_QALY_model, lost_QALYs_hospital_care
 
-import copy
 import emcee
 from tqdm import tqdm
+
+import sys
 
 ###############
 ## Load data ##
@@ -54,8 +55,8 @@ rel_dir = '../../data/covid19_DTM/raw/QALY_model/long_COVID/'
 # --------------- #
 
 severity_groups = ['Mild','Moderate','Severe-Critical']
-hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
-color_dict = {'Mild':'g','Non-hospitalised':'g','Non-hospitalised (no AD)':'g','Moderate':'y','Cohort':'y','Severe-Critical':'r','ICU':'r'}
+hospitalisation_groups = ['Non-hospitalised','Hospitalised (no IC)','Hospitalised (IC)']
+color_dict = {'Mild':'g','Non-hospitalised':'g','Non-hospitalised (no AD)':'g','Moderate':'y','Hospitalised (no IC)':'y','Severe-Critical':'r','Hospitalised (IC)':'r'}
 
 # raw prevalence data per severity group
 prevalence_data_per_severity_group = pd.read_csv(os.path.join(abs_dir,rel_dir,'Long_COVID_prevalence.csv'),index_col=[0,1])
@@ -91,7 +92,7 @@ sd_QoL_decrease_hospitalised =  0.41/np.sqrt(174) #(0.58-0.53)/1.96
 sd_QoL_decrease_non_hospitalised =  0.33/np.sqrt(1146) #(0.66-0.64)/1.96
 QoL_difference_data = pd.DataFrame(data=np.array([[mean_QoL_decrease_non_hospitalised,mean_QoL_decrease_hospitalised,mean_QoL_decrease_hospitalised],
                                                   [sd_QoL_decrease_non_hospitalised,sd_QoL_decrease_hospitalised,sd_QoL_decrease_hospitalised]]).transpose(),
-                                                  columns=['mean','sd'],index=['Non-hospitalised','Cohort','ICU'])
+                                                  columns=['mean','sd'],index=['Non-hospitalised','Hospitalised (no IC)','Hospitalised (IC)'])
 
 # ------- #
 # results #
@@ -157,11 +158,15 @@ time = np.linspace(0, t_max, t_steps)
 
 prevalence_func = lambda t,tau, p_AD: p_AD + (1-p_AD)*np.exp(-t/tau)
 
-for scenario,(fig,ax) in zip(('AD','no_AD'),(plt.subplots(),plt.subplots())):
-    for hospitalisation in hospitalisation_groups:
+fig,axes=plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(8.3,0.3*11.7))
+
+for ax, scenario, in zip(axes, ('AD','no_AD')):
+    markers = ['o', 's', '^']
+    linestyles = ['-', '--', '-.']
+    for (hospitalisation, marker, linestyle) in zip(hospitalisation_groups, markers, linestyles):
         x = prevalence_data_per_hospitalisation_group.loc[hospitalisation].index.values
         y = prevalence_data_per_hospitalisation_group.loc[hospitalisation].values.squeeze()
-        ax.plot(x,y,color_dict[hospitalisation]+'o',label=f'{hospitalisation} data')
+        ax.scatter(x,100*y,label=f'{hospitalisation} data', color='black', marker=marker)
 
         if hospitalisation =='Non-hospitalised' and scenario == 'no_AD':
             tau = taus['Non-hospitalised (no AD)']
@@ -169,15 +174,17 @@ for scenario,(fig,ax) in zip(('AD','no_AD'),(plt.subplots(),plt.subplots())):
         else:
             tau = taus[hospitalisation]
             p_AD = p_ADs[hospitalisation]
-        ax.plot(time,prevalence_func(time,tau,p_AD),color_dict[hospitalisation]+'--',alpha=0.7,
-            label=f'{hospitalisation} fit\n'rf'($\tau$:{tau:.2f},'' $f_{AD}$'f':{p_AD:.2f})')
+        ax.plot(time,100*prevalence_func(time,tau,p_AD),color='black',alpha=0.8, linewidth=1.5,
+            label=f'{hospitalisation} fit\n'rf'($\tau$:{tau:.2f},'' $f_{AD}$'f':{p_AD:.2f})', linestyle=linestyle)
     
-    ax.set_xlabel('Months after infection')
-    ax.set_ylabel('Prevalence')
-    ax.set_title('Prevalence of long-COVID symptoms')
-    ax.legend(prop={'size': 12})
+    ax.set_xlabel('Months after infection', size=10)
+    ax.legend(prop={'size': 8})
     ax.grid(False)
-    fig.savefig(os.path.join(abs_dir,fig_result_folder,f'prevalence_first_fit_{scenario}'))
+    ax.tick_params(axis='both', which='major', labelsize=10)
+
+axes[0].set_ylabel('Symptom prevalence (%)', size=10)
+plt.tight_layout()
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'prevalence_first_fit.pdf'))
 
 print('\n(2.2) MCMC to estimate f_AD\n')
 # objective functions for MCMC
@@ -215,30 +222,38 @@ def log_probability(theta, tau, x, y, bounds):
 samplers = {}
 p_AD_summary = pd.DataFrame(index=hospitalisation_groups,columns=['mean','sd','lower','upper'],dtype='float64')
 
+import corner
+
 for hospitalisation in hospitalisation_groups:
-    
+    # slice data
     x = prevalence_data_per_hospitalisation_group.loc[hospitalisation].index.values
     y = prevalence_data_per_hospitalisation_group.loc[hospitalisation].values.squeeze()
-
+    # set parameters
     tau = taus[hospitalisation]
     p_AD = p_ADs[hospitalisation]
-    
+    # setup sampler
     nwalkers = 32
     ndim = 1
     pos = p_AD + p_AD*1e-1 * np.random.randn(nwalkers, ndim)
-
     bounds = (0,1)
     sampler = emcee.EnsembleSampler(
         nwalkers, ndim, log_probability, args=(tau,x,y,bounds)
     )
     samplers.update({hospitalisation:sampler})
-    sampler.run_mcmc(pos, 20000, progress=True)
-
-    flat_samples = sampler.get_chain(discard=1000, thin=30, flat=True)
+    # run sampler
+    sampler.run_mcmc(pos, 25000, progress=True)
+    # extract chains
+    flat_samples = sampler.get_chain(discard=5000, thin=100, flat=True)
+    # print results
     p_AD_summary['mean'][hospitalisation] = np.mean(flat_samples,axis=0)
     p_AD_summary['sd'][hospitalisation] = np.std(flat_samples,axis=0)
     p_AD_summary['lower'][hospitalisation] = np.quantile(flat_samples,0.025,axis=0)
     p_AD_summary['upper'][hospitalisation] = np.quantile(flat_samples,0.975,axis=0)
+    # print cornerplot
+    fig = corner.corner(flat_samples)
+    fig.savefig(f'corner_{hospitalisation}')
+
+print(p_AD_summary)
 
 # visualise MCMC results    
 fig,axs = plt.subplots(2,2,figsize=(10,10),sharex=True,sharey=True)
@@ -273,6 +288,8 @@ axs[-1].grid(False)
 
 fig.suptitle('Prevalence of long-COVID symptoms')
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'prevalence_MCMC_fit.png'))
+
+sys.exit()
 
 #########
 ## QoL ##
