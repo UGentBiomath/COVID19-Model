@@ -34,7 +34,9 @@ data_GDP = data_GDP.groupby([pd.Grouper(freq='Q', level='date'),] + [data_GDP.in
 data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.index.get_level_values('NACE21')]).mean()
 
 # Initialize model
-params, model = initialize_model(shocks='alleman', prodfunc='half_critical')
+params, model = initialize_model(shocks='pichler', prodfunc='half_critical')
+
+model.parameters.update({'gamma_F': 15, 'gamma_H': 30, 'tau': 10, 'rho': 1-(1-0.60)/90})
 
 # Aggregation functions
 import xarray as xr
@@ -136,7 +138,7 @@ for i,date in enumerate(dates):
     dist[i] = np.sum(dist_temp)
 
     # text box with average euclidian distance in plane
-    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    props = dict(boxstyle='round', facecolor='wheat', alpha=1)
     ax[0,i].text(0.05, 0.95, f"{dist_abs[i]:.1f}; {dist[i]:.1f} %", transform=ax[0,i].transAxes, fontsize=7,
                  verticalalignment='top', bbox=props)
 
@@ -154,7 +156,7 @@ ax[0,0].set_ylabel('B2B transactions\nprediction (%)')
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
 sizes = [params['x_0'], params['x_0'], params['l_0']]
-print_label = [['G45'],['G45','N79', 'R93', 'H49'],['G45','N79', 'R93']]
+print_label = [['G45',],['G45','N79', 'R93'],['G45','N79', 'R93']]
 offset = [[-4,5],[-4,5],[-4,5]]
 ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
 
@@ -199,6 +201,11 @@ for k, data in enumerate(datasets):
                 # Sector label
                 if sector in print_label[k]:
                     ax[k+1,i].annotate(sector,  xy=(x + offset[k][0], y + offset[k][1]), fontsize=7)
+                # Circle around transport
+                if ((sector == 'H49')):
+                    from matplotlib import pyplot as plt, patches
+                    circle = patches.Circle((x, y), radius=12, color='black', linewidth=0.75, linestyle='--', alpha=0.9, fill=False)
+                    ax[k+1,i].add_patch(circle)
 
         # Weighted euclidian distance in plane
         x=data.loc[date, 'BE']*100-100
@@ -210,7 +217,7 @@ for k, data in enumerate(datasets):
         dist[i] = 1/(1+sum(cumsize))*np.sum(dist_temp)
 
         # text box with average euclidian distance in plane
-        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        props = dict(boxstyle='round', facecolor='wheat', alpha=1)
         ax[k+1,i].text(0.05, 0.95, f"{dist_abs[i]:.1f} %; {dist[i]:.1f} %", transform=ax[k+1,i].transAxes, fontsize=7,
                         verticalalignment='top', bbox=props)
 
