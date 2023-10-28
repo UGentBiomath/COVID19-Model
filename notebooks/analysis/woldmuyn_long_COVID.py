@@ -16,6 +16,12 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import os
 
+# From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
+colorscale_okabe_ito = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
+                        "green" : "#009E73", "yellow" : "#F0E442",
+                        "blue" : "#0072B2", "red" : "#D55E00",
+                        "pink" : "#CC79A7", "black" : "#000000"}
+
 if __name__ == '__main__':
     ################################
     ## Define simulation settings ##
@@ -73,8 +79,39 @@ if __name__ == '__main__':
     result_folder = '../../results/covid19_DTM/analysis/QALY/long_COVID'
 
     states = ['QALY_NH', 'QALY_C', 'QALY_ICU','QALY_D']
-    titles = ['Non-hospitalised', 'Cohort', 'ICU','Deaths']
+    titles = ['Non-hospitalised', 'Non-hospitalised (no IC)', 'Non-hospitalised (IC)','Deaths']
     colors = ['green','yellow','red','black']
+
+    age_groups=['0-12','12-18','18-25','25-35','35-45','45-55','55-65','65-75','75-85','85+']
+
+    fig,axes=plt.subplots(nrows=1, ncols=2, figsize=(8.3,0.25*11.7))
+    for ax,scenario,out in zip(axes, ['no_AD','AD'], [out_no_AD,out_AD]):
+      # group data
+      data = [out['QALY_D'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_NH'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_C'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000,
+              out['QALY_ICU'].mean(dim="draws").sum(dim='doses').isel(date=-1).values/initN*100000
+              ]
+      # settings
+      colors = ['grey', colorscale_okabe_ito['green'], colorscale_okabe_ito['orange'], colorscale_okabe_ito['red']]
+      hatches = ['....','////','\\\\\\','||||']
+      labels = ['Deaths', 'Non-hospitalised', 'Hospitalised (no IC)', 'Hospitalised (IC)']
+      # plot data
+      bottom=np.zeros(len(age_groups))
+      for d, color, hatch, label in zip(data, colors, hatches, labels):
+        p = ax.bar(age_groups, d, color=color, hatch=hatch, label=label, bottom=bottom, linewidth=0.25, alpha=0.7)
+        bottom += d
+      ax.grid(False)
+      ax.tick_params(axis='both', which='major', labelsize=10)
+      ax.tick_params(axis='x', which='major', rotation=30)
+      ax.set_ylim([0,7000])
+    axes[0].legend(loc=2, framealpha=1, fontsize=10)
+    axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
+
+    plt.tight_layout()
+    plt.show()
+    fig.savefig('QALY_losses_per_age_group.pdf')
+    plt.close()
 
     for scenario,out in zip(['no_AD','AD'],[out_no_AD,out_AD]):
 
@@ -95,7 +132,7 @@ if __name__ == '__main__':
           ax.grid(False)
 
       plt.subplots_adjust(hspace=0.5)
-      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_{scenario}.png'))
+      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_{scenario}.pdf'))
 
       # QALYS per age group
       Palette=cm.get_cmap('tab10_r', initN.size).colors
@@ -113,4 +150,4 @@ if __name__ == '__main__':
       axs[0].legend(fancybox=True, frameon=True, framealpha=1, fontsize=15,title='Age Group', loc="upper left", bbox_to_anchor=(1,1)) 
 
       plt.subplots_adjust(hspace=0.5)
-      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.png'), dpi=600)
+      fig.savefig(os.path.join(abs_dir,result_folder,f'QALY_losses_per_age_group_{scenario}.pdf'))
