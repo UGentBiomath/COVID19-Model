@@ -38,8 +38,6 @@ if __name__ == '__main__':
     ## Define simulation settings ##
     ################################
 
-    # Number of simulations
-    #N=50
     # Number of neg. binomial draws/ simulation
     K=10
     # Number of cpu's
@@ -116,14 +114,12 @@ if __name__ == '__main__':
       ax.grid(False)
       ax.tick_params(axis='both', which='major', labelsize=10)
       ax.tick_params(axis='x', which='major', rotation=30)
-      ax.set_ylim([0,7000])
+      ax.set_ylim([0,8000])
     axes[0].legend(loc=2, framealpha=1, fontsize=10)
     axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
 
     plt.tight_layout()
-    plt.show()
-    fig.savefig('QALY_losses_per_age_group.pdf')
-    plt.close()
+    fig.savefig(result_folder+'QALY_losses_per_age_group.pdf')
 
     # Wolf's code starts here
     label_font = font_manager.FontProperties(family='CMU Sans Serif',

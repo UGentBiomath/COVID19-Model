@@ -467,13 +467,13 @@ def lost_QALYs(out,AD_non_hospitalised=False,SMR=1,draws=500):
         out_enlarged = xr.concat([out]*int(np.ceil(500/sim_draws)), dim='draws')
 
     if AD_non_hospitalised:
-        hospitalisation_groups = ['Non-hospitalised','Cohort','ICU']
+        hospitalisation_groups = ['Non-hospitalised','Hospitalised (no IC)','Hospitalised (IC)']
     else:
-        hospitalisation_groups = ['Non-hospitalised (no AD)','Cohort','ICU']
+        hospitalisation_groups = ['Non-hospitalised (no AD)','Hospitalised (no IC)','Hospitalised (IC)']
 
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
-    rel_dir = '../../../data/covid19_DTM/interim/QALY_model/long_COVID/'
+    rel_dir = '../../data/QALY_model/interim/long_COVID/'
     file_name = f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}.csv'
     average_QALY_losses = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1])
     age_groups = average_QALY_losses.index.get_level_values('age_group').unique()
