@@ -97,14 +97,6 @@ QoL_difference_data = pd.DataFrame(data=np.array([[mean_QoL_decrease_non_hospita
 # results #
 # ------- #
 
-# latex font
-label_font = font_manager.FontProperties(family='CMU Sans Serif',
-                                   style='normal', 
-                                   size=10)
-legend_font = font_manager.FontProperties(family='CMU Sans Serif',
-                                   style='normal', 
-                                   size=8)
-
 # result folders
 data_result_folder = '../../data/QALY_model/interim/long_COVID/'
 fig_result_folder = '../../results/QALY_model/direct_QALYs/prepocessing/'
@@ -247,7 +239,7 @@ for hospitalisation in hospitalisation_groups:
     )
     samplers.update({hospitalisation:sampler})
     # run sampler
-    sampler.run_mcmc(pos, 25000, progress=True)
+    sampler.run_mcmc(pos, 50000, progress=True)
     # extract chains
     flat_samples = sampler.get_chain(discard=5000, thin=100, flat=True)
     # print results
@@ -255,6 +247,8 @@ for hospitalisation in hospitalisation_groups:
     p_AD_summary['sd'][hospitalisation] = np.std(flat_samples,axis=0)
     p_AD_summary['lower'][hospitalisation] = np.quantile(flat_samples,0.025,axis=0)
     p_AD_summary['upper'][hospitalisation] = np.quantile(flat_samples,0.975,axis=0)
+
+print(p_AD_summary)
 
 # visualise MCMC results    
 fig,axes = plt.subplots(nrows=1,ncols=3,figsize=(8.3,0.25*11.7),sharey=True)
@@ -305,8 +299,8 @@ ax.plot(QoL_Belgium_func(LE_table.index.values),label='fit',color='black')
 ax.set_xlabel('Age (years)',size=10)
 ax.set_ylabel('QoL (-)',size=10)
 ax.set_ylim([0.5, 0.9])
-ax.grid(False)
 ax.tick_params(axis='both', which='major', labelsize=10)
+ax.grid(False)
 plt.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.pdf'))
 
@@ -323,7 +317,7 @@ def QALY_loss_func(t,tau,p_AD,age,QoL_after):
     beta = QoL_Belgium_func(age+t/12)-QoL_after
     return prevalence_func(t,tau,p_AD) * max(0,beta)
 
-draws = 1000
+draws = 300
 
 # Pre-allocate new multi index series with index=hospitalisation,age,draw
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],np.arange(draws),LE_table.index.values],names=['hospitalisation','draw','age'])
@@ -351,7 +345,7 @@ for idx,(hospitalisation,draw,age) in enumerate(tqdm(multi_index)):
     QoL_after = QoL_Belgium_func(age)-beta
     # integrate QALY_loss_func from 0 to LE (OPM: kan ook discreet) 
     QALY_loss = quad(QALY_loss_func,0,LE,args=(tau,p_AD,age,QoL_after))[0]/12 
-    average_QALY_losses.iloc[idx] = QALY_loss
+    average_QALY_losses_per_age.iloc[idx] = QALY_loss
     
 print('\n(4.2) Bin average QALY loss per age to age groups\n')
 
@@ -394,13 +388,12 @@ average_QALY_losses_per_age_group_summary.to_csv(os.path.join(abs_dir,data_resul
 
 print('\n(6) Visualise results\n')
 
-# Visualise results (TWA)
+# QALY loss per age group
 fig,axes = plt.subplots(nrows=1,ncols=3,figsize=(8.3,0.25*11.7),sharey=True)
-
 for ax,hospitalisation in zip(axes,hospitalisation_groups):
-    mean = average_QALY_losses_summary.loc[hospitalisation]['mean']
-    lower = average_QALY_losses_summary.loc[hospitalisation]['lower']
-    upper = average_QALY_losses_summary.loc[hospitalisation]['upper']
+    mean = average_QALY_losses_per_age_summary.loc[hospitalisation]['mean']
+    lower = average_QALY_losses_per_age_summary.loc[hospitalisation]['lower']
+    upper = average_QALY_losses_per_age_summary.loc[hospitalisation]['upper']
     ax.plot(LE_table.index.values,mean,color='black',linewidth=1.5, linestyle='--')
     ax.plot(LE_table.index.values,lower,color='black',linewidth=1, linestyle='-')
     ax.plot(LE_table.index.values,upper,color='black',linewidth=1, linestyle='-')
@@ -413,42 +406,24 @@ axes[0].set_ylabel('Average QALY loss', size=10)
 plt.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'average_QALY_losses_per_age.pdf'))
 
-# Visualise results (WD)
-fig,axs = plt.subplots(1,3,figsize=(6,2.5),sharey=True,sharex=True)
-for ax,hospitalisation in zip(axs,hospitalisation_groups):
-    mean = average_QALY_losses_per_age_summary.loc[hospitalisation]['mean']
-    lower = average_QALY_losses_per_age_summary.loc[hospitalisation]['lower']
-    upper = average_QALY_losses_per_age_summary.loc[hospitalisation]['upper']
-    ax.plot(LE_table.index.values,mean,color=palette_colors[color_dict[hospitalisation]],linestyle='--',label=f'{hospitalisation}',linewidth=1)
-    ax.fill_between(LE_table.index.values,lower,upper,alpha=0.20, color=palette_colors[color_dict[hospitalisation]])
-    
-    ax.grid(False)
-    ax.set_xlabel('Age when infected (years)',font=label_font)
-    ax.tick_params(axis='both', which='major', labelsize=8)
-    ax.set_title(hospitalisation,font=label_font)
-
-axs[0].set_ylabel('Average QALY loss',font=label_font)
-fig.tight_layout()
-fig.savefig(os.path.join(abs_dir,fig_result_folder,f'average_QALY_losses_per_age_SMR{SMR*100:.0f}.png'),dpi=600,bbox_inches='tight')
-
 # QALY losses due COVID death
 fig,ax = plt.subplots(figsize=(5,3))
-ax.plot(Life_table.compute_QALY_D_x(r=0,SMR=SMR),color=palette_colors['black'],label=r'$r=0\%$',linewidth=2)
-ax.plot(Life_table.compute_QALY_D_x(r=0.03,SMR=SMR),color=palette_colors['black'],linestyle=':',label=r'$r=3\%$',linewidth=2)
+ax.plot(Life_table.compute_QALY_D_x(r=0,SMR=SMR),color='black',label=r'$r=0\%$',linewidth=2)
+ax.plot(Life_table.compute_QALY_D_x(r=0.03,SMR=SMR),color='black',linestyle=':',label=r'$r=3\%$',linewidth=2)
 ax.grid(False)
-ax.set_xlabel('Age (years)',font=label_font)
-ax.set_ylabel(r'$QALY_D$',font=label_font)
+ax.set_xlabel('Age (years)')
+ax.set_ylabel(r'$QALY_D$')
 ax.tick_params(axis='both', which='major', labelsize=8)
-ax.legend(prop=legend_font)
+ax.legend()
 fig.tight_layout()
-fig.savefig(os.path.join(abs_dir,fig_result_folder,f'QALY_D_SMR{SMR*100:.0f}.png'),dpi=600,bbox_inches='tight')
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'QALY_D_SMR{SMR*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
 
 # Life expectancy
 fig,ax = plt.subplots(figsize=(3,3))
 ax.plot(LE_table,'black',linewidth=1.5)
 ax.grid(False)
-ax.set_ylabel('Life expectancy (years)',font=label_font)
-ax.set_xlabel('Age (years)',font=label_font)
+ax.set_ylabel('Life expectancy (years)')
+ax.set_xlabel('Age (years)')
 ax.tick_params(axis='both', which='major', labelsize=8)
 fig.tight_layout()
-fig.savefig(os.path.join(abs_dir,fig_result_folder,f'LE_SMR{SMR*100:.0f}.png'),dpi=600,bbox_inches='tight')
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'LE_SMR{SMR*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
