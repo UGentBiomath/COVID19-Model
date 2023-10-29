@@ -10,7 +10,7 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 import csv
-from pySODM.models.base import ODEModel
+from pySODM.models.base import ODE
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import add_poisson_noise, assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
@@ -22,12 +22,12 @@ import xarray as xar
 import math
 from math import factorial
 
-class Queuing_Model(ODEModel):
+class Queuing_Model(ODE):
 
-    state_names = ['W','H','H_adjusted','H_norm','R','NR','X']
-    parameter_names = ['X_tot','f_UZG','covid_H','alpha','post_processed_H']
-    parameter_stratified_names = ['A','gamma','epsilon','sigma']
-    dimension_names = ['MDC']
+    states = ['W','H','H_adjusted','H_norm','R','NR','X']
+    parameters = ['X_tot','f_UZG','covid_H','alpha','post_processed_H']
+    stratified_parameters = ['A','gamma','epsilon','sigma']
+    dimensions = ['MDC']
     
     @staticmethod
     def integrate(t, W, H, H_adjusted, H_norm, R, NR, X, X_tot, f_UZG, covid_H, alpha, post_processed_H, A, gamma, epsilon, sigma):
@@ -49,7 +49,7 @@ class Queuing_Model(ODEModel):
         
         return dW, dH, dH_adjusted, dH_norm, dR, dNR, dX
     
-class Constrained_PI_Model(ODEModel):
+class Constrained_PI_Model(ODE):
 
     state_names = ['H_norm','E']
     parameter_names = ['covid_H','covid_dH','covid_capacity']
@@ -66,7 +66,7 @@ class Constrained_PI_Model(ODEModel):
 
         return dH_norm, dE
     
-class PI_Model(ODEModel):
+class PI_Model(ODE):
     
     state_names = ['H_norm','E']
     parameter_names = ['covid_H']
