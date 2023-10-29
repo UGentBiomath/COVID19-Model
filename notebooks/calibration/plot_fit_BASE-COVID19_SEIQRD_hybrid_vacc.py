@@ -68,7 +68,7 @@ age_stratification_size=int(args.n_age_groups)
 ################################
 
 # Start and end of simulation
-end_sim = datetime(2022,1,1)
+end_sim = datetime(2021,7,1)
 # Confidence level used to visualise model fit
 conf_int = 0.05
 
@@ -146,7 +146,7 @@ simtime = out['date'].values
 
 print('2) Visualizing fit')
 
-fig,(ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,figsize=(8.3,11.7),sharex=True)
+fig,(ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,figsize=(8.3,0.75*11.7),sharex=True)
 
 # Plot mildly sick
 ax1.plot(df_2plot['M_in','mean'], color='blue', linewidth=1.5)
@@ -154,8 +154,9 @@ ax1.fill_between(simtime, df_2plot['M_in','lower'], df_2plot['M_in','upper'],alp
 ax1.scatter(df_cases[start_calibration:end_sim].index,df_cases[start_calibration:end_sim], color='black', alpha=0.20, linestyle='None', facecolors='black', s=10)
 ax1 = _apply_tick_locator(ax1)
 ax1.set_xlim(start_sim,end_sim)
-ax1.set_ylabel('Incidence\nMild cases (-)', fontsize=13)
+ax1.set_ylabel('Incidence\nMild cases (-)', fontsize=10)
 ax1.get_yaxis().set_label_coords(-0.1,0.5)
+ax1.tick_params(axis='both', which='major', labelsize=10)
 ax1.grid(False)
 # Plot hospitalizations
 ax2.plot(df_2plot['H_in','mean'], color='blue', linewidth=1.5)
@@ -164,24 +165,27 @@ ax2.scatter(df_hosp[start_calibration:end_calibration].index,df_hosp['H_in'][sta
 ax2.scatter(df_hosp[pd.to_datetime(end_calibration)+timedelta(days=1):end_sim].index,df_hosp['H_in'][pd.to_datetime(end_calibration)+timedelta(days=1):end_sim], color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
 ax2 = _apply_tick_locator(ax2)
 ax2.set_xlim(start_sim,end_sim)
-ax2.set_ylabel('Incidence\nHospital (-)', fontsize=13)
+ax2.set_ylabel('Incidence\nHospital (-)', fontsize=10)
 ax2.get_yaxis().set_label_coords(-0.1,0.5)
+ax2.tick_params(axis='both', which='major', labelsize=10)
 ax2.grid(False)
 # Plot hospital total
 ax3.plot(simtime, df_2plot['H_tot', 'mean'], color='blue', linewidth=1.5)
 ax3.fill_between(simtime, df_2plot['H_tot', 'lower'], df_2plot['H_tot', 'upper'], alpha=0.20, color = 'blue')
 ax3.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['H_tot'][start_calibration:end_sim], color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
 ax3 = _apply_tick_locator(ax3)
-ax3.set_ylabel('Load\nHospital (-)', fontsize=13)
+ax3.set_ylabel('Load\nHospital (-)', fontsize=10)
 ax3.get_yaxis().set_label_coords(-0.1,0.5)
+ax3.tick_params(axis='both', which='major', labelsize=10)
 ax3.grid(False)
 # Plot ICU
 ax4.plot(simtime, df_2plot['ICU_R', 'mean']+df_2plot['ICU_D', 'mean']+df_2plot['C_icurec', 'mean'], color='blue', linewidth=1.5)
 ax4.fill_between(simtime, df_2plot['ICU_R', 'lower']+df_2plot['ICU_D', 'lower']+df_2plot['C_icurec', 'lower'], df_2plot['ICU_R', 'upper']+df_2plot['ICU_D', 'upper']+df_2plot['C_icurec', 'upper'], alpha=0.20, color = 'blue')
 ax4.scatter(df_hosp[start_calibration:end_sim].index,df_hosp['ICU_tot'][start_calibration:end_sim], color='black', alpha=0.2, linestyle='None', facecolors='black', s=10)
 ax4 = _apply_tick_locator(ax4)
-ax4.set_ylabel('Load\nIntensive Care (-)', fontsize=13)
+ax4.set_ylabel('Load\nIntensive Care (-)', fontsize=10)
 ax4.get_yaxis().set_label_coords(-0.1,0.5)
+ax4.tick_params(axis='both', which='major', labelsize=10)
 ax4.grid(False)
 # Plot fraction of immunes
 ax5.plot(df_2plot['R','mean'][start_calibration:'2021-03-01']/sum(initN)*100, color='blue', linewidth=1.5)
@@ -190,12 +194,13 @@ yerr = np.array([df_sero_herzog['rel','mean']*100 - df_sero_herzog['rel','LL']*1
 ax5.errorbar(x=df_sero_herzog.index,y=df_sero_herzog['rel','mean'].values*100,yerr=yerr, fmt='x', color='black', elinewidth=1, capsize=5)
 yerr = np.array([df_sero_sciensano['rel','mean']*100 - df_sero_sciensano['rel','LL']*100, df_sero_sciensano['rel','UL']*100 - df_sero_sciensano['rel','mean']*100 ])
 ax5.errorbar(x=df_sero_sciensano.index,y=df_sero_sciensano['rel','mean']*100,yerr=yerr, fmt='^', color='black', elinewidth=1, capsize=5)
-ax5.legend(['model (mean)', 'model (95% CI)', 'Herzog et al. 2020', 'Sciensano'], loc='upper right', fontsize=13)
+ax5.legend(['model (mean)', 'model (95% CI)', 'Herzog et al. 2020', 'Sciensano'], loc=2, fontsize=8)
 ax5.axvline(x=pd.Timestamp('2020-12-27'), linewidth=1.5, linestyle='--', color='black')
 ax5 = _apply_tick_locator(ax5)
+ax5.tick_params(axis='both', which='major', labelsize=10)
 ax5.set_xlim(start_sim,end_sim)
 ax5.set_ylim(0,35)
-ax5.set_ylabel('Seroprelevance (%)', fontsize=13)
+ax5.set_ylabel('Seroprelevance (%)', fontsize=10)
 ax5.get_yaxis().set_label_coords(-0.1,0.5)
 ax5.grid(False)
 

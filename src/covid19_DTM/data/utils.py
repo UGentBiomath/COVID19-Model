@@ -39,10 +39,10 @@ def construct_initN(age_classes=None, agg=None):
 
     if age_classes is not None:
         age_struct['age_class'] = pd.cut(age_struct.age, bins=age_classes)
-        age_piramid = age_struct.groupby(['NIS','age_class']).sum().reset_index()
+        age_piramid = age_struct.groupby(['NIS','age_class'], observed=False).sum().reset_index()
         initN = age_piramid.pivot(index='NIS', columns='age_class', values='number')
     else:
-        age_piramid = age_struct.groupby(['NIS','age']).sum().reset_index()
+        age_piramid = age_struct.groupby(['NIS','age'], observed=False).sum().reset_index()
         initN = age_piramid.pivot(index='NIS', columns='age', values='number')
         initN = initN.fillna(0)
 

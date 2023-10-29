@@ -1,0 +1,29 @@
+MDC,disease_group,yearly_QALYs_mean,yearly_QALYs_lower,yearly_QALYs_upper
+16,Diseases of the blood,5591.36,1473.02,/
+05,Diseases of the circulatory system,96017.05,57073.49,306294.39
+06,Diseases of the digestive system,45442.18,35149.98,64727.40
+11,Diseases of the genitourinary system,22424.97,17534.55,31036.16
+12,Diseases of the genitourinary system,5919.74,4628.77,8192.92
+13,Diseases of the genitourinary system,6009.09,4698.63,8316.57
+08,Diseases of the musculoskeletal system,93206.00,73809.07,127020.27
+01,Diseases of the nervous system,66838.16,42246.76,159934.17
+04,Diseases of the respiratory system,82861.50,53679.84,176376.61
+02,Diseases of the eyes and ears,8218.67,6156.79,12533.47
+03,Diseases of the eyes and ears,49823.69,37324.07,75981.13
+09,Diseases of the skin,44437.40,30014.74,85542.00
+10,Endocrine diseases,23213.11,15148.55,48812.00
+18,Infectious diseases,30538.13,21783.86,51055.93
+19,Mental disorders,19483.23,14332.49,30412.84
+20,Mental disorders,6932.35,5099.66,10821.23
+AA,Mental disorders,/,/,/
+17,Neoplasms,21151.73,13253.79,51595.11
+14,"Pregnancy,  childbirth and perinatal period",19029.06,13161.77,34220.59
+15,"Pregnancy,  childbirth and perinatal period",4646.28,3213.68,8355.56
+00,Symptoms not elsewhere classified,33468.71,25528.79,47994.12
+07,Symptoms not elsewhere classified,36953.67,28187.00,52991.57
+21,Symptoms not elsewhere classified,12225.60,9325.27,17531.51
+22,Symptoms not elsewhere classified,1799.11,1372.30,2579.93
+23,Symptoms not elsewhere classified,29677.34,22636.87,42557.31
+24,Symptoms not elsewhere classified,1013.70,773.21,1453.64
+25,Symptoms not elsewhere classified,5681.47,4333.63,8147.23
+PP,Symptoms not elsewhere classified,22283.89,16997.39,31955.10
