@@ -14,26 +14,268 @@ import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import matplotlib.pyplot as plt
-from matplotlib import font_manager
 import xarray as xar
 import math
-from QALY_model.postponed_healthcare_models import Postponed_healthcare_models_and_data, draw_fcn
-postponed_healthcare = Postponed_healthcare_models_and_data()
+from covid19_DTM.data.sciensano import get_sciensano_COVID19_data
+from QALY_model.postponed_healthcare_models import draw_fcn 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-hpc", "--hpc", help="dissable CMU font type", action="store_true")
 parser.add_argument("-n", "--N", help="simulation runs", default=50)
 args = parser.parse_args()
-
 N = int(args.N)
-hpc = args.hpc
+
+##############################################################
+## From here it is a copy paste from the calibration script ##
+##############################################################
+
+# The code below loads all data and sets up the model
+from pySODM.models.base import ODE
+from functools import lru_cache
+from datetime import datetime
+
+use_covid_data = True
 
 ########
 # Data #
 ########
-abs_dir = os.path.dirname(__file__)
 
+abs_dir = os.path.dirname(__file__)
 rel_dir = '../../data/QALY_model/interim/postponed_healthcare'
+# baseline
+file_name = 'MZG_baseline.csv'
+types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
+baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()['mean']
+# raw data
+file_name = 'MZG_2016_2021.csv'
+types_dict = {'APR_MDC_key': str}
+raw = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2,3],dtype=types_dict).squeeze()
+raw = raw.groupby(['APR_MDC_key','date']).sum()
+raw.index = raw.index.set_levels([raw.index.levels[0], pd.to_datetime(raw.index.levels[1])])
+# normalised data
+file_name = 'MZG_2020_2021_normalized.csv'
+types_dict = {'APR_MDC_key': str}
+normalised = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)
+MDC_keys = normalised.index.get_level_values('APR_MDC_key').unique().values
+# COVID-19 data
+covid_data, _ , _ , _ = get_sciensano_COVID19_data(update=False)
+new_index = pd.MultiIndex.from_product([pd.to_datetime(normalised.index.get_level_values('date').unique()),covid_data.index.get_level_values('NIS').unique()])
+covid_data = covid_data.reindex(new_index,fill_value=0)
+df_covid_H_in = covid_data['H_in'].loc[:,40000]
+df_covid_H_tot = covid_data['H_tot'].loc[:,40000]
+df_covid_dH = df_covid_H_tot.diff().fillna(0)
+# mean hospitalisation length
+file_name = 'MZG_residence_times.csv'
+types_dict = {'APR_MDC_key': str, 'age_group': str, 'stay_type':str}
+residence_times = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,]).squeeze()
+mean_residence_times = residence_times.groupby(by=['APR_MDC_key']).mean()
+
+#####################
+## Smooth raw data ##
+#####################
+
+# filter settings
+window = 15
+order = 3
+
+# Define filter #TODO: move to seperate file
+def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+    import numpy as np
+    from math import factorial
+    try:
+        window_size = np.abs(int(window_size))
+        order = np.abs(int(order))
+    except ValueError:
+        raise ValueError("window_size and order have to be of type int")
+    if window_size % 2 != 1 or window_size < 1:
+        raise TypeError("window_size size must be a positive odd number")
+    if window_size < order + 2:
+        raise TypeError("window_size is too small for the polynomials order")
+    order_range = range(order+1)
+    half_window = (window_size -1) // 2
+    # precompute coefficients
+    b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+    m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)
+    # pad the signal at the extremes with
+    # values taken from the signal itself
+    firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
+    lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
+    y = np.concatenate((firstvals, y, lastvals))
+    return np.convolve( m[::-1], y, mode='valid')
+
+# copy data
+raw_smooth = pd.Series(0, index=raw.index, name='n_patients')
+# smooth
+for MDC_key in MDC_keys:
+    raw_smooth.loc[MDC_key,slice(None)] = savitzky_golay(raw.loc[MDC_key,slice(None)].values,window,order)
+raw = raw_smooth
+
+##################
+## Define model ##
+##################
+
+class QueuingModel(ODE):
+
+    states = ['W','H','H_adjusted','H_norm','R','NR','X']
+    parameters = ['X_tot','f_UZG','covid_H','alpha','post_processed_H']
+    stratified_parameters = ['A','gamma','epsilon','sigma']
+    dimensions = ['MDC']
+    
+    @staticmethod
+    def integrate(t, W, H, H_adjusted, H_norm, R, NR, X, X_tot, f_UZG, covid_H, alpha, post_processed_H, A, gamma, epsilon, sigma):
+        X_new = (X_tot-alpha*covid_H-sum(H - (1/gamma*H))) * (sigma*(A+W))/sum(sigma*(A+W))
+
+        W_to_H = np.where(W>X_new,X_new,W)
+        W_to_NR = epsilon*(W-W_to_H)
+        A_to_H = np.where(A>(X_new-W_to_H),(X_new-W_to_H),A)
+        A_to_W = A-A_to_H
+        
+        dX = -X + X_new - W_to_H - A_to_H
+        dW = A_to_W - W_to_H - W_to_NR
+        dH = A_to_H + W_to_H - (1/gamma*H) 
+        dR = (1/gamma*H)
+        dNR = W_to_NR
+
+        dH_adjusted = -H_adjusted + post_processed_H[0]
+        dH_norm = -H_norm + post_processed_H[1]
+        
+        return dW, dH, dH_adjusted, dH_norm, dR, dNR, dX
+
+##################
+## Define TDPFs ##
+##################
+
+class get_A():
+    def __init__(self, baseline, mean_residence_times):
+        self.baseline = baseline
+        self.mean_residence_times = mean_residence_times
+        
+    def A_wrapper_func(self, t, states, param):
+        return self.__call__(t)
+    
+    @lru_cache()
+    def __call__(self, t):
+        A = (self.baseline.loc[(slice(None),t.isocalendar().week)]/self.mean_residence_times).values
+        return A 
+
+class get_covid_H():
+
+    def __init__(self, covid_data, baseline, hospitalizations):
+        self.covid_data = covid_data
+        self.baseline_04 = baseline['04']
+        self.hospitalizations_04 = hospitalizations.loc[('04', slice(None))]
+
+    def H_wrapper_func(self, t, states, param, f_UZG):
+        return self.__call__(t, f_UZG)
+
+    def __call__(self, t, f_UZG):
+        if use_covid_data:
+            try:
+                covid_H = self.covid_data.loc[t]*f_UZG
+            except:
+                covid_H = 0
+
+        else:
+            covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
+        
+        return covid_H 
+    
+class H_post_processing():
+
+    def __init__(self, baseline, MDC_sim):
+        self.MDC = np.array(MDC_sim)
+        self.baseline = baseline
+
+    def H_post_processing_wrapper_func(self, t, states, param, covid_H):
+        H = states['H']
+        return self.__call__(t, H, covid_H)
+
+    def __call__(self, t, H, covid_H):
+        H_adjusted = np.where(self.MDC=='04',H+covid_H,H)
+        H_norm = H_adjusted/self.baseline.loc[slice(None),t.isocalendar().week]
+        return (H_adjusted,H_norm)
+    
+#################
+## Setup model ##
+#################
+
+def init_queuing_model(start_date, MDC_sim, wave='first'):
+    # Define model parameters, initial states and coordinates
+    if wave == 'first':
+        epsilon = [0.157, 0.126, 0.100, 0.623,
+                0.785, 0.339, 0.318, 0.561,
+                0.266, 0.600, 0.610, 0.562,
+                0.630, 0.534, 0.488, 0.469,
+                0.570, 0.612, 0.276, 0.900,
+                0.577, 0.163, 0.865, 0.708,
+                0.494, 0.557, 0.463, 0.538]
+        sigma = [0.229, 0.816, 6.719, 1.023,
+                1.251, 1.089, 1.695, 8.127,
+                1.281, 1.063, 1.425, 2.819,
+                1.899, 1.240, 8.057, 2.657,
+                6.685, 2.939, 2.674, 1.011,
+                3.876, 7.467, 0.463, 1.175,
+                1.037, 1.181, 3.002, 6.024]
+        alpha = 5.131
+    elif wave == 'second':
+        epsilon = [0.176,0.966,0.000,0.498,
+                   0.868,0.648,0.000,0.000,
+                   0.674,0.593,0.458,0.728,
+                   0.666,0.499,0.623,0.777,
+                   0.076,0.152,0.200,0.793,
+                   0.031,0.100,0.272,0.385,
+                   0.551,0.288,0.464,0.518]              
+        sigma = [0.344,3.652,6.948,2.831,
+                 2.079,5.101,5.865,8.442,
+                 6.215,4.911,7.272,4.729,
+                 4.415,2.914,5.240,4.299,
+                 4.013,5.091,2.000,3.628,
+                 0.333,6.550,1.468,6.147,
+                 3.184,1.728,6.982,8.739]
+        alpha = 5.106
+    else:
+        epsilon = np.ones(len(MDC_sim))*0.1
+        sigma = np.ones(len(MDC_sim))
+        alpha = 5
+
+    # Parameters
+    gamma =  mean_residence_times.loc[MDC_sim].values
+    f_UZG = 0.13
+    X_tot = 1049
+    start_date_string = start_date.strftime('%Y-%m-%d')
+    covid_H = df_covid_H_tot.loc[start_date_string]*f_UZG
+    H_init = raw.loc[(MDC_sim, start_date)].values
+    H_init_normalized = (H_init/baseline.loc[((MDC_sim,start_date.isocalendar().week))]).values
+    A = H_init/mean_residence_times.loc[MDC_sim]
+    params={'A':A,'covid_H':covid_H,'alpha':alpha,'post_processed_H':(H_init,H_init_normalized),'X_tot':X_tot, 'gamma':gamma, 'epsilon':epsilon, 'sigma':sigma,'f_UZG':f_UZG}
+    # Initial states
+    init_states = {'H': H_init, 'H_norm': np.ones(len(MDC_sim)), 'H_adjusted': H_init}
+    coordinates={'MDC': MDC_sim}
+    # TDPFs
+    daily_hospitalizations_func = get_A(baseline,mean_residence_times.loc[MDC_sim]).A_wrapper_func
+    covid_H_func = get_covid_H(df_covid_H_tot,baseline,raw).H_wrapper_func
+    post_processing_H_func = H_post_processing(baseline,MDC_sim).H_post_processing_wrapper_func
+
+    # Initialize model
+    model = QueuingModel(init_states,params,coordinates,
+                          time_dependent_parameters={'A': daily_hospitalizations_func,'covid_H':covid_H_func,'post_processed_H':post_processing_H_func})
+    return model
+
+#################
+## Setup model ##
+#################
+
+model = init_queuing_model(datetime(2020,3,1), MDC_keys, 'first')
+
+
+
+################################################
+## From here it is back to an original script ##
+################################################
+
+#############
+# QALY data #
+#############
+
 file_name = 'hospital_yearly_QALYs.csv'
 hospital_yearly_QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0],na_values='/')
 
@@ -42,45 +284,28 @@ hospital_yearly_QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),inde
 ###########
 
 rel_dir = '../../data/QALY_model/interim/postponed_healthcare/model_parameters'
-
-# Load samples
-file_names_first = ['queuing_model_SAMPLES_first.json',
-                    'constrained_PI_SAMPLES_first.json',
-                    'PI_SAMPLES_first.json']
-file_names_second = ['queuing_model_SAMPLES_second.json',
-                     'constrained_PI_SAMPLES_second.json',
-                     'PI_SAMPLES_second.json']
-sample_names = ['queuing_model','constrained_PI','PI']
-
-samples = {'first_wave':{},'second_wave':{}}
-for period,file_names in zip(samples.keys(),[file_names_first,file_names_second]):
-    for file_name,sample_name in zip(file_names,sample_names):
-        f = open(os.path.join(abs_dir,rel_dir,file_name))
-        samples[period].update({sample_name:json.load(f)})
+## Load samples
+# Two calibrations
+#samples = {'first_wave': {}, 'second_wave': {}}
+#for file_name,period in zip(['calibrate_first_SAMPLES.json', 'calibrate_second_SAMPLES.json'], ['first_wave', 'second_wave']):
+#    f = open(os.path.join(abs_dir,rel_dir,file_name))
+#    samples[period].update(json.load(f))
+# One calibration
+file_name = 'calibrate_2020_SAMPLES.json'
+f = open(os.path.join(abs_dir,rel_dir,file_name))
+samples = json.load(f)
 
 #########
 # setup #
 #########
 
 start_calibration_first = pd.to_datetime('2020-01-01')
-end_calibration_first = pd.to_datetime('2020-08-01')
-start_calibration_second = pd.to_datetime('2020-08-01')
+end_calibration_first = pd.to_datetime('2020-09-01')
+start_calibration_second = pd.to_datetime('2020-09-01')
 end_calibration_second = pd.to_datetime('2021-03-01')
 
-MDC_keys = postponed_healthcare.all_MDC_keys
 MDC_plot = ['03', '04', '05']
 dates = pd.date_range('2020-01-01','2021-12-31')
-
-if not hpc:
-    label_font = font_manager.FontProperties(family='CMU Sans Serif',
-                                    style='normal', 
-                                    size=10)
-    legend_font = font_manager.FontProperties(family='CMU Sans Serif',
-                                    style='normal', 
-                                    size=8)
-else:
-    label_font = font_manager.FontProperties(style='normal', size=10)
-    legend_font = font_manager.FontProperties(style='normal', size=8)
 
 result_folder = os.path.join(abs_dir,'../../results/QALY_model/postponed_healthcare/analysis/')
 if not os.path.exists(os.path.join(abs_dir,result_folder)):
@@ -110,19 +335,19 @@ def plot_model_outputs(plot_name,outs,plot_start,plot_end,start_calibration,end_
     box_props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
 
     fig,axs = plt.subplots(len(MDC_plot),3,sharex=True,sharey='row',figsize=(6,1.3*len(MDC_plot)))
-    axs[0,0].set_title('Queuing model',font=label_font)
-    axs[0,1].set_title('Constrained PI Model',font=label_font)
-    axs[0,2].set_title('PI Model',font=label_font)
+    axs[0,0].set_title('Queuing model')
+    axs[0,1].set_title('Constrained PI Model')
+    axs[0,2].set_title('PI Model')
 
     for i,MDC_key in enumerate(MDC_plot):
-        axs[i,0].set_ylabel(MDC_key,font=label_font)
+        axs[i,0].set_ylabel(MDC_key)
         for j,out in enumerate(outs):
 
             mean_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).mean('draws')
             lower_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.025)
             upper_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.975)
             mae = MAE(postponed_healthcare.hospitalizations_normalized_smooth,[out],MDC_key)
-            axs[i,j].text(0.05, 0.95, f'MAE={mae:.3f}', transform=axs[i,j].transAxes, fontsize=8,verticalalignment='top', bbox=box_props, font=legend_font)
+            axs[i,j].text(0.05, 0.95, f'MAE={mae:.3f}', transform=axs[i,j].transAxes, fontsize=8,verticalalignment='top', bbox=box_props,)
 
             # data
             axs[i,j].plot(plot_time,postponed_healthcare.hospitalizations_normalized_smooth.loc[plot_time,MDC_key], label='Filtered data', alpha=0.7,linewidth=1)
@@ -150,12 +375,13 @@ def plot_model_outputs(plot_name,outs,plot_start,plot_end,start_calibration,end_
                 axs[i,j].axvline(x = end_calibration, color = 'gray', linestyle = 'dashed', alpha=0.5) 
 
     handles, plot_labels = axs[0,0].get_legend_handles_labels()
-    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0.04), loc='lower center',fancybox=False, shadow=False,ncol=5, prop=legend_font)
+    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0.04), loc='lower center',fancybox=False, shadow=False,ncol=5)
 
     fig.tight_layout()
     fig.savefig(os.path.join(result_folder,plot_name),dpi=600,bbox_inches='tight')
 
 if __name__=='__main__':
+
     #########################
     # simulations and plots #
     #########################
@@ -259,6 +485,7 @@ if __name__=='__main__':
     #########################
     # QALY loss calculation #
     #########################
+
     # !WARNING MESSY CODE!
     # makes summary table with for each MDC reduction with CI and associated QALY loss with CI
     # Hierin nog foutje voor CI, nu lower and upper WTP genomen, maar hieruit moet eigenlijk gesampled worden
