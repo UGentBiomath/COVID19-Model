@@ -17,6 +17,7 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 import os
 import numpy as np
 import pandas as pd
+from datetime import timedelta
 from tqdm import tqdm
 
 ###############
@@ -95,6 +96,13 @@ df = df.set_index(['APR_MDC_key', 'age_group', 'stay_type']).sort_index()
 # Save lowest and highest intake date
 intake_min = df.intake_date.min()
 intake_max = df.intake_date.max()
+# Compute durations of stay
+df['length_of_stay'] = (df['discharge_date'] - df['intake_date'])/timedelta(days=1)
+# Intake and discharge on same day is assumed half a day
+df['length_of_stay'][df['length_of_stay'] == 0] = 0.5
+# Average over all age groups and stay types
+df_length_of_stay = df['length_of_stay'].groupby(by='APR_MDC_key').mean()
+df_length_of_stay.to_csv(os.path.join(abs_dir,result_folder,'MZG_residence_times.csv'))
 
 #############################################
 ## Define dataframe containing the results ##
