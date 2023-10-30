@@ -25,11 +25,11 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager
 import csv
 # pySODM packages
-from pySODM.models.base import ODEModel
+from pySODM.models.base import ODE
 from pySODM.optimization import pso, nelder_mead
 from pySODM.optimization.utils import add_poisson_noise, assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
-from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_gaussian, ll_poisson, validate_calibrated_parameters, expand_bounds
+from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_gaussian, ll_poisson
 # COVID-19 package
 from covid19_DTM.data.sciensano import get_sciensano_COVID19_data
 from functools import lru_cache
@@ -91,18 +91,15 @@ start_date = pd.to_datetime(args.start_calibration)
 if args.end_calibration:
     end_date = pd.to_datetime(args.end_calibration)
 
-abs_dir = os.path.dirname(__file__)
-rel_dir = '../../data/QALY_model/interim/postponed_healthcare/UZG/'
-# MDC_dict to translate keys to disease group
-MDC_dict={}
-file_name = 'MDC_dict.csv'
-with open(os.path.join(abs_dir,rel_dir,file_name), mode='r') as f:
-    csv_reader = csv.reader(f, delimiter=',')
-    for row in csv_reader:
-        MDC_dict.update({row[0]:row[1]})
+############################
+## Handle other arguments ##
+############################
 
-MDC_dict.pop('.')
-MDC_keys = list(MDC_dict.keys())
+# retrieve MDC keys
+abs_dir = os.path.dirname(__file__)
+rel_dir = '../../data/QALY_model/interim/postponed_healthcare/'
+d = pd.read_csv(os.path.join(abs_dir,rel_dir,'MZG_2020_2021_normalized.csv'),index_col=[0,1])
+MDC_keys = list(d.index.get_level_values('APR_MDC_key').unique().values)
 
 # MDC classes to plot
 if args.MDC_sim == 'all':
@@ -142,7 +139,7 @@ if args.filter_args:
 else:
     filter_args = None
 
-#pars to calibrate
+# pars to calibrate
 if isinstance(args.pars, str):
     pars = np.array(args.pars[1:-1].split(','))
 else:
@@ -151,6 +148,7 @@ else:
 # use covid data to estimate UZ Gent covid patients
 use_covid_data = args.covid_data
 
+# load backend
 if args.backend == None:
     backend = None
 else:
@@ -182,25 +180,29 @@ for directory in [fig_path, samples_path, backend_folder]:
 ## Load data ##
 ###############
 
-# Postponed healthcare data
-abs_dir = os.path.dirname(__file__)
-rel_dir = '../../data/QALY_model/interim/postponed_healthcare/UZG'
-file_name = '2020_2021_normalized.csv'
+# baseline
+file_name = 'MZG_baseline.csv'
+types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
+baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()
+# raw data
+file_name = 'MZG_2016_2021.csv'
 types_dict = {'APR_MDC_key': str}
-# mean data
-hospitalizations_normalized = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)['mean']
-hospitalizations_normalized = hospitalizations_normalized.reorder_levels(['date','APR_MDC_key'])
-hospitalizations_normalized=hospitalizations_normalized.sort_index()
-hospitalizations_normalized=hospitalizations_normalized.reindex(hospitalizations_normalized.index.rename('MDC',level=1))
+raw = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2,3],dtype=types_dict).squeeze()
+raw = raw.groupby(['APR_MDC_key','date']).sum()
+raw.index = raw.index.set_levels([raw.index.levels[0], pd.to_datetime(raw.index.levels[1])])
+# normalised data
+file_name = 'MZG_2020_2021_normalized.csv'
+types_dict = {'APR_MDC_key': str}
+normalised = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)
+MDC_keys = normalised.index.get_level_values('APR_MDC_key').unique().values
 
-# MDC_keys = hospitalizations_normalized.index.get_level_values('MDC').unique().values
-dates = hospitalizations_normalized.index.get_level_values('date').unique().values
 
-# lower and upper quantiles
-hospitalizations_normalized_quantiles = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True).loc[(slice(None), slice(None)), ('q0.025','q0.975')]
-hospitalizations_normalized_quantiles = hospitalizations_normalized_quantiles.reorder_levels(['date','APR_MDC_key'])
-hospitalizations_normalized_quantiles=hospitalizations_normalized_quantiles.sort_index()
-hospitalizations_normalized_quantiles=hospitalizations_normalized_quantiles.reindex(hospitalizations_normalized_quantiles.index.rename('MDC',level=1))
+# normalised data
+file_name = 'MZG_2020_2021_normalized.csv'
+types_dict = {'APR_MDC_key': str}
+normalised = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)
+MDC_keys = normalised.index.get_level_values('APR_MDC_key').unique().values
+
 
 file_name = 'MZG_2016_2021.csv'
 types_dict = {'APR_MDC_key': str}
@@ -279,7 +281,7 @@ if filter_args is not None:
 ## Define model ##
 ##################
 
-class Queuing_model(ODEModel):
+class Queuing_model(ODE):
     """
     Test model for postponed health_care using a waiting queue before hospitalization
     """
@@ -291,15 +293,15 @@ class Queuing_model(ODEModel):
     
     @staticmethod
     def integrate(t, W, H, H_adjusted, H_norm, R, NR, X, X_tot, f_UZG, covid_H, alpha, post_processed_H, A, gamma, epsilon, sigma):
+
         free_beds = X_tot-alpha*covid_H-sum(H - (1/gamma*H))
-        #if free_beds > sum(A+W):
-        #    X_new = free_beds*(A+W)/sum(A+W)
-        #else:
+
         X_new = free_beds*(sigma*(A+W))/sum(sigma*(A+W))
         X_new = np.where(X_new < 0,0,X_new)
 
         W_to_H = np.where(W>X_new,X_new,W)
         W_to_NR = epsilon*(W-W_to_H)
+
         A_to_H = np.where(A>(X_new-W_to_H),(X_new-W_to_H),A)
         A_to_W = A-A_to_H
         
@@ -533,6 +535,7 @@ if __name__ == '__main__':
     ######################
     ## Calibrate models ##
     ######################
+
     model = init_queuing_model(start_date,end_date,MDC_sim,wave)
     
     processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
