@@ -46,8 +46,8 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", default=None)
-parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-08-01')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2021-12-31')
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-12-31')
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=0)
 parser.add_argument("-n_nm", "--n_nm", help="Maximum number of Nelder Mead iterations.", default=0)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default =1)
@@ -90,6 +90,8 @@ initial_time = datetime.datetime.now()
 start_date = pd.to_datetime(args.start_calibration)
 if args.end_calibration:
     end_date = pd.to_datetime(args.end_calibration)
+# Number of processes to use
+processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 
 ############################
 ## Handle other arguments ##
@@ -183,7 +185,7 @@ for directory in [fig_path, samples_path, backend_folder]:
 # baseline
 file_name = 'MZG_baseline.csv'
 types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
-baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()
+baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()['mean']
 # raw data
 file_name = 'MZG_2016_2021.csv'
 types_dict = {'APR_MDC_key': str}
@@ -195,45 +197,31 @@ file_name = 'MZG_2020_2021_normalized.csv'
 types_dict = {'APR_MDC_key': str}
 normalised = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)
 MDC_keys = normalised.index.get_level_values('APR_MDC_key').unique().values
-
-
-# normalised data
-file_name = 'MZG_2020_2021_normalized.csv'
-types_dict = {'APR_MDC_key': str}
-normalised = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict,parse_dates=True)
-MDC_keys = normalised.index.get_level_values('APR_MDC_key').unique().values
-
-
-file_name = 'MZG_2016_2021.csv'
-types_dict = {'APR_MDC_key': str}
-hospitalizations = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2,3],dtype=types_dict).squeeze()
-hospitalizations = hospitalizations.groupby(['APR_MDC_key','date']).sum()
-hospitalizations.index = hospitalizations.index.set_levels([hospitalizations.index.levels[0], pd.to_datetime(hospitalizations.index.levels[1])])
-hospitalizations = hospitalizations.reorder_levels(['date','APR_MDC_key'])
-hospitalizations=hospitalizations.sort_index()
-hospitalizations=hospitalizations.reindex(hospitalizations.index.rename('MDC',level=1))
-
 # COVID-19 data
 covid_data, _ , _ , _ = get_sciensano_COVID19_data(update=False)
-new_index = pd.MultiIndex.from_product([pd.to_datetime(hospitalizations_normalized.index.get_level_values('date').unique()),covid_data.index.get_level_values('NIS').unique()])
+new_index = pd.MultiIndex.from_product([pd.to_datetime(normalised.index.get_level_values('date').unique()),covid_data.index.get_level_values('NIS').unique()])
 covid_data = covid_data.reindex(new_index,fill_value=0)
 df_covid_H_in = covid_data['H_in'].loc[:,40000]
 df_covid_H_tot = covid_data['H_tot'].loc[:,40000]
 df_covid_dH = df_covid_H_tot.diff().fillna(0)
-
-# hospitalisation baseline
-file_name = 'MZG_baseline.csv'
-types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
-hospitalization_baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2,3],dtype=types_dict).squeeze()
-hospitalization_baseline = hospitalization_baseline.groupby(['APR_MDC_key','week_number','day_number']).mean()
-
 # mean hospitalisation length
 file_name = 'MZG_residence_times.csv'
 types_dict = {'APR_MDC_key': str, 'age_group': str, 'stay_type':str}
-residence_times = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1,2],dtype=types_dict).squeeze()
+residence_times = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,]).squeeze()
 mean_residence_times = residence_times.groupby(by=['APR_MDC_key']).mean()
 
+#####################
+## Smooth raw data ##
+#####################
+
+# filter settings
+window = 15
+order = 3
+
+# Define filter #TODO: move to seperate file
 def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+    import numpy as np
+    from math import factorial
     try:
         window_size = np.abs(int(window_size))
         order = np.abs(int(order))
@@ -255,53 +243,30 @@ def savitzky_golay(y, window_size, order, deriv=0, rate=1):
     y = np.concatenate((firstvals, y, lastvals))
     return np.convolve( m[::-1], y, mode='valid')
 
-multi_index = pd.MultiIndex.from_product([MDC_keys,dates])
-baseline_in_date_form = pd.Series(index=multi_index,dtype='float')
-for idx,(disease,date) in enumerate(multi_index):
-    date = pd.to_datetime(date)
-    baseline_in_date_form[idx] = hospitalization_baseline.loc[(disease,date.isocalendar().week,date.isocalendar().weekday)]
-
-if filter_args is not None:
-    window = filter_args[0]
-    order = filter_args[1]
-
-    hospitalizations_normalized_smooth = hospitalizations_normalized.copy()
-    for MDC_key in MDC_keys:
-        hospitalizations_normalized_smooth.loc[slice(None),MDC_key] = savitzky_golay(hospitalizations_normalized.loc[slice(None),MDC_key],window,order)
-
-    hospitalizations_smooth = hospitalizations.copy()
-    for MDC_key in MDC_keys:
-        hospitalizations_smooth.loc[slice(None),MDC_key] = savitzky_golay(hospitalizations.loc[slice(None),MDC_key],window,order)
-
-    hospitalizations_baseline_smooth = baseline_in_date_form.copy()
-    for MDC_key in MDC_keys:
-        hospitalizations_baseline_smooth[MDC_key] = savitzky_golay(baseline_in_date_form[MDC_key],window,order)
+# copy data
+raw_smooth = pd.Series(0, index=raw.index, name='n_patients')
+# smooth
+for MDC_key in MDC_keys:
+    raw_smooth.loc[MDC_key,slice(None)] = savitzky_golay(raw.loc[MDC_key,slice(None)].values,window,order)
+raw = raw_smooth
 
 ##################
 ## Define model ##
 ##################
 
-class Queuing_model(ODE):
-    """
-    Test model for postponed health_care using a waiting queue before hospitalization
-    """
-    
-    state_names = ['W','H','H_adjusted','H_norm','R','NR','X']
-    parameter_names = ['X_tot','f_UZG','covid_H','alpha','post_processed_H']
-    parameter_stratified_names = ['A','gamma','epsilon','sigma']
-    dimension_names = ['MDC']
+class QueuingModel(ODE):
+
+    states = ['W','H','H_adjusted','H_norm','R','NR','X']
+    parameters = ['X_tot','f_UZG','covid_H','alpha','post_processed_H']
+    stratified_parameters = ['A','gamma','epsilon','sigma']
+    dimensions = ['MDC']
     
     @staticmethod
     def integrate(t, W, H, H_adjusted, H_norm, R, NR, X, X_tot, f_UZG, covid_H, alpha, post_processed_H, A, gamma, epsilon, sigma):
-
-        free_beds = X_tot-alpha*covid_H-sum(H - (1/gamma*H))
-
-        X_new = free_beds*(sigma*(A+W))/sum(sigma*(A+W))
-        X_new = np.where(X_new < 0,0,X_new)
+        X_new = (X_tot-alpha*covid_H-sum(H - (1/gamma*H))) * (sigma*(A+W))/sum(sigma*(A+W))
 
         W_to_H = np.where(W>X_new,X_new,W)
         W_to_NR = epsilon*(W-W_to_H)
-
         A_to_H = np.where(A>(X_new-W_to_H),(X_new-W_to_H),A)
         A_to_W = A-A_to_H
         
@@ -316,9 +281,9 @@ class Queuing_model(ODE):
         
         return dW, dH, dH_adjusted, dH_norm, dR, dNR, dX
 
-#################
-## Define TDPF ##
-#################
+##################
+## Define TDPFs ##
+##################
 
 class get_A():
     def __init__(self, baseline, mean_residence_times):
@@ -330,9 +295,7 @@ class get_A():
     
     @lru_cache()
     def __call__(self, t):
-
-        A = (self.baseline.loc[(slice(None),t)]/self.mean_residence_times).values
-
+        A = (self.baseline.loc[(slice(None),t.isocalendar().week)]/self.mean_residence_times).values
         return A 
 
 class get_covid_H():
@@ -340,7 +303,7 @@ class get_covid_H():
     def __init__(self, covid_data, baseline, hospitalizations):
         self.covid_data = covid_data
         self.baseline_04 = baseline['04']
-        self.hospitalizations_04 = hospitalizations.loc[(slice(None),'04')]
+        self.hospitalizations_04 = hospitalizations.loc[('04', slice(None))]
 
     def H_wrapper_func(self, t, states, param, f_UZG):
         return self.__call__(t, f_UZG)
@@ -353,7 +316,7 @@ class get_covid_H():
                 covid_H = 0
 
         else:
-            covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t],0)
+            covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
         
         return covid_H 
     
@@ -369,14 +332,14 @@ class H_post_processing():
 
     def __call__(self, t, H, covid_H):
         H_adjusted = np.where(self.MDC=='04',H+covid_H,H)
-        H_norm = H_adjusted/self.baseline.loc[slice(None),t]
+        H_norm = H_adjusted/self.baseline.loc[slice(None),t.isocalendar().week]
         return (H_adjusted,H_norm)
     
 #################
 ## Setup model ##
 #################
 
-def init_queuing_model(start_date,end_date,MDC_sim,wave='first'):
+def init_queuing_model(start_date, MDC_sim, wave='first'):
     # Define model parameters, initial states and coordinates
     if wave == 'first':
         epsilon = [0.157, 0.126, 0.100, 0.623,
@@ -415,99 +378,70 @@ def init_queuing_model(start_date,end_date,MDC_sim,wave='first'):
         sigma = np.ones(len(MDC_sim))
         alpha = 5
 
+    # Parameters
     gamma =  mean_residence_times.loc[MDC_sim].values
     f_UZG = 0.13
     X_tot = 1049
-
     start_date_string = start_date.strftime('%Y-%m-%d')
-    start_date_week = start_date.isocalendar().week
-    start_date_day = start_date.isocalendar().weekday
-    sim_time = pd.date_range(start_date,end_date)
-
-    if filter_args is not None:
-        baseline = hospitalizations_baseline_smooth
-    else:
-        baseline = baseline_in_date_form
-
     covid_H = df_covid_H_tot.loc[start_date_string]*f_UZG
-    if filter_args is not None:
-        H_init = hospitalizations_smooth.loc[(start_date,MDC_sim)].values
-    else:
-        H_init = hospitalizations.loc[(start_date,MDC_sim)].values
-    H_init_normalized = (H_init/baseline.loc[((MDC_sim,start_date))]).values
+    H_init = raw.loc[(MDC_sim, start_date)].values
+    H_init_normalized = (H_init/baseline.loc[((MDC_sim,start_date.isocalendar().week))]).values
     A = H_init/mean_residence_times.loc[MDC_sim]
-
     params={'A':A,'covid_H':covid_H,'alpha':alpha,'post_processed_H':(H_init,H_init_normalized),'X_tot':X_tot, 'gamma':gamma, 'epsilon':epsilon, 'sigma':sigma,'f_UZG':f_UZG}
-
-    init_states = {'H':H_init,'H_norm':np.ones(len(MDC_sim)), 'H_adjusted':H_init}
-    coordinates={'MDC':MDC_sim}
-
+    # Initial states
+    init_states = {'H': H_init, 'H_norm': np.ones(len(MDC_sim)), 'H_adjusted': H_init}
+    coordinates={'MDC': MDC_sim}
+    # TDPFs
     daily_hospitalizations_func = get_A(baseline,mean_residence_times.loc[MDC_sim]).A_wrapper_func
-    covid_H_func = get_covid_H(df_covid_H_tot,baseline,hospitalizations).H_wrapper_func
+    covid_H_func = get_covid_H(df_covid_H_tot,baseline,raw).H_wrapper_func
     post_processing_H_func = H_post_processing(baseline,MDC_sim).H_post_processing_wrapper_func
 
     # Initialize model
-    model = Queuing_model(init_states,params,coordinates,
+    model = QueuingModel(init_states,params,coordinates,
                           time_dependent_parameters={'A': daily_hospitalizations_func,'covid_H':covid_H_func,'post_processed_H':post_processing_H_func})
-
     return model
 
-##########################################################
-## Compute the overdispersion parameters for our H data ##
-##########################################################
+#################
+## Setup model ##
+#################
+
+model = init_queuing_model(start_date,MDC_sim,wave)
+
+###########################
+## Select the right data ##
+###########################
 
 if state_to_fit == 'H_adjusted':
-    ruw_data = hospitalizations.loc[start_date:end_date,MDC_sim]
-    if filter_args is not None:
-        smooth_data = hospitalizations_smooth.loc[start_date:end_date,MDC_sim]
+    ruw_data = raw.loc[MDC_sim, start_date:end_date]
     method = 'quasi-poisson'
 else:
-    ruw_data = hospitalizations_normalized.loc[start_date:end_date,MDC_sim]
-    if filter_args is not None:
-        smooth_data = hospitalizations_normalized_smooth[start_date:end_date,MDC_sim]
+    ruw_data = normalised.loc[MDC_sim, start_date:end_date]
     method = 'gaussian'
+data = ruw_data
 
-if filter_args is not None:
-    data = smooth_data
-else:
-    data = ruw_data
-
-sigmas_ll = []
-results, ax = variance_analysis(data, resample_frequency='W')
-for MDC_key in MDC_sim:
-    sigmas_ll.append(results['theta'].loc[MDC_key,method])
-plt.close()
-    
 if __name__ == '__main__':
 
     #############################
     ## plot initial conditions ##
     #############################
 
+    # simulate
+    out = model.sim([start_date, end_date], tau=1)
+    simtime = out['date'].values
     # plot 
     fig,axs = plt.subplots(len(MDC_plot),1,sharex=True,figsize=(9,2*len(MDC_plot)))
-    plot_time = pd.date_range(start_date,end_date)
-    
-    model = init_queuing_model(start_date,end_date,MDC_sim,wave)
-    out = model.sim([start_date, end_date],tau=1)
-    
     for i,MDC_key in enumerate(MDC_sim):
-        axs[i].plot(plot_time,ruw_data.loc[plot_time,MDC_key].values,color='blue')
-        if filter_args is not None:
-            axs[i].plot(plot_time,smooth_data.loc[plot_time,MDC_key].values,color='red')
-            axs[i].plot(plot_time,hospitalizations_baseline_smooth.loc[MDC_key,plot_time].values,color='black',alpha=0.5)
-        
-        axs[i].plot(plot_time,out[state_to_fit].sel(MDC=MDC_key),color='black')
-
+        # plot data
+        axs[i].plot(simtime, out[state_to_fit].sel(MDC=MDC_key), color='black')
+        axs[i].plot(simtime,ruw_data.loc[MDC_key, simtime].values,color='blue')
+        # make figure pretty
         axs[i].set_ylabel(MDC_key)
         axs[i].xaxis.set_major_locator(plt.MaxNLocator(4))
         axs[i].grid(False)
         axs[i].tick_params(axis='both', which='major', labelsize=8)
         axs[i].tick_params(axis='both', which='minor', labelsize=8)
-
         if state_to_fit == 'H_norm':
             axs[i].axhline(y = 1, color = 'r', linestyle = 'dashed', alpha=0.5) 
-
     fig.tight_layout()
     fig.savefig(os.path.join(fig_path,str(identifier)+'_init_condition.pdf'))
     #plt.show()
@@ -518,7 +452,6 @@ if __name__ == '__main__':
     #############################
 
     fig,axs = plt.subplots(len(MDC_plot),3,sharex=True,figsize=(9,2*len(MDC_plot)))
-
     axs[0,0].set_title('PSO')
     axs[0,1].set_title('Nelder-Mead')
     axs[0,2].set_title('MCMC')
@@ -536,25 +469,11 @@ if __name__ == '__main__':
     ## Calibrate models ##
     ######################
 
-    model = init_queuing_model(start_date,end_date,MDC_sim,wave)
-    
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-
     # parameters and bounds
-    labels_dict = {'f_UZG':'$f_{UZG}$', 'epsilon':'$\\epsilon$', 'sigma':'$\\sigma$', 'alpha':'$\\sigma_{covid}$','X_tot':'$X_{tot}$'}
-    bounds_dict = {'f_UZG':(1*10**-10,1),'epsilon':(1*10**-10,1),'sigma':(1*10**-10,10), 'alpha':(1*10**-10,10),'X_tot':(1*10**-10,2000)}
+    labels_dict = {'f_UZG':'$f_{UZG}$', 'epsilon':'$\\epsilon$', 'sigma':'$\\sigma$', 'alpha':'$\\sigma_{covid}$', 'X_tot':'$X_{tot}$'}
+    bounds_dict = {'f_UZG':(1*10**-10,1), 'epsilon':(1*10**-10,1), 'sigma':(1*10**-10,10), 'alpha':(1*10**-10,10), 'X_tot':(1*10**-10,2000)}
     labels = [labels_dict[par] for par in pars]
     bounds = [bounds_dict[par] for par in pars]
-
-    parameter_sizes, _ = validate_calibrated_parameters(pars, model.parameters)
-    expanded_bounds = expand_bounds(parameter_sizes, bounds)
-
-    # Define dataset
-    if state_to_fit == "H_adjusted":
-        calibration_data=[data.to_frame(),]
-    else:
-        calibration_data=[data.to_frame(),]
-    
     states = [state_to_fit,]
     # Setup likelihood functions and arguments
     if state_to_fit == "H_adjusted":
@@ -562,19 +481,20 @@ if __name__ == '__main__':
         log_likelihood_fnc_args = [None,]
     else:
         log_likelihood_fnc = [ll_gaussian,]
-        log_likelihood_fnc_args = [np.array(sigmas_ll),]
-
+        log_likelihood_fnc_args = [len(MDC_keys)*[0.05],]
+    # Change index name for disease group in dataset to model dimension 'MDC'
+    data.index.names = ['MDC','date']
     # Setup objective function (no priors --> uniform priors based on bounds) 
-    objective_function = log_posterior_probability(model,pars,bounds,calibration_data,states,
-                                        log_likelihood_fnc,log_likelihood_fnc_args,labels=labels)
+    objective_function = log_posterior_probability(model, pars, bounds, [data.to_frame(),], states, log_likelihood_fnc, log_likelihood_fnc_args, labels=labels)
+    
     # --- #
     # PSO #
     # --- #
-    if n_pso > 0:
-        print('PSO')
-        theta = pso.optimize(objective_function, swarmsize=len(expanded_bounds)*30, max_iter=n_pso, debug=True, processes=processes,kwargs={'simulation_kwargs':{'tau': 1}})[0]
 
-        param_dict = assign_theta(model.parameters,pars,theta)
+    if n_pso > 0:
+        print('Performing PSO optimization')
+        theta = pso.optimize(objective_function, swarmsize=240, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
+        param_dict = assign_theta(model.parameters, pars, theta)
         calibrated_param_dict = {}
         for param in pars:
             if isinstance(param_dict[param], np.ndarray):
@@ -583,37 +503,33 @@ if __name__ == '__main__':
                 calibrated_param_dict.update({param:param_dict[param]})
         with open(os.path.join(samples_path, str(identifier)+'_THETA_PSO_'+run_date+'.json'), 'w') as fp:
             json.dump(calibrated_param_dict, fp)
-
     else:
         theta = np.array([])
         for param in pars:
             theta = np.append(theta,model.parameters[param])
-
         param_dict = assign_theta(model.parameters,pars,theta)
     
     # simulate model
     model.parameters.update(param_dict)
-    out_pso = model.sim([start_date, end_date],tau=1)
+    out = model.sim([start_date, end_date],tau=1)
 
     # visualization
     for i,MDC_key in enumerate(MDC_plot):
-        axs[i,0].plot(plot_time,ruw_data.loc[plot_time,MDC_key], label='ruw data', alpha=0.7, color='blue')
-        if filter_args is not None:
-            axs[i,0].plot(plot_time,smooth_data.loc[plot_time,MDC_key], label='filtered data', alpha=0.7, color='red')
-        axs[i,0].plot(plot_time,out_pso.sel(date=plot_time,MDC=MDC_key)[state_to_fit],label='model',color='black')
-    
+        axs[i,0].plot(simtime,ruw_data.loc[MDC_key, simtime], label='ruw data', alpha=0.7, color='blue')
+        axs[i,0].plot(simtime,out.sel(date=simtime,MDC=MDC_key)[state_to_fit],label='model',color='black')
     fig.tight_layout()
     fig.savefig(os.path.join(fig_path,'fits/',str(identifier)+ '_' +run_date+'.pdf'))
-    plt.close()
+    #plt.show()
+    #plt.close()
 
     # ----------- #
     # Nelder-mead #
     # ----------- #
+
     if n_nm > 0:
-        print('Nelder-mead')
+        print('Performing Nelder-mead optimization')
         step = len(theta)*[0.2,]
         theta,_ = nelder_mead.optimize(objective_function, theta, step, processes=processes, max_iter=n_nm,kwargs={'simulation_kwargs':{'tau': 1}})
-
         param_dict = assign_theta(model.parameters,pars,theta)
         calibrated_param_dict = {}
         for param in pars:
@@ -630,28 +546,24 @@ if __name__ == '__main__':
 
         # visualization
         for i,MDC_key in enumerate(MDC_plot):
-            axs[i,1].plot(plot_time,ruw_data.loc[plot_time,MDC_key], label='ruw data', alpha=0.7, color='blue')
-            if filter_args is not None:
-                axs[i,1].plot(plot_time,smooth_data.loc[plot_time,MDC_key], label='filtered data', alpha=0.7, color='red')
-            axs[i,1].plot(plot_time,out_nm.sel(date=plot_time,MDC=MDC_key)[state_to_fit],label='model',color='black')
-
+            axs[i,1].plot(simtime,ruw_data.loc[MDC_key, simtime], label='ruw data', alpha=0.7, color='blue')
+            axs[i,1].plot(simtime,out.sel(date=simtime,MDC=MDC_key)[state_to_fit],label='model',color='black')
         fig.tight_layout()
-        fig.savefig(os.path.join(fig_path,'fits/',str(identifier) + '_' +run_date+'.pdf'))
-        plt.close()
+        fig.savefig(os.path.join(fig_path,'fits/',str(identifier)+ '_' +run_date+'.pdf'))
+        #plt.show()
+        #plt.close()
 
     # ---- #
     # MCMC #
     # ---- #
+
     if n_mcmc > 0:
-        print('MCMC')
-        multiplier_mcmc = 10
-        print_n = 10
-
-        theta = np.where(theta==0,0.00001,theta)
-
+        print('Performing MCMC sampling')
+        multiplier_mcmc = 5
+        print_n = 5
+        theta = np.where(theta==0, 0.00001,theta)
         # Perturbate previously obtained estimate
-        ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.1,]*len(theta), bounds=expanded_bounds, multiplier=multiplier_mcmc, verbose=True)
-
+        ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.1,]*len(theta), bounds=objective_function.expanded_bounds, multiplier=multiplier_mcmc, verbose=True)
         # Write some usefull settings to a pickle file (no pd.Timestamps or np.arrays allowed!)
         settings={'start_calibration': start_date.strftime("%Y-%m-%d"), 'end_calibration': end_date.strftime("%Y-%m-%d"), 'n_chains': nwalkers,
                     'labels': labels, 'parameters': list(pars), 'starting_estimate': list(theta),"MDC":list(MDC_sim)}
@@ -714,13 +626,10 @@ if __name__ == '__main__':
 
         # visualization
         for i,MDC_key in enumerate(MDC_plot):
-            axs[i,2].plot(plot_time,ruw_data.loc[plot_time,MDC_key], label='ruw data', alpha=0.7, color='blue')
-            if filter_args is not None:
-                axs[i,2].plot(plot_time,smooth_data.loc[plot_time,MDC_key], label='filtered data', alpha=0.7, color='red')
-            axs[i,2].plot(plot_time,out_mcmc[state_to_fit].sel(date=plot_time,MDC=MDC_key).mean(dim='draws'), color='black', label='simulated_H')
-            axs[i,2].fill_between(plot_time,out_mcmc[state_to_fit].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.025),
-                                out_mcmc[state_to_fit].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.975), color='black', alpha=0.2, label='Simulation 95% CI')
-
+            axs[i,2].plot(simtime,ruw_data.loc[MDC_key, simtime], label='ruw data', alpha=0.7, color='blue')
+            axs[i,2].plot(simtime,out_mcmc[state_to_fit].sel(date=simtime, MDC=MDC_key).mean(dim='draws'), color='black', label='simulated_H')
+            axs[i,2].fill_between(simtime,out_mcmc[state_to_fit].sel(date=simtime, MDC=MDC_key).quantile(dim='draws', q=0.025),
+                                out_mcmc[state_to_fit].sel(date=simtime, MDC=MDC_key).quantile(dim='draws', q=0.975), color='black', alpha=0.2, label='Simulation 95% CI')
         fig.tight_layout()
         fig.savefig(os.path.join(fig_path,'fits/',str(identifier) + '_' +run_date+'.pdf'))
         plt.close()
