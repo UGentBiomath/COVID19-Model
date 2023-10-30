@@ -40,7 +40,6 @@ df = pd.read_csv(os.path.join(abs_dir, rel_dir), index_col=[0,1,2,3], parse_date
                     dtype = {'APR_MDC_key': str, 'age_group': str, 'stay_type': str, 'n_patients': int})
 # Sum to weekly frequency to reduce noise in the dataset
 df = df.reset_index().dropna().groupby(by=['APR_MDC_key', 'date']).sum().sort_index()
-
 # Immediately pop the age groups and hospitalisation types as we won't use them
 del df['age_group']
 del df['stay_type']
@@ -49,8 +48,8 @@ del df['stay_type']
 ## Construct baseline dataframe using data from 2017-2019 ##
 ############################################################
 
-bootstrap_repeats = 500
-subset_size=3
+bootstrap_repeats=250
+subset_size=20
 
 print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
 
@@ -71,15 +70,18 @@ names.append('day_number')
 iterables.append(list(range(bootstrap_repeats)))
 names.append('bootstrap_sample')
 index = pd.MultiIndex.from_product(iterables, names=names)
-baseline_df = pd.Series(index=index, name='n_patients', data=np.zeros(len(index), dtype=int))
+baseline_df = pd.Series(0, index=index, name='n_patients', dtype=int)
 # Use all data from the jan. 2016 until jan. 2020 as baseline
 baseline = df[((df.index.get_level_values('date')<datetime(2020,1,1))&(df.index.get_level_values('date')>=datetime(2016,1,1)))]
-
+# Define a bootstrap function
+def bootstrap_mean(sample, subset_size):
+    resampled = np.random.choice(sample, size=subset_size, replace=True)
+    return np.mean(resampled)
 # compute
 names=['week_number', 'day_number']
 iterables=[baseline_df.index.get_level_values('week_number').unique(), baseline_df.index.get_level_values('day_number').unique()]
 index = pd.MultiIndex.from_product(iterables, names=names)
-merge_df = pd.Series(index=index, name='n_patients', data=np.zeros(len(index), dtype=float))
+merge_df = pd.Series(0, index=index, name='n_patients', dtype=float)
 # Loop over all possible indices, convert date to day of year, take average of values with same day-of-year number
 with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*bootstrap_repeats) as pbar:
     for APR_MDC_key in baseline.index.get_level_values('APR_MDC_key').unique():
@@ -94,13 +96,21 @@ with tqdm(total=len(baseline.index.get_level_values('APR_MDC_key').unique())*boo
             # pop the date
             del data['date']
             # Perform a groupby 'date' operation with mean() to take the mean of all values with similar daynumber
-            d = data.groupby(by=['week_number','day_number']).apply(lambda x: np.mean(x.sample(n=subset_size, replace=True)))
+            d = data.groupby(by=['week_number','day_number']).apply(lambda x: bootstrap_mean(x['n_patients'], subset_size))
+            #d = data.groupby(by=['week_number','day_number']).mean()
             d.name = 'n_patients'
-            baseline_df.loc[APR_MDC_key, slice(None), slice(None), idx] = pd.merge(d, merge_df, how='right', on=['week_number','day_number']).ffill()['n_patients_x'].values   
+            baseline_df.loc[APR_MDC_key, slice(None), slice(None), idx] = pd.merge(d.squeeze(), merge_df, how='right', on=['week_number','day_number']).ffill()['n_patients_x'].values   
             pbar.update(1)
-
-# Save baseline
-baseline_df.to_csv(os.path.join(abs_dir, result_baseline))
+# convert to weekly frequency
+baseline_save = baseline_df.groupby(by=['APR_MDC_key', 'week_number']).median()
+baseline_save = baseline_save.to_frame()
+baseline_save = baseline_save.rename(columns={"n_patients": "median"})
+baseline_save['mean'] = baseline_df.groupby(by=['APR_MDC_key', 'week_number']).mean()
+baseline_save['std'] = baseline_df.groupby(by=['APR_MDC_key', 'week_number']).std()
+baseline_save['q0.025'] = baseline_df.groupby(by=['APR_MDC_key', 'week_number']).quantile(q=0.025)
+baseline_save['q0.975'] = baseline_df.groupby(by=['APR_MDC_key', 'week_number']).quantile(q=0.975)
+# save
+baseline_save.to_csv(os.path.join(abs_dir, result_baseline))
 
 #####################################################################
 ## Normalizing pandemic data (2020-2021) with prepandemic baseline ##
