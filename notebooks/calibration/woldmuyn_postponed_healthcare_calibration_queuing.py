@@ -47,11 +47,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", default=None)
 parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-01')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-12-31')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-09-01')
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=0)
 parser.add_argument("-n_nm", "--n_nm", help="Maximum number of Nelder Mead iterations.", default=0)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default =1)
-parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'queuing_model_test_second_wave')
+parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'calibrate_2020')
 parser.add_argument("-MDC_sim", "--MDC_sim", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-MDC_plot", "--MDC_plot", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-norm", "--norm", help="use normalized data to fit", action="store_true")
@@ -470,7 +470,7 @@ if __name__ == '__main__':
     ######################
 
     # parameters and bounds
-    labels_dict = {'f_UZG':'$f_{UZG}$', 'epsilon':'$\\epsilon$', 'sigma':'$\\sigma$', 'alpha':'$\\sigma_{covid}$', 'X_tot':'$X_{tot}$'}
+    labels_dict = {'f_UZG':'$f_{UZG}$', 'epsilon':'$\\epsilon$', 'sigma':'$\\sigma$', 'alpha':'$\\alpha$', 'X_tot':'$X_{tot}$'}
     bounds_dict = {'f_UZG':(1*10**-10,1), 'epsilon':(1*10**-10,1), 'sigma':(1*10**-10,10), 'alpha':(1*10**-10,10), 'X_tot':(1*10**-10,2000)}
     labels = [labels_dict[par] for par in pars]
     bounds = [bounds_dict[par] for par in pars]
@@ -493,7 +493,7 @@ if __name__ == '__main__':
 
     if n_pso > 0:
         print('Performing PSO optimization')
-        theta = pso.optimize(objective_function, swarmsize=240, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
+        theta = pso.optimize(objective_function, swarmsize=1000, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
         param_dict = assign_theta(model.parameters, pars, theta)
         calibrated_param_dict = {}
         for param in pars:
