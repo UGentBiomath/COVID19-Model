@@ -47,11 +47,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", default=None)
 parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-03-01')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2021-01-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-10-01')
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=0)
 parser.add_argument("-n_nm", "--n_nm", help="Maximum number of Nelder Mead iterations.", default=0)
 parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default =1)
-parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'calibrate_2020')
+parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'calibrate_end10')
 parser.add_argument("-MDC_sim", "--MDC_sim", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-MDC_plot", "--MDC_plot", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-norm", "--norm", help="use normalized data to fit", action="store_true")
@@ -181,6 +181,8 @@ for directory in [fig_path, samples_path, backend_folder]:
 ###############
 ## Load data ##
 ###############
+
+rel_dir = '../../data/QALY_model/interim/postponed_healthcare/'
 
 # baseline
 file_name = 'MZG_baseline.csv'
@@ -373,6 +375,24 @@ def init_queuing_model(start_date, MDC_sim, wave='first'):
                  0.333,6.550,1.468,6.147,
                  3.184,1.728,6.982,8.739]
         alpha = 5.106
+    elif wave == 'both':
+        epsilon = [0.22, 0.55, 1, 1,
+                    0.22, 0.88, 1, 1,
+                    0.39, 0.88, 0, 1,
+                    0.34, 1, 1, 1,
+                    0, 0.64, 0, 1,
+                    1, 0.28, 1, 1,
+                    0.18, 1, 0.177, 0,
+        ]
+        sigma = [0.59, 2.24, 2.76, 2.23,
+                    10, 2.56, 10, 10,
+                    2.53, 2.30, 10, 2.78,
+                    2.22, 2.20, 7.76, 10,
+                    10, 10, 10, 2.25,
+                    10, 9.82, 1.65, 8.78,
+                    1.02, 2.31, 2.10, 10,
+        ]
+        alpha = 3.82
     else:
         epsilon = np.ones(len(MDC_sim))*0.1
         sigma = np.ones(len(MDC_sim))
@@ -443,7 +463,7 @@ if __name__ == '__main__':
         if state_to_fit == 'H_norm':
             axs[i].axhline(y = 1, color = 'r', linestyle = 'dashed', alpha=0.5) 
     fig.tight_layout()
-    fig.savefig(os.path.join(fig_path,str(identifier)+'_init_condition.pdf'))
+    #fig.savefig(os.path.join(fig_path,str(identifier)+'_init_condition.pdf'))
     #plt.show()
     plt.close()
 
@@ -493,7 +513,7 @@ if __name__ == '__main__':
 
     if n_pso > 0:
         print('Performing PSO optimization')
-        theta = pso.optimize(objective_function, swarmsize=5000, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
+        theta = pso.optimize(objective_function, swarmsize=1000, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
         param_dict = assign_theta(model.parameters, pars, theta)
         calibrated_param_dict = {}
         for param in pars:
@@ -560,7 +580,7 @@ if __name__ == '__main__':
     if n_mcmc > 0:
         print('Performing MCMC sampling')
         multiplier_mcmc = 5
-        print_n = 5
+        print_n = 50
         theta = np.where(theta==0, 0.00001,theta)
         # Perturbate previously obtained estimate
         ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.1,]*len(theta), bounds=objective_function.expanded_bounds, multiplier=multiplier_mcmc, verbose=True)
