@@ -22,7 +22,7 @@ from QALY_model.postponed_healthcare_models import draw_fcn
 from datetime import datetime, timedelta
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-n", "--N", help="simulation runs", default=10)
+parser.add_argument("-n", "--N", help="simulation runs", default=20)
 args = parser.parse_args()
 N = int(args.N)
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
@@ -33,6 +33,8 @@ samples_name = 'calibrate_end09_SAMPLES_2023-10-31.json'
 # What disease groups do you want to visualise?
 MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
 MDC_translations = ['Nervous system (01)', 'Ear, nose, mouth, and throat (03)', 'Circulatory system (05)', 'Digestive system (06)', 'Muscoluskeletal system (08)', 'Psychiatry (AA)']
+MDCs_2plot = ['01', '05', '06', 'AA']
+MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
 
 # When to start and when to end the visualisation
 start_date = datetime(2020, 3, 1)
@@ -40,7 +42,7 @@ end_date = datetime(2021, 1, 1)
 
 # When was the calibration started and ended?
 start_calibration = pd.to_datetime('2020-03-01')
-end_calibration= pd.to_datetime('2020-09-01')
+end_calibration= pd.to_datetime('2020-10-01')
 
 # Where to store the output
 abs_dir = os.path.dirname(__file__)
@@ -343,10 +345,20 @@ def MAE(data, out, start_date, end_date, MDC_key):
 # functie die een plot maakt van de data en de 3 gekalibreerde modellen
 def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration):
 
-    # slice data
+    calibration_data = data.copy()
+    no_calibration_data = data.copy()
+    # slice all data
     data = data.reset_index()
     data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
     data = data.groupby(by=['APR_MDC_key', 'date']).last()
+    # slice not calibrated range
+    calibration_data = calibration_data.reset_index()
+    calibration_data = calibration_data[(calibration_data['date'] >= start_calibration) & (calibration_data['date'] < end_calibration)]
+    calibration_data = calibration_data.groupby(by=['APR_MDC_key', 'date']).last()
+    # slice calibration range
+    no_calibration_data = no_calibration_data.reset_index()
+    no_calibration_data = no_calibration_data[(no_calibration_data['date'] > end_calibration) & (no_calibration_data['date'] <= end_date)]
+    no_calibration_data = no_calibration_data.groupby(by=['APR_MDC_key', 'date']).last()
     # get daterange
     simtime = out['date'].values
     # define MAE box properties
@@ -360,15 +372,19 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
         # compute MAE
         mae = MAE(data, out, start_calibration, end_calibration, MDC_key)
         # put the MAE in a box
-        axs[i].text(0.02, 0.90, f'MAE = {100*mae:.1f} %', transform=axs[i].transAxes, fontsize=8, verticalalignment='top', bbox=box_props,)
+        axs[i].text(0.015, 0.93, f'MAE = {100*mae:.1f} %', transform=axs[i].transAxes, fontsize=8, verticalalignment='top', bbox=box_props,)
         # visualise data (used for calibration)
-        axs[i].plot(data.index.get_level_values('date').unique(), 100*data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='black')
-        axs[i].fill_between(data.index.get_level_values('date').unique(), 100*data.loc[MDC_key, :]['q0.025'], 100*data.loc[MDC_key,:]['q0.975'],
-                                color='black', alpha=0.2, label='Data (95% CI)')
+        axs[i].scatter(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['mean'], label='Data (calibration)', marker = 'o', s=15,
+                        alpha=0.6, linewidth=1, color='black')
+        #axs[i].plot(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='black')
+        #axs[i].fill_between(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['q0.025'], 100*calibration_data.loc[MDC_key,:]['q0.975'],
+        #                        color='black', alpha=0.2, label='Data (95% CI)')
         # visualise data (not used for calibration)
-        #axs[i].plot(simtime, data.loc[MDC_key, slice(end_calibration,stop)]['mean'], label='Data (mean)', color='red', alpha=0.7, linewidth=1)
-        #axs[i].fill_between(simtime, data.loc[MDC_key, slice(end_calibration,stop)]['q0.025'], data.loc[MDC_key, slice(end_calibration,stop)]['q0.975'],
-        #                     color='red', alpha=0.2, label='Data (95% CI)')
+        axs[i].scatter(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['mean'], label='Data (extrapolation)', marker = 'o', s=15,
+                        alpha=0.6, linewidth=1, color='red')
+        #axs[i].plot(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='red')
+        #axs[i].fill_between(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['q0.025'], 100*no_calibration_data.loc[MDC_key,:]['q0.975'],
+        #                        color='red', alpha=0.2, label='Data (95% CI)')
         # plot lockdown
         lockdowns = [(pd.to_datetime('2020-03-15'), pd.to_datetime('2020-05-07')),
                  (pd.to_datetime('2020-10-19'), pd.to_datetime('2021-02-01')),]
@@ -377,27 +393,26 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
             lockdown_end = lockdown[1]
             axs[i].axvspan(lockdown_start,lockdown_end, facecolor='black', alpha=0.05)
         # visualise simulation
-        axs[i].plot(simtime, y_model_mean, color='blue', label='Model (mean)', linewidth=1, alpha=0.7)
-        axs[i].fill_between(simtime, y_model_lower, y_model_upper, color='blue', alpha=0.2, label='Model (95% CI)')
+        axs[i].plot(simtime, y_model_mean, color='blue', label='Model (mean)', linewidth=1, alpha=1.0)
+        axs[i].fill_between(simtime, y_model_lower, y_model_upper, color='blue', alpha=0.15, label='Model (95% CI)')
         # fancy plot
         axs[i].grid(False)
         axs[i].set_title(MDC_translations[i], size=10)
         axs[i].set_ylabel('Reduction (%)', size=10)
         axs[i].axhline(y=100, color='r', linestyle ='dashed', alpha=1.0)
         # custom x-labels
-        axs[i].set_xticks([datetime(2020,3,31),datetime(2020,6,30),datetime(2020,9,30),
-                            datetime(2021,1,1)])
+        axs[i].set_xticks([datetime(2020,3,31),datetime(2020,5,31),datetime(2020,7,31), datetime(2020,9,30), datetime(2020,11,30)])
         # rotate slightly
-        axs[i].tick_params(axis='both', which='major', labelsize=10, rotation=15)
+        axs[i].tick_params(axis='both', which='major', labelsize=10, rotation=0)
         # set lims
-        axs[i].set_ylim([0,150])
+        axs[i].set_ylim([20,135])
         axs[i].set_xlim([start_date,end_date])
 
     # legend
     handles, plot_labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0.04), loc='lower center',fancybox=False, shadow=False,ncol=5)
+    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,0), loc='lower center',fancybox=False, shadow=False,ncol=5, fontsize=8)
     # save figure
-    fig.tight_layout()
+    #fig.tight_layout()
     fig.savefig(os.path.join(result_folder,'fit.pdf'))
     #plt.tight_layout()
     #plt.show()
@@ -456,8 +471,6 @@ model_fit.to_csv(os.path.join(result_folder,'parameters_MAE.csv'))
 ###########################################
 
 print('5) Saving QALY losses to table')
-
-end_date = datetime(2020,9,1)
 
 # Pre-allocate
 QALY_loss = pd.DataFrame(index=MDC_keys, columns=['reduction (data)', 'reduction (model)', 'QALY loss (data)', 'QALY loss (model)'])
