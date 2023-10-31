@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # Number of age groups
     age_stratification_size=10
     # End of simulation
-    end_sim='2021-07-01'
+    end_sim='2021-01-01'
     # Confidence level used to visualise model fit
     conf_int=0.05
 
@@ -114,7 +114,7 @@ if __name__ == '__main__':
       ax.grid(False)
       ax.tick_params(axis='both', which='major', labelsize=10)
       ax.tick_params(axis='x', which='major', rotation=30)
-      ax.set_ylim([0,6600])
+      ax.set_ylim([0,3200])
     axes[0].legend(loc=2, framealpha=1, fontsize=10)
     axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
 
