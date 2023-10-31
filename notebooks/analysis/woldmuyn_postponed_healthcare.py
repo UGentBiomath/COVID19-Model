@@ -10,6 +10,7 @@ __copyright__   = "Copyright (c) 2022 by W. Demuynck, BIOMATH, Ghent University.
 import json
 import argparse
 import os
+from statistics import mean
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
@@ -18,11 +19,34 @@ import xarray as xar
 import math
 from covid19_DTM.data.sciensano import get_sciensano_COVID19_data
 from QALY_model.postponed_healthcare_models import draw_fcn 
+from datetime import datetime
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-n", "--N", help="simulation runs", default=50)
+parser.add_argument("-n", "--N", help="simulation runs", default=10)
 args = parser.parse_args()
 N = int(args.N)
+processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
+
+# What samples dictionary?
+samples_name = 'calibrate_end09_SAMPLES_2023-10-31.json'
+
+# What disease groups do you want to visualise?
+MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
+MDC_translations = ['Nervous system (01)', 'Ear, nose, mouth, and throat (03)', 'Circulatory system (05)', 'Digestive system (06)', 'Muscoluskeletal system (08)', 'Psychiatry (AA)']
+
+# When to start and when to end the visualisation
+start_date = datetime(2020, 3, 1)
+end_date = datetime(2021, 1, 1)
+
+# When was the calibration started and ended?
+start_calibration = pd.to_datetime('2020-03-01')
+end_calibration= pd.to_datetime('2020-09-01')
+
+# Where to store the output
+abs_dir = os.path.dirname(__file__)
+result_folder = os.path.join(abs_dir,'../../results/QALY_model/postponed_healthcare/analysis/')
+if not os.path.exists(os.path.join(abs_dir,result_folder)):
+        os.makedirs(os.path.join(abs_dir,result_folder))
 
 ##############################################################
 ## From here it is a copy paste from the calibration script ##
@@ -33,13 +57,14 @@ from pySODM.models.base import ODE
 from functools import lru_cache
 from datetime import datetime
 
-use_covid_data = True
+use_covid_data = False
 
 ########
 # Data #
 ########
 
-abs_dir = os.path.dirname(__file__)
+print('1) Loading data')
+
 rel_dir = '../../data/QALY_model/interim/postponed_healthcare'
 # baseline
 file_name = 'MZG_baseline.csv'
@@ -112,6 +137,8 @@ raw = raw_smooth
 ##################
 ## Define model ##
 ##################
+
+print('2) Setting up model')
 
 class QueuingModel(ODE):
 
@@ -199,6 +226,7 @@ class H_post_processing():
 #################
 
 def init_queuing_model(start_date, MDC_sim, wave='first'):
+
     # Define model parameters, initial states and coordinates
     if wave == 'first':
         epsilon = [0.157, 0.126, 0.100, 0.623,
@@ -267,7 +295,6 @@ def init_queuing_model(start_date, MDC_sim, wave='first'):
 model = init_queuing_model(datetime(2020,3,1), MDC_keys, 'first')
 
 
-
 ################################################
 ## From here it is back to an original script ##
 ################################################
@@ -277,358 +304,239 @@ model = init_queuing_model(datetime(2020,3,1), MDC_keys, 'first')
 #############
 
 file_name = 'hospital_yearly_QALYs.csv'
-hospital_yearly_QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0],na_values='/')
+hospital_yearly_QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0],na_values='/').reindex(MDC_keys).fillna(0)
 
 ###########
 # Samples #
 ###########
 
-rel_dir = '../../data/QALY_model/interim/postponed_healthcare/model_parameters'
+rel_dir = '../../data/QALY_model/interim/postponed_healthcare/model_parameters/queuing_model/'
 ## Load samples
-# Two calibrations
-#samples = {'first_wave': {}, 'second_wave': {}}
-#for file_name,period in zip(['calibrate_first_SAMPLES.json', 'calibrate_second_SAMPLES.json'], ['first_wave', 'second_wave']):
-#    f = open(os.path.join(abs_dir,rel_dir,file_name))
-#    samples[period].update(json.load(f))
-# One calibration
-file_name = 'calibrate_2020_SAMPLES.json'
-f = open(os.path.join(abs_dir,rel_dir,file_name))
-samples = json.load(f)
+f = open(os.path.join(abs_dir,rel_dir,samples_name))
+samples_dict = json.load(f)
 
 #########
 # setup #
 #########
 
-start_calibration_first = pd.to_datetime('2020-01-01')
-end_calibration_first = pd.to_datetime('2020-09-01')
-start_calibration_second = pd.to_datetime('2020-09-01')
-end_calibration_second = pd.to_datetime('2021-03-01')
-
-MDC_plot = ['03', '04', '05']
-dates = pd.date_range('2020-01-01','2021-12-31')
-
-result_folder = os.path.join(abs_dir,'../../results/QALY_model/postponed_healthcare/analysis/')
-if not os.path.exists(os.path.join(abs_dir,result_folder)):
-        os.makedirs(os.path.join(abs_dir,result_folder))
+# slice normalised data
+data = normalised.reset_index()
+data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
+normalised = data.groupby(by=['APR_MDC_key', 'date']).last()
 
 # mean absolute error, outs kan lijst zijn met out_first en out_second voor de totale MAE te bereken, beetje messy
-def MAE(data,outs,MDC_key):
-    AE = 0
-    for out in outs:
-        start_date = out.date[0].values
-        end_date = out.date[-1].values
-        date_range = pd.date_range(start_date,end_date)
-
-        y_data = data.loc[(date_range,MDC_key)]
-        y_model = out['H_norm'].sel(date=date_range,MDC=MDC_key).mean('draws')
-        AE += sum(abs(y_model-y_data))
-    
-    start_date = outs[0].date[0].values
-    end_date = outs[-1].date[-1].values
-    date_range = pd.date_range(start_date,end_date)
-    return AE/len(date_range)
+def MAE(data, out, start_date, end_date, MDC_key):
+    # slice data
+    data = data.reset_index()
+    data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
+    data = data.groupby(by=['APR_MDC_key', 'date']).last()
+    # copy output
+    out_copy = out.copy()
+    # select data
+    y_data = data.loc[(MDC_key, slice(None)), 'mean']
+    # get model prediction on same dates
+    interp = out_copy.interp({'date': y_data.index.get_level_values('date').unique().values}, method="linear")
+    y_model = interp['H_norm'].sel(MDC=MDC_key).mean('draws').values
+    # compute MAE
+    return sum(abs(y_model-y_data.values))/len(y_data)
 
 # functie die een plot maakt van de data en de 3 gekalibreerde modellen
-def plot_model_outputs(plot_name,outs,plot_start,plot_end,start_calibration,end_calibration,MDC_plot):
-    plot_time = pd.date_range(plot_start,plot_end)
+def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration):
 
-    box_props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    # slice data
+    data = data.reset_index()
+    data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
+    data = data.groupby(by=['APR_MDC_key', 'date']).last()
+    # get daterange
+    simtime = out['date'].values
+    # define MAE box properties
+    box_props = dict(boxstyle='round', facecolor='wheat', alpha=1)
+    fig,axs = plt.subplots(nrows=len(MDCs_2plot), ncols=1, sharex=True, figsize=(8.3,1.8*len(MDCs_2plot)))
+    for i, MDC_key in enumerate(MDCs_2plot):
+        # get model output
+        y_model_mean = 100*out['H_norm'].sel(MDC=MDC_key).mean('draws')
+        y_model_lower =  100*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025)
+        y_model_upper = 100*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975)
+        # compute MAE
+        mae = MAE(data, out, start_calibration, end_calibration, MDC_key)
+        # put the MAE in a box
+        axs[i].text(0.02, 0.90, f'MAE = {100*mae:.1f} %', transform=axs[i].transAxes, fontsize=8, verticalalignment='top', bbox=box_props,)
+        # visualise data (used for calibration)
+        axs[i].plot(data.index.get_level_values('date').unique(), 100*data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='black')
+        axs[i].fill_between(data.index.get_level_values('date').unique(), 100*data.loc[MDC_key, :]['q0.025'], 100*data.loc[MDC_key,:]['q0.975'],
+                                color='black', alpha=0.2, label='Data (95% CI)')
+        # visualise data (not used for calibration)
+        #axs[i].plot(simtime, data.loc[MDC_key, slice(end_calibration,stop)]['mean'], label='Data (mean)', color='red', alpha=0.7, linewidth=1)
+        #axs[i].fill_between(simtime, data.loc[MDC_key, slice(end_calibration,stop)]['q0.025'], data.loc[MDC_key, slice(end_calibration,stop)]['q0.975'],
+        #                     color='red', alpha=0.2, label='Data (95% CI)')
+        # plot lockdown
+        lockdowns = [(pd.to_datetime('2020-03-15'), pd.to_datetime('2020-05-07')),
+                 (pd.to_datetime('2020-10-19'), pd.to_datetime('2021-02-01')),]
+        for lockdown in lockdowns:
+            lockdown_start = lockdown[0]
+            lockdown_end = lockdown[1]
+            axs[i].axvspan(lockdown_start,lockdown_end, facecolor='black', alpha=0.05)
+        # visualise simulation
+        axs[i].plot(simtime, y_model_mean, color='blue', label='Model (mean)', linewidth=1, alpha=0.7)
+        axs[i].fill_between(simtime, y_model_lower, y_model_upper, color='blue', alpha=0.2, label='Model (95% CI)')
+        # fancy plot
+        axs[i].grid(False)
+        axs[i].set_title(MDC_translations[i], size=10)
+        axs[i].set_ylabel('Reduction (%)', size=10)
+        axs[i].axhline(y=100, color='r', linestyle ='dashed', alpha=1.0)
+        # custom x-labels
+        axs[i].set_xticks([datetime(2020,3,31),datetime(2020,6,30),datetime(2020,9,30),
+                            datetime(2021,1,1)])
+        # rotate slightly
+        axs[i].tick_params(axis='both', which='major', labelsize=10, rotation=15)
+        # set lims
+        axs[i].set_ylim([0,150])
+        axs[i].set_xlim([start_date,end_date])
 
-    fig,axs = plt.subplots(len(MDC_plot),3,sharex=True,sharey='row',figsize=(6,1.3*len(MDC_plot)))
-    axs[0,0].set_title('Queuing model')
-    axs[0,1].set_title('Constrained PI Model')
-    axs[0,2].set_title('PI Model')
-
-    for i,MDC_key in enumerate(MDC_plot):
-        axs[i,0].set_ylabel(MDC_key)
-        for j,out in enumerate(outs):
-
-            mean_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).mean('draws')
-            lower_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.025)
-            upper_fit = out['H_norm'].sel(date=plot_time,MDC=MDC_key).quantile(dim='draws', q=0.975)
-            mae = MAE(postponed_healthcare.hospitalizations_normalized_smooth,[out],MDC_key)
-            axs[i,j].text(0.05, 0.95, f'MAE={mae:.3f}', transform=axs[i,j].transAxes, fontsize=8,verticalalignment='top', bbox=box_props,)
-
-            # data
-            axs[i,j].plot(plot_time,postponed_healthcare.hospitalizations_normalized_smooth.loc[plot_time,MDC_key], label='Filtered data', alpha=0.7,linewidth=1)
-            axs[i,j].fill_between(plot_time,postponed_healthcare.hospitalizations_normalized_lower_smooth.loc[plot_time,MDC_key],
-                                            postponed_healthcare.hospitalizations_normalized_upper_smooth.loc[plot_time,MDC_key], alpha=0.2, label='95% CI on data')
-            # sim
-            axs[i,j].plot(plot_time,mean_fit, color='black', label='Model output',linewidth=1,alpha=0.7)
-            axs[i,j].fill_between(plot_time,lower_fit,upper_fit,color='black', alpha=0.2, label='95% CI on model output')
-            
-            # fancy plot
-            axs[i,j].set_xticks(pd.date_range(plot_start+pd.Timedelta('60D'),plot_end-pd.Timedelta('60D'),periods=2))
-            axs[i,j].grid(False)
-            axs[i,j].tick_params(axis='both', which='major', labelsize=8)
-            axs[i,j].tick_params(axis='both', which='minor', labelsize=8)
-            axs[i,j].axhline(y = 1, color = 'r', linestyle = 'dashed', alpha=0.5)
-            if hasattr(start_calibration,'__iter__'):
-                for start in start_calibration:
-                    axs[i,j].axvline(x = start, color = 'gray', linestyle = 'dashed', alpha=0.5)
-            else:
-                axs[i,j].axvline(x = start_calibration, color = 'gray', linestyle = 'dashed', alpha=0.5) 
-            if hasattr(end_calibration,'__iter__'):
-                for end in end_calibration:
-                    axs[i,j].axvline(x = end, color = 'gray', linestyle = 'dashed', alpha=0.5)
-            else:  
-                axs[i,j].axvline(x = end_calibration, color = 'gray', linestyle = 'dashed', alpha=0.5) 
-
-    handles, plot_labels = axs[0,0].get_legend_handles_labels()
+    # legend
+    handles, plot_labels = axs[0].get_legend_handles_labels()
     fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0.04), loc='lower center',fancybox=False, shadow=False,ncol=5)
-
+    # save figure
     fig.tight_layout()
-    fig.savefig(os.path.join(result_folder,plot_name),dpi=600,bbox_inches='tight')
+    fig.savefig(os.path.join(result_folder,'fit.pdf'))
+    #plt.tight_layout()
+    #plt.show()
+    plt.close()
 
-if __name__=='__main__':
+#########################
+# simulations and plots #
+#########################
 
-    #########################
-    # simulations and plots #
-    #########################
-    print('1) Simulating and plotting')
+print('3) Simulating and visualising goodness-of-fit')
 
-    processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
-    processes = 1
-    # simulate and plot first wave
-    start_date = start_calibration_first
-    end_date = end_calibration_second
+# simulate
+out = model.sim([start_date, end_date], N=N, samples=samples_dict, draw_function=draw_fcn, processes=processes, tau=1)
 
-    queuing_model,constrained_PI_model,PI_model = postponed_healthcare.init_models(start_date)
-    out_queuing = queuing_model.sim([start_date,end_date],N=N, samples=samples['first_wave']['queuing_model'], draw_function=draw_fcn,tau=1, processes=processes)
-    out_constrained_PI = constrained_PI_model.sim([start_date,end_date], N=N, samples=samples['first_wave']['constrained_PI'], draw_function=draw_fcn,method='LSODA', processes=processes)
-    out_PI = PI_model.sim([start_date,end_date], N=N, samples=samples['first_wave']['PI'], draw_function=draw_fcn,method='LSODA', processes=processes)
-    outs_first = [out_queuing,out_constrained_PI,out_PI]
-    
-    plot_model_outputs('postponed_healthcare_calibrations_first_wave.pdf',outs_first,start_date,end_date,start_calibration_first,end_calibration_first,MDC_plot)
-    
-    # simulate and plot second wave
-    start_date = start_calibration_second
-    end_date = pd.to_datetime(dates[-1])
+# plot
+plot_model_outputs(out, normalised, MDCs_2plot, start_calibration, end_calibration)
 
-    queuing_model,constrained_PI_model,PI_model = postponed_healthcare.init_models(start_date)
-    out_queuing = queuing_model.sim([start_date,end_date],N=N, samples=samples['second_wave']['queuing_model'], draw_function=draw_fcn,tau=1,processes=processes)
-    out_constrained_PI = constrained_PI_model.sim([start_date,end_date], N=N, samples=samples['second_wave']['constrained_PI'], draw_function=draw_fcn,method='LSODA',processes=processes)
-    out_PI = PI_model.sim([start_date,end_date], N=N, samples=samples['second_wave']['PI'], draw_function=draw_fcn,method='LSODA',processes=processes)
-    outs_second = [out_queuing,out_constrained_PI,out_PI]
+###############
+# MAE per MDC #
+###############
 
-    plot_model_outputs('postponed_healthcare_calibrations_second_wave.pdf',outs_second,start_date,end_date,start_calibration_second,end_calibration_second,MDC_plot)
+print('4) Saving parameters to table')
 
-    outs_first_trimmed = [out.sel(date=pd.date_range(start_calibration_first,end_calibration_first-pd.Timedelta('1D'))) for out in outs_first]
+def extract_parameters_for_MDC(MDC_key, samples_dict):
+    MDC_idx = np.where(MDC_keys == MDC_key)[0][0]
+    pars = samples_dict['parameters']
+    calibrated_parameters = []
+    for param in pars:
+        if hasattr(samples_dict[param][0],'__iter__'):
+            samples = samples_dict[param][MDC_idx]
+        else:
+            samples = samples_dict[param]
+        mean = np.mean(samples)
+        lower = np.quantile(samples,0.025)
+        upper = np.quantile(samples,0.975)
+        calibrated_parameters.append(f'{mean:.2E} ({lower:.2E}; {upper:.2E})')
+    return calibrated_parameters
 
-    start_date = start_calibration_first
-    end_date = pd.to_datetime(dates[-1])
-    outs_full = [xar.concat([out_first,out_second],dim='date') for out_first,out_second in zip(outs_first_trimmed,outs_second)]
-    plot_model_outputs('postponed_healthcare_calibrations_second_wave_all_MDC_full_period.pdf',outs_full,start_date,end_date,[start_calibration_first,start_calibration_second],[end_calibration_first,end_calibration_second],MDC_keys)
+# pre-allocate a table for the model parameters and the MAEs
+MAEs = pd.Series(0, index=MDC_keys)
+model_fit = pd.DataFrame(index=MDC_keys, columns=samples_dict['parameters']+['MAE_all','MAE_calibration'])
+model_fit.index.name = 'MDC'
+parameters = samples_dict['parameters']
+# compute figures
+for MDC_key in MDC_keys: 
+    model_fit.loc[MDC_key][parameters] = extract_parameters_for_MDC(MDC_key, samples_dict)
+    mae = MAE(normalised, out, start_date, end_date, MDC_key)     
+    model_fit.loc[MDC_key]['MAE_all'] = f'{mae:.3f}'
+    mae = MAE(normalised, out, start_calibration, end_calibration, MDC_key)     
+    model_fit.loc[MDC_key]['MAE_calibration'] = f'{mae:.3f}'
+# save result
+model_fit.to_csv(os.path.join(result_folder,'parameters_MAE.csv'))  
 
-    ################
-    #  fit per MDC #
-    ################
-    # maakt tabel uit appendix die gekalibreerde parameters mee geeft en bijhorende MAE score
-    # MAE score voor de calibration period, maar ook totaal met de 2 kalibraties gecombineerd + periode na 2e golf
+#########################
+# QALY loss calculation #
+#########################
 
-    print('2) Save fit per MDC')
+print('5) Saving QALY losses to table')
 
-    def extract_parameters_for_MDC(MDC_key,samples_dict):
-        MDC_idx = MDC_keys.index(MDC_key)
+end_date = datetime(2020,9,1)
 
-        pars = samples_dict['parameters']
-        
-        calibrated_parameters = []
-        
-        for param in pars:
-            if hasattr(samples_dict[param][0],'__iter__'):
-                samples = samples_dict[param][MDC_idx]
-            else:
-                samples = samples_dict[param]
-            mean = np.mean(samples)
-            lower = np.quantile(samples,0.025)
-            upper = np.quantile(samples,0.975)
+# Pre-allocate
+QALY_loss = pd.DataFrame(index=MDC_keys, columns=['reduction (data)', 'reduction (model)', 'QALY loss (data)', 'QALY loss (model)'])
+# Compute the aggregated reductions between `start_date` and `end_date` based on the model output
+red = 1-out['H_norm'].mean(dim='draws').mean(dim='date')
+QALY_loss['reduction (model)'] = -100*red
+# Multiply with the lower, mean, upper QALY losses per disease group
+avg = red*hospital_yearly_QALYs['yearly_QALYs_mean']
+lower = red*hospital_yearly_QALYs['yearly_QALYs_lower']
+upper = red*hospital_yearly_QALYs['yearly_QALYs_upper']
+for MDC_key in MDC_keys:
+    QALY_loss.loc[MDC_key, 'QALY loss (model)'] = f'{avg.loc[MDC_key]:.0f}, ({lower.loc[MDC_key]:.0f}; {upper.loc[MDC_key]:.0f})'
+# Compute the aggregated reductions between `start_date` and `end_date` based on the data
+red = 1-normalised['mean'].groupby(by='APR_MDC_key').mean()
+QALY_loss['reduction (data)'] = -100*red
+# Multiply with the lower, mean, upper QALY losses per disease group
+avg = red*hospital_yearly_QALYs['yearly_QALYs_mean']
+lower = red*hospital_yearly_QALYs['yearly_QALYs_lower']
+upper = red*hospital_yearly_QALYs['yearly_QALYs_upper']
+for MDC_key in MDC_keys:
+    QALY_loss.loc[MDC_key, 'QALY loss (data)'] = f'{avg.loc[MDC_key]:.0f}, ({lower.loc[MDC_key]:.0f}; {upper.loc[MDC_key]:.0f})'
+# Save result
+QALY_loss.to_csv(os.path.join(result_folder,f'QALY_loss_end_{end_date}.csv'))  
 
-            calibrated_parameters.append(f'{mean:.2E}\n({lower:.2E};{upper:.2E})')
-        return calibrated_parameters
-    
-    models = ['queuing_model','constrained_PI','PI']
-    MAEs = pd.DataFrame(index=MDC_keys,columns=models)
-    for model,outs in zip(models,zip(outs_first_trimmed,outs_second)):
-        model_fit_summary = {}
+import sys
+sys.exit()
 
-        # calibrated parameters per MDC
-        for out, period in zip(outs,['first_wave','second_wave']):
-            samples_dict = samples[period][model]
-            parameters = samples_dict['parameters']
+#########################
+# QALY loss calculation #
+#########################
 
-            start_calibration = pd.to_datetime(samples_dict['start_calibration'])
-            end_calibration = pd.to_datetime(samples_dict['end_calibration'])
-            calibration_period = pd.date_range(start_calibration,end_calibration-pd.Timedelta('1D'))
+# !WARNING MESSY CODE!
+# makes summary table with for each MDC reduction with CI and associated QALY loss with CI
+# Hierin nog foutje voor CI, nu lower and upper WTP genomen, maar hieruit moet eigenlijk gesampled worden
 
-            model_fit = pd.DataFrame(index=MDC_keys,columns=parameters+['MAE'])
-            for MDC_key in MDC_keys: 
-                model_fit.loc[MDC_key][parameters] = extract_parameters_for_MDC(MDC_key,samples_dict)
-                mae = MAE(postponed_healthcare.hospitalizations_normalized_smooth.loc[calibration_period,MDC_key],
-                        [out.sel(date=calibration_period)],MDC_key)     
-                model_fit.loc[MDC_key]['MAE'] = f'{mae:.3f}'
-            model_fit_summary[period]=model_fit.drop(columns=['MAE'])
-            model_fit.to_csv(os.path.join(result_folder,model+'_'+period+'_fit.csv'))
+print('3) Calculate QALYs')
+models = ['queuing_model','constrained_PI','PI']
+multi_index = pd.MultiIndex.from_product([MDC_keys+['total','total (no negatives)'],models+['data']],names=['disease_group','model'])
+reductions = pd.DataFrame(index=multi_index,columns=['mean','lower','upper'])
+QALYs = pd.DataFrame(index=multi_index,columns=['mean','lower','upper'])
+result_table = pd.DataFrame(index=multi_index,columns=['reduction','QALY'])
 
-        # overall MAE per MDC
-        for MDC_key in MDC_keys:
-            mae = MAE(postponed_healthcare.hospitalizations_normalized_smooth,outs,MDC_key)     
-            MAEs.loc[MDC_key][model] = f'{mae:.3f}'
-        model_fit_summary['MAE']=MAEs[model]
+for model,out in zip(models,outs_full):
+    delta_t = pd.Timedelta((out.date[-1]-out.date[0]).values)/pd.Timedelta('1D')
+    date_range = pd.date_range(out.date[0].values,out.date[-1].values)
 
-        # save result in dataframe, csv
-        model_fit_summary = pd.concat(model_fit_summary, axis=1)
-        model_fit_summary.to_csv(os.path.join(result_folder,model+'_fit_summary.csv')) 
-
-    MAEs.to_csv(os.path.join(result_folder,'MAE.csv'))  
-
-    #########################
-    # QALY loss calculation #
-    #########################
-
-    # !WARNING MESSY CODE!
-    # makes summary table with for each MDC reduction with CI and associated QALY loss with CI
-    # Hierin nog foutje voor CI, nu lower and upper WTP genomen, maar hieruit moet eigenlijk gesampled worden
-
-    print('3) Calculate QALYs')
-    models = ['queuing_model','constrained_PI','PI']
-    multi_index = pd.MultiIndex.from_product([MDC_keys+['total','total (no negatives)'],models+['data']],names=['disease_group','model'])
-    reductions = pd.DataFrame(index=multi_index,columns=['mean','lower','upper'])
-    QALYs = pd.DataFrame(index=multi_index,columns=['mean','lower','upper'])
-    result_table = pd.DataFrame(index=multi_index,columns=['reduction','QALY'])
-
-    for model,out in zip(models,outs_full):
-        delta_t = pd.Timedelta((out.date[-1]-out.date[0]).values)/pd.Timedelta('1D')
-        date_range = pd.date_range(out.date[0].values,out.date[-1].values)
-
-        mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss = 0,0,0
-        mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN = 0,0,0
-        mean_total_difference,lower_total_difference,upper_total_difference = 0,0,0
-        mean_total_difference_noN,lower_total_difference_noN,upper_total_difference_noN = 0,0,0
-        total_reference, total_reference_noN = 0,0
-        
-        for MDC_key in MDC_keys:
-            # MDC specific
-            reference = sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
-            #if model == 'queuing_model':
-            #    mean_difference += out['NR'].sel(MDC=MDC_key).mean('draws').values[-1]
-            #    lower_difference += out['NR'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025).values[-1]
-            #    upper_difference += out['NR'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975).values[-1]
-            #else:
-            mean_difference  = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).mean('draws').values/postponed_healthcare.mean_residence_times[MDC_key])
-            upper_difference = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025).values/postponed_healthcare.mean_residence_times[MDC_key])
-            lower_difference = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975).values/postponed_healthcare.mean_residence_times[MDC_key])
-
-            mean_r = mean_difference/reference
-            lower_r = lower_difference/reference
-            upper_r = upper_difference/reference
-
-            delta_t = pd.Timedelta((outs[1].date[-1]-outs[0].date[0]).values)/pd.Timedelta('1D')
-            mean_QALY = delta_t/365*mean_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_mean']
-            lower_QALY = delta_t/365*lower_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_lower']
-            upper_QALY = delta_t/365*upper_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_upper']
-
-            # totals
-            total_reference += reference
-
-            mean_total_difference += mean_difference
-            lower_total_difference += lower_difference
-            upper_total_difference += upper_difference
-
-            if not math.isnan(mean_QALY):
-                mean_total_QALY_loss += mean_QALY
-            if not math.isnan(lower_QALY):
-                lower_total_QALY_loss += lower_QALY
-            if not math.isnan(upper_QALY):
-                upper_total_QALY_loss += upper_QALY
-
-            if mean_difference > 0:
-                total_reference_noN += reference
-
-                mean_total_difference_noN += mean_difference
-                lower_total_difference_noN += lower_difference
-                upper_total_difference_noN += upper_difference
-
-                if not math.isnan(mean_QALY):
-                    mean_total_QALY_loss_noN += mean_QALY
-                if not math.isnan(lower_QALY):
-                    lower_total_QALY_loss_noN += lower_QALY
-                if not math.isnan(upper_QALY):
-                    upper_total_QALY_loss_noN += upper_QALY
-
-            # writing data
-            reductions.loc[(MDC_key,model)]['mean'] = mean_r 
-            reductions.loc[(MDC_key,model)]['lower'] = lower_r 
-            reductions.loc[(MDC_key,model)]['upper'] = upper_r
-            result_table.loc[(MDC_key,model)]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
-
-            QALYs.loc[(MDC_key,model)]['mean'] = mean_QALY 
-            QALYs.loc[(MDC_key,model)]['lower'] = lower_QALY 
-            QALYs.loc[(MDC_key,model)]['upper'] = upper_QALY
-            result_table.loc[(MDC_key,model)]['QALY'] = f'{mean_QALY:.0f} ({lower_QALY:.0f};{upper_QALY:.0f})'
-
-        # calculate total reduction
-        for (mean_difference,lower_difference, upper_difference),(mean_QALY_loss,lower_QALY_loss, upper_QALY_loss), reference, total in zip(((mean_total_difference,lower_total_difference,upper_total_difference),
-                                                                                                                                            (mean_total_difference_noN,lower_total_difference_noN,upper_total_difference_noN)),
-                                                                                                                                            ((mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss),
-                                                                                                                                            (mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN)),
-                                                                                                                                            (total_reference,total_reference_noN),
-                                                                                                                                            ('total','total (no negatives)')):
-            mean_r = mean_difference/reference
-            lower_r = lower_difference/reference
-            upper_r = upper_difference/reference
-
-            reductions.loc[(total,model)]['mean'] = mean_r 
-            reductions.loc[(total,model)]['lower'] = lower_r 
-            reductions.loc[(total,model)]['upper'] = upper_r
-            result_table.loc[(total,model)]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
-
-            QALYs.loc[(total,model)]['mean'] = mean_QALY_loss 
-            QALYs.loc[(total,model)]['lower'] = lower_QALY_loss 
-            QALYs.loc[(total,model)]['upper'] = upper_QALY_loss
-            result_table.loc[(total,model)]['QALY'] = f'{mean_QALY_loss:.0f} ({lower_QALY_loss:.0f};{upper_QALY_loss:.0f})'
-
-    # data
-    date_range = pd.date_range(dates[0],dates[-1])
     mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss = 0,0,0
     mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN = 0,0,0
-    mean_total_difference, mean_total_difference_noN = 0,0
-    mean_total_reference,lower_total_reference,upper_total_reference = 0,0,0 
-    mean_total_reference_noN,lower_total_reference_noN,upper_total_reference_noN = 0,0,0 
+    mean_total_difference,lower_total_difference,upper_total_difference = 0,0,0
+    mean_total_difference_noN,lower_total_difference_noN,upper_total_difference_noN = 0,0,0
+    total_reference, total_reference_noN = 0,0
+    
     for MDC_key in MDC_keys:
         # MDC specific
-        mean_reference = sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
-        lower_reference = sum(postponed_healthcare.hospitalizations_baseline_lower_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
-        upper_reference = sum(postponed_healthcare.hospitalizations_baseline_upper_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
+        reference = sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
+        #if model == 'queuing_model':
+        #    mean_difference += out['NR'].sel(MDC=MDC_key).mean('draws').values[-1]
+        #    lower_difference += out['NR'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025).values[-1]
+        #    upper_difference += out['NR'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975).values[-1]
+        #else:
+        mean_difference  = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).mean('draws').values/postponed_healthcare.mean_residence_times[MDC_key])
+        upper_difference = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025).values/postponed_healthcare.mean_residence_times[MDC_key])
+        lower_difference = reference-sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975).values/postponed_healthcare.mean_residence_times[MDC_key])
 
-        mean_difference = mean_reference-sum(postponed_healthcare.hospitalizations_smooth.loc[(date_range,MDC_key)]/postponed_healthcare.mean_residence_times[MDC_key])
-        
-        mean_r = mean_difference/mean_reference
-        lower_r = mean_difference/upper_reference
-        upper_r = mean_difference/lower_reference
+        mean_r = mean_difference/reference
+        lower_r = lower_difference/reference
+        upper_r = upper_difference/reference
 
-        delta_t = pd.Timedelta((dates[-1]-dates[0]))/pd.Timedelta('1D')
+        delta_t = pd.Timedelta((outs[1].date[-1]-outs[0].date[0]).values)/pd.Timedelta('1D')
         mean_QALY = delta_t/365*mean_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_mean']
         lower_QALY = delta_t/365*lower_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_lower']
         upper_QALY = delta_t/365*upper_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_upper']
-        
-        # writing data
-        reductions.loc[(MDC_key,'data')]['mean'] = mean_r 
-        reductions.loc[(MDC_key,'data')]['lower'] = lower_r 
-        reductions.loc[(MDC_key,'data')]['upper'] = upper_r
-        result_table.loc[(MDC_key,'data')]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
-
-        QALYs.loc[(MDC_key,'data')]['mean'] = mean_QALY 
-        QALYs.loc[(MDC_key,'data')]['lower'] = lower_QALY 
-        QALYs.loc[(MDC_key,'data')]['upper'] = upper_QALY
-        result_table.loc[(MDC_key,'data')]['QALY'] = f'{mean_QALY:.0f} ({lower_QALY:.0f};{upper_QALY:.0f})'
 
         # totals
-        mean_total_reference += mean_reference
-        lower_total_reference += lower_reference
-        upper_total_reference += upper_reference
+        total_reference += reference
 
         mean_total_difference += mean_difference
+        lower_total_difference += lower_difference
+        upper_total_difference += upper_difference
 
         if not math.isnan(mean_QALY):
             mean_total_QALY_loss += mean_QALY
@@ -636,42 +544,137 @@ if __name__=='__main__':
             lower_total_QALY_loss += lower_QALY
         if not math.isnan(upper_QALY):
             upper_total_QALY_loss += upper_QALY
-        
+
         if mean_difference > 0:
-            mean_total_reference_noN += mean_reference
-            lower_total_reference_noN += lower_reference
-            upper_total_reference_noN += upper_reference
+            total_reference_noN += reference
 
             mean_total_difference_noN += mean_difference
+            lower_total_difference_noN += lower_difference
+            upper_total_difference_noN += upper_difference
 
             if not math.isnan(mean_QALY):
                 mean_total_QALY_loss_noN += mean_QALY
             if not math.isnan(lower_QALY):
                 lower_total_QALY_loss_noN += lower_QALY
             if not math.isnan(upper_QALY):
-                upper_total_QALY_loss_noN += upper_QALY 
+                upper_total_QALY_loss_noN += upper_QALY
+
+        # writing data
+        reductions.loc[(MDC_key,model)]['mean'] = mean_r 
+        reductions.loc[(MDC_key,model)]['lower'] = lower_r 
+        reductions.loc[(MDC_key,model)]['upper'] = upper_r
+        result_table.loc[(MDC_key,model)]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
+
+        QALYs.loc[(MDC_key,model)]['mean'] = mean_QALY 
+        QALYs.loc[(MDC_key,model)]['lower'] = lower_QALY 
+        QALYs.loc[(MDC_key,model)]['upper'] = upper_QALY
+        result_table.loc[(MDC_key,model)]['QALY'] = f'{mean_QALY:.0f} ({lower_QALY:.0f};{upper_QALY:.0f})'
 
     # calculate total reduction
-    for (mean_reference,lower_reference, upper_reference),(mean_QALY_loss,lower_QALY_loss, upper_QALY_loss), difference, total in zip(((mean_total_reference,lower_total_reference,upper_total_reference),
-                                                                                                                                            (mean_total_reference_noN,lower_total_reference_noN,upper_total_reference_noN)),
-                                                                                                                                            ((mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss),
-                                                                                                                                            (mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN)),
-                                                                                                                                            (mean_total_difference,mean_total_difference_noN),
-                                                                                                                                            ('total','total (no negatives)')):
-        mean_r = difference/mean_reference
-        lower_r = difference/lower_reference
-        upper_r = difference/upper_reference
+    for (mean_difference,lower_difference, upper_difference),(mean_QALY_loss,lower_QALY_loss, upper_QALY_loss), reference, total in zip(((mean_total_difference,lower_total_difference,upper_total_difference),
+                                                                                                                                        (mean_total_difference_noN,lower_total_difference_noN,upper_total_difference_noN)),
+                                                                                                                                        ((mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss),
+                                                                                                                                        (mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN)),
+                                                                                                                                        (total_reference,total_reference_noN),
+                                                                                                                                        ('total','total (no negatives)')):
+        mean_r = mean_difference/reference
+        lower_r = lower_difference/reference
+        upper_r = upper_difference/reference
 
-        reductions.loc[(total,'data')]['mean'] = mean_r 
-        reductions.loc[(total,'data')]['lower'] = lower_r 
-        reductions.loc[(total,'data')]['upper'] = upper_r
-        result_table.loc[(total,'data')]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
+        reductions.loc[(total,model)]['mean'] = mean_r 
+        reductions.loc[(total,model)]['lower'] = lower_r 
+        reductions.loc[(total,model)]['upper'] = upper_r
+        result_table.loc[(total,model)]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
 
-        QALYs.loc[(total,'data')]['mean'] = mean_QALY_loss 
-        QALYs.loc[(total,'data')]['lower'] = lower_QALY_loss 
-        QALYs.loc[(total,'data')]['upper'] = upper_QALY_loss
-        result_table.loc[(total,'data')]['QALY'] = f'{mean_QALY_loss:.0f} ({lower_QALY_loss:.0f};{upper_QALY_loss:.0f})'
-        
-    reductions.to_csv(os.path.join(result_folder,'hospitalization_reductions.csv'))
-    QALYs.to_csv(os.path.join(result_folder,'postponed_healthcare_QALY_loss.csv'))
-    result_table.to_csv(os.path.join(result_folder,'postponed_healthcare_summary.csv'))
+        QALYs.loc[(total,model)]['mean'] = mean_QALY_loss 
+        QALYs.loc[(total,model)]['lower'] = lower_QALY_loss 
+        QALYs.loc[(total,model)]['upper'] = upper_QALY_loss
+        result_table.loc[(total,model)]['QALY'] = f'{mean_QALY_loss:.0f} ({lower_QALY_loss:.0f};{upper_QALY_loss:.0f})'
+
+# data
+date_range = pd.date_range(dates[0],dates[-1])
+mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss = 0,0,0
+mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN = 0,0,0
+mean_total_difference, mean_total_difference_noN = 0,0
+mean_total_reference,lower_total_reference,upper_total_reference = 0,0,0 
+mean_total_reference_noN,lower_total_reference_noN,upper_total_reference_noN = 0,0,0 
+for MDC_key in MDC_keys:
+    # MDC specific
+    mean_reference = sum(postponed_healthcare.hospitalizations_baseline_mean_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
+    lower_reference = sum(postponed_healthcare.hospitalizations_baseline_lower_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
+    upper_reference = sum(postponed_healthcare.hospitalizations_baseline_upper_smooth.loc[(date_range,MDC_key)].values/postponed_healthcare.mean_residence_times[MDC_key])
+
+    mean_difference = mean_reference-sum(postponed_healthcare.hospitalizations_smooth.loc[(date_range,MDC_key)]/postponed_healthcare.mean_residence_times[MDC_key])
+    
+    mean_r = mean_difference/mean_reference
+    lower_r = mean_difference/upper_reference
+    upper_r = mean_difference/lower_reference
+
+    delta_t = pd.Timedelta((dates[-1]-dates[0]))/pd.Timedelta('1D')
+    mean_QALY = delta_t/365*mean_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_mean']
+    lower_QALY = delta_t/365*lower_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_lower']
+    upper_QALY = delta_t/365*upper_r*hospital_yearly_QALYs.loc[MDC_key]['yearly_QALYs_upper']
+    
+    # writing data
+    reductions.loc[(MDC_key,'data')]['mean'] = mean_r 
+    reductions.loc[(MDC_key,'data')]['lower'] = lower_r 
+    reductions.loc[(MDC_key,'data')]['upper'] = upper_r
+    result_table.loc[(MDC_key,'data')]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
+
+    QALYs.loc[(MDC_key,'data')]['mean'] = mean_QALY 
+    QALYs.loc[(MDC_key,'data')]['lower'] = lower_QALY 
+    QALYs.loc[(MDC_key,'data')]['upper'] = upper_QALY
+    result_table.loc[(MDC_key,'data')]['QALY'] = f'{mean_QALY:.0f} ({lower_QALY:.0f};{upper_QALY:.0f})'
+
+    # totals
+    mean_total_reference += mean_reference
+    lower_total_reference += lower_reference
+    upper_total_reference += upper_reference
+
+    mean_total_difference += mean_difference
+
+    if not math.isnan(mean_QALY):
+        mean_total_QALY_loss += mean_QALY
+    if not math.isnan(lower_QALY):
+        lower_total_QALY_loss += lower_QALY
+    if not math.isnan(upper_QALY):
+        upper_total_QALY_loss += upper_QALY
+    
+    if mean_difference > 0:
+        mean_total_reference_noN += mean_reference
+        lower_total_reference_noN += lower_reference
+        upper_total_reference_noN += upper_reference
+
+        mean_total_difference_noN += mean_difference
+
+        if not math.isnan(mean_QALY):
+            mean_total_QALY_loss_noN += mean_QALY
+        if not math.isnan(lower_QALY):
+            lower_total_QALY_loss_noN += lower_QALY
+        if not math.isnan(upper_QALY):
+            upper_total_QALY_loss_noN += upper_QALY 
+
+# calculate total reduction
+for (mean_reference,lower_reference, upper_reference),(mean_QALY_loss,lower_QALY_loss, upper_QALY_loss), difference, total in zip(((mean_total_reference,lower_total_reference,upper_total_reference),
+                                                                                                                                        (mean_total_reference_noN,lower_total_reference_noN,upper_total_reference_noN)),
+                                                                                                                                        ((mean_total_QALY_loss,lower_total_QALY_loss,upper_total_QALY_loss),
+                                                                                                                                        (mean_total_QALY_loss_noN,lower_total_QALY_loss_noN,upper_total_QALY_loss_noN)),
+                                                                                                                                        (mean_total_difference,mean_total_difference_noN),
+                                                                                                                                        ('total','total (no negatives)')):
+    mean_r = difference/mean_reference
+    lower_r = difference/lower_reference
+    upper_r = difference/upper_reference
+
+    reductions.loc[(total,'data')]['mean'] = mean_r 
+    reductions.loc[(total,'data')]['lower'] = lower_r 
+    reductions.loc[(total,'data')]['upper'] = upper_r
+    result_table.loc[(total,'data')]['reduction'] = f'{mean_r*100:.2f} ({lower_r*100:.2f};{upper_r*100:.2f})'
+
+    QALYs.loc[(total,'data')]['mean'] = mean_QALY_loss 
+    QALYs.loc[(total,'data')]['lower'] = lower_QALY_loss 
+    QALYs.loc[(total,'data')]['upper'] = upper_QALY_loss
+    result_table.loc[(total,'data')]['QALY'] = f'{mean_QALY_loss:.0f} ({lower_QALY_loss:.0f};{upper_QALY_loss:.0f})'
+    
+reductions.to_csv(os.path.join(result_folder,'hospitalization_reductions.csv'))
+QALYs.to_csv(os.path.join(result_folder,'postponed_healthcare_QALY_loss.csv'))
+result_table.to_csv(os.path.join(result_folder,'postponed_healthcare_summary.csv'))
