@@ -48,8 +48,8 @@ del df['stay_type']
 ## Construct baseline dataframe using data from 2017-2019 ##
 ############################################################
 
-bootstrap_repeats=250
-subset_size=20
+bootstrap_repeats=300
+subset_size=100
 
 print('\n(2) Constructing baseline dataframe using data from 2016-2020\n')
 

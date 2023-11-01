@@ -10,20 +10,17 @@ __copyright__   = "Copyright (c) 2022 by T.W. Alleman, BIOMATH, Ghent University
 ## Load required packages ##
 ############################
 
-import h5py  
 import json
 import argparse
 import sys,os
 import random
-import datetime
+import datetime as dt
+from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import emcee
-from math import factorial
 import multiprocessing as mp
 import matplotlib.pyplot as plt
-from matplotlib import font_manager
-import csv
 # pySODM packages
 from pySODM.models.base import ODE
 from pySODM.optimization import pso, nelder_mead
@@ -38,7 +35,6 @@ from functools import lru_cache
 import warnings
 warnings.filterwarnings("ignore")
 
-
 #############################
 ## Handle script arguments ##
 #############################
@@ -46,12 +42,12 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
 parser.add_argument("-hpc", "--high_performance_computing", help="Disable visualizations of fit for hpc runs", action="store_true")
 parser.add_argument("-b", "--backend", help="Initiate MCMC backend", default=None)
-parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-02-16')
-parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-11-01')
+parser.add_argument("-s", "--start_calibration", help="Calibration startdate. Format 'YYYY-MM-DD'.", default='2020-01-01')
+parser.add_argument("-e", "--end_calibration", help="Calibration enddate. Format 'YYYY-MM-DD'.",default='2020-10-01')
 parser.add_argument("-n_pso", "--n_pso", help="Maximum number of PSO iterations.", default=0)
 parser.add_argument("-n_nm", "--n_nm", help="Maximum number of Nelder Mead iterations.", default=0)
-parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default =1)
-parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'calibrate_end11')
+parser.add_argument("-n_mcmc", "--n_mcmc", help="Maximum number of MCMC iterations.", default=1)
+parser.add_argument("-ID", "--identifier", help="Name in output files.", default = 'calibrate_end10_coviddata')
 parser.add_argument("-MDC_sim", "--MDC_sim", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-MDC_plot", "--MDC_plot", help="MDC classes to plot, setting to 'all' equals all MDC keys. \ndefault=['03','04','05','06']",default="all")
 parser.add_argument("-norm", "--norm", help="use normalized data to fit", action="store_true")
@@ -83,9 +79,9 @@ n_nm = int(args.n_nm)
 # Maximum number of MCMC iterations
 n_mcmc = int(args.n_mcmc)
 # Date at which script is started
-run_date = str(datetime.date.today())
+run_date = str(dt.date.today())
 # Keep track of runtime
-initial_time = datetime.datetime.now()
+initial_time = datetime.now()
 # Start and end of calibration
 start_date = pd.to_datetime(args.start_calibration)
 if args.end_calibration:
@@ -303,6 +299,8 @@ class get_A():
 class get_covid_H():
 
     def __init__(self, covid_data, baseline, hospitalizations):
+        # upsample covid data to weekly frequency
+        covid_data = covid_data.resample('D').interpolate(method='linear')
         self.covid_data = covid_data
         self.baseline_04 = baseline['04']
         self.hospitalizations_04 = hospitalizations.loc[('04', slice(None))]
@@ -313,13 +311,17 @@ class get_covid_H():
     def __call__(self, t, f_UZG):
         if use_covid_data:
             try:
-                covid_H = self.covid_data.loc[t]*f_UZG
+                covid_H = self.covid_data.loc[t+timedelta(days=10)]*f_UZG
             except:
                 covid_H = 0
 
         else:
-            covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
-        
+            if t <= datetime(2020,3,1):
+                covid_H = 0
+            elif datetime(2020,3,1) < t <= datetime(2020,3,15):
+                covid_H = (1/14)*((t - datetime(2020,3,1))/timedelta(days=1))*max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
+            else:
+                covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
         return covid_H 
     
 class H_post_processing():
@@ -402,8 +404,10 @@ def init_queuing_model(start_date, MDC_sim, wave='first'):
     gamma =  mean_residence_times.loc[MDC_sim].values
     f_UZG = 0.13
     X_tot = 1049
-    start_date_string = start_date.strftime('%Y-%m-%d')
-    covid_H = df_covid_H_tot.loc[start_date_string]*f_UZG
+
+    def nearest(items, pivot):
+        return min(items, key=lambda x: abs(x - pivot))
+    covid_H = df_covid_H_tot.loc[nearest(df_covid_H_tot.index, start_date)]*f_UZG
     H_init = raw.loc[(MDC_sim, start_date)].values
     H_init_normalized = (H_init/baseline.loc[((MDC_sim,start_date.isocalendar().week))]).values
     A = H_init/mean_residence_times.loc[MDC_sim]
@@ -513,7 +517,7 @@ if __name__ == '__main__':
 
     if n_pso > 0:
         print('Performing PSO optimization')
-        theta = pso.optimize(objective_function, swarmsize=2000, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
+        theta = pso.optimize(objective_function, swarmsize=1000, max_iter=n_pso, debug=True, processes=processes, kwargs={'simulation_kwargs':{'tau': 1}})[0]
         param_dict = assign_theta(model.parameters, pars, theta)
         calibrated_param_dict = {}
         for param in pars:
@@ -580,7 +584,7 @@ if __name__ == '__main__':
     if n_mcmc > 0:
         print('Performing MCMC sampling')
         multiplier_mcmc = 5
-        print_n = 50
+        print_n = 250
         theta = np.where(theta==0, 0.00001,theta)
         # Perturbate previously obtained estimate
         ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.1,]*len(theta), bounds=objective_function.expanded_bounds, multiplier=multiplier_mcmc, verbose=True)

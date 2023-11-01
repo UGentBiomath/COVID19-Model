@@ -25,7 +25,7 @@ N = int(args.N)
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 
 # What samples dictionary?
-samples_name = 'calibrate_end09_SAMPLES_2023-10-31.json'
+samples_name = 'calibrate_end10_SAMPLES_2023-10-31.json'
 
 # What disease groups do you want to visualise?
 MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
@@ -38,8 +38,8 @@ start_date = datetime(2020, 1, 1)
 end_date = datetime(2021, 1, 1)
 
 # When was the calibration started and ended?
-start_calibration = pd.to_datetime('2020-03-01')
-end_calibration= pd.to_datetime('2020-09-01')
+start_calibration = pd.to_datetime('2020-01-01')
+end_calibration= pd.to_datetime('2020-10-01')
 
 # Where to store the output
 abs_dir = os.path.dirname(__file__)
@@ -56,7 +56,7 @@ from pySODM.models.base import ODE
 from functools import lru_cache
 from datetime import datetime
 
-use_covid_data = False
+use_covid_data = True
 
 ########
 # Data #
@@ -198,7 +198,7 @@ class get_covid_H():
     def __call__(self, t, f_UZG):
         if use_covid_data:
             try:
-                covid_H = self.covid_data.loc[t]*f_UZG
+                covid_H = self.covid_data.loc[t+timedelta(days=10)]*f_UZG
             except:
                 covid_H = 0
 
@@ -274,8 +274,10 @@ def init_queuing_model(start_date, MDC_sim, wave='first'):
     gamma =  mean_residence_times.loc[MDC_sim].values
     f_UZG = 0.13
     X_tot = 1049
-    start_date_string = start_date.strftime('%Y-%m-%d')
-    covid_H = df_covid_H_tot.loc[start_date_string]*f_UZG
+
+    def nearest(items, pivot):
+        return min(items, key=lambda x: abs(x - pivot))
+    covid_H = df_covid_H_tot.loc[nearest(df_covid_H_tot.index, start_date)]*f_UZG
     H_init = raw.loc[(MDC_sim, start_date)].values
     H_init_normalized = (H_init/baseline.loc[((MDC_sim,start_date.isocalendar().week))]).values
     A = H_init/mean_residence_times.loc[MDC_sim]
@@ -297,7 +299,7 @@ def init_queuing_model(start_date, MDC_sim, wave='first'):
 ## Setup model ##
 #################
 
-model = init_queuing_model(datetime(2020,3,1), MDC_keys, 'first')
+model = init_queuing_model(start_date, MDC_keys, 'first')
 
 
 ################################################
@@ -481,6 +483,35 @@ QALY_df = pd.DataFrame(index=idx, columns=['Reduction (data)', 'Reduction (model
 strat = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline.groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
 total = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline.sum()*((stop-start)/timedelta(days=365)))
 QALY_df['Reduction (data)'] = list(strat.values) + [total,]
+
+
+# print(QALY_df['Reduction (data)'] )
+# # baseline
+# rel_dir = '../../data/QALY_model/interim/postponed_healthcare'
+# file_name = 'MZG_baseline.csv'
+# types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
+# baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()
+
+# strat_lower = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline['q0.025'].groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
+# strat_upper = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline['q0.975'].groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
+
+# total_lower = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline['q0.025'].sum()*((stop-start)/timedelta(days=365)))
+# total_upper = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline['q0.975'].sum()*((stop-start)/timedelta(days=365)))
+
+
+# strat_lower = 100-100*normalised['q0.025'].groupby(by='APR_MDC_key').mean()
+# strat_upper = 100-100*normalised['q0.975'].groupby(by='APR_MDC_key').mean()
+# strat_mean = 100-100*normalised['mean'].groupby(by='APR_MDC_key').mean()
+
+# print(strat_mean)
+# print(strat_lower)
+# print(strat_upper)
+
+# # print(total_lower)
+# # print(total_upper)
+
+# import sys
+# sys.exit()
 # QALYs stratified
 total = np.array([0, 0, 0], dtype=float)
 for MDC_key in MDC_keys:
