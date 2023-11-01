@@ -10,13 +10,10 @@ __copyright__   = "Copyright (c) 2022 by W. Demuynck, BIOMATH, Ghent University.
 import json
 import argparse
 import os
-from statistics import mean
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
 import matplotlib.pyplot as plt
-import xarray as xar
-import math
 from covid19_DTM.data.sciensano import get_sciensano_COVID19_data
 from QALY_model.postponed_healthcare_models import draw_fcn 
 from datetime import datetime, timedelta
@@ -189,6 +186,8 @@ class get_A():
 class get_covid_H():
 
     def __init__(self, covid_data, baseline, hospitalizations):
+        # upsample covid data to weekly frequency
+        covid_data = covid_data.resample('D').interpolate(method='linear')
         self.covid_data = covid_data
         self.baseline_04 = baseline['04']
         self.hospitalizations_04 = hospitalizations.loc[('04', slice(None))]
@@ -204,8 +203,12 @@ class get_covid_H():
                 covid_H = 0
 
         else:
-            covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
-        
+            if t <= datetime(2020,5,1):
+                covid_H = 0
+            elif datetime(2020,3,1) < t <= datetime(2020,3,15):
+                covid_H = (1/14)*((t - datetime(2020,3,1))/timedelta(days=1))*max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
+            else:
+                covid_H = max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
         return covid_H 
     
 class H_post_processing():
