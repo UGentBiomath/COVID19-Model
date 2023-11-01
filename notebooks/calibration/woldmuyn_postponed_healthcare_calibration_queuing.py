@@ -311,7 +311,7 @@ class get_covid_H():
     def __call__(self, t, f_UZG):
         if use_covid_data:
             try:
-                covid_H = self.covid_data.loc[t+timedelta(days=10)]*f_UZG
+                covid_H = self.covid_data.loc[t+timedelta(days=7)]*f_UZG 
             except:
                 covid_H = 0
 
@@ -584,7 +584,7 @@ if __name__ == '__main__':
     if n_mcmc > 0:
         print('Performing MCMC sampling')
         multiplier_mcmc = 5
-        print_n = 250
+        print_n = 1000
         theta = np.where(theta==0, 0.00001,theta)
         # Perturbate previously obtained estimate
         ndim, nwalkers, pos = perturbate_theta(theta, pert=[0.1,]*len(theta), bounds=objective_function.expanded_bounds, multiplier=multiplier_mcmc, verbose=True)

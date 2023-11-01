@@ -28,10 +28,10 @@ processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 samples_name = 'calibrate_end10_SAMPLES_2023-10-31.json'
 
 # What disease groups do you want to visualise?
-MDCs_2plot = ['02', '01', '03', '05', '06', '08', 'AA']
+MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
 MDC_translations = ['Nervous system (01)', 'Ear, nose, mouth, and throat (03)', 'Circulatory system (05)', 'Digestive system (06)', 'Muscoluskeletal system (08)', 'Psychiatry (AA)']
-MDCs_2plot = ['01', '05', '06', 'AA']
-MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
+#MDCs_2plot = ['01', '05', '06', 'AA']
+#MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
 
 # When to start and when to end the visualisation
 start_date = datetime(2020, 1, 1)
@@ -56,7 +56,7 @@ from pySODM.models.base import ODE
 from functools import lru_cache
 from datetime import datetime
 
-use_covid_data = True
+use_covid_data = False
 
 ########
 # Data #
@@ -198,7 +198,7 @@ class get_covid_H():
     def __call__(self, t, f_UZG):
         if use_covid_data:
             try:
-                covid_H = self.covid_data.loc[t+timedelta(days=10)]*f_UZG
+                covid_H = self.covid_data.loc[t+timedelta(days=7)]*f_UZG
             except:
                 covid_H = 0
 
