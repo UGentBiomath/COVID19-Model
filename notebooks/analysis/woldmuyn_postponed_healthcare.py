@@ -391,14 +391,14 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
         for lockdown in lockdowns:
             lockdown_start = lockdown[0]
             lockdown_end = lockdown[1]
-            axs[i].axvspan(lockdown_start,lockdown_end, facecolor='black', alpha=0.05)
+            axs[i].axvspan(lockdown_start,lockdown_end, facecolor='black', alpha=0.10)
         # visualise simulation
         axs[i].plot(simtime, y_model_mean, color='blue', label='Model (mean)', linewidth=1, alpha=1.0)
         axs[i].fill_between(simtime, y_model_lower, y_model_upper, color='blue', alpha=0.15, label='Model (95% CI)')
         # fancy plot
         axs[i].grid(False)
         axs[i].set_title(MDC_translations[i], size=10)
-        axs[i].set_ylabel('Reduction (%)', size=10)
+        axs[i].set_ylabel('Reduction\nin treatments (%)', size=10)
         axs[i].axhline(y=100, color='r', linestyle ='dashed', alpha=1.0)
         # custom x-labels
         axs[i].set_xticks([datetime(2020,3,31),datetime(2020,5,31),datetime(2020,7,31), datetime(2020,9,30), datetime(2020,11,30)])
@@ -484,6 +484,7 @@ upper = red*hospital_yearly_QALYs['yearly_QALYs_upper']*((end_date - start_date)
 for MDC_key in MDC_keys:
     QALY_loss.loc[MDC_key, 'QALY loss (model)'] = f'{avg.loc[MDC_key]:.0f}, ({lower.loc[MDC_key]:.0f}; {upper.loc[MDC_key]:.0f})'
 # Compute the aggregated reductions between `start_date` and `end_date` based on the data
+# normalised wasn't sliced? + compute total reductions
 red = 1-normalised['mean'].groupby(by='APR_MDC_key').mean()
 QALY_loss['reduction (data)'] = -100*red
 # Multiply with the lower, mean, upper QALY losses per disease group
