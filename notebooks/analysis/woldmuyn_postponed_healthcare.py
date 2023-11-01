@@ -34,12 +34,12 @@ MDCs_2plot = ['01', '05', '06', 'AA']
 MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
 
 # When to start and when to end the visualisation
-start_date = datetime(2020, 3, 1)
+start_date = datetime(2020, 1, 1)
 end_date = datetime(2021, 1, 1)
 
 # When was the calibration started and ended?
 start_calibration = pd.to_datetime('2020-03-01')
-end_calibration= pd.to_datetime('2020-10-01')
+end_calibration= pd.to_datetime('2020-09-01')
 
 # Where to store the output
 abs_dir = os.path.dirname(__file__)
@@ -157,7 +157,7 @@ class QueuingModel(ODE):
         
         dX = -X + X_new - W_to_H - A_to_H
         dW = A_to_W - W_to_H - W_to_NR
-        dH = A_to_H + W_to_H - (1/gamma*H) 
+        dH = A_to_H + W_to_H - (1/gamma*H)
         dR = (1/gamma*H)
         dNR = W_to_NR
 
@@ -203,7 +203,7 @@ class get_covid_H():
                 covid_H = 0
 
         else:
-            if t <= datetime(2020,5,1):
+            if t <= datetime(2020,3,1):
                 covid_H = 0
             elif datetime(2020,3,1) < t <= datetime(2020,3,15):
                 covid_H = (1/14)*((t - datetime(2020,3,1))/timedelta(days=1))*max(self.hospitalizations_04.loc[t] - self.baseline_04.loc[t.isocalendar().week],0)
@@ -309,7 +309,7 @@ model = init_queuing_model(datetime(2020,3,1), MDC_keys, 'first')
 #############
 
 file_name = 'hospital_yearly_QALYs.csv'
-hospital_yearly_QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0],na_values='/').reindex(MDC_keys).fillna(0)
+QALYs = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0],na_values='/').reindex(MDC_keys).fillna(0)
 
 ###########
 # Samples #
@@ -379,15 +379,9 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
         # visualise data (used for calibration)
         axs[i].scatter(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['mean'], label='Data (calibration)', marker = 'o', s=15,
                         alpha=0.6, linewidth=1, color='black')
-        #axs[i].plot(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='black')
-        #axs[i].fill_between(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['q0.025'], 100*calibration_data.loc[MDC_key,:]['q0.975'],
-        #                        color='black', alpha=0.2, label='Data (95% CI)')
         # visualise data (not used for calibration)
         axs[i].scatter(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['mean'], label='Data (extrapolation)', marker = 'o', s=15,
                         alpha=0.6, linewidth=1, color='red')
-        #axs[i].plot(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['mean'], label='Data (mean)', alpha=0.7, linewidth=1, color='red')
-        #axs[i].fill_between(no_calibration_data.index.get_level_values('date').unique(), 100*no_calibration_data.loc[MDC_key, :]['q0.025'], 100*no_calibration_data.loc[MDC_key,:]['q0.975'],
-        #                        color='red', alpha=0.2, label='Data (95% CI)')
         # plot lockdown
         lockdowns = [(pd.to_datetime('2020-03-15'), pd.to_datetime('2020-05-07')),
                  (pd.to_datetime('2020-10-19'), pd.to_datetime('2021-02-01')),]
@@ -467,7 +461,7 @@ for MDC_key in MDC_keys:
     mae = MAE(normalised, out, start_calibration, end_calibration, MDC_key)     
     model_fit.loc[MDC_key]['MAE_calibration'] = f'{mae:.3f}'
 # save result
-model_fit.to_csv(os.path.join(result_folder,'parameters_MAE.csv'))  
+#model_fit.to_csv(os.path.join(result_folder,'parameters_MAE.csv'))  
 
 ###########################################
 ## QALY losses (convenient print format) ##
@@ -475,50 +469,54 @@ model_fit.to_csv(os.path.join(result_folder,'parameters_MAE.csv'))
 
 print('5) Saving QALY losses to table')
 
-# Pre-allocate
-QALY_loss = pd.DataFrame(index=MDC_keys, columns=['reduction (data)', 'reduction (model)', 'QALY loss (data)', 'QALY loss (model)'])
-# Compute the aggregated reductions between `start_date` and `end_date` based on the model output
-red = 1-out['H_norm'].mean(dim='draws').mean(dim='date')
-QALY_loss['reduction (model)'] = -100*red
-# Multiply with the lower, mean, upper QALY losses per disease group
-avg = red*hospital_yearly_QALYs['yearly_QALYs_mean']*((end_date - start_date)/timedelta(days=365))
-lower = red*hospital_yearly_QALYs['yearly_QALYs_lower']*((end_date - start_date)/timedelta(days=365))
-upper = red*hospital_yearly_QALYs['yearly_QALYs_upper']*((end_date - start_date)/timedelta(days=365))
-for MDC_key in MDC_keys:
-    QALY_loss.loc[MDC_key, 'QALY loss (model)'] = f'{avg.loc[MDC_key]:.0f}, ({lower.loc[MDC_key]:.0f}; {upper.loc[MDC_key]:.0f})'
-# Compute the aggregated reductions between `start_date` and `end_date` based on the data
-# normalised wasn't sliced? + compute total reductions
-red = 1-normalised['mean'].groupby(by='APR_MDC_key').mean()
-QALY_loss['reduction (data)'] = -100*red
-# Multiply with the lower, mean, upper QALY losses per disease group
-avg = red*hospital_yearly_QALYs['yearly_QALYs_mean']*((end_date - start_date)/timedelta(days=365))
-lower = red*hospital_yearly_QALYs['yearly_QALYs_lower']*((end_date - start_date)/timedelta(days=365))
-upper = red*hospital_yearly_QALYs['yearly_QALYs_upper']*((end_date - start_date)/timedelta(days=365))
-for MDC_key in MDC_keys:
-    QALY_loss.loc[MDC_key, 'QALY loss (data)'] = f'{avg.loc[MDC_key]:.0f}, ({lower.loc[MDC_key]:.0f}; {upper.loc[MDC_key]:.0f})'
-# Save result
-QALY_loss.to_csv(os.path.join(result_folder,f'QALY_loss_end_{end_date}_PRINT.csv'))  
+start=start_date # startdate script is March 1st, 2020
+stop=end_date
+# Pre-allocate dataframe
+idx = list(MDC_keys) + ['Total',]
+QALY_df = pd.DataFrame(index=idx, columns=['Reduction (data)', 'Reduction (model)', 'MAE (%)', 'QALY loss (data)', 'QALY loss (model)'])
 
-###########################################
-## QALY losses (convenient data format) ##
-###########################################
+# UZG data
+# --------
+# reduction
+strat = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline.groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
+total = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline.sum()*((stop-start)/timedelta(days=365)))
+QALY_df['Reduction (data)'] = list(strat.values) + [total,]
+# QALYs stratified
+total = np.array([0, 0, 0], dtype=float)
+for MDC_key in MDC_keys:
+    result = []
+    for column_QALY in ['yearly_QALYs_mean','yearly_QALYs_lower','yearly_QALYs_upper']:
+        result.append(strat.loc[MDC_key]/100*QALYs[column_QALY].loc[MDC_key]*((stop-start)/timedelta(days=365)))
+    total += result
+    QALY_df.loc[MDC_key, 'QALY loss (data)'] = f'{result[0]:.0f} ({result[1]:.0f}; {result[2]:.0f})'
+QALY_df.loc['Total', 'QALY loss (data)'] = f'{total[0]:.0f} ({total[1]:.0f}; {total[2]:.0f})'
 
-# Pre-allocate
-QALY_loss = pd.DataFrame(index=MDC_keys, columns=['reduction (data)', 'reduction (model)', 'QALY loss data (mean)', 'QALY loss data (lower)', 'QALY loss data (upper)',
-                                                    'QALY loss model (mean)', 'QALY loss model (lower)', 'QALY loss model (upper)'])
+# Model
+# -----
 # Compute the aggregated reductions between `start_date` and `end_date` based on the model output
-red = 1-out['H_norm'].mean(dim='draws').mean(dim='date')
-QALY_loss['reduction (model)'] = -100*red
-# Multiply with the lower, mean, upper QALY losses per disease group
-QALY_loss['QALY loss model (mean)'] = red*hospital_yearly_QALYs['yearly_QALYs_mean']*((end_date - start_date)/timedelta(days=365))
-QALY_loss['QALY loss model (lower)'] = red*hospital_yearly_QALYs['yearly_QALYs_lower']*((end_date - start_date)/timedelta(days=365))
-QALY_loss['QALY loss model (upper)'] = red*hospital_yearly_QALYs['yearly_QALYs_upper']*((end_date - start_date)/timedelta(days=365))
-# Compute the aggregated reductions between `start_date` and `end_date` based on the data
-red = 1-normalised['mean'].groupby(by='APR_MDC_key').mean()
-QALY_loss['reduction (data)'] = -100*red
-# Multiply with the lower, mean, upper QALY losses per disease group
-QALY_loss['QALY loss data (mean)'] = red*hospital_yearly_QALYs['yearly_QALYs_mean']*((end_date - start_date)/timedelta(days=365))
-QALY_loss['QALY loss data (lower)'] = red*hospital_yearly_QALYs['yearly_QALYs_lower']*((end_date - start_date)/timedelta(days=365))
-QALY_loss['QALY loss data (upper)'] = red*hospital_yearly_QALYs['yearly_QALYs_upper']*((end_date - start_date)/timedelta(days=365))
-# Save result
-QALY_loss.to_csv(os.path.join(result_folder,f'QALY_loss_end_{end_date}_DATA.csv'))  
+strat = 100-100*out['H_adjusted'].mean(dim='draws').sum(dim='date').values/(7*baseline.groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
+total = 100-100*out['H_adjusted'].mean(dim='draws').sum(dim='date').sum(dim='MDC').values/(7*baseline.sum()*((stop-start)/timedelta(days=365)))
+QALY_df['Reduction (model)'] = list(strat.values) + [total,]
+# QALYs stratified
+total = np.array([0, 0, 0], dtype=float)
+for MDC_key in MDC_keys:
+    result = []
+    for column_QALY in ['yearly_QALYs_mean','yearly_QALYs_lower','yearly_QALYs_upper']:
+        result.append(strat.loc[MDC_key]/100*QALYs[column_QALY].loc[MDC_key]*((stop-start)/timedelta(days=365)))
+    total += result
+    QALY_df.loc[MDC_key, 'QALY loss (model)'] = f'{result[0]:.0f} ({result[1]:.0f}; {result[2]:.0f})'
+QALY_df.loc['Total', 'QALY loss (model)'] = f'{total[0]:.0f} ({total[1]:.0f}; {total[2]:.0f})'
+
+# MAE
+# ---
+
+MAE_list = []
+for MDC_key in MDC_keys: 
+    mae = MAE(normalised, out, start, stop, MDC_key)
+    QALY_df.loc[MDC_key, 'MAE (%)'] = f'{100*mae:.1f}'
+    MAE_list.append(mae)
+total = np.sum(100*np.array(MAE_list)*(baseline.groupby(by='APR_MDC_key').sum()/baseline.sum()))
+QALY_df.loc['Total', 'MAE (%)'] = f'{total:.1f}'
+QALY_df.to_csv(os.path.join(result_folder,f'summary_{start.strftime("%d-%m-%Y")}_{stop.strftime("%d-%m-%Y")}.csv'))  
+import sys
+sys.exit()

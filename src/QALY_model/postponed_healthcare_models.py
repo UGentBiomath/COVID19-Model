@@ -174,5 +174,4 @@ def draw_fcn(param_dict, samples_dict):
                 param_dict.update({param:par_array})
             else:
                 param_dict.update({param:samples_dict[param][idx]})
-
         return param_dict
