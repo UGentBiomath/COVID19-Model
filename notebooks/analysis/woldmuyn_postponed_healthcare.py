@@ -28,7 +28,7 @@ processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 samples_name = 'calibrate_end10_SAMPLES_2023-10-31.json'
 
 # What disease groups do you want to visualise?
-MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
+MDCs_2plot = ['02', '01', '03', '05', '06', '08', 'AA']
 MDC_translations = ['Nervous system (01)', 'Ear, nose, mouth, and throat (03)', 'Circulatory system (05)', 'Digestive system (06)', 'Muscoluskeletal system (08)', 'Psychiatry (AA)']
 MDCs_2plot = ['01', '05', '06', 'AA']
 MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
@@ -483,35 +483,6 @@ QALY_df = pd.DataFrame(index=idx, columns=['Reduction (data)', 'Reduction (model
 strat = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline.groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
 total = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline.sum()*((stop-start)/timedelta(days=365)))
 QALY_df['Reduction (data)'] = list(strat.values) + [total,]
-
-
-# print(QALY_df['Reduction (data)'] )
-# # baseline
-# rel_dir = '../../data/QALY_model/interim/postponed_healthcare'
-# file_name = 'MZG_baseline.csv'
-# types_dict = {'APR_MDC_key': str, 'week_number': int, 'day_number':int}
-# baseline = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1],dtype=types_dict).squeeze()
-
-# strat_lower = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline['q0.025'].groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
-# strat_upper = 100-100*raw.loc[slice(None),slice(start,stop)].groupby(by='APR_MDC_key').sum()/(7*baseline['q0.975'].groupby(by='APR_MDC_key').sum()*((stop-start)/timedelta(days=365)))
-
-# total_lower = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline['q0.025'].sum()*((stop-start)/timedelta(days=365)))
-# total_upper = 100-100*raw.loc[slice(None),slice(start,stop)].sum()/(7*baseline['q0.975'].sum()*((stop-start)/timedelta(days=365)))
-
-
-# strat_lower = 100-100*normalised['q0.025'].groupby(by='APR_MDC_key').mean()
-# strat_upper = 100-100*normalised['q0.975'].groupby(by='APR_MDC_key').mean()
-# strat_mean = 100-100*normalised['mean'].groupby(by='APR_MDC_key').mean()
-
-# print(strat_mean)
-# print(strat_lower)
-# print(strat_upper)
-
-# # print(total_lower)
-# # print(total_upper)
-
-# import sys
-# sys.exit()
 # QALYs stratified
 total = np.array([0, 0, 0], dtype=float)
 for MDC_key in MDC_keys:
@@ -549,5 +520,3 @@ for MDC_key in MDC_keys:
 total = np.sum(100*np.array(MAE_list)*(baseline.groupby(by='APR_MDC_key').sum()/baseline.sum()))
 QALY_df.loc['Total', 'MAE (%)'] = f'{total:.1f}'
 QALY_df.to_csv(os.path.join(result_folder,f'summary_{start.strftime("%d-%m-%Y")}_{stop.strftime("%d-%m-%Y")}.csv'))  
-import sys
-sys.exit()
