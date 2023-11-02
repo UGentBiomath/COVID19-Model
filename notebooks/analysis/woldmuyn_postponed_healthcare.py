@@ -25,17 +25,31 @@ N = int(args.N)
 processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 
 # What samples dictionary?
-samples_name = 'calibrate_end10_SAMPLES_2023-10-31.json'
+samples_name = 'calibrate_end10_coviddata_SAMPLES_2023-11-02.json'
 
 # What disease groups do you want to visualise?
-MDCs_2plot = ['01', '03', '05', '06', '08', 'AA']
-MDC_translations = ['Nervous system (01)', 'Ear, nose, mouth, and throat (03)', 'Circulatory system (05)', 'Digestive system (06)', 'Muscoluskeletal system (08)', 'Psychiatry (AA)']
-#MDCs_2plot = ['01', '05', '06', 'AA']
-#MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
+MDCs_2plot = ['00', '01', '02', '03', '04', '05', '06', '07', '08','09', '10', '11', '12', '13', '14', '15', '16',
+                '17', '18', '19', '20', '21', '22', '23', '24', '25', 'AA', 'PP']
+MDC_translations = ['Rest group (00)', 'Nervous system (01)', 'Eye (02)', 'Ear, nose, mouth, and throat (03)', 'Respiratory system (04)', 'Circulatory system (05)',
+                    'Digestive system (06)', 'Hepatobiliry system & pancreas (07)', 'Muscoluskeletal system (08)', 'Skin, subcutaneous tissue & breast (09)',
+                    'Metabolic diseases & disorders (10)', 'Kindney & urinary tract (11)', 'Male reproductive system (12)', 'Female reproductive system (13)',
+                    'Pregnancy, childbirth & the puerperium (14)', 'Newborns & other neonates (15)', 'Blood, blood-forming organs, immunologic disorders (16)',
+                    'Myeloproliferative diseases & disorders (17)', 'Infectious & parastitic diseases & disorders (18)', 'Mental diseases & disorders (19)',
+                    'Alcohol & drug use & alcohol/drug-induced mental disorders (20)', 'Injuries, poisonings & toxic effects of drugs (21)', 'Burns (22)',
+                    'Factors influencing health status & other contacts with health services (23)', 'HIV infections (24)', 'Multiple significant trauma (25)',
+                    'Psychiatry (AA)', 'Pre-MDC (PP)']
+
+# per 6
+MDCs_2plot = [ '24', '25', 'AA', 'PP']
+MDC_translations = ['HIV infections (24)', 'Multiple significant trauma (25)',
+                    'Psychiatry (AA)', 'Pre-MDC (PP)']
+# plot in manuscript
+# MDCs_2plot = ['01', '05', '06', 'AA']
+# MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
 
 # When to start and when to end the visualisation
-start_date = datetime(2020, 1, 1)
-end_date = datetime(2021, 1, 1)
+start_date = datetime(2020, 3, 1)
+end_date = datetime(2020, 10, 7)
 
 # When was the calibration started and ended?
 start_calibration = pd.to_datetime('2020-01-01')
@@ -56,7 +70,7 @@ from pySODM.models.base import ODE
 from functools import lru_cache
 from datetime import datetime
 
-use_covid_data = False
+use_covid_data = True
 
 ########
 # Data #
@@ -397,19 +411,22 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
         # fancy plot
         axs[i].grid(False)
         axs[i].set_title(MDC_translations[i], size=10)
-        axs[i].set_ylabel('Reduction\nin treatments (%)', size=10)
+        axs[i].set_ylabel('Reduction\nof treatments (%)', size=10)
         axs[i].axhline(y=100, color='r', linestyle ='dashed', alpha=1.0)
         # custom x-labels
         axs[i].set_xticks([datetime(2020,3,31),datetime(2020,5,31),datetime(2020,7,31), datetime(2020,9,30), datetime(2020,11,30)])
         # rotate slightly
         axs[i].tick_params(axis='both', which='major', labelsize=10, rotation=0)
         # set lims
-        axs[i].set_ylim([20,135])
+        if MDC_key != '04':
+            axs[i].set_ylim([0,200])
+        else:
+            axs[i].set_ylim([75,300])
         axs[i].set_xlim([start_date,end_date])
 
     # legend
     handles, plot_labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,0), loc='lower center',fancybox=False, shadow=False,ncol=5, fontsize=8)
+    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0), loc='lower center',fancybox=False, shadow=False,ncol=5, fontsize=8)
     # save figure
     #fig.tight_layout()
     fig.savefig(os.path.join(result_folder,'fit.pdf'))
@@ -471,8 +488,8 @@ for MDC_key in MDC_keys:
 
 print('5) Saving QALY losses to table')
 
-start=start_date # startdate script is March 1st, 2020
-stop=end_date
+start = start_date 
+stop = end_date
 # Pre-allocate dataframe
 idx = list(MDC_keys) + ['Total',]
 QALY_df = pd.DataFrame(index=idx, columns=['Reduction (data)', 'Reduction (model)', 'MAE (%)', 'QALY loss (data)', 'QALY loss (model)'])
