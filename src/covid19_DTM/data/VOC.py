@@ -17,8 +17,10 @@ def get_abc_data():
 
 def get_delta_data():
     # Copied from the molecular surveillance reported in the weekly Sciensano bulletins: https://covid-19.sciensano.be/sites/default/files/Covid19/COVID-19_Weekly_report_NL.pdf
-    dates = pd.date_range(start = '2021-06-16', end = '2021-08-18', freq='7D')
-    df_VOC_delta = pd.DataFrame(data=[0.284, 0.456, 0.675, 0.790, 0.902, 0.950, 0.960, 0.986, 0.992, 1], index=dates, columns=['delta'])
+    #dates = pd.date_range(start = '2021-06-16', end = '2021-08-18', freq='7D')
+    #df_VOC_delta = pd.DataFrame(data=[0.284, 0.456, 0.675, 0.790, 0.902, 0.950, 0.960, 0.986, 0.992, 1], index=dates, columns=['delta'])
+    dates = pd.date_range(start = '2021-05-17', end = '2021-08-18', freq='7D')
+    df_VOC_delta = pd.DataFrame(data=[0.0069, 0.0359, 0.07, 0.0725, 0.1155, 0.2358, 0.4454, 0.6753, 0.796, 0.8684, 0.9318, 0.9702, 0.98, 0.99], index=dates, columns=['delta'])
     return df_VOC_delta
 
 def get_omicron_data():
