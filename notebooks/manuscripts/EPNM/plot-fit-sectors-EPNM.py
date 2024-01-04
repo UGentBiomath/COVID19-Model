@@ -133,6 +133,11 @@ for i,date in enumerate(dates):
             # Sector label
             if sector in ['I', 'R', 'S']:
                 ax[0,i].annotate(sector,  xy=(x - 2, y + 2), fontsize=7)
+            # circle around transport
+            if sector == 'H':
+                from matplotlib import pyplot as plt, patches
+                circle = patches.Circle((x, y), radius=12, color='black', linewidth=0.75, linestyle='--', alpha=0.9, fill=False)
+                ax[0,i].add_patch(circle)
 
     dist_abs[i] = np.sum(dist_abs_temp)
     dist[i] = np.sum(dist_temp)
