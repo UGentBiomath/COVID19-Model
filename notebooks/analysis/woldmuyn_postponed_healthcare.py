@@ -28,7 +28,7 @@ processes = int(os.getenv('SLURM_CPUS_ON_NODE', mp.cpu_count()/2))
 samples_name = 'calibrate_end10_coviddata_SAMPLES_2023-11-02.json'
 
 # What disease groups do you want to visualise?
-MDCs_2plot = ['00', '01', '02', '03', '04', '05', '06', '07', '08','09', '10', '11', '12', '13', '14', '15', '16',
+MDCs_2plot = ['00', '01', '02', '03', '04', '05', '06', '07', '08','09', '10', '11', '12', '13', '14', '15', '16'
                 '17', '18', '19', '20', '21', '22', '23', '24', '25', 'AA', 'PP']
 MDC_translations = ['Rest group (00)', 'Nervous system (01)', 'Eye (02)', 'Ear, nose, mouth, and throat (03)', 'Respiratory system (04)', 'Circulatory system (05)',
                     'Digestive system (06)', 'Hepatobiliry system & pancreas (07)', 'Muscoluskeletal system (08)', 'Skin, subcutaneous tissue & breast (09)',
@@ -40,16 +40,17 @@ MDC_translations = ['Rest group (00)', 'Nervous system (01)', 'Eye (02)', 'Ear, 
                     'Psychiatry (AA)', 'Pre-MDC (PP)']
 
 # per 6
-MDCs_2plot = [ '24', '25', 'AA', 'PP']
-MDC_translations = ['HIV infections (24)', 'Multiple significant trauma (25)',
-                    'Psychiatry (AA)', 'Pre-MDC (PP)']
+#MDCs_2plot = ['24', '25', 'AA', 'PP']
+#MDC_translations = ['HIV infections (24)', 'Multiple significant trauma (25)',
+#                    'Psychiatry (AA)', 'Pre-MDC (PP)']
+
 # plot in manuscript
-# MDCs_2plot = ['01', '05', '06', 'AA']
-# MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Psychiatry (AA)']
+MDCs_2plot = ['01', '05', '06', '19']
+MDC_translations = ['Diseases & disorders of the nervous system (01)', 'Diseases & disorders of the circulatory system (05)', 'Diseases & disorders of the digestive system (06)', 'Mental diseases & disorders (19)']
 
 # When to start and when to end the visualisation
-start_date = datetime(2020, 3, 1)
-end_date = datetime(2020, 10, 7)
+start_date = datetime(2020, 1, 1)
+end_date = datetime(2021, 1, 1)
 
 # When was the calibration started and ended?
 start_calibration = pd.to_datetime('2020-01-01')
@@ -351,8 +352,10 @@ def MAE(data, out, start_date, end_date, MDC_key):
     data = data.reset_index()
     data = data[(data['date'] >= start_date) & (data['date'] <= end_date)]
     data = data.groupby(by=['APR_MDC_key', 'date']).last()
-    # copy output
+    # copy model output
     out_copy = out.copy()
+    # slice model output
+    out_copy.loc[dict(date=slice(start_date, end_date))]
     # select data
     y_data = data.loc[(MDC_key, slice(None)), 'mean']
     # get model prediction on same dates
@@ -389,9 +392,9 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
         y_model_lower =  100*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.025)
         y_model_upper = 100*out['H_norm'].sel(MDC=MDC_key).quantile(dim='draws', q=0.975)
         # compute MAE
-        mae = MAE(data, out, start_calibration, end_calibration, MDC_key)
+        mae = MAE(data, out, datetime(2020,3,1), datetime(2020,10,1), MDC_key)
         # put the MAE in a box
-        axs[i].text(0.015, 0.93, f'MAE = {100*mae:.1f} %', transform=axs[i].transAxes, fontsize=8, verticalalignment='top', bbox=box_props,)
+        #axs[i].text(0.015, 0.93, f'MAE = {100*mae:.1f} %', transform=axs[i].transAxes, fontsize=8, verticalalignment='top', bbox=box_props,)
         # visualise data (used for calibration)
         axs[i].scatter(calibration_data.index.get_level_values('date').unique(), 100*calibration_data.loc[MDC_key, :]['mean'], label='Data (calibration)', marker = 'o', s=15,
                         alpha=0.6, linewidth=1, color='black')
@@ -426,7 +429,7 @@ def plot_model_outputs(out, data, MDCs_2plot, start_calibration, end_calibration
 
     # legend
     handles, plot_labels = axs[0].get_legend_handles_labels()
-    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,-0), loc='lower center',fancybox=False, shadow=False,ncol=5, fontsize=8)
+    fig.legend(handles=handles,labels=plot_labels,bbox_to_anchor =(0.5,0), loc='lower center',fancybox=False, shadow=False,ncol=5, fontsize=8)
     # save figure
     #fig.tight_layout()
     fig.savefig(os.path.join(result_folder,'fit.pdf'))
