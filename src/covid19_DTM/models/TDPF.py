@@ -1363,7 +1363,7 @@ class make_contact_matrix_function():
                                                     1.12,               # Bxl
                                                     1, 1.13,            # F: W-Fla: 1.45
                                                     2.15, 1.93,         # W
-                                                    0.9,                  # F: Lim: 1.43
+                                                    0.9,                # F: Lim: 1.43
                                                     1.16, 1.30])        # W
             # Rescale Flanders and Wallonia/Bxl seperately based on two parameters
             mentality_summer_2020_lockdown[idx_F] *= summer_rescaling_F
@@ -1406,11 +1406,11 @@ class make_contact_matrix_function():
         return mentality_summer_2020_lockdown, idx_Hainaut
 
     def policies_no_lockdown(self, t, states, param, nc):
-        mat = self.__call__(datetime(2020, 1, 1), eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, school=1)
+        mat = self.__call__(datetime(2020, 1, 1), eff_home=1, eff_schools=1, eff_work=1, eff_rest=1, school_primary_secundary=1, school_tertiary=1)
         return nc[:, np.newaxis, np.newaxis]*mat
     
     def policies_no_lockdown_home(self, t, states, param, nc):
-        mat = self.__call__(datetime(2020, 1, 1), eff_home=1, eff_schools=0, eff_work=0, eff_rest=0, school=0) 
+        mat = self.__call__(datetime(2020, 1, 1), eff_home=1, eff_schools=0, eff_work=0, eff_rest=0, school_primary_secundary=0, school_tertiary=0) 
         return nc[:, np.newaxis, np.newaxis]*mat
 
     def policies_all_spatial(self, t, states, param, l1, l2, eff_schools, eff_work, eff_rest, eff_home, mentality, k, summer_rescaling_F, summer_rescaling_W, summer_rescaling_B):
