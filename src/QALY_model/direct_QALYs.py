@@ -488,7 +488,7 @@ def lost_QALYs(out, AD_non_hospitalised=False, SMR=1, r=0.03, draws=1000):
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
     rel_dir = '../../data/QALY_model/interim/long_COVID/'
-    file_name = f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}.csv'
+    file_name = f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}_r{r*100:.0f}.csv'
     average_QALY_losses = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1])
     age_groups = average_QALY_losses.index.get_level_values('age_group').unique()
 

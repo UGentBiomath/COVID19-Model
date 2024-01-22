@@ -19,11 +19,14 @@ import os
 import multiprocessing as mp
 import pandas as pd
 
+# parse arguments
 parser = argparse.ArgumentParser()
+parser.add_argument("-r", "--discounting", help="Discounting", default=0.03)
 parser.add_argument("-s", "--SMR", help="SMR", default=1)
 parser.add_argument("-n", "--N", help="DTM simulations", default=50)
 args = parser.parse_args()
-
+# format arguments
+r = float(args.discounting)
 SMR = float(args.SMR)
 N = int(args.N)
 
@@ -75,8 +78,8 @@ if __name__ == '__main__':
     #######################
 
     print('\n3) Calculating QALYs')
-    out_AD = lost_QALYs(out,AD_non_hospitalised=True,SMR=SMR)
-    out_no_AD = lost_QALYs(out,AD_non_hospitalised=False,SMR=SMR)
+    out_AD = lost_QALYs(out, AD_non_hospitalised=True, SMR=SMR, r=r)
+    out_no_AD = lost_QALYs(out, AD_non_hospitalised=False, SMR=SMR, r=r)
 
     ####################
     ## Visualisations ##
@@ -114,7 +117,7 @@ if __name__ == '__main__':
       ax.grid(False)
       ax.tick_params(axis='both', which='major', labelsize=10)
       ax.tick_params(axis='x', which='major', rotation=30)
-      ax.set_ylim([0,3200])
+      ax.set_ylim([0,2500])
     axes[0].legend(loc=2, framealpha=1, fontsize=10)
     axes[0].set_ylabel('QALYs lost per 100K inhab.', size=10)
 
@@ -204,4 +207,4 @@ if __name__ == '__main__':
         
         QALY_table[total_label]['Total'] = f'{mean:.0f}\n({lower:.0f}; {upper:.0f})'
 
-    QALY_table.to_csv(os.path.join(result_folder,f'Long_COVID_summary_SMR{SMR*100:.0f}.csv'))
+    QALY_table.to_csv(os.path.join(result_folder,f'Long_COVID_summary_SMR{SMR*100:.0f}_r{r*100:.0f}.csv'))
