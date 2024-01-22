@@ -4,8 +4,8 @@ Visualizations are saved to results/preprocessing/QALY/long_COVID
 
 """ 
 
-__author__      = "Wolf Demuynck"
-__copyright__   = "Copyright (c) 2022 by W. Demuynck, BIOMATH, Ghent University. All Rights Reserved."
+__author__      = "Wolf Demuynck, Tijs Alleman"
+__copyright__   = "Copyright (c) 2024 by T. Alleman, BIOMATH, Ghent University. All Rights Reserved."
 
 import argparse
 from covid19_DTM.models.utils import initialize_COVID19_SEIQRD_hybrid_vacc
