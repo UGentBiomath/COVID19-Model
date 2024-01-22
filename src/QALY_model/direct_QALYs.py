@@ -176,7 +176,7 @@ class life_table_QALY_model():
             LE_x.index.name = 'x'
         return LE_x
     
-    def compute_QALY_D_x(self,SMR=1,r=0.03):
+    def compute_QALY_D_x(self, SMR=1, r=0.03):
         """ A function to compute the QALY loss upon death at age x
 
         Parameters
@@ -472,7 +472,7 @@ def lost_QALYs(out, AD_non_hospitalised=False, SMR=1, r=0.03, draws=1000):
 
     Changing the discount factor is currently only applied to the COVID-19 deaths.
     """
-    
+
     # Enlarge out to contain at least 200 draws
     if 'draws' not in out.dims:
         out_enlarged = out.expand_dims(dim={'draws':draws})
@@ -514,7 +514,7 @@ def lost_QALYs(out, AD_non_hospitalised=False, SMR=1, r=0.03, draws=1000):
 
     # Calculate QALY losses due COVID death
     Life_table = life_table_QALY_model()
-    QALY_D_per_age = Life_table.compute_QALY_D_x(SMR=SMR, r=0.03)
+    QALY_D_per_age = Life_table.compute_QALY_D_x(SMR=SMR, r=r)
     QALY_D_per_age_group = bin_data(QALY_D_per_age)
 
     out_enlarged['QALY_D'] = out_enlarged['D']*np.array(QALY_D_per_age_group)[np.newaxis,np.newaxis,:,np.newaxis]
