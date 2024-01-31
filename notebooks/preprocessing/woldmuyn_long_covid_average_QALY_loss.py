@@ -20,8 +20,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import matplotlib.cm as cm
-from matplotlib import font_manager
 from scipy.integrate import quad
 from scipy.optimize import minimize
 import emcee
@@ -32,10 +30,12 @@ Life_table = life_table_QALY_model()
 
 # optinal arguments to pass: SMR and draws
 parser = argparse.ArgumentParser()
+parser.add_argument("-r", "--discounting", help="Discounting", default=0.03)
 parser.add_argument("-s", "--SMR", help="SMR", default=1)
-parser.add_argument("-d", "--draws", help="draws from QoL and f_AD", default=200)
+parser.add_argument("-d", "--draws", help="draws from QoL and f_AD", default=500)
 args = parser.parse_args()
 # format arguments
+r = float(args.discounting)
 SMR = float(args.SMR)
 draws = int(args.draws)
 
@@ -106,9 +106,13 @@ for directory in [data_result_folder, fig_result_folder]:
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-################
-## Prevalence ##
-################
+############################
+## Fit models to the data ##
+############################
+
+#------------#
+# Prevalence #
+#------------#
 
 print('\n(2) Calculate prevalence\n')
 print('\n(2.1) Estimate tau\n')
@@ -280,9 +284,9 @@ axes[0].set_ylabel('Symptom prevalence (%)', size=10)
 plt.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'prevalence_MCMC_fit.pdf'))
 
-#########
-## QoL ##
-#########
+#-----#
+# QoL #
+#-----#
 
 print('\n(3) Fit exponential curve to QoL scores\n')
 
@@ -304,20 +308,18 @@ ax.grid(False)
 plt.tight_layout()
 fig.savefig(os.path.join(abs_dir,fig_result_folder,'QoL_Belgium_fit.pdf'))
 
-#######################
-## Average QALY loss ##
-#######################
+###############################
+## Compute average QALY loss ##
+###############################
 
 print('\n(4.1) Calculate average QALY loss for each age\n')
 
 prevalence_func = lambda t,tau, p_AD: p_AD + (1-p_AD)*np.exp(-t/tau)
 
 # QALY loss func for fixed QoL after but beta is absolute difference and changing over time due to decreasing QoL reference
-def QALY_loss_func(t,tau,p_AD,age,QoL_after):
+def QALY_loss_func(t, r, tau, p_AD, age, QoL_after):
     beta = QoL_Belgium_func(age+t/12)-QoL_after
-    return prevalence_func(t,tau,p_AD) * max(0,beta)
-
-draws = 500
+    return prevalence_func(t,tau,p_AD) * max(0, beta) / (1+r)**(t/12)
 
 # Pre-allocate new multi index series with index=hospitalisation,age,draw
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],np.arange(draws),LE_table.index.values],names=['hospitalisation','draw','age'])
@@ -343,8 +345,8 @@ for idx,(hospitalisation,draw,age) in enumerate(tqdm(multi_index)):
 
     # calculate the fixed QoL after getting infected for each age
     QoL_after = QoL_Belgium_func(age)-beta
-    # integrate QALY_loss_func from 0 to LE (OPM: kan ook discreet) 
-    QALY_loss = quad(QALY_loss_func,0,LE,args=(tau,p_AD,age,QoL_after))[0]/12 
+    # integrate QALY_loss_func from 0 to LE (can be done discretely as well) 
+    QALY_loss = quad(QALY_loss_func,0,LE,args=(r, tau,p_AD,age,QoL_after))[0]/12 
     average_QALY_losses_per_age.iloc[idx] = QALY_loss
 
 print('\n(4.2) Bin average QALY loss per age to age groups\n')
@@ -372,7 +374,7 @@ for hospitalisation in hospitalisation_groups+['Non-hospitalised (no AD)']:
     average_QALY_losses_per_age_summary['lower'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).apply(get_lower)
     average_QALY_losses_per_age_summary['upper'][hospitalisation] = average_QALY_losses_per_age[hospitalisation].groupby(['age']).apply(get_upper)
 
-average_QALY_losses_per_age_summary.to_csv(os.path.join(abs_dir,data_result_folder,f'average_QALY_losses_per_age_SMR{SMR*100:.0f}.csv'))
+average_QALY_losses_per_age_summary.to_csv(os.path.join(abs_dir,data_result_folder,f'average_QALY_losses_per_age_SMR{SMR*100:.0f}_r{r*100:.0f}.csv'))
 
 # average QALY per age group
 multi_index = pd.MultiIndex.from_product([hospitalisation_groups+['Non-hospitalised (no AD)'],average_QALY_losses_per_age_group.index.get_level_values('age_group').unique()],names=['hospitalisation','age_group'])
@@ -384,7 +386,7 @@ for hospitalisation in hospitalisation_groups+['Non-hospitalised (no AD)']:
     average_QALY_losses_per_age_group_summary['lower'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).apply(get_lower)
     average_QALY_losses_per_age_group_summary['upper'][hospitalisation] = average_QALY_losses_per_age_group[hospitalisation].groupby(['age_group']).apply(get_upper)
 
-average_QALY_losses_per_age_group_summary.to_csv(os.path.join(abs_dir,data_result_folder,f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}.csv'))
+average_QALY_losses_per_age_group_summary.to_csv(os.path.join(abs_dir,data_result_folder,f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}_r{r*100:.0f}.csv'))
 
 print('\n(6) Visualise results\n')
 
@@ -416,7 +418,7 @@ ax.set_ylabel(r'$QALY_D$')
 ax.tick_params(axis='both', which='major', labelsize=8)
 ax.legend()
 fig.tight_layout()
-fig.savefig(os.path.join(abs_dir,fig_result_folder,f'QALY_D_SMR{SMR*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'QALY_D_SMR{SMR*100:.0f}_r{r*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
 
 # Life expectancy
 fig,ax = plt.subplots(figsize=(3,3))
@@ -426,4 +428,4 @@ ax.set_ylabel('Life expectancy (years)')
 ax.set_xlabel('Age (years)')
 ax.tick_params(axis='both', which='major', labelsize=8)
 fig.tight_layout()
-fig.savefig(os.path.join(abs_dir,fig_result_folder,f'LE_SMR{SMR*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
+fig.savefig(os.path.join(abs_dir,fig_result_folder,f'LE_SMR{SMR*100:.0f}_r{r*100:.0f}.pdf'),dpi=600,bbox_inches='tight')
