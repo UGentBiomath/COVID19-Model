@@ -176,7 +176,7 @@ class life_table_QALY_model():
             LE_x.index.name = 'x'
         return LE_x
     
-    def compute_QALY_D_x(self,SMR=1,r=0):
+    def compute_QALY_D_x(self, SMR=1, r=0.03):
         """ A function to compute the QALY loss upon death at age x
 
         Parameters
@@ -434,7 +434,7 @@ def bin_data(data, age_groups=pd.IntervalIndex.from_tuples([(0,12),(12,18),(18,2
         data_binned[idx] = sum(result)
     return data_binned
 
-def lost_QALYs(out,AD_non_hospitalised=False,SMR=1,draws=500):
+def lost_QALYs(out, AD_non_hospitalised=False, SMR=1, r=0.03, draws=1000):
     """
     This function calculates the expected number of QALYs lost given
     the output of the pandemic model. 
@@ -451,20 +451,34 @@ def lost_QALYs(out,AD_non_hospitalised=False,SMR=1,draws=500):
         Output of the pandemic model
     
     AD_non_hospitalised: bool
-        If False, there is assumed non-hospitalised patients does not suffer from AD
+        If False, it is assumed non-hospitalised patients does not suffer from AD
     
+    SMR: float
+        Standardised mortality ratio
+
+    r: float
+        Discount factor.
+
+    draws: int/float
+        Number of draws from distribution of QALY losses due to long-COVID
+
     Returns
     -------
     out_sup xarray
-        Out supplemented with QALY lost
+        Out supplemented with the lost QALYs
     
+    Attention
+    ---------
+
+    Changing the discount factor is currently only applied to the COVID-19 deaths.
     """
+
     # Enlarge out to contain at least 200 draws
     if 'draws' not in out.dims:
-        out_enlarged = out.expand_dims(dim={'draws':500})
+        out_enlarged = out.expand_dims(dim={'draws':draws})
     else:
         sim_draws = out.dims['draws']
-        out_enlarged = xr.concat([out]*int(np.ceil(500/sim_draws)), dim='draws')
+        out_enlarged = xr.concat([out]*int(np.ceil(draws/sim_draws)), dim='draws')
 
     if AD_non_hospitalised:
         hospitalisation_groups = ['Non-hospitalised','Hospitalised (no IC)','Hospitalised (IC)']
@@ -474,11 +488,11 @@ def lost_QALYs(out,AD_non_hospitalised=False,SMR=1,draws=500):
     # Load average QALY losses
     abs_dir = os.path.dirname(__file__)
     rel_dir = '../../data/QALY_model/interim/long_COVID/'
-    file_name = f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}.csv'
+    file_name = f'average_QALY_losses_per_age_group_SMR{SMR*100:.0f}_r{r*100:.0f}.csv'
     average_QALY_losses = pd.read_csv(os.path.join(abs_dir,rel_dir,file_name),index_col=[0,1])
     age_groups = average_QALY_losses.index.get_level_values('age_group').unique()
 
-    # Multiply average QALY loss with number of paients
+    # Multiply average QALY loss with number of patients
     hospitalisation_abbreviations = ['NH','C','ICU']
     for hospitalisation,hospitalisation_abbreviation in zip(hospitalisation_groups,hospitalisation_abbreviations):
 
@@ -500,7 +514,7 @@ def lost_QALYs(out,AD_non_hospitalised=False,SMR=1,draws=500):
 
     # Calculate QALY losses due COVID death
     Life_table = life_table_QALY_model()
-    QALY_D_per_age = Life_table.compute_QALY_D_x(SMR=SMR)
+    QALY_D_per_age = Life_table.compute_QALY_D_x(SMR=SMR, r=r)
     QALY_D_per_age_group = bin_data(QALY_D_per_age)
 
     out_enlarged['QALY_D'] = out_enlarged['D']*np.array(QALY_D_per_age_group)[np.newaxis,np.newaxis,:,np.newaxis]
