@@ -464,13 +464,13 @@ def get_COVID19_SEIQRD_VOC_parameters(VOCs=['WT', 'abc', 'delta', 'omicron'], pa
         index=['WT', 'abc', 'delta', 'omicron'], columns=pd.MultiIndex.from_tuples(columns))
 
     # Define logistic growth properties
-    VOC_parameters.loc['WT']['logistic_growth'] = [
+    VOC_parameters.loc['WT', 'logistic_growth'] = [
         datetime(2019, 1, 1), datetime(2019, 2, 1), 0.20]
-    VOC_parameters.loc['abc']['logistic_growth'] = [
+    VOC_parameters.loc['abc', 'logistic_growth'] = [
         datetime(2020, 12, 1), datetime(2021, 2, 14), 0.07]
-    VOC_parameters.loc['delta']['logistic_growth'] = [
+    VOC_parameters.loc['delta', 'logistic_growth'] = [
         datetime(2021, 5, 1), datetime(2021, 6, 25), 0.11]
-    VOC_parameters.loc['omicron']['logistic_growth'] = [
+    VOC_parameters.loc['omicron', 'logistic_growth'] = [
         datetime(2021, 11, 26), datetime(2021, 12, 24), 0.19]
 
     # Define variant properties
