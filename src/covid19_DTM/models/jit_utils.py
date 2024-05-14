@@ -76,3 +76,43 @@ def matmul_q_2D(A,B):
                 for k in range(f):
                     out[i, j, q] += A[i, k] * b[k, j]
     return out
+
+@jit(nopython=True)
+def redistribute_infections(S, I, G):
+    """ 
+    A jitted function to redistribute the number of drawn infections happening on the visited patch across the residency patches
+
+    Inputs
+    ------
+
+    S : np.ndarray (11,10,4)
+        Susceptibles
+
+    I : np.ndarray (11,10,4)
+        Number of infections happening on the visited patch
+
+    G : np.ndarray (11,11)
+        Origin-destination matrix
+    
+    Outputs
+    -------
+
+    I_star : np.ndarray (11,10,4)
+        Number of infections happening on visited patch, redistributed across residencies
+    """
+
+    # Compute ratio susceptibles on home over visited patch
+    div = S / matmul_q_2D(np.transpose(G), S)
+    # Compute fraction of susceptibles in spatial patch i coming from spatial patch j
+    out = np.zeros(S.shape)
+    # age
+    for j in range(S.shape[1]):
+        # vaccine
+        for k in range(S.shape[2]):
+            # Construct matrix
+            mat = G * div[:,j,k][:, np.newaxis]
+            # Matrix multiply
+            res = mat @ I[:,j,k]
+            # Assing to output
+            out[:,j,k] = res
+    return out

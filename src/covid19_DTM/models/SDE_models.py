@@ -1,7 +1,7 @@
 # Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
-from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D, redistribute_infections
 from pySODM.models.base import JumpProcess
 
 class COVID19_SEIQRD_hybrid_vacc_sto(JumpProcess):
@@ -284,7 +284,6 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(JumpProcess):
         multip_work = beta*np.expand_dims(jit_matmul_3D_2D(Nc - Nc_home, infpop_work), axis=2) # All contacts minus home contacts on visited patch
         multip_rest = beta*np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_home), axis=2) # Home contacts always on home patch
 
-
         ################################
         ## Compute the transitionings ##
         ################################
@@ -388,6 +387,12 @@ class COVID19_SEIQRD_spatial_hybrid_vacc_sto(JumpProcess):
         dS[:,:,3] = dS[:,:,3] + N_vacc[:,:,3]*f_S
         dR[:,:,3] = dR[:,:,3] + N_vacc[:,:,3]*f_R
 
+        # We have the number of new infections happening on a visited spatial patch
+        # --> These need to be transformed back into the place of residency
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Convert the number of infections to float and then copy to guarantee the array is contiguous for numba performance
+        transitionings['S_work'][0] = np.rint(np.nan_to_num(redistribute_infections(S, transitionings['S_work'][0].astype(float).copy(), place_eff), nan=0.0))
 
         # Update the system
         # ~~~~~~~~~~~~~~~~~

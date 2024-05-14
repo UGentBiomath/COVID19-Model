@@ -2,7 +2,7 @@
 
 import numpy as np
 from pySODM.models.base import ODE
-from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D
+from covid19_DTM.models.jit_utils import jit_matmul_2D_1D, jit_matmul_3D_2D, jit_matmul_klm_m, jit_matmul_klmn_n, matmul_q_2D, redistribute_infections
 
 class simple_multivariant_SIR(ODE):
     """
@@ -396,15 +396,23 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODE):
         multip_work = beta*np.expand_dims(jit_matmul_3D_2D(Nc_home, infpop_work), axis=2)
         multip_rest = beta*np.expand_dims(jit_matmul_3D_2D(Nc-Nc_home, infpop_home), axis=2)
 
-        # Compute rates of change
-        dS_inf = (S_work * multip_work + S_post_vacc * multip_rest)*e_s
+        # Compute total number of 
+        dS_work = S_work * multip_work * e_s
+        dS_rest = S_post_vacc * multip_rest * e_s
+
+        # We have the number of new infections happening on a visited spatial patch
+        # --> These need to be transformed back into the place of residency
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Convert the number of infections to float and then copy to guarantee the array is contiguous for numba performance
+        dS_work = np.rint(np.nan_to_num(redistribute_infections(S_post_vacc, dS_work.astype(float).copy(), place_eff), nan=0.0))
 
         ############################
         ## Compute system of ODEs ##
         ############################
 
-        dS  = dS - dS_inf
-        dE  = dS_inf - (1/sigma)*E
+        dS  = dS - dS_work - dS_rest
+        dE  = dS_work + dS_rest - (1/sigma)*E
         dI = (1/sigma)*E - (1/omega)*I
         dA = (a/omega)*I - (1/da)*A
         dM_R = (1-h_acc)*((1-a)/omega)*I - (1/dm)*M_R
