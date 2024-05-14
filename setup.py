@@ -13,15 +13,9 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'xlrd',
-	    'openpyxl',
-        'zarr',
-        'emcee',
-        'xarray',
-        'rbfopt',
+        'openpyxl',
         'numba',
-        'SAlib',
-        'h5py'
+        'pySODM',
     ],
     extras_require={
         "develop":  ["pytest",

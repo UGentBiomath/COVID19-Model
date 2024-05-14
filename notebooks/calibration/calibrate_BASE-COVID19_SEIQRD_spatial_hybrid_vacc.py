@@ -32,8 +32,6 @@ from pySODM.optimization.utils import assign_theta, variance_analysis
 from pySODM.optimization.mcmc import perturbate_theta, run_EnsembleSampler, emcee_sampler_to_dictionary
 from pySODM.optimization.objective_functions import log_posterior_probability, log_prior_uniform, ll_poisson, ll_negative_binomial
 
-import warnings
-warnings.filterwarnings("ignore")
 
 ####################################
 ## Public or private spatial data ##
@@ -237,7 +235,7 @@ if __name__ == '__main__':
     # Join them together
     pars = pars1 + pars2 + pars3 + pars4
     bounds = bounds1 + bounds2 + bounds3 + bounds4
-    labels = ['$\\Omega$', '$\Psi$', '$k$', '$\Psi_{F}$', '$\Psi_{W}$', '$\Psi_{B}$', '$K_{inf, abc}$', '$K_{inf,\\delta}$', '$A$', '$f_h$']
+    labels = [r'$\Omega$', r'$\Psi$', '$k$', r'$\Psi_{F}$', r'$\Psi_{W}$', r'$\Psi_{B}$', r'$K_{inf, abc}$', r'$K_{inf,\delta}$', '$A$', '$f_h$']
     # Setup objective function with uniform priors
     objective_function = log_posterior_probability(model,pars,bounds,data,states,log_likelihood_fnc,log_likelihood_fnc_args,labels=labels, aggregation_function=aggregate_Brussels_Brabant_DataArray)
 
