@@ -405,7 +405,7 @@ class COVID19_SEIQRD_spatial_hybrid_vacc(ODE):
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         # Convert the number of infections to float and then copy to guarantee the array is contiguous for numba performance
-        dS_work = np.rint(np.nan_to_num(redistribute_infections(S, dS_work, place_eff), nan=0.0))
+        dS_work = np.rint(np.nan_to_num(redistribute_infections(S_post_vacc, dS_work.astype(float).copy(), place_eff), nan=0.0))
 
         ############################
         ## Compute system of ODEs ##
