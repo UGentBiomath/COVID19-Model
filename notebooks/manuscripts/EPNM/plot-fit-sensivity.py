@@ -29,30 +29,30 @@ state = 'x'
 ## Define draw functions ##
 ###########################
 
-def draw_function_b(param_dict, samples_dict):
-    param_dict['b_s'] = np.random.uniform(low=0.5, high=1)
-    return param_dict
+def draw_function_b(parameters):
+    parameters['b_s'] = np.random.uniform(low=0.5, high=1)
+    return parameters
 
-def draw_function_L(param_dict, samples_dict):
-    param_dict['L'] = np.random.uniform(low=0.5, high=1)
-    return param_dict
+def draw_function_L(parameters):
+    parameters['L'] = np.random.uniform(low=0.5, high=1)
+    return parameters
 
-def draw_function_delta_S(param_dict, samples_dict):
-    param_dict['delta_S'] = np.random.uniform(low=0.5, high=1)
-    return param_dict
+def draw_function_delta_S(parameters):
+    parameters['delta_S'] = np.random.uniform(low=0.5, high=1)
+    return parameters
 
-def draw_function_rho(param_dict, samples_dict):
-    param_dict['rho'] = np.random.uniform(low=0.99, high=0.999) # 0.1 to 1 quarter
-    return param_dict
+def draw_function_rho(parameters):
+    parameters['rho'] = np.random.uniform(low=0.99, high=0.999) # 0.1 to 1 quarter
+    return parameters
 
-def draw_function_l_s(param_dict, samples_dict):
+def draw_function_l_s(parameters):
     r = np.random.uniform(low=0.70, high=1.30)
-    param_dict['l_s_1'] =  r*param_dict['l_s_1']
-    param_dict['l_s_2'] =  r*param_dict['l_s_2']
-    return param_dict
+    parameters['l_s_1'] =  r*parameters['l_s_1']
+    parameters['l_s_2'] =  r*parameters['l_s_2']
+    return parameters
 
 draw_functions = [draw_function_l_s, draw_function_b, draw_function_rho, draw_function_L, draw_function_delta_S]
-parameter_names = ['$\\epsilon_{i,t}^S$', '$b_t$', '$\\rho$', '$L$', '$\Delta S$']
+parameter_names = ['$\\kappa_{i,t}^S$', '$b_t$', '$\\rho$', '$L$', '$\\Delta S$']
 
 ######################
 ## Initialize model ##
@@ -69,7 +69,7 @@ fig,ax=plt.subplots(nrows=3, ncols=2, sharex=True, sharey=True, figsize=(8.27,11
 
 for i,draw_function in enumerate(draw_functions):
     # Simulate model
-    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=5*18, processes=18, samples={}, draw_function=draw_function)
+    out = model.sim([start_sim, end_sim], method='RK45', rtol=1e-4, N=5*16, processes=16, draw_function=draw_function)
     simtime = out['date'].values
     # Skip row 0, column 1
 
