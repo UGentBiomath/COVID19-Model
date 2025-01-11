@@ -1,15 +1,11 @@
 # General packages
-import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 # EPNM functions
 from EPNM.models.utils import initialize_model
-from EPNM.data.parameters import get_model_parameters
 from EPNM.data.utils import get_sector_labels, get_sector_names, aggregate_simulation, get_sectoral_conversion_matrix
-from EPNM.models.TDPF import household_demand_shock, compute_income_expectations
-from EPNM.models.draw_functions import draw_function as draw_function
-from EPNM.data.calibration_data import get_NAI_value_added, get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
+from EPNM.data.calibration_data import get_revenue_survey, get_employment_survey, get_synthetic_GDP, get_B2B_demand
 # Nicer colors
 colors = {"orange" : "#E69F00", "light_blue" : "#56B4E9",
           "green" : "#009E73", "yellow" : "#F0E442",
@@ -36,6 +32,7 @@ data_B2B = data_B2B.groupby([pd.Grouper(freq='Q', level='date'),] + [data_B2B.in
 # Initialize model
 params, model = initialize_model(shocks='pichler', prodfunc='half_critical')
 
+# Pichler parameters
 model.parameters.update({'gamma_F': 15, 'gamma_H': 30, 'tau': 10, 'rho': 1-(1-0.60)/90})
 
 # Aggregation functions
@@ -72,9 +69,6 @@ def aggregate_NACE21(simulation_in):
                                     coords = dict(NACE21=(['NACE21'], get_sector_labels('NACE21')),
                                     date=simulation_in.coords['date']))
     return simulation_out
-
-# Draw function
-from EPNM.models.draw_functions import draw_function
 
 # Simulate
 out = model.sim([start_sim, end_sim], tau=1)
