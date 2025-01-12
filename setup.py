@@ -21,6 +21,7 @@ setup(
         "develop":  ["pytest",
                      "sphinx",
                      "numpydoc",
+                     "setuptools",
                      "sphinx_rtd_theme",
                      "myst_parser[sphinx]"],
     }

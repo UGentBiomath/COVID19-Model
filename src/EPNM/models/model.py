@@ -1,4 +1,4 @@
-# Copyright (c) 2023 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
+# Copyright (c) 2025 by T.W. Alleman BIOMATH, Ghent University. All Rights Reserved.
 
 import numpy as np
 from pySODM.models.base import ODE
