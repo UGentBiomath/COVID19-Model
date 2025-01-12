@@ -126,7 +126,7 @@ for i,date in enumerate(dates):
             dist_temp.append(B2B_demand[j]/sum(B2B_demand)*(abs(x)-abs(y.values)) )
             # Sector label
             if sector in ['I', 'R', 'S']:
-                ax[0,i].annotate(sector,  xy=(x - 2, y + 2), fontsize=7)
+                ax[0,i].annotate(sector,  xy=(x - 2, y + 2), fontsize=6)
             # circle around transport
             if sector == 'H':
                 from matplotlib import pyplot as plt, patches
@@ -155,8 +155,8 @@ ax[0,0].set_ylabel('B2B transactions\nprediction (%)')
 datasets = [data_GDP, data_revenue, data_employment]
 states = ['x', 'x', 'l']
 sizes = [params['x_0'], params['x_0'], params['l_0']]
-print_label = [['G45',],['G45','N79', 'R93'],['G45','N79', 'R93']]
-offset = [[-4,5],[-4,5],[-4,5]]
+print_label = [['G45', 'H49', 'N77'],['G45','N79', 'R93','I55-56', 'H49'],['G45','N79', 'R93','I55-56', 'H49']]
+offset = [[-5,5],[-5,5],[-5,5]]
 ylabels = ['Synthetic GDP\nprediction (%)', 'Revenue\nprediction (%)', 'Employment\nprediction (%)']
 
 #########
@@ -199,7 +199,14 @@ for k, data in enumerate(datasets):
                 cumsize.append(sizes[k][get_sector_labels('NACE64').index(sector)]/sum(sizes[k]))
                 # Sector label
                 if sector in print_label[k]:
-                    ax[k+1,i].annotate(sector,  xy=(x + offset[k][0], y + offset[k][1]), fontsize=7)
+                    if ((k == 1) & (i == 0) & (sector == 'I55-56')):
+                        pass
+                    elif ((k == 2) & (i == 0) & (sector == 'I55-56')):
+                        pass
+                    elif ((k == 2) & (i == 2) & (sector == 'I55-56')):
+                        pass
+                    else:
+                        ax[k+1,i].annotate(sector,  xy=(x + offset[k][0], y + offset[k][1]), fontsize=6)
                 # Circle around transport
                 if ((sector == 'H49')):
                     from matplotlib import pyplot as plt, patches
