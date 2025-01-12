@@ -21,7 +21,7 @@ jobs:
         pip install -e .[develop]
     - name: Build documentation
       run: |
-        python setup.py build_sphinx
+        sphinx-build docs build/sphinx/
     - name: Deploy documentation
       uses: peaceiris/actions-gh-pages@v3
       with:
